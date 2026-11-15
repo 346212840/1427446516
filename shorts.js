@@ -1290,9 +1290,13 @@
       var current = player.currentLevel;
       var pinned = pinRef.climb;
       if (current >= 0 && current < pinned) {
-        player.currentLevel = current + 1;
-        showLiveLevel(player, player.currentLevel, pinned);
-        if (player.currentLevel < pinned) climbLive(player, pinRef);
+        /* currentLevel still names the fragment on screen right after this
+           write. Label the rung we asked for, or a two-rung live never
+           shows the top. */
+        var next = current + 1;
+        player.currentLevel = next;
+        showLiveLevel(player, next, pinned);
+        if (next < pinned) climbLive(player, pinRef);
       }
     }, 20000);
   }
@@ -1308,8 +1312,9 @@
       stalls = 0;
       var current = player.currentLevel;
       if (current > 0) {
-        player.currentLevel = current - 1;
-        showLiveLevel(player, player.currentLevel, pinRef.level);
+        var next = current - 1;
+        player.currentLevel = next;
+        showLiveLevel(player, next, pinRef.level);
         climbLive(player, pinRef);
       }
     });

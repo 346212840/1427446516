@@ -54,15 +54,18 @@ async function assertClimb(page) {
   const started = Date.now();
   let first = 0;
   while (Date.now() - started < 28000) {
-    const height = await page.evaluate(() => {
+    const snap = await page.evaluate(() => {
       const video = document.querySelector("#shorts-live-player video");
-      return video ? video.videoHeight : 0;
+      const label = document.querySelector("#shorts-live-player .shorts-live-q");
+      return { h: video ? video.videoHeight : 0, q: label ? label.textContent : "" };
     });
     const prev = trace.length ? trace[trace.length - 1].h : -1;
-    if (height !== prev) trace.push({ t: Date.now() - started, h: height });
-    if (!first && height > 0) first = height;
-    if (first && height > first) {
+    if (snap.h !== prev) trace.push({ t: Date.now() - started, h: snap.h, q: snap.q });
+    if (!first && snap.h > 0) first = snap.h;
+    if (first && snap.h > first) {
       console.log("climb " + JSON.stringify(trace));
+      if (snap.q === first + "p") fail("quality label stayed on the start rung " + JSON.stringify(trace));
+      if (snap.q !== "Origin") fail("quality label did not reach the top rung " + JSON.stringify(trace));
       return;
     }
     await page.waitForTimeout(400);
