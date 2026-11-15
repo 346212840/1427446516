@@ -1097,10 +1097,10 @@ async function handleLogin(request, env) {
    day, and at most once an hour on this isolate. */
 const SLIDE_HOLD_MS = 60 * 60 * 1000;
 const slideSeen = new Map();
-export function sessionNeedsSlide(expiresAt, now, sessionMs) {
+export function sessionNeedsSlide(expiresAt, now) {
   const left = Number(expiresAt) - Number(now);
   if (!(left > 0)) return false;
-  return left <= Number(sessionMs) - 24 * 60 * 60 * 1000;
+  return left <= 24 * 60 * 60 * 1000;
 }
 
 async function slideSession(env, request) {
@@ -1113,7 +1113,7 @@ async function slideSession(env, request) {
   if (slideSeen.size > 2000) slideSeen.clear();
   slideSeen.set(hash, now);
   const row = await env.DB.prepare("SELECT expires_at FROM sessions WHERE token_hash = ?").bind(hash).first();
-  if (!row || !sessionNeedsSlide(row.expires_at, now, SESSION_MS)) return;
+  if (!row || !sessionNeedsSlide(row.expires_at, now)) return;
   await env.DB.prepare("UPDATE sessions SET expires_at = ? WHERE token_hash = ? AND expires_at > ?").bind(now + SESSION_MS, hash, now).run();
 }
 

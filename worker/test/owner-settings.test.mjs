@@ -53,12 +53,15 @@ test.before(async () => {
 
 test.after(async () => { if (mf) await mf.dispose(); });
 
-test("a session still inside its 60 days is not rewritten", () => {
+test("a session slides only when a day or less is left", () => {
   const now = 1_000_000;
   const day = 24 * 60 * 60 * 1000;
   const session = 60 * day;
   assert.equal(sessionNeedsSlide(now + session, now, session), false);
+  assert.equal(sessionNeedsSlide(now + 30 * day, now, session), false);
+  assert.equal(sessionNeedsSlide(now + day + 1, now, session), false);
   assert.equal(sessionNeedsSlide(now + day, now, session), true);
+  assert.equal(sessionNeedsSlide(now + day - 1, now, session), true);
   assert.equal(sessionNeedsSlide(now - 1, now, session), false);
 });
 
