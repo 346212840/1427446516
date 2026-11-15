@@ -195,6 +195,17 @@ test("only the owner manages settings; locks hold through member syncs", async (
   const patch = await call("/v1/profile", { method: "PATCH", token: member.token, body: { displayName: "Other name" } });
   assert.equal(patch.status, 200, JSON.stringify(patch.body));
   assert.equal(patch.body.account.displayName, "Birch");
+  const nested = await call(route, { method: "PUT", token: owner.token, body: { values: { notifNames: false } } });
+  assert.equal(nested.status, 200, JSON.stringify(nested.body));
+  const nestedPull = await call("/v1/sync", { token: member.token });
+  assert.equal(nestedPull.body.payload.notifPrivacy.names, false);
+  const homeOff = await call(route, { method: "PUT", token: owner.token, body: { values: { communitiesHome: false }, locks: { communitiesHome: true } } });
+  assert.equal(homeOff.status, 200, JSON.stringify(homeOff.body));
+  const homeRead = await call("/v1/communities/home", { token: member.token });
+  assert.equal(homeRead.status, 200, JSON.stringify(homeRead.body));
+  assert.equal(homeRead.body.showHome, false);
+  const homeWrite = await call("/v1/communities/home", { method: "POST", token: member.token, body: { showHome: true } });
+  assert.equal(homeWrite.body.showHome, false);
 
   // Each change is in the owner's access log.
   const audit = await call("/v1/owner/inspector/audit", { token: owner.token });

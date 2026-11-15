@@ -11628,6 +11628,11 @@ const here = parseRoute();
   }
   function wireSettingLocks() {
     let lockSnap = null;
+    const have = settingLocks();
+    if (Object.keys(have).length) {
+      lockSnap = JSON.stringify(have);
+      armLockClicks();
+    }
     window.addEventListener("viktorych-setting-locks", () => {
       const locks = settingLocks();
       const now = Object.keys(locks).length ? JSON.stringify(locks) : "";
