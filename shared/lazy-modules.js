@@ -33,6 +33,39 @@
   };
   var loads = {};
   var preloadStarted = false;
+  var pointers = 0;
+  var lastInput = 0;
+
+  /* A quiet script is a long task. It must not start while a click is
+     down, or in the moment after the finger lifts, or the nav click waits
+     on the parser. */
+  function noteInput() {
+    lastInput = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+  }
+  function watchInput() {
+    if (watchInput.done || typeof document === "undefined") return;
+    watchInput.done = true;
+    document.addEventListener("pointerdown", function () { pointers += 1; noteInput(); }, true);
+    document.addEventListener("pointerup", function () { pointers = Math.max(0, pointers - 1); noteInput(); }, true);
+    document.addEventListener("pointercancel", function () { pointers = Math.max(0, pointers - 1); noteInput(); }, true);
+  }
+  function inputQuiet() {
+    var now = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+    return pointers === 0 && now - lastInput > 400;
+  }
+  function whenQuiet(fn) {
+    watchInput();
+    function go() {
+      if (!inputQuiet()) { setTimeout(go, 80); return; }
+      if (typeof requestIdleCallback === "function") {
+        requestIdleCallback(function () {
+          if (!inputQuiet()) { go(); return; }
+          fn();
+        }, { timeout: 800 });
+      } else fn();
+    }
+    go();
+  }
 
   function notify(name, silent) {
     try {
@@ -44,7 +77,26 @@
      planner (Local AI) or its module (a deep link) would show a shell that
      cannot answer. Classic scripts also set async=false so a direct visit
      that already inserted them still runs them before app.js. */
-  function loadScripts(name, list, classic, done) {
+  function runFetched(name, src, next) {
+    fetch(src, { credentials: "same-origin" }).then(function (res) {
+      if (!res.ok) throw new Error("load");
+      return res.text();
+    }).then(function (code) {
+      whenQuiet(function () {
+        if (document.querySelector('script[src="' + src + '"], script[data-lazy="' + src + '"]')) { next(); return; }
+        var tag = document.createElement("script");
+        tag.setAttribute("data-lazy", src);
+        tag.text = code;
+        document.body.appendChild(tag);
+        next();
+      });
+    }).catch(function () {
+      delete loads[name];
+      next();
+    });
+  }
+
+  function loadScripts(name, list, classic, quiet, done) {
     var i = 0;
     function step() {
       if (i >= list.length) { done(); return; }
@@ -52,8 +104,9 @@
       var isStyle = /\.css(\?|$)/i.test(src);
       var already = isStyle
         ? document.querySelector('link[rel="stylesheet"][href="' + src + '"]')
-        : document.querySelector('script[src="' + src + '"]');
+        : document.querySelector('script[src="' + src + '"], script[data-lazy="' + src + '"]');
       if (already) { step(); return; }
+      if (!isStyle && classic && quiet) { runFetched(name, src, step); return; }
       if (!isStyle && !classic) {
         dynamicImport(new URL(src, document.baseURI).href).then(step, step);
         return;
@@ -79,15 +132,15 @@
     step();
   }
 
-  function loadOne(name, entry) {
+  function loadOne(name, entry, quiet) {
     var done, failed;
     var promise = new Promise(function (resolve) { done = resolve; failed = resolve; });
     var mods = entry.modules || [];
     var scripts = entry.scripts || [];
     if (!mods.length && !scripts.length) { done(); return promise; }
     /* Modules publish their globals. Classic scripts run after that. */
-    loadScripts(name, mods, false, function () {
-      loadScripts(name, scripts, !!entry.classic, function () { done(); });
+    loadScripts(name, mods, false, false, function () {
+      loadScripts(name, scripts, !!entry.classic, !!quiet, function () { done(); });
     });
     void failed;
     return promise;
@@ -130,7 +183,7 @@
       }
       return existing;
     }
-    var task = loadOne(name, REGISTRY[name]).then(function () {
+    var task = loadOne(name, REGISTRY[name], !!silent).then(function () {
       notify(name, !!task.silent);
     }, function () { /* offline or blocked; the page keeps its fallback */ });
     task.silent = !!silent;
