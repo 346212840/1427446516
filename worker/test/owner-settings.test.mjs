@@ -7,6 +7,7 @@ import { createRequire } from "node:module";
 import test from "node:test";
 import { Miniflare } from "miniflare";
 import { MANAGED, UNCOVERED, cleanValue, enforceLocks } from "../src/owner-settings.js";
+import { sessionNeedsSlide } from "../src/index.js";
 
 const require = createRequire(import.meta.url);
 const OWNER = "ownermaple";
@@ -51,6 +52,36 @@ test.before(async () => {
 });
 
 test.after(async () => { if (mf) await mf.dispose(); });
+
+test("a session slides only when a day or less is left", () => {
+  const now = 1_000_000;
+  const day = 24 * 60 * 60 * 1000;
+  const session = 60 * day;
+  assert.equal(sessionNeedsSlide(now + session, now, session), false);
+  assert.equal(sessionNeedsSlide(now + 30 * day, now, session), false);
+  assert.equal(sessionNeedsSlide(now + day + 1, now, session), false);
+  assert.equal(sessionNeedsSlide(now + day, now, session), true);
+  assert.equal(sessionNeedsSlide(now + day - 1, now, session), true);
+  assert.equal(sessionNeedsSlide(now - 1, now, session), false);
+});
+
+test("an unchanged sync does not rewrite the row", async () => {
+  const member = await signup("echolarch", "203.0.113.74");
+  const first = await call("/v1/sync", { method: "PUT", token: member.token, body: { payload: { appearance: "dim", autoplay: "wifi" } } });
+  assert.equal(first.status, 200, JSON.stringify(first.body));
+  const echo = await call("/v1/sync", { method: "PUT", token: member.token, body: { payload: first.body.payload, baseUpdatedAt: first.body.updatedAt } });
+  assert.equal(echo.status, 200, JSON.stringify(echo.body));
+  assert.equal(echo.body.updatedAt, first.body.updatedAt);
+  const again = await call("/v1/sync", { method: "PUT", token: member.token, body: { payload: echo.body.payload, baseUpdatedAt: echo.body.updatedAt } });
+  assert.equal(again.body.updatedAt, first.body.updatedAt);
+  const db = await mf.getD1Database("DB");
+  const row = await db.prepare("SELECT updated_at FROM sync_state WHERE public_id = ?").bind(member.account.publicId).first();
+  assert.equal(Number(row.updated_at), first.body.updatedAt);
+  const next = await call("/v1/sync", { method: "PUT", token: member.token, body: { payload: Object.assign({}, again.body.payload, { autoplay: "never" }), baseUpdatedAt: again.body.updatedAt } });
+  assert.equal(next.status, 200, JSON.stringify(next.body));
+  assert.ok(next.body.updatedAt > first.body.updatedAt);
+  assert.equal(next.body.payload.autoplay, "never");
+});
 
 test("managed settings match settings-registry.js", () => {
   const reg = require("../../settings-registry.js");
@@ -128,9 +159,15 @@ test("only the owner manages settings; locks hold through member syncs", async (
   const edit = await call(route, { method: "PUT", token: owner.token, body: { values: { autoplay: "wifi" } } });
   assert.equal(edit.status, 200, JSON.stringify(edit.body));
   assert.equal(edit.body.settings.autoplay, "wifi");
+  const sameEdit = await call(route, { method: "PUT", token: owner.token, body: { values: { autoplay: "wifi" } } });
+  assert.equal(sameEdit.status, 200, JSON.stringify(sameEdit.body));
+  assert.equal(sameEdit.body.audit.filter((row) => row.key === "autoplay" && row.change === "set").length, edit.body.audit.filter((row) => row.key === "autoplay" && row.change === "set").length);
   const lock = await call(route, { method: "PUT", token: owner.token, body: { values: { appearance: "dim" }, locks: { appearance: true, lang: true } } });
   assert.equal(lock.status, 200, JSON.stringify(lock.body));
   assert.deepEqual(lock.body.locks, { appearance: "dim", lang: "en" });
+  const relock = await call(route, { method: "PUT", token: owner.token, body: { locks: { appearance: true, lang: true } } });
+  assert.equal(relock.status, 200, JSON.stringify(relock.body));
+  assert.equal(relock.body.audit.filter((row) => row.change === "lock").length, lock.body.audit.filter((row) => row.change === "lock").length);
 
   // The member's devices see the owner's values and the locks; the rest of their data stays.
   const pulled = await call("/v1/sync", { token: member.token });

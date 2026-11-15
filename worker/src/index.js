@@ -1092,11 +1092,28 @@ async function handleLogin(request, env) {
   return json(200, { token, account: await presentAccount(env, request, row, true) });
 }
 
+/* A playlist or file used to extend the session on every request. The
+   session already lasts 60 days, so it is only rewritten during its last
+   day, and at most once an hour on this isolate. */
+const SLIDE_HOLD_MS = 60 * 60 * 1000;
+const slideSeen = new Map();
+export function sessionNeedsSlide(expiresAt, now) {
+  const left = Number(expiresAt) - Number(now);
+  if (!(left > 0)) return false;
+  return left <= 24 * 60 * 60 * 1000;
+}
+
 async function slideSession(env, request) {
   const token = bearer(request);
   if (!token || token.length > 200 || !env.DB) return;
   const hash = await sha256Hex(token);
   const now = Date.now();
+  const seen = slideSeen.get(hash);
+  if (seen && now - seen < SLIDE_HOLD_MS) return;
+  if (slideSeen.size > 2000) slideSeen.clear();
+  slideSeen.set(hash, now);
+  const row = await env.DB.prepare("SELECT expires_at FROM sessions WHERE token_hash = ?").bind(hash).first();
+  if (!row || !sessionNeedsSlide(row.expires_at, now)) return;
   await env.DB.prepare("UPDATE sessions SET expires_at = ? WHERE token_hash = ? AND expires_at > ?").bind(now + SESSION_MS, hash, now).run();
 }
 
@@ -1713,10 +1730,15 @@ async function handleSyncPut(request, env) {
   if (current && base && Number(current.updated_at) !== base) {
     return json(409, { error: "conflict", payload: previous, updatedAt: current.updated_at });
   }
-  const now = Date.now();
-  await env.DB.prepare("INSERT INTO sync_state (public_id, payload, updated_at) VALUES (?, ?, ?) ON CONFLICT(public_id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at").bind(row.public_id, JSON.stringify(await sealPayload(env, payload)), now).run();
+  const unchanged = !!(current && previousText === canonicalJson(payload));
+  const now = unchanged ? (Number(current.updated_at) || Date.now()) : Date.now();
+  // An unchanged sync used to rewrite the row anyway. That is one billed
+  // write per open, even when the device is only checking in.
+  if (!unchanged) {
+    await env.DB.prepare("INSERT INTO sync_state (public_id, payload, updated_at) VALUES (?, ?, ?) ON CONFLICT(public_id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at").bind(row.public_id, JSON.stringify(await sealPayload(env, payload)), now).run();
+  }
   // Other signed-in devices hear about a real change and pull it.
-  if (!current || previousText !== canonicalJson(payload)) {
+  if (!unchanged) {
     const device = String(body.device || "").replace(/[^a-z0-9]/gi, "").slice(0, 24);
     try { await publishToAccount(env, row.public_id, "sync", { updatedAt: now, device }, row.public_id); }
     catch (err) { /* devices also check when they come back */ }
