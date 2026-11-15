@@ -3208,8 +3208,11 @@ var numberNote = form.passkey
   function rememberLocks(body) {
     var session = readSession();
     if (!session) return;
-    var next = body && body.locks && typeof body.locks === "object" && !Array.isArray(body.locks) ? body.locks : {};
-    var notes = body && body.notes && typeof body.notes === "object" && !Array.isArray(body.notes) ? body.notes : {};
+    var next = body && body.locks && typeof body.locks === "object" && !Array.isArray(body.locks) ? body.locks : null;
+    var notes = body && body.notes && typeof body.notes === "object" && !Array.isArray(body.notes) ? body.notes : null;
+    if (!next && !notes && !session.settingLocks && !session.settingNotes) return;
+    next = next || {};
+    notes = notes || {};
     var before = JSON.stringify(session.settingLocks || {}) + JSON.stringify(session.settingNotes || {});
     if (before === JSON.stringify(next) + JSON.stringify(notes)) return;
     session.settingLocks = next;

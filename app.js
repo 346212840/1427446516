@@ -1750,9 +1750,15 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
   }
   function paintSettingLocks() {
     let el = document.getElementById("owner-setting-locks");
-    const css = lockStyleRules();
     const locks = settingLocks();
     const keys = Object.keys(locks);
+    if (!keys.length) {
+      if (el) el.remove();
+      if (document.querySelector("[data-owner-lock]")) document.querySelectorAll("[data-owner-lock]").forEach((node) => node.remove());
+      return;
+    }
+    armLockClicks();
+    const css = lockStyleRules();
     document.querySelectorAll("[data-owner-lock]").forEach((node) => node.remove());
     if (!css && !keys.length) { if (el) el.remove(); return; }
     if (!css) { if (el) el.remove(); }
@@ -11580,28 +11586,37 @@ const here = parseRoute();
     return `<a class="logo${pref.mode === "text" ? " logo-custom" : ""}" href="#/" aria-label="${productName("app")}" data-tooltip="${productName("app")}">${brandLogoInner(pref)}</a>`;
   }
 
-  /* Wired outside the nav block so its tests can load that block without a page. */
+  /* A member with no locks never installs the click catch or scans the page.
+     The catch is armed only after a lock exists, from a sync event or from
+     the settings page that has to show the lock. */
+  let lockClicksOn = false;
+  function onLockClick(event) {
+    const el = event.target && event.target.closest ? event.target.closest("[data-act]") : null;
+    if (!el || !lockBlocksAct(el)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    toast(tr("The site owner locked this setting."));
+  }
+  function armLockClicks() {
+    if (lockClicksOn) return;
+    if (!Object.keys(settingLocks()).length) return;
+    lockClicksOn = true;
+    document.addEventListener("click", onLockClick, true);
+  }
   function wireSettingLocks() {
-    document.addEventListener("click", (event) => {
-      const el = event.target && event.target.closest ? event.target.closest("[data-act]") : null;
-      if (!el || !lockBlocksAct(el)) return;
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      toast(tr("The site owner locked this setting."));
-    }, true);
-    let lockSnap = JSON.stringify(settingLocks());
+    let lockSnap = null;
     window.addEventListener("viktorych-setting-locks", () => {
-      const now = JSON.stringify(settingLocks());
-      if (lockSnap !== now) {
-        const note = { id: "owner-settings-" + Date.now(), at: Date.now(), name: tr("Settings"), text: tr("The owner updated a setting you use."), hash: "#/settings", platform: "settings", ids: [], handles: [] };
-        try { commitBellNotes([note]); } catch (err) { /* the summary still shows the locks */ }
-      }
+      const locks = settingLocks();
+      const now = Object.keys(locks).length ? JSON.stringify(locks) : "";
+      if (lockSnap !== null && lockSnap === now) return;
       lockSnap = now;
+      const note = { id: "owner-settings-" + Date.now(), at: Date.now(), name: tr("Settings"), text: tr("The owner updated a setting you use."), hash: "#/settings", platform: "settings", ids: [], handles: [] };
+      try { commitBellNotes([note]); } catch (err) { /* the summary still shows the locks */ }
+      if (now) armLockClicks();
       paintSettingLocks();
       if (enforceSettingLocks()) { keepNewerBlocks(); writeStored(localStorage, "settings-v1", JSON.stringify(STATE.settings)); if (typeof applyTheme === "function") applyTheme(); }
       render({ y: window.scrollY });
     });
-    setTimeout(paintSettingLocks, 0);
   }
   wireSettingLocks();
 
