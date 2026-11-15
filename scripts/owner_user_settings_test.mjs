@@ -65,6 +65,11 @@ function seed(o) {
       localStorage.setItem("viktorychapp-account-v1", JSON.stringify({ token: "token-demo", account: { handle: ${JSON.stringify(o.handle)}, displayName: "Demo", publicId: "100", owner: ${o.owner ? "true" : "false"} } }));
       ${o.off ? `localStorage.setItem("viktorychapp-server-off", JSON.stringify(["owner_user_settings"]));` : ""}
     }
+    ${o.notifyLock ? `window.__notifyAsks = 0;
+    const Ask = function() {};
+    Ask.permission = "default";
+    Ask.requestPermission = function() { window.__notifyAsks += 1; Ask.permission = "granted"; return Promise.resolve("granted"); };
+    try { Object.defineProperty(window, "Notification", { configurable: true, value: Ask }); } catch (err) { window.Notification = Ask; }` : ""}
     window.VIKTORYCH_ACCOUNTS = { api: "https://accounts.test", gate: true };
   })()`;
 }
@@ -77,7 +82,7 @@ const SCHEMA = [
   { key: "privacyNoReferrer", type: "bool", label: "Strict no-referrer", def: true, group: "privacy" }
 ];
 
-function mock(page, log, member) {
+function mock(page, log, who) {
   const state = { settings: { appearance: "default", haptics: true, autoplay: "all", privacyWebRTC: true, privacyNoReferrer: null }, locks: {} };
   const reply = (route, status, body) => route.fulfill({ status, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify(body) });
   return page.route("https://accounts.test/**", async (route) => {
@@ -89,7 +94,11 @@ function mock(page, log, member) {
     if (method === "OPTIONS") return route.fulfill({ status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "*" } });
     log.push(method + " " + url.pathname + " " + (req.postData() || ""));
     if (url.pathname === "/v1/sync") {
-      if (member) return reply(route, 200, { payload: { appearance: "dim", autoplay: "never", prefsAt: { appearance: 5 } }, updatedAt: 7, locks: { appearance: "dim", autoplay: "never" } });
+      if (who && who.notifyLock) {
+        const on = who.notifyLock === "on";
+        return reply(route, 200, { payload: { notify: on, prefsAt: { notify: 5 } }, updatedAt: 7, locks: { notify: on } });
+      }
+      if (who && who.member) return reply(route, 200, { payload: { appearance: "dim", autoplay: "never", prefsAt: { appearance: 5 } }, updatedAt: 7, locks: { appearance: "dim", autoplay: "never" } });
       return reply(route, 200, { payload: null, updatedAt: 0 });
     }
     if (url.pathname === "/v1/owner/user-settings/42") {
@@ -111,7 +120,7 @@ async function newPage(browser, origin, o) {
   const errors = [];
   page.on("pageerror", (err) => errors.push(String(err)));
   const log = [];
-  await mock(page, log, o.member);
+  await mock(page, log, o);
   await page.addInitScript(seed(o));
   return { context, page, log, errors };
 }
@@ -175,6 +184,35 @@ async function owner(browser, origin) {
   await context.close();
 }
 
+async function notifyPermission(browser, origin, mode) {
+  const { context, page, errors } = await newPage(browser, origin, { handle: "demo_member", notifyLock: mode });
+  await page.goto(origin + "/index.html#/settings/notifications", { waitUntil: "domcontentloaded" });
+  await page.waitForSelector('[data-owner-lock="notify"]', { timeout: 20000 }).catch(() => fail("notify " + mode + ": lock label missing"));
+  const button = await page.evaluate(() => {
+    const node = document.querySelector('[data-act="notify"]');
+    return node ? node.getAttribute("aria-disabled") : "missing";
+  });
+  if (mode === "on" && button === "true") fail("notify on: permission button is marked disabled");
+  if (mode === "off" && button !== "true") fail("notify off: button is not marked disabled");
+  await page.click('[data-act="notify"]', { force: mode === "off" });
+  await page.waitForTimeout(500);
+  const result = await page.evaluate(() => ({
+    asks: window.__notifyAsks || 0,
+    notify: JSON.parse(localStorage.getItem("viktorychapp-settings-v1") || "{}").notify,
+    text: document.body.innerText
+  }));
+  if (mode === "on") {
+    if (result.asks !== 1) fail("notify on: permission was not requested (" + result.asks + ")");
+    if (result.notify !== true) fail("notify on: stored " + result.notify);
+  } else {
+    if (result.asks !== 0) fail("notify off: permission was requested");
+    if (!/locked this setting/.test(result.text)) fail("notify off: tap did not explain");
+    if (result.notify === true) fail("notify off: stored turned on");
+  }
+  if (errors.length) fail("notify: page errors " + errors.join(" | "));
+  await context.close();
+}
+
 async function switchedOff(browser, origin) {
   const { context, page } = await newPage(browser, origin, { handle: "demo_owner", owner: true, off: true });
   await page.goto(origin + "/index.html#/settings/accounts-inspector/42", { waitUntil: "domcontentloaded" });
@@ -193,6 +231,8 @@ const browser = await chromium.launch({ headless: true, channel: "chrome" });
 try {
   await member(browser, origin);
   await owner(browser, origin);
+  await notifyPermission(browser, origin, "on");
+  await notifyPermission(browser, origin, "off");
   await switchedOff(browser, origin);
   console.log("owner user settings ok");
 } finally {

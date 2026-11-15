@@ -1712,10 +1712,20 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
     const key = fn ? fn(el) : "";
     return key && Object.prototype.hasOwnProperty.call(settingLocks(), key) ? key : "";
   }
+  /* The notify control is the browser permission prompt. Locked on still has
+     to open that prompt; locked off stays blocked like every other setting. */
+  function lockBlocksAct(el) {
+    const key = lockedKeyOf(el);
+    if (!key) return false;
+    if (key === "notify" && settingLocks().notify === true) return false;
+    return true;
+  }
   function lockStyleRules() {
-    const keys = Object.keys(settingLocks());
+    const locks = settingLocks();
+    const keys = Object.keys(locks);
     const sel = [];
     keys.forEach((key) => {
+      if (key === "notify" && locks.notify === true) return;
       Object.keys(LOCK_ACTS).forEach((act) => {
         const fixed = LOCK_FIXED[act];
         if (fixed) { if (fixed === key) sel.push(`[data-act="${act}"]`); return; }
@@ -1738,15 +1748,20 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
   function paintSettingLocks() {
     let el = document.getElementById("owner-setting-locks");
     const css = lockStyleRules();
+    const locks = settingLocks();
+    const keys = Object.keys(locks);
     document.querySelectorAll("[data-owner-lock]").forEach((node) => node.remove());
-    if (!css) { if (el) el.remove(); return; }
-    if (!el) { el = document.createElement("style"); el.id = "owner-setting-locks"; document.head.appendChild(el); }
-    if (el.textContent !== css) el.textContent = css;
+    if (!css && !keys.length) { if (el) el.remove(); return; }
+    if (!css) { if (el) el.remove(); }
+    else {
+      if (!el) { el = document.createElement("style"); el.id = "owner-setting-locks"; document.head.appendChild(el); }
+      if (el.textContent !== css) el.textContent = css;
+    }
     const notes = lockNotes();
-    Object.keys(settingLocks()).forEach((key) => {
+    keys.forEach((key) => {
       const node = document.querySelector(lockSelector(key));
       if (!node || node.nextElementSibling && node.nextElementSibling.dataset && node.nextElementSibling.dataset.ownerLock === key) return;
-      node.setAttribute("aria-disabled", "true");
+      if (!(key === "notify" && settingLocks()[key] === true)) node.setAttribute("aria-disabled", "true");
       const tag = document.createElement("span");
       tag.className = "owner-lock-tag";
       tag.dataset.ownerLock = key;
@@ -11566,7 +11581,7 @@ const here = parseRoute();
   function wireSettingLocks() {
     document.addEventListener("click", (event) => {
       const el = event.target && event.target.closest ? event.target.closest("[data-act]") : null;
-      if (!el || !lockedKeyOf(el)) return;
+      if (!el || !lockBlocksAct(el)) return;
       event.preventDefault();
       event.stopImmediatePropagation();
       toast(tr("The site owner locked this setting."));
@@ -24491,6 +24506,7 @@ if (route.name === "music" && window.SIntelMusic && window.SIntelMusic.titleFor)
         const center = document.querySelector(".center");
         if (center) center.classList.add("route-in");
       }
+      if (route.name === "settings") paintSettingLocks();
       watchHydration();
       scheduleDetect();
       if (window.FeedsTranslate) window.FeedsTranslate.paint();
@@ -33170,8 +33186,22 @@ if (data.historyPause) STATE.settings.historyPause = cleanHistoryPause(data.hist
 
   async function enableNotifications() {
     if (typeof Notification === "undefined") { toast(tr("Notifications aren’t available")); return; }
+    const locks = settingLocks();
+    const locked = Object.prototype.hasOwnProperty.call(locks, "notify");
+    if (locked && locks.notify === false) { toast(tr("The site owner locked this setting.")); return; }
     let permission = Notification.permission;
     if (permission !== "granted") permission = await Notification.requestPermission();
+    if (locked && locks.notify === true) {
+      STATE.settings.notify = true;
+      saveSettings();
+      if (permission === "granted") {
+        registerPeriodic();
+        ensurePush();
+      }
+      render();
+      toast(permission === "granted" ? tr("Notifications on") : tr("Notifications stay off"));
+      return;
+    }
     STATE.settings.notify = permission === "granted";
     saveSettings();
     if (STATE.settings.notify) {
@@ -35057,6 +35087,7 @@ if (data.historyPause) STATE.settings.historyPause = cleanHistoryPause(data.hist
       if (row.store === "state") {
         const parts = row.key.split(".");
         if (row.id === "notify") {
+          if (Object.prototype.hasOwnProperty.call(settingLocks(), "notify") && v !== true) { jobs.push(Promise.resolve({ id: row.id, ok: false })); return; }
           if (v) { jobs.push(enableNotifications().then(() => ({ id: row.id, ok: !!STATE.settings.notify }))); return; }
           STATE.settings.notify = false;
         } else if (parts[0] === "historyPause") {
