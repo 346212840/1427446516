@@ -53,17 +53,36 @@
     var now = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
     return pointers === 0 && now - lastInput > 400;
   }
-  function whenQuiet(fn) {
+  function whenQuiet(fn, hurry) {
     watchInput();
+    var ran = false;
+    function finish() {
+      if (ran) return;
+      ran = true;
+      fn();
+    }
+    function rushed() { return typeof hurry === "function" && hurry(); }
     function go() {
-      if (!inputQuiet()) { setTimeout(go, 80); return; }
+      if (ran) return;
+      /* A real visit must not sit behind the quiet wait. Taps would keep
+         resetting that wait and the page would stay a skeleton. */
+      if (rushed()) { finish(); return; }
+      if (!inputQuiet()) { setTimeout(go, 50); return; }
       if (typeof requestIdleCallback === "function") {
         requestIdleCallback(function () {
+          if (ran) return;
+          if (rushed()) { finish(); return; }
           if (!inputQuiet()) { go(); return; }
-          fn();
+          finish();
         }, { timeout: 800 });
-      } else fn();
+      } else finish();
     }
+    /* Poll so a visit that arrives during the idle wait runs on the next
+       tick instead of waiting out the timeout. */
+    var poke = setInterval(function () {
+      if (ran) { clearInterval(poke); return; }
+      if (rushed()) finish();
+    }, 40);
     go();
   }
 
@@ -89,6 +108,9 @@
         tag.text = code;
         document.body.appendChild(tag);
         next();
+      }, function () {
+        var job = loads[name];
+        return !!(job && job.silent === false);
       });
     }).catch(function () {
       delete loads[name];
@@ -212,4 +234,7 @@
     preload: preload,
     serverOff: serverOff
   };
+  /* Listen before any quiet fetch returns. A press that is already down
+     when the file arrives must count, or the parser starts during it. */
+  watchInput();
 })();
