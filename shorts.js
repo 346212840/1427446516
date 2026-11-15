@@ -1166,6 +1166,22 @@
     return (Number(level && level.bitrate) || 0) * 100000 + (Number(level && level.height) || 0);
   }
 
+  function lowestLevel(player) {
+    var levels = player.levels || [];
+    var pick = -1;
+    var best = Infinity;
+    for (var i = 0; i < levels.length; i++) {
+      if (!videoCodecOk(levelCodec(levels[i]))) continue;
+      var score = levelScore(levels[i]);
+      if (score < best) {
+        best = score;
+        pick = i;
+      }
+    }
+    if (!levels.length) return -1;
+    return pick >= 0 ? pick : 0;
+  }
+
   function topLevel(player) {
     var levels = player.levels || [];
     var top = -1;
@@ -1332,8 +1348,12 @@
           }
         }
       };
-      if (live) playerOpts.liveSyncDurationCount = 3;
-      else {
+      /* Live starts on the smallest rung. The first fragment is chosen
+         before the manifest event, so this has to be set up front. */
+      if (live) {
+        playerOpts.liveSyncDurationCount = 3;
+        playerOpts.startLevel = 0;
+      } else {
         playerOpts.maxSeekHole = 2;
         playerOpts.backBufferLength = 90;
         playerOpts.nudgeMaxRetry = 6;
@@ -1381,10 +1401,13 @@
             pin = false;
           }
           if (pin && !qualityLock && top >= 0) {
-            player.startLevel = top;
-            player.currentLevel = top;
-            showLiveLevel(player, top, top);
+            /* A live starts on the smallest rung so the first frame is not
+               waiting on the largest segment, then climbs toward the top. */
+            var first = live ? lowestLevel(player) : top;
+            if (player.currentLevel !== first) player.currentLevel = first;
+            showLiveLevel(player, first, top);
             watchStalls(player, Hls, pinRef);
+            if (live && top > first) climbLive(player, pinRef);
           }
           if (!start) { settled = true; resolve(); return; }
           function acceptOrStep(level) {
@@ -3308,7 +3331,15 @@
     var slideEl = video.closest(".shorts-slide");
     if (post.platform === "tiktok") {
       if (!key) {
-        backingNote(slideEl, tr("Backing up…"));
+        /* Play the original file at once. A missing backup key must not
+           hold the first frame. */
+        var hot = (media && media.url) || "";
+        if (!hot) {
+          backingNote(slideEl, tr("Backing up…"));
+          return;
+        }
+        video.preload = preload;
+        if (video.getAttribute("src") !== hot) video.src = hot;
         return;
       }
       if (!hooks.token()) {
@@ -3591,7 +3622,14 @@
     event.preventDefault();
     var current = activeVideo();
     if (current && current._zoom && current._zoom.scale() > 1) current._zoom.reset();
-    feed.scrollBy({ top: (event.key === "ArrowDown" ? 1 : -1) * feed.clientHeight, behavior: "smooth" });
+    /* A smooth scrollBy on this snap feed is cancelled and the slide never
+       moves. Jump one screen; the snap points are exactly one slide apart. */
+    var dir = event.key === "ArrowDown" ? 1 : -1;
+    var nextTop = feed.scrollTop + dir * feed.clientHeight;
+    var maxTop = Math.max(0, feed.scrollHeight - feed.clientHeight);
+    if (nextTop < 0) nextTop = 0;
+    if (nextTop > maxTop) nextTop = maxTop;
+    feed.scrollTop = nextTop;
   }
 
   function onError(event) {
@@ -3915,8 +3953,8 @@
       clearTimeout(feed._play);
       feed._play = setTimeout(playActive, 80);
     }, { passive: true });
-    document.removeEventListener("keydown", onKey);
-    document.addEventListener("keydown", onKey);
+    document.removeEventListener("keydown", onKey, true);
+    document.addEventListener("keydown", onKey, true);
     clearInterval(poll);
     poll = 0;
     var query = (route && route.query) || new URLSearchParams(location.hash.split("?")[1] || "");
