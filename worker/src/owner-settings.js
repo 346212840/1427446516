@@ -251,7 +251,8 @@ export async function readLocks(env, publicId) {
   const out = {};
   if (!env || !env.DB || !publicId) return out;
   let rows = [];
-  try { await ensureSchema(env); } catch (err) { /* a missing table still reads as no locks */ }
+  // The owner routes create the table. A member sync must not run that DDL
+  // on every check-in; a missing table still reads as no locks.
   try {
     const res = await env.DB.prepare("SELECT key, value, at, note FROM owner_setting_locks WHERE public_id = ?").bind(String(publicId)).all();
     rows = (res && res.results) || [];
@@ -380,7 +381,10 @@ function schemaOut() {
 
 const PROFILE_KEYS = ["displayName", "bio", "location", "website", "protected", "privateFollows", "profileLess", "hideAvatar"];
 async function writeCommunitiesHome(env, id, show) {
-  await env.DB.prepare("INSERT INTO community_feed_prefs (public_id, community_id, show_home, muted) VALUES (?, '', ?, 0) ON CONFLICT(public_id, community_id) DO UPDATE SET show_home = excluded.show_home").bind(id, show ? 1 : 0).run();
+  const bit = show ? 1 : 0;
+  const row = await env.DB.prepare("SELECT show_home FROM community_feed_prefs WHERE public_id = ? AND community_id = ''").bind(id).first();
+  if (row && Number(row.show_home) === bit) return;
+  await env.DB.prepare("INSERT INTO community_feed_prefs (public_id, community_id, show_home, muted) VALUES (?, '', ?, 0) ON CONFLICT(public_id, community_id) DO UPDATE SET show_home = excluded.show_home").bind(id, bit).run();
 }
 
 async function writeProfileColumns(env, id, account, payload) {
@@ -392,7 +396,17 @@ async function writeProfileColumns(env, id, account, payload) {
   const privateFollows = payload.privateFollows != null ? (payload.privateFollows ? 1 : 0) : (account.private_follows === 1 ? 1 : 0);
   const profileLess = payload.profileLess != null ? (payload.profileLess ? 1 : 0) : (account.profile_less === 1 ? 1 : 0);
   const hideAvatar = payload.hideAvatar != null ? payload.hideAvatar : (account.hide_avatar || "");
-  await env.DB.prepare("UPDATE accounts SET display_name = ?, bio = ?, location = ?, website = ?, protected_account = ?, private_follows = ?, profile_less = ?, hide_avatar = ? WHERE public_id = ?").bind(name || account.display_name, bio, location, website, protectedAccount, privateFollows, profileLess, hideAvatar, id).run();
+  const nameOut = name || account.display_name || "";
+  const same = String(account.display_name || "") === String(nameOut)
+    && String(account.bio || "") === String(bio || "")
+    && String(account.location || "") === String(location || "")
+    && String(account.website || "") === String(website || "")
+    && (account.protected_account === 1 ? 1 : 0) === protectedAccount
+    && (account.private_follows === 1 ? 1 : 0) === privateFollows
+    && (account.profile_less === 1 ? 1 : 0) === profileLess
+    && String(account.hide_avatar || "") === String(hideAvatar || "");
+  if (same) return;
+  await env.DB.prepare("UPDATE accounts SET display_name = ?, bio = ?, location = ?, website = ?, protected_account = ?, private_follows = ?, profile_less = ?, hide_avatar = ? WHERE public_id = ?").bind(nameOut, bio, location, website, protectedAccount, privateFollows, profileLess, hideAvatar, id).run();
 }
 
 export async function handleOwnerUserSettings(request, env, path, deps) {
@@ -457,10 +471,11 @@ export async function handleOwnerUserSettings(request, env, path, deps) {
   const stmts = [];
   Object.keys(cleaned).forEach((key) => {
     const before = payload[key];
+    if (JSON.stringify(before) === JSON.stringify(cleaned[key])) return;
     payload[key] = cleaned[key];
     shapeLocked(payload, key, cleaned[key]);
     if (key !== "lang") payload.prefsAt[key] = now;
-    if (JSON.stringify(before) !== JSON.stringify(cleaned[key])) stmts.push(auditStmt(env, ownerId, id, key, before, cleaned[key], "set", now));
+    stmts.push(auditStmt(env, ownerId, id, key, before, cleaned[key], "set", now));
   });
   // A locked key keeps the value it has now (or its default when the member never set it).
   lockKeys.forEach((key) => {
@@ -469,13 +484,16 @@ export async function handleOwnerUserSettings(request, env, path, deps) {
       const clean = cleanValue(key, payload[key]);
       const value = clean.ok ? clean.value : row.def;
       const before = locks[key] ? locks[key].value : payload[key];
+      const note = clipNote(noteAsk[key] != null ? noteAsk[key] : (locks[key] && locks[key].note));
+      if (locks[key] && JSON.stringify(locks[key].value) === JSON.stringify(value) && String(locks[key].note || "") === note) return;
       payload[key] = value;
       shapeLocked(payload, key, value);
       if (key !== "lang") payload.prefsAt[key] = now;
-      const note = clipNote(noteAsk[key] != null ? noteAsk[key] : (locks[key] && locks[key].note));
       locks[key] = { value, at: now, note };
       stmts.push(env.DB.prepare("INSERT INTO owner_setting_locks (public_id, key, value, owner_id, at, note) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(public_id, key) DO UPDATE SET value = excluded.value, owner_id = excluded.owner_id, at = excluded.at, note = excluded.note").bind(id, key, JSON.stringify(value), ownerId, now, note));
       stmts.push(auditStmt(env, ownerId, id, key, before, value, "lock", now));
+    } else if (!locks[key]) {
+      return;
     } else {
       const previous = locks[key] ? locks[key].value : null;
       delete locks[key];
@@ -486,23 +504,29 @@ export async function handleOwnerUserSettings(request, env, path, deps) {
   // A new value for a key that stays locked moves the lock with it.
   Object.keys(cleaned).forEach((key) => {
     if (!locks[key] || lockAsk[key] === false) return;
+    if (JSON.stringify(locks[key].value) === JSON.stringify(cleaned[key])) return;
     locks[key] = { value: cleaned[key], at: now };
     if (lockAsk[key] === true) return;
     stmts.push(env.DB.prepare("UPDATE owner_setting_locks SET value = ?, owner_id = ?, at = ? WHERE public_id = ? AND key = ?").bind(JSON.stringify(cleaned[key]), ownerId, now, id, key));
   });
-  const text = JSON.stringify(await deps.sealPayload(env, payload));
-  stmts.push(env.DB.prepare("INSERT INTO sync_state (public_id, payload, updated_at) VALUES (?, ?, ?) ON CONFLICT(public_id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at").bind(id, text, now));
-  await env.DB.batch(stmts);
-  if (PROFILE_KEYS.some((key) => Object.prototype.hasOwnProperty.call(cleaned, key) || Object.prototype.hasOwnProperty.call(lockAsk, key))) {
+  const changed = stmts.length > 0;
+  if (changed) {
+    const text = JSON.stringify(await deps.sealPayload(env, payload));
+    stmts.push(env.DB.prepare("INSERT INTO sync_state (public_id, payload, updated_at) VALUES (?, ?, ?) ON CONFLICT(public_id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at").bind(id, text, now));
+    await env.DB.batch(stmts);
+  }
+  if (changed && PROFILE_KEYS.some((key) => Object.prototype.hasOwnProperty.call(cleaned, key) || Object.prototype.hasOwnProperty.call(lockAsk, key))) {
     try { await writeProfileColumns(env, id, target, payload); } catch (err) { /* the sync copy still has the value */ }
   }
-  if (Object.prototype.hasOwnProperty.call(cleaned, "communitiesHome") || Object.prototype.hasOwnProperty.call(lockAsk, "communitiesHome")) {
+  if (changed && (Object.prototype.hasOwnProperty.call(cleaned, "communitiesHome") || Object.prototype.hasOwnProperty.call(lockAsk, "communitiesHome"))) {
     try { await writeCommunitiesHome(env, id, payload.communitiesHome !== false); } catch (err) { /* the sync copy still has the value */ }
   }
-  await logOwnerView(env, ownerId, id, "settings");
-  // The member's open devices pull the change right away.
-  try { if (deps.publish) await deps.publish(env, id, "sync", { updatedAt: now, device: "owner" }, id); } catch (err) { /* they check on return */ }
-  return deps.json(200, { id, handle: target.handle, settings: currentValues(payload, target), locks: lockValues(locks), notes: lockNotes(locks), audit: await readAudit(env, id), updatedAt: now }, NO_STORE);
+  if (changed) await logOwnerView(env, ownerId, id, "settings");
+  // The member's open devices pull a real change right away.
+  if (changed) {
+    try { if (deps.publish) await deps.publish(env, id, "sync", { updatedAt: now, device: "owner" }, id); } catch (err) { /* they check on return */ }
+  }
+  return deps.json(200, { id, handle: target.handle, settings: currentValues(payload, target), locks: lockValues(locks), notes: lockNotes(locks), audit: await readAudit(env, id), updatedAt: changed ? now : saved.updatedAt }, NO_STORE);
 }
 
 function auditStmt(env, ownerId, id, key, oldValue, newValue, change, now) {
@@ -549,6 +573,7 @@ async function handleBulk(request, env, deps, ownerId) {
     keys.forEach((key) => {
       if (locks[key]) {
         const value = cleaned[key];
+        if (have[key] && JSON.stringify(have[key].value) === JSON.stringify(value)) return;
         payload[key] = value;
         shapeLocked(payload, key, value);
         if (key !== "lang") payload.prefsAt[key] = now;
@@ -559,6 +584,7 @@ async function handleBulk(request, env, deps, ownerId) {
         stmts.push(auditStmt(env, ownerId, id, key, have[key].value, null, "unlock", now));
       }
     });
+    if (!stmts.length) continue;
     const text = JSON.stringify(await deps.sealPayload(env, payload));
     stmts.push(env.DB.prepare("INSERT INTO sync_state (public_id, payload, updated_at) VALUES (?, ?, ?) ON CONFLICT(public_id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at").bind(id, text, now));
     await env.DB.batch(stmts);

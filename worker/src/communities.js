@@ -137,6 +137,7 @@ async function writeFeedPref(env, publicId, communityId, patch) {
   const current = await env.DB.prepare("SELECT show_home, muted FROM community_feed_prefs WHERE public_id = ? AND community_id = ?").bind(publicId, communityId).first();
   const show = patch.showHome == null ? (current ? Number(current.show_home) : 1) : (patch.showHome ? 1 : 0);
   const muted = patch.muted == null ? (current ? Number(current.muted) : 0) : (patch.muted ? 1 : 0);
+  if (current && Number(current.show_home) === show && Number(current.muted) === muted) return { showHome: show === 1, muted: muted === 1 };
   await env.DB.prepare("INSERT INTO community_feed_prefs (public_id, community_id, show_home, muted) VALUES (?, ?, ?, ?) ON CONFLICT(public_id, community_id) DO UPDATE SET show_home = excluded.show_home, muted = excluded.muted").bind(publicId, communityId, show, muted).run();
   return { showHome: show === 1, muted: muted === 1 };
 }
