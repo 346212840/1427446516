@@ -6431,5 +6431,7 @@ SI18n.addPack("hi", {
   "Copies the largest listed picture. It is not a proven original file. Color, HDR and animation may not match.": "सूची की सबसे बड़ी तस्वीर कॉपी करता है। यह प्रमाणित मूल फ़ाइल नहीं है। रंग, HDR और एनिमेशन मेल नहीं खा सकते।",
   "Copy the largest listed picture": "सूची की सबसे बड़ी तस्वीर कॉपी करें",
   "Copy a smaller listed picture": "सूची की छोटी तस्वीर कॉपी करें",
-  "Copied a smaller listed picture. It is not the full file.": "सूची की छोटी तस्वीर कॉपी हुई। यह पूरी फ़ाइल नहीं है।"
+  "Copied a smaller listed picture. It is not the full file.": "सूची की छोटी तस्वीर कॉपी हुई। यह पूरी फ़ाइल नहीं है।",
+  "Pick a model automatically": "मॉडल अपने आप चुनें",
+  "Sync settings": "सेटिंग्स सिंक करें"
 });

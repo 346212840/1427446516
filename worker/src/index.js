@@ -1382,6 +1382,12 @@ async function handleProfilePatch(request, env) {
   if (!row) return json(401, { error: "unauthorized" });
   const body = await readJson(request, AVATAR_TEXT + BANNER_TEXT + 8000);
   if (body.error) return json(body.error === "too_large" ? 413 : 400, { error: body.error });
+  const profileLocks = await ownerLocksFor(env, row);
+  if (profileLocks) {
+    ["displayName", "bio", "location", "website", "protected", "privateFollows", "profileLess", "hideAvatar"].forEach((key) => {
+      if (profileLocks[key]) body[key] = profileLocks[key].value;
+    });
+  }
   let handle = row.handle;
   let skeleton = "";
   if (body.handle != null && String(body.handle) !== row.handle) {

@@ -6443,5 +6443,7 @@ SI18n.addPack("ru", {
   "Copies the largest listed picture. It is not a proven original file. Color, HDR and animation may not match.": "Копирует самую большую картинку из списка. Это не подтверждённый исходный файл. Цвет, HDR и анимация могут не совпасть.",
   "Copy the largest listed picture": "Копировать самую большую картинку из списка",
   "Copy a smaller listed picture": "Копировать картинку поменьше из списка",
-  "Copied a smaller listed picture. It is not the full file.": "Скопирована картинка поменьше из списка. Это не полный файл."
+  "Copied a smaller listed picture. It is not the full file.": "Скопирована картинка поменьше из списка. Это не полный файл.",
+  "Pick a model automatically": "Выбирать модель автоматически",
+  "Sync settings": "Синхронизировать настройки"
 });

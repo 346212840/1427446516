@@ -3171,6 +3171,7 @@ var numberNote = form.passkey
       if (key === "notify") { settings.notify = lockedNotifyValue(locks); return; }
       settings[key] = locks[key];
     });
+    if (Object.keys(locks).length) applyOwnerLockExtras(settings, locks);
     // Another tab can save a newer block list while this echo is applied.
     // The newer list stays. An older echo must not bring the blocked posts back.
     var disk = null;
@@ -3199,6 +3200,61 @@ var numberNote = form.passkey
   /* A lock of on must not be stored as on until the browser has allowed it.
      notify true plus Notification.permission denied is the stuck push-revoked
      alert, and the member cannot turn the locked setting off to clear it. */
+  /* Device-local locks (desktop size, scrollbar, friend connection, the
+     on-device model choice) are not fields of settings-v1. Apply them only
+     when one of those keys is actually locked. */
+  function applyOwnerLockExtras(settings, locks) {
+    if (!locks) return;
+    if (locks.historyPauseVideos != null || locks.historyPauseArticles != null) {
+      var pause = Object.assign({}, settings.historyPause);
+      if (locks.historyPauseVideos != null) pause.videos = locks.historyPauseVideos === true;
+      if (locks.historyPauseArticles != null) pause.articles = locks.historyPauseArticles === true;
+      settings.historyPause = pause;
+    }
+    var notif = null;
+    Object.keys(locks).forEach(function (key) {
+      if (key.indexOf("notif") !== 0 || key === "notify") return;
+      if (!notif) {
+        notif = Object.assign({}, settings.notifPrivacy || {});
+        notif.types = Object.assign({}, notif.types || {});
+      }
+      if (key === "notifNames") notif.names = locks[key] === true;
+      else if (key === "notifPreview") notif.preview = locks[key] === true;
+      else if (key === "notifBanner") notif.banner = locks[key] === true;
+      else if (key === "notifBadge") notif.badge = locks[key] === true;
+      else if (key === "notifCount") notif.count = locks[key] === true;
+      else if (key.indexOf("notifType_") === 0) notif.types[key.slice(10)] = locks[key] === true;
+    });
+    if (notif) settings.notifPrivacy = notif;
+    var desk = locks.deskShowScrollbar != null || locks.deskScaleMode != null || locks.deskScaleManual != null || locks.deskScaleMaximized != null || locks.deskScaleWindowed != null;
+    if (desk) {
+      var raw = {};
+      try { raw = JSON.parse(localStorage.getItem("viktorych-desktop-v1") || "{}") || {}; } catch (err) { raw = {}; }
+      if (locks.deskShowScrollbar != null) raw.showScrollbar = locks.deskShowScrollbar === true;
+      var scale = raw.scale && typeof raw.scale === "object" ? raw.scale : {};
+      if (locks.deskScaleMode != null) scale.mode = locks.deskScaleMode;
+      if (locks.deskScaleManual != null) scale.manual = locks.deskScaleManual;
+      if (locks.deskScaleMaximized != null) scale.maximized = locks.deskScaleMaximized;
+      if (locks.deskScaleWindowed != null) scale.windowed = locks.deskScaleWindowed;
+      raw.scale = scale;
+      try { localStorage.setItem("viktorych-desktop-v1", JSON.stringify(raw)); } catch (err) { /* this device is full */ }
+      try { if (window.ViktorychDesktop && window.ViktorychDesktop.applyScale) window.ViktorychDesktop.applyScale(); } catch (err) { /* the next open reads the stored size */ }
+    }
+    if (locks.friendP2P != null) {
+      try { localStorage.setItem("viktorychapp-friend-p2p", JSON.stringify({ on: locks.friendP2P !== false })); } catch (err) { /* this device is full */ }
+      try { if (window.ViktorychFriendP2P && window.ViktorychFriendP2P.setEnabled) window.ViktorychFriendP2P.setEnabled(locks.friendP2P !== false); } catch (err) { /* the stored switch is what the next open reads */ }
+    }
+    if (locks.aiAutoModel != null) {
+      try { localStorage.setItem("viktorych-ai-auto", locks.aiAutoModel ? "1" : "0"); } catch (err) { /* this device is full */ }
+    }
+    if (locks.deviceLevel != null || locks.peerMedia != null) {
+      var perf = {};
+      try { perf = JSON.parse(localStorage.getItem("viktorychapp-device-performance") || "{}") || {}; } catch (err) { perf = {}; }
+      if (locks.deviceLevel != null) perf.level = locks.deviceLevel;
+      if (locks.peerMedia != null) perf.peerMedia = locks.peerMedia;
+      try { localStorage.setItem("viktorychapp-device-performance", JSON.stringify(perf)); } catch (err) { /* this device is full */ }
+    }
+  }
   function lockedNotifyValue(locks) {
     if (!locks || !Object.prototype.hasOwnProperty.call(locks, "notify")) return null;
     if (locks.notify !== true) return !!locks.notify;
@@ -7826,6 +7882,7 @@ else if (act === "usage-retry") { loadUsage(true); if (window.ViktorychAccounts.
     aiSetting: aiSetting,
     settingLocks: function () { return Object.assign({}, settingLocks()); },
     lockedNotifyValue: lockedNotifyValue,
+    applyOwnerLockExtras: applyOwnerLockExtras,
     settingNotes: function () {
       var session = readSession();
       var notes = session && session.settingNotes;

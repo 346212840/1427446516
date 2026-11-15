@@ -6441,5 +6441,7 @@ SI18n.addPack("en", {
   "Copies the largest listed picture. It is not a proven original file. Color, HDR and animation may not match.": "Copies the largest listed picture. It is not a proven original file. Color, HDR and animation may not match.",
   "Copy the largest listed picture": "Copy the largest listed picture",
   "Copy a smaller listed picture": "Copy a smaller listed picture",
-  "Copied a smaller listed picture. It is not the full file.": "Copied a smaller listed picture. It is not the full file."
+  "Copied a smaller listed picture. It is not the full file.": "Copied a smaller listed picture. It is not the full file.",
+  "Pick a model automatically": "Pick a model automatically",
+  "Sync settings": "Sync settings"
 });

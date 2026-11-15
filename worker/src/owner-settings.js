@@ -22,9 +22,16 @@ export const LOCKS_SCHEMA = [
 const bool = (key, label, def, group) => ({ key, type: "bool", label, def, group });
 const pick = (key, label, values, valueLabels, def, group) => ({ key, type: "enum", label, values, valueLabels, def, group });
 
-/* Same ids, types, labels and defaults as settings-registry.js, and at least
-   its values (Theme also has the app's Auto); worker/test/owner-settings.test.mjs
-   fails when they drift. */
+/* Same ids, types, labels and defaults as settings-registry.js for the rows
+   that come from it (Theme also has the app's Auto). device: true means the
+   value normally stays on one device; a lock still syncs the owner's value
+   and the device applies it on load. extra: true means the row is not in the
+   registry (desktop size, scrollbar, friend connection, profile text).
+   worker/test/owner-settings.test.mjs fails when a registry setting is neither
+   here nor in UNCOVERED. */
+const SCALE = [];
+for (let n = 100; n <= 200; n += 5) SCALE.push(n);
+const jsonDoc = (key, label, group) => ({ key, type: "json", label, def: [], group, max: 20000 });
 export const MANAGED = [
   pick("appearance", "Theme", ["lightsout", "dim", "default", "auto"], { lightsout: "Lights out", dim: "Dim", "default": "Light", auto: "Auto" }, "lightsout", "look"),
   pick("accent", "Color", ["blue", "yellow", "pink", "purple", "orange", "green"], { blue: "Blue", yellow: "Yellow", pink: "Pink", purple: "Purple", orange: "Orange", green: "Green" }, "blue", "look"),
@@ -57,9 +64,133 @@ export const MANAGED = [
   bool("postWrapAvatar", "Wrap around profile picture", false, "look"),
   bool("notify", "Push notifications", false, "notifications"),
   pick("reactionsData", "Reactions", ["auto", "full", "lite"], { auto: "Automatic", full: "Full", lite: "Light" }, "auto", "media"),
-  pick("communityNotesData", "Community Notes", ["auto", "full", "lite"], { auto: "Automatic", full: "Full", lite: "Light" }, "auto", "media")
+  pick("communityNotesData", "Community Notes", ["auto", "full", "lite"], { auto: "Automatic", full: "Full", lite: "Light" }, "auto", "media"),
+  bool("fullScreen", "Full screen", false, "look"),
+  bool("classicHeader", "Classic header", false, "look"),
+  bool("statusBar", "Show phone status bar", false, "look"),
+  bool("pageZoom", "Allow page zoom", false, "look"),
+  bool("sidePanelLeft", "Side panel on the left", false, "look"),
+  pick("navLayout", "Navigation layout", ["auto", "bar"], { auto: "Automatic", bar: "Bottom bar" }, "auto", "look"),
+  bool("navLayoutLand", "Bottom bar in landscape", false, "look"),
+  bool("navLayoutSync", "Same layout on all devices", false, "look"),
+  bool("videoHd", "HD video", true, "media"),
+  pick("imageLoad", "Load images", ["always", "wifi"], { always: "Always", wifi: "Only on Wi-Fi" }, "always", "media"),
+  pick("imageSize", "Image size", ["auto", "small"], { auto: "Automatic", small: "Small" }, "auto", "media"),
+  pick("linkPreviews", "Link previews", ["full", "text"], { full: "Full", text: "Text only" }, "full", "media"),
+  pick("preload", "Preload", ["idle", "defer"], { idle: "In spare time", defer: "Only when needed" }, "idle", "media"),
+  pick("syncEvery", "Refresh speed", ["normal", "slow"], { normal: "Normal", slow: "Slow" }, "normal", "media"),
+  bool("backgroundLive", "Live updates in the background", true, "media"),
+  pick("updateDownload", "App updates", ["always", "wifi"], { always: "Always", wifi: "Only on Wi-Fi" }, "always", "media"),
+  bool("saveData", "Max data saving", false, "media"),
+  pick("playbackSource", "Playback source", ["embed", "device", "server"], { embed: "Official player", device: "This device", server: "Server" }, "embed", "media"),
+  pick("networkMode", "Network mode", ["auto", "max", "direct"], { auto: "Automatic", max: "Maximum", direct: "Direct" }, "auto", "network"),
+  bool("privacyZeroTrace", "Zero-trace browsing", false, "privacy"),
+  bool("historyPauseVideos", "Pause watch history", false, "privacy"),
+  bool("historyPauseArticles", "Pause reading history", false, "privacy"),
+  pick("deviceLevel", "Device performance", ["light", "balanced", "max"], { light: "Light", balanced: "Balanced", max: "Max" }, "balanced", "device"),
+  bool("communitiesHome", "Communities on Home", true, "feed"),
+  bool("groupsOwn", "Use my own groups", false, "feed"),
+  bool("noteTabsSame", "Same tabs as Home", true, "notifications"),
+  bool("notifNames", "Show names in notifications", true, "notifications"),
+  bool("notifPreview", "Show message previews", true, "notifications"),
+  bool("notifBanner", "Banners", true, "notifications"),
+  bool("notifBadge", "Badge", true, "notifications"),
+  bool("notifCount", "Unread count", true, "notifications"),
+  bool("notifType_messages", "Messages", true, "notifications"),
+  bool("notifType_mentions", "Mentions", true, "notifications"),
+  bool("notifType_replies", "Replies", true, "notifications"),
+  bool("notifType_quotes", "Quotes", true, "notifications"),
+  bool("notifType_likes", "Likes", true, "notifications"),
+  bool("notifType_reposts", "Reposts", true, "notifications"),
+  bool("notifType_follows", "New followers", true, "notifications"),
+  bool("notifType_notes", "Community Notes", true, "notifications"),
+  bool("notifType_posts", "New posts", true, "notifications"),
+  { key: "syncUi", type: "bool", label: "Sync settings", def: true, group: "device", extra: true },
+  jsonDoc("feedTabs", "Custom tabs", "feed"),
+  jsonDoc("noteTabs", "Notification tabs", "notifications"),
+  jsonDoc("profileTabs", "Profile tabs", "profile"),
+  jsonDoc("groups", "Groups", "feed"),
+  jsonDoc("tabViews", "Tab views", "feed"),
+  jsonDoc("navCustom", "Sidebar", "look"),
+  jsonDoc("bottomNav", "Bottom bar", "look"),
+  jsonDoc("drawerMenu", "Menu order", "look"),
+  { key: "displayName", type: "text", label: "Display name", def: "", group: "profile", max: 50, extra: true, profile: true },
+  { key: "bio", type: "text", label: "Bio", def: "", group: "profile", max: 160, extra: true, profile: true },
+  { key: "location", type: "text", label: "Location", def: "", group: "profile", max: 30, extra: true, profile: true },
+  { key: "website", type: "text", label: "Website", def: "", group: "profile", max: 100, extra: true, profile: true },
+  bool("protected", "Protect your posts", false, "profile"),
+  bool("privateFollows", "Private followers and following", false, "profile"),
+  bool("profileLess", "Profile-less account", false, "profile"),
+  pick("hideAvatar", "Hide my profile picture", ["", "default", "none"], { "": "Show my picture", "default": "Default", none: "None" }, "", "profile"),
+  { key: "deskShowScrollbar", type: "bool", label: "Show scrollbar", def: false, group: "device", extra: true, device: true },
+  { key: "deskScaleMode", type: "enum", label: "App size", values: ["off", "window", "manual"], valueLabels: { off: "Off", window: "Automatic", manual: "Manual" }, def: "off", group: "device", extra: true, device: true },
+  { key: "deskScaleManual", type: "number", label: "App size", values: SCALE, def: 100, group: "device", extra: true, device: true },
+  { key: "deskScaleMaximized", type: "number", label: "Maximized with the toolbar", values: SCALE, def: 150, group: "device", extra: true, device: true },
+  { key: "deskScaleWindowed", type: "number", label: "In a window", values: SCALE, def: 120, group: "device", extra: true, device: true },
+  { key: "friendP2P", type: "bool", label: "Connect directly to friends", def: true, group: "friends", extra: true, device: true },
+  { key: "peerMedia", type: "enum", label: "Playback source", values: ["auto", "on", "off"], valueLabels: { auto: "Automatic", on: "On", off: "Off" }, def: "auto", group: "device", extra: true, device: true },
+  { key: "aiAutoModel", type: "bool", label: "Pick a model automatically", def: false, group: "device", extra: true, device: true }
 ];
-export const GROUPS = ["look", "feed", "media", "privacy", "language", "notifications"];
+["fullScreen", "classicHeader", "statusBar", "pageZoom", "sidePanelLeft", "navLayout", "navLayoutLand", "navLayoutSync", "videoHd", "imageLoad", "imageSize", "linkPreviews", "preload", "syncEvery", "backgroundLive", "updateDownload", "saveData", "playbackSource", "networkMode", "privacyZeroTrace", "historyPauseVideos", "historyPauseArticles", "deviceLevel"].forEach((key) => {
+  const row = MANAGED.find((item) => item.key === key);
+  if (row) row.device = true;
+});
+["communitiesHome", "protected", "privateFollows", "profileLess", "hideAvatar"].forEach((key) => {
+  const row = MANAGED.find((item) => item.key === key);
+  if (row) row.server = true;
+});
+["protected", "privateFollows", "profileLess", "hideAvatar"].forEach((key) => {
+  const row = MANAGED.find((item) => item.key === key);
+  if (row) row.profile = true;
+});
+export const GROUPS = ["look", "feed", "media", "privacy", "language", "notifications", "device", "profile", "network", "friends"];
+
+/* Registry settings this panel does not edit, each with the reason. */
+export const UNCOVERED = [
+  { id: "statusIcons", reason: "A set of several icon switches. Each one is a layout detail of this phone, and the owner locks the rest of Display instead." },
+  { id: "sideFold", reason: "Which side sections are folded is a momentary layout, not a preference to force on every device." },
+  { id: "brandLogo", reason: "The sidebar logo can be the person's own text. The owner does not rewrite that text." },
+  { id: "navCustomAt", reason: "A timestamp that travels with the sidebar order, not a setting of its own. Sidebar order is covered." },
+  { id: "bottomNavCustom", reason: "A flag that travels with the bottom bar. The bottom bar order is covered." },
+  { id: "inboxLayout", reason: "Inbox sections name mail and chat sources. The owner does not rearrange someone's inbox." },
+  { id: "keyboard", reason: "Shortcut choices are per computer and include no shared control." },
+  { id: "peopleLinks", reason: "Merged profiles name other accounts. The owner does not edit that list." },
+  { id: "busyPrefs", reason: "Posting-volume limits name other accounts." },
+  { id: "translateNever", reason: "A personal language list. Translate-to and automatic translation are covered." },
+  { id: "bells", reason: "Per-account alerts name other people." },
+  { id: "notePrefs", reason: "Notification list filters. The notification type switches are covered." },
+  { id: "communityTabs", reason: "Tabs inside communities the person joined. Home tabs are covered." },
+  { id: "communityFolders", reason: "The person's own folders of communities." },
+  { id: "lists", reason: "Lists of accounts. That is the person's collection, not a display setting." },
+  { id: "subsGroup", reason: "Which group the Subscriptions page shows." },
+  { id: "discoverable", reason: "Stored on the suggestions service, separate from the settings sync the lock enforces." },
+  { id: "searchable", reason: "Stored on the search-preference service, separate from the settings sync the lock enforces." },
+  { id: "onlineStatus", reason: "Who can see online status is an audience on the presence service, not one synced field." },
+  { id: "mutedWords", reason: "The words themselves are the person's private filter. The owner does not read or rewrite that list." },
+  { id: "mutedAccounts", reason: "A list of people the person muted." },
+  { id: "blocks", reason: "A list of people, posts and sources the person blocked." },
+  { id: "repostOff", reason: "Accounts whose reposts the person hid." },
+  { id: "notifPrivacy", reason: "The group object. Each switch inside it is covered on its own." },
+  { id: "devicePerf", reason: "The group object. Device performance and the peer-media choice are covered on their own." },
+  { id: "friendsSwitch", reason: "Turning Friends off is an account action with requests and counts, not one stored value." },
+  { id: "appLock", reason: "The passkey, PIN or fingerprint stays on the device. The owner cannot set it." },
+  { id: "passkeys", reason: "A sign-in credential. The owner cannot create or read it." },
+  { id: "devices", reason: "Signing other sessions out is an action, not a setting value." },
+  { id: "logout", reason: "Signing out is an action." },
+  { id: "deleteAccount", reason: "Deleting an account is not a setting the owner panel changes." },
+  { id: "clearStorage", reason: "Clearing this device's cache is an action." },
+  { id: "usernames", reason: "Usernames and who may see each one are identity records, not a single setting." },
+  { id: "gamesPrivacy", reason: "Who sees games and invites is its own privacy screen, not one synced field." },
+  { id: "liveTranslate", reason: "Live captions are a tool the person starts, not a stored switch." },
+  { id: "keys", reason: "Connected keys are secrets. The owner never reads or sets them." },
+  { id: "nostr", reason: "Nostr keys and relays are secrets." },
+  { id: "xPosting", reason: "Cross-posting uses the person's own X connection." },
+  { id: "tvLink", reason: "Linking a TV is a one-time code, not a stored setting." },
+  { id: "tempLabel", reason: "An owner-only label, not a member setting." },
+  { id: "runSetup", reason: "Running setup again is an action." },
+  { id: "emojiFallback", reason: "There is no setting. The app uses the system emoji font and adds the web font only when that font cannot draw the character." },
+  { id: "notifyPermission", reason: "The browser asks the person. The owner can lock Push notifications, and a lock of on still opens that prompt." }
+];
 const BY_KEY = new Map(MANAGED.map((row) => [row.key, row]));
 const NO_STORE = { "cache-control": "private, no-store" };
 
@@ -73,6 +204,20 @@ export function cleanValue(key, value) {
   if (row.type === "number") {
     const n = Number(value);
     return typeof value === "number" && row.values.indexOf(n) >= 0 ? { ok: true, value: n } : { ok: false };
+  }
+  if (row.type === "text") {
+    const text = String(value == null ? "" : value).replace(/[\u0000-\u001f\u007f]/g, "").replace(/\s+/g, " ").trim();
+    if (Array.from(text).length > (row.max || 80)) return { ok: false };
+    if (row.key === "displayName" && !text) return { ok: false };
+    if (row.key === "website" && text && (/[\s<>]/.test(text) || /^(javascript|data|file):/i.test(text))) return { ok: false };
+    return { ok: true, value: text };
+  }
+  if (row.type === "json") {
+    if (value == null || typeof value !== "object") return { ok: false };
+    let text = "";
+    try { text = JSON.stringify(value); } catch (err) { return { ok: false }; }
+    if (!text || text.length > (row.max || 20000)) return { ok: false };
+    return { ok: true, value: JSON.parse(text) };
   }
   return typeof value === "string" && row.values.indexOf(value) >= 0 ? { ok: true, value } : { ok: false };
 }
@@ -135,6 +280,7 @@ export function enforceLocks(payload, locks) {
     if (!lock || !managedKey(key)) return;
     if (JSON.stringify(payload[key]) !== JSON.stringify(lock.value)) changed.push(key);
     payload[key] = lock.value;
+    shapeLocked(payload, key, lock.value);
     if (key === "lang") return;
     if (!payload.prefsAt || typeof payload.prefsAt !== "object" || Array.isArray(payload.prefsAt)) payload.prefsAt = {};
     payload.prefsAt[key] = Math.max(Number(payload.prefsAt[key]) || 0, lock.at || 0);
@@ -158,12 +304,54 @@ async function loadPayload(env, id, deps) {
   return { payload: payload && typeof payload === "object" && !Array.isArray(payload) ? payload : {}, updatedAt: Number(row.updated_at) || 0, exists: true };
 }
 
-function currentValues(payload) {
+const NOTIF_FIELD = { notifNames: "names", notifPreview: "preview", notifBanner: "banner", notifBadge: "badge", notifCount: "count" };
+function shapeLocked(payload, key, value) {
+  if (key === "historyPauseVideos" || key === "historyPauseArticles") {
+    if (!payload.historyPause || typeof payload.historyPause !== "object" || Array.isArray(payload.historyPause)) payload.historyPause = {};
+    payload.historyPause[key === "historyPauseVideos" ? "videos" : "articles"] = value === true;
+    return;
+  }
+  if (NOTIF_FIELD[key] || key.indexOf("notifType_") === 0) {
+    if (!payload.notifPrivacy || typeof payload.notifPrivacy !== "object" || Array.isArray(payload.notifPrivacy)) payload.notifPrivacy = {};
+    if (NOTIF_FIELD[key]) payload.notifPrivacy[NOTIF_FIELD[key]] = value === true;
+    else {
+      if (!payload.notifPrivacy.types || typeof payload.notifPrivacy.types !== "object") payload.notifPrivacy.types = {};
+      payload.notifPrivacy.types[key.slice("notifType_".length)] = value === true;
+    }
+  }
+}
+
+function currentValues(payload, account) {
   const out = {};
   MANAGED.forEach((row) => {
     const clean = cleanValue(row.key, payload[row.key]);
     out[row.key] = clean.ok ? clean.value : null;
   });
+  if (account) {
+    if (out.displayName == null) {
+      const name = cleanValue("displayName", account.display_name || "");
+      if (name.ok) out.displayName = name.value;
+    }
+    if (out.bio == null) {
+      const bio = cleanValue("bio", account.bio || "");
+      if (bio.ok) out.bio = bio.value;
+    }
+    if (out.location == null) {
+      const location = cleanValue("location", account.location || "");
+      if (location.ok) out.location = location.value;
+    }
+    if (out.website == null) {
+      const website = cleanValue("website", account.website || "");
+      if (website.ok) out.website = website.value;
+    }
+    if (out.protected == null) out.protected = account.protected_account === 1;
+    if (out.privateFollows == null) out.privateFollows = account.private_follows === 1;
+    if (out.profileLess == null) out.profileLess = account.profile_less === 1;
+    if (out.hideAvatar == null) {
+      const face = cleanValue("hideAvatar", account.hide_avatar || "");
+      if (face.ok) out.hideAvatar = face.value;
+    }
+  }
   return out;
 }
 
@@ -172,8 +360,23 @@ function schemaOut() {
     const out = { key: row.key, type: row.type, label: row.label, def: row.def, group: row.group };
     if (row.values) out.values = row.values.slice();
     if (row.valueLabels) out.valueLabels = Object.assign({}, row.valueLabels);
+    if (row.device) out.device = true;
+    if (row.max) out.max = row.max;
     return out;
   });
+}
+
+const PROFILE_KEYS = ["displayName", "bio", "location", "website", "protected", "privateFollows", "profileLess", "hideAvatar"];
+async function writeProfileColumns(env, id, account, payload) {
+  const name = payload.displayName != null ? payload.displayName : (account.display_name || "");
+  const bio = payload.bio != null ? payload.bio : (account.bio || "");
+  const location = payload.location != null ? payload.location : (account.location || "");
+  const website = payload.website != null ? payload.website : (account.website || "");
+  const protectedAccount = payload.protected != null ? (payload.protected ? 1 : 0) : (account.protected_account === 1 ? 1 : 0);
+  const privateFollows = payload.privateFollows != null ? (payload.privateFollows ? 1 : 0) : (account.private_follows === 1 ? 1 : 0);
+  const profileLess = payload.profileLess != null ? (payload.profileLess ? 1 : 0) : (account.profile_less === 1 ? 1 : 0);
+  const hideAvatar = payload.hideAvatar != null ? payload.hideAvatar : (account.hide_avatar || "");
+  await env.DB.prepare("UPDATE accounts SET display_name = ?, bio = ?, location = ?, website = ?, protected_account = ?, private_follows = ?, profile_less = ?, hide_avatar = ? WHERE public_id = ?").bind(name || account.display_name, bio, location, website, protectedAccount, privateFollows, profileLess, hideAvatar, id).run();
 }
 
 export async function handleOwnerUserSettings(request, env, path, deps) {
@@ -190,7 +393,7 @@ export async function handleOwnerUserSettings(request, env, path, deps) {
   const m = path.match(/^\/v1\/owner\/user-settings\/([A-Za-z0-9_-]{1,64})$/);
   if (!m) return deps.json(404, { error: "not_found" });
 
-  const target = await env.DB.prepare("SELECT public_id, handle, owner FROM accounts WHERE public_id = ?").bind(m[1]).first();
+  const target = await env.DB.prepare("SELECT public_id, handle, owner, display_name, bio, location, website, protected_account, private_follows, profile_less, hide_avatar FROM accounts WHERE public_id = ?").bind(m[1]).first();
   if (!target) return deps.json(404, { error: "not_found" });
   const id = String(target.public_id);
   if (Number(target.owner) === 1) return deps.json(403, { error: "owner_account" });
@@ -200,10 +403,10 @@ export async function handleOwnerUserSettings(request, env, path, deps) {
     const locks = await readLocks(env, id);
     enforceLocks(saved.payload, locks);
     const audit = await readAudit(env, id);
-    return deps.json(200, { id, handle: target.handle, settings: currentValues(saved.payload), locks: lockValues(locks), notes: lockNotes(locks), schema: schemaOut(), groups: GROUPS, audit, updatedAt: saved.updatedAt }, NO_STORE);
+    return deps.json(200, { id, handle: target.handle, settings: currentValues(saved.payload, target), locks: lockValues(locks), notes: lockNotes(locks), schema: schemaOut(), groups: GROUPS, audit, updatedAt: saved.updatedAt }, NO_STORE);
   }
 
-  const body = await deps.readJson(request, 8000);
+  const body = await deps.readJson(request, 48000);
   if (body.error) return deps.json(400, { error: body.error });
   const values = body.values && typeof body.values === "object" && !Array.isArray(body.values) ? body.values : {};
   const lockAsk = body.locks && typeof body.locks === "object" && !Array.isArray(body.locks) ? body.locks : {};
@@ -224,6 +427,14 @@ export async function handleOwnerUserSettings(request, env, path, deps) {
   const now = Date.now();
   const saved = await loadPayload(env, id, deps);
   const payload = saved.payload;
+  if (payload.displayName == null && target.display_name) payload.displayName = target.display_name;
+  if (payload.bio == null) payload.bio = target.bio || "";
+  if (payload.location == null) payload.location = target.location || "";
+  if (payload.website == null) payload.website = target.website || "";
+  if (payload.protected == null) payload.protected = target.protected_account === 1;
+  if (payload.privateFollows == null) payload.privateFollows = target.private_follows === 1;
+  if (payload.profileLess == null) payload.profileLess = target.profile_less === 1;
+  if (payload.hideAvatar == null) payload.hideAvatar = target.hide_avatar || "";
   const locks = await readLocks(env, id);
   enforceLocks(payload, locks);
   if (!payload.prefsAt || typeof payload.prefsAt !== "object" || Array.isArray(payload.prefsAt)) payload.prefsAt = {};
@@ -264,10 +475,13 @@ export async function handleOwnerUserSettings(request, env, path, deps) {
   const text = JSON.stringify(await deps.sealPayload(env, payload));
   stmts.push(env.DB.prepare("INSERT INTO sync_state (public_id, payload, updated_at) VALUES (?, ?, ?) ON CONFLICT(public_id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at").bind(id, text, now));
   await env.DB.batch(stmts);
+  if (PROFILE_KEYS.some((key) => Object.prototype.hasOwnProperty.call(cleaned, key) || Object.prototype.hasOwnProperty.call(lockAsk, key))) {
+    try { await writeProfileColumns(env, id, target, payload); } catch (err) { /* the sync copy still has the value */ }
+  }
   await logOwnerView(env, ownerId, id, "settings");
   // The member's open devices pull the change right away.
   try { if (deps.publish) await deps.publish(env, id, "sync", { updatedAt: now, device: "owner" }, id); } catch (err) { /* they check on return */ }
-  return deps.json(200, { id, handle: target.handle, settings: currentValues(payload), locks: lockValues(locks), notes: lockNotes(locks), audit: await readAudit(env, id), updatedAt: now }, NO_STORE);
+  return deps.json(200, { id, handle: target.handle, settings: currentValues(payload, target), locks: lockValues(locks), notes: lockNotes(locks), audit: await readAudit(env, id), updatedAt: now }, NO_STORE);
 }
 
 function auditStmt(env, ownerId, id, key, oldValue, newValue, change, now) {
@@ -283,7 +497,7 @@ async function readAudit(env, id) {
 
 async function handleBulk(request, env, deps, ownerId) {
   if (request.method !== "POST") return deps.json(405, { error: "method_not_allowed" });
-  const body = await deps.readJson(request, 8000);
+  const body = await deps.readJson(request, 48000);
   if (body.error) return deps.json(400, { error: body.error });
   const locks = body.locks && typeof body.locks === "object" && !Array.isArray(body.locks) ? body.locks : {};
   const values = body.values && typeof body.values === "object" && !Array.isArray(body.values) ? body.values : {};

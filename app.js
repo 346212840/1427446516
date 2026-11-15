@@ -1703,10 +1703,14 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
       STATE.settings[key] = next;
       reverted = true;
     });
+    const accounts = window.ViktorychAccounts;
+    if (Object.keys(locks).length && accounts && accounts.applyOwnerLockExtras) accounts.applyOwnerLockExtras(STATE.settings, locks);
     return reverted;
   }
-  const LOCK_FIXED = { theme: "appearance", autoplay: "autoplay", "haptics-pref": "haptics", "ava-shape": "avatarShape", "ui-lang": "lang", "live-preview": "livePreview", "ai-fab": "aiFab", notify: "notify" };
-  const LOCK_ACTS = { theme: () => "appearance", autoplay: () => "autoplay", "haptics-pref": () => "haptics", "ava-shape": () => "avatarShape", "ui-lang": () => "lang", "live-preview": () => "livePreview", "ai-fab": () => "aiFab", notify: () => "notify",
+  const LOCK_FIXED = { theme: "appearance", autoplay: "autoplay", "haptics-pref": "haptics", "ava-shape": "avatarShape", "ui-lang": "lang", "live-preview": "livePreview", "ai-fab": "aiFab", notify: "notify", "page-zoom": "pageZoom" };
+  const LOCK_ACTS = { theme: () => "appearance", autoplay: () => "autoplay", "haptics-pref": () => "haptics", "ava-shape": () => "avatarShape", "ui-lang": () => "lang", "live-preview": () => "livePreview", "ai-fab": () => "aiFab", notify: () => "notify", "page-zoom": () => "pageZoom",
+    "desk-pref": (el) => (el.dataset.key === "showScrollbar" ? "deskShowScrollbar" : ""),
+    "desk-scale-mode": () => "deskScaleMode",
     "face-pref": (el) => (el.dataset.kind === "banners" ? "showBanners" : "showPictures"),
     "pz-look": (el) => el.dataset.key, "pz-feed": (el) => el.dataset.key, "toggle-privacy-pref": (el) => el.dataset.key, "home-feature": (el) => el.dataset.key, "data-pref": (el) => el.dataset.key };
   function lockedKeyOf(el) {
@@ -1787,6 +1791,7 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
     if (key === "livePreview") return '[data-act="live-preview"]';
     if (key === "aiFab") return '[data-act="ai-fab"]';
     if (key === "notify") return '[data-act="notify"]';
+    if (key === "pageZoom") return '[data-act="page-zoom"]';
     if (key === "showBanners") return '[data-act="face-pref"][data-kind="banners"]';
     if (key === "showPictures") return '[data-act="face-pref"]:not([data-kind="banners"])';
     return `[data-key="${key}"]`;
@@ -11591,7 +11596,25 @@ const here = parseRoute();
      the settings page that has to show the lock. */
   let lockClicksOn = false;
   function onLockClick(event) {
-    const el = event.target && event.target.closest ? event.target.closest("[data-act]") : null;
+    const raw = event.target;
+    const p2p = raw && raw.closest ? raw.closest("[data-friend-p2p]") : null;
+    if (p2p && Object.prototype.hasOwnProperty.call(settingLocks(), "friendP2P")) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      toast(tr("The site owner locked this setting."));
+      return;
+    }
+    const scale = raw && raw.closest ? raw.closest("[data-desk-scale]") : null;
+    if (scale) {
+      const which = "deskScale" + String(scale.getAttribute("data-key") || "").replace(/^./, (ch) => ch.toUpperCase());
+      if (Object.prototype.hasOwnProperty.call(settingLocks(), which)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        toast(tr("The site owner locked this setting."));
+        return;
+      }
+    }
+    const el = raw && raw.closest ? raw.closest("[data-act]") : null;
     if (!el || !lockBlocksAct(el)) return;
     event.preventDefault();
     event.stopImmediatePropagation();

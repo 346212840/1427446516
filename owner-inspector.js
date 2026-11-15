@@ -303,7 +303,7 @@
      #/settings/accounts-inspector/manage:<id>. The Worker checks the owner,
      validates every value and keeps locked values on the member's syncs. */
   function manageOn() { return !(hooks && hooks.manageSettingsOn && !hooks.manageSettingsOn()); }
-  const GROUP_WORD = () => ({ look: tr("Look and menus"), feed: tr("Feed"), media: tr("Media"), privacy: tr("Privacy"), language: tr("Language"), notifications: tr("Notifications"), friends: tr("Friends") });
+  const GROUP_WORD = () => ({ look: tr("Look and menus"), feed: tr("Feed"), media: tr("Media"), privacy: tr("Privacy"), language: tr("Language"), notifications: tr("Notifications"), friends: tr("Friends"), device: tr("This device"), profile: tr("Profile"), network: tr("Network") });
   function loadManage(id, force) {
     if (!force && (S.manage[id] || S.manageLoading[id])) return;
     S.manageLoading[id] = true;
@@ -355,12 +355,18 @@
         if (r.type === "bool") {
           const on = v == null ? r.def === true : v === true;
           control = `<button type="button" class="tab-switch oi-ms-switch${on ? " on" : ""}" role="switch" aria-checked="${on ? "true" : "false"}" aria-label="${esc(tr(r.label))}" data-oi-act="ms-bool" data-oi-id="${esc(id)}" data-oi-k="${esc(r.key)}"${busy ? " disabled" : ""}><i></i></button>`;
+        } else if (r.type === "text") {
+          control = `<input class="oi-ms-text" type="text" maxlength="${Number(r.max) || 80}" aria-label="${esc(tr(r.label))}" data-oi-ms="value" data-oi-id="${esc(id)}" data-oi-k="${esc(r.key)}" value="${esc(v == null ? "" : String(v))}"${busy ? " disabled" : ""}>`;
+        } else if (r.type === "json") {
+          const shown = v == null ? "" : JSON.stringify(v);
+          control = `<textarea class="oi-ms-text" rows="3" aria-label="${esc(tr(r.label))}" data-oi-ms="value" data-oi-id="${esc(id)}" data-oi-k="${esc(r.key)}"${busy ? " disabled" : ""}>${esc(shown)}</textarea>`;
         } else {
           const cur = v == null ? r.def : v;
           control = `<select class="oi-ms-select" aria-label="${esc(tr(r.label))}" data-oi-ms="value" data-oi-id="${esc(id)}" data-oi-k="${esc(r.key)}"${busy ? " disabled" : ""}>${cur != null && r.values.map(String).indexOf(String(cur)) < 0 ? `<option value="" selected disabled>${esc(String(cur))}</option>` : ""}${r.values.map((x) => `<option value="${esc(String(x))}"${String(x) === String(cur) ? " selected" : ""}>${esc(valueWord(r, x))}</option>`).join("")}</select>`;
         }
         const lockBtn = `<button type="button" class="oi-ms-lock${locked ? " on" : ""}" aria-label="${esc(tr(r.label) + " · " + (locked ? tr("Locked") : tr("Lock")))}" aria-pressed="${locked ? "true" : "false"}" data-oi-act="ms-lock" data-oi-id="${esc(id)}" data-oi-k="${esc(r.key)}"${busy ? " disabled" : ""}>${icon("lock")}<span>${esc(locked ? tr("Locked") : tr("Lock"))}</span></button>`;
-        return `<div class="oi-ms-row${locked ? " is-locked" : ""}"><span class="set-copy"><b>${esc(tr(r.label))}</b><span class="set-sub">${esc(v == null ? tr("Their choice") + " · " + valueWord(r, r.def) : valueWord(r, v))}</span></span><span class="oi-ms-ctl">${control}${lockBtn}</span></div>`;
+        const where = r.device ? " · " + tr("This device") : "";
+        return `<div class="oi-ms-row${locked ? " is-locked" : ""}"><span class="set-copy"><b>${esc(tr(r.label))}</b><span class="set-sub">${esc((v == null ? tr("Their choice") + " · " + valueWord(r, r.def) : valueWord(r, v)) + where)}</span></span><span class="oi-ms-ctl">${control}${lockBtn}</span></div>`;
       }).join("");
       const groupBtn = `<button type="button" class="oi-link oi-ms-group" data-oi-act="ms-lock-group" data-oi-id="${esc(id)}" data-oi-v="${esc(g)}" data-oi-on="${allLocked ? "0" : "1"}"${busy ? " disabled" : ""}>${esc(allLocked ? tr("Unlock all") : tr("Lock all"))}</button>`;
       return `<section class="oi-sec oi-sec-rows oi-ms-sec"><div class="oi-ms-head"><h2>${esc(gw[g] || g)}</h2>${groupBtn}</div>${items}</section>`;
@@ -593,7 +599,11 @@
     const m = S.manage[id];
     const row = m ? m.schema.find((r) => r.key === el.dataset.oiK) : null;
     if (!row) return;
-    const value = row.type === "number" ? Number(el.value) : String(el.value);
+    let value = row.type === "number" ? Number(el.value) : String(el.value);
+    if (row.type === "json") {
+      try { value = el.value.trim() ? JSON.parse(el.value) : row.def; }
+      catch (err) { toast(tr("Couldn’t save. Try again.")); return; }
+    }
     manageSave(id, { values: { [row.key]: value } });
   }
   function onSubmit(event) {

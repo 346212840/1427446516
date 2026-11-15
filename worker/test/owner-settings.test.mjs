@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import test from "node:test";
 import { Miniflare } from "miniflare";
-import { MANAGED, cleanValue, enforceLocks } from "../src/owner-settings.js";
+import { MANAGED, UNCOVERED, cleanValue, enforceLocks } from "../src/owner-settings.js";
 
 const require = createRequire(import.meta.url);
 const OWNER = "ownermaple";
@@ -56,13 +56,23 @@ test("managed settings match settings-registry.js", () => {
   const reg = require("../../settings-registry.js");
   for (const row of MANAGED) {
     const r = reg.get(row.key);
+    if (row.extra) continue;
     assert.ok(r, "registry row for " + row.key);
     assert.equal(r.label, row.label, row.key + " label");
-    assert.equal(r.sync, "account", row.key + " syncs with the account");
-    assert.equal(r.def, row.def, row.key + " default");
+    if (row.device) assert.equal(r.sync, "device", row.key + " stays on the device until locked");
+    else if (row.server) assert.equal(r.sync, "server", row.key + " is an account field");
+    else assert.equal(r.sync, "account", row.key + " syncs with the account");
+    if (row.type !== "json") assert.equal(r.def, row.def, row.key + " default");
     if (row.type === "bool") assert.equal(r.type, "bool", row.key);
-    else r.values.forEach((v) => assert.ok(row.values.indexOf(v) >= 0, row.key + " takes " + v));
+    else if (row.values) r.values.forEach((v) => assert.ok(row.values.indexOf(v) >= 0, row.key + " takes " + v));
   }
+  const covered = new Set(MANAGED.map((row) => row.key));
+  const skip = new Map(UNCOVERED.map((row) => [row.id, row.reason]));
+  reg.all().forEach((row) => {
+    if (row.type === "data" && !covered.has(row.id)) return;
+    assert.ok(covered.has(row.id) || skip.has(row.id), "not covered and not explained: " + row.id);
+  });
+  skip.forEach((reason, id) => assert.ok(reason && reason.length > 12, id));
   assert.equal(cleanValue("appearance", "dim").ok, true);
   assert.equal(cleanValue("appearance", "neon").ok, false);
   assert.equal(cleanValue("fontSize", 40).ok, false);
@@ -101,6 +111,10 @@ test("only the owner manages settings; locks hold through member syncs", async (
   assert.ok(read.body.schema.some((r) => r.key === "notify"));
   assert.ok(read.body.schema.some((r) => r.key === "postAlign"));
   assert.ok(read.body.schema.some((r) => r.key === "friendsRail"));
+  assert.ok(read.body.schema.some((r) => r.key === "pageZoom" && r.device === true));
+  assert.ok(read.body.schema.some((r) => r.key === "deskScaleMaximized"));
+  assert.ok(read.body.schema.some((r) => r.key === "displayName"));
+  assert.ok(read.body.schema.some((r) => r.key === "feedTabs"));
   const schemaKeys = read.body.schema.map((r) => r.key);
   assert.equal(new Set(schemaKeys).size, schemaKeys.length, "each setting is listed once");
   assert.ok(!read.body.schema.some((r) => r.key === "follows" || r.key === "blocks" || r.key === "history"));
@@ -168,6 +182,19 @@ test("only the owner manages settings; locks hold through member syncs", async (
   assert.equal(pushed.status, 200);
   assert.equal(pushed.body.payload.lang, "en");
   assert.ok(pushed.body.rejected.includes("lang"));
+
+  const zoomed = await call(route, { method: "PUT", token: owner.token, body: { values: { pageZoom: true }, locks: { pageZoom: true } } });
+  assert.equal(zoomed.status, 200, JSON.stringify(zoomed.body));
+  const denyZoom = await call("/v1/sync", { method: "PUT", token: member.token, body: { payload: { pageZoom: false, appearance: "default" } } });
+  assert.equal(denyZoom.status, 200, JSON.stringify(denyZoom.body));
+  assert.equal(denyZoom.body.payload.pageZoom, true);
+  assert.ok(denyZoom.body.rejected.includes("pageZoom"));
+  const named = await call(route, { method: "PUT", token: owner.token, body: { values: { displayName: "Birch" }, locks: { displayName: true } } });
+  assert.equal(named.status, 200, JSON.stringify(named.body));
+  assert.equal(named.body.settings.displayName, "Birch");
+  const patch = await call("/v1/profile", { method: "PATCH", token: member.token, body: { displayName: "Other name" } });
+  assert.equal(patch.status, 200, JSON.stringify(patch.body));
+  assert.equal(patch.body.account.displayName, "Birch");
 
   // Each change is in the owner's access log.
   const audit = await call("/v1/owner/inspector/audit", { token: owner.token });
