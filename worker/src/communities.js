@@ -159,8 +159,12 @@ export async function communityHomeRows(env, request, viewer, presentAccount, op
   const authorId = opts && opts.authorId ? String(opts.authorId) : "";
   let communitiesHome = true;
   if (!authorId) try {
-    const global = await env.DB.prepare("SELECT show_home FROM community_feed_prefs WHERE public_id = ? AND community_id = ''").bind(viewerId).first();
-    if (global && Number(global.show_home) === 0) communitiesHome = false;
+    const locked = await activeLock(env, viewerId, "communitiesHome");
+    if (locked === false) return { posts: [], communitiesHome: false };
+    if (locked !== true) {
+      const global = await env.DB.prepare("SELECT show_home FROM community_feed_prefs WHERE public_id = ? AND community_id = ''").bind(viewerId).first();
+      if (global && Number(global.show_home) === 0) communitiesHome = false;
+    }
   } catch (err) {
     return { posts: [], communitiesHome: true };
   }

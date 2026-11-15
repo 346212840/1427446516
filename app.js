@@ -11636,7 +11636,11 @@ const here = parseRoute();
     window.addEventListener("viktorych-setting-locks", () => {
       const locks = settingLocks();
       const now = Object.keys(locks).length ? JSON.stringify(locks) : "";
-      if (lockSnap !== null && lockSnap === now) return;
+      if (lockSnap !== null && lockSnap === now) {
+        paintSettingLocks();
+        render({ y: window.scrollY });
+        return;
+      }
       lockSnap = now;
       const note = { id: "owner-settings-" + Date.now(), at: Date.now(), name: tr("Settings"), text: tr("The owner updated a setting you use."), hash: "#/settings", platform: "settings", ids: [], handles: [] };
       try { commitBellNotes([note]); } catch (err) { /* the summary still shows the locks */ }
