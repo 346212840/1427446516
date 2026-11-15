@@ -37,9 +37,37 @@ function makeMedia() {
   if (!fs.existsSync(clip) || !fs.existsSync(path.join(liveSrc, "index.m3u8"))) fail("shorts fixtures are missing");
   fs.copyFileSync(clip, path.join(mediaDir, "a.mp4"));
   fs.copyFileSync(clip, path.join(mediaDir, "b.mp4"));
-  for (const name of fs.readdirSync(liveSrc)) {
-    fs.copyFileSync(path.join(liveSrc, name), path.join(mediaDir, "live", name));
+  const copyTree = (from, to) => {
+    fs.mkdirSync(to, { recursive: true });
+    for (const name of fs.readdirSync(from)) {
+      const src = path.join(from, name);
+      const dest = path.join(to, name);
+      if (fs.statSync(src).isDirectory()) copyTree(src, dest);
+      else fs.copyFileSync(src, dest);
+    }
+  };
+  copyTree(liveSrc, path.join(mediaDir, "live"));
+}
+
+async function assertClimb(page) {
+  const trace = [];
+  const started = Date.now();
+  let first = 0;
+  while (Date.now() - started < 28000) {
+    const height = await page.evaluate(() => {
+      const video = document.querySelector("#shorts-live-player video");
+      return video ? video.videoHeight : 0;
+    });
+    const prev = trace.length ? trace[trace.length - 1].h : -1;
+    if (height !== prev) trace.push({ t: Date.now() - started, h: height });
+    if (!first && height > 0) first = height;
+    if (first && height > first) {
+      console.log("climb " + JSON.stringify(trace));
+      return;
+    }
+    await page.waitForTimeout(400);
   }
+  fail("live quality did not climb " + JSON.stringify(trace));
 }
 
 function feeds() {
@@ -52,7 +80,21 @@ function feeds() {
   return { updated: "2026-11-15T00:00:00.000Z", feeds: [{ id: "tiktok:lane", platform: "tiktok", handle: "lane_a", name: "Lane", configured: true }], posts: [post("tiktok:one", "First short", "a.mp4"), post("tiktok:two", "Second short", "b.mp4")] };
 }
 
+function slidingPlaylist() {
+  const seq = Math.floor((Date.now() - liveEpoch) / 1000);
+  const lines = ["#EXTM3U", "#EXT-X-VERSION:3", "#EXT-X-TARGETDURATION:1", "#EXT-X-MEDIA-SEQUENCE:" + seq];
+  for (let i = 0; i < 3; i++) {
+    lines.push("#EXT-X-DISCONTINUITY");
+    lines.push("#EXTINF:1.000,");
+    lines.push("seg" + (seq + i) + ".ts");
+  }
+  return lines.join("\n") + "\n";
+}
+
+let liveEpoch = Date.now();
+
 function startServer() {
+  liveEpoch = Date.now();
   const catalog = JSON.stringify(feeds());
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, "http://127.0.0.1");
@@ -70,6 +112,17 @@ function startServer() {
       return send(200, { live: true, handle: "lane_live", hls: "http://" + host + "/media/live/index.m3u8", quality: "origin", roomId: "1234567", viewers: 3 });
     }
     if (url.pathname.indexOf("/v1/") === 0) return send(200, { ok: true, posts: [], accounts: [] });
+    if (url.pathname === "/media/live/low/index.m3u8" || url.pathname === "/media/live/high/index.m3u8") return send(200, slidingPlaylist(), "application/vnd.apple.mpegurl");
+    const rolled = url.pathname.match(/^\/media\/live\/(low|high)\/seg(\d+)\.ts$/);
+    if (rolled) {
+      const file = path.join(mediaDir, "live", rolled[1], "seg" + (Number(rolled[2]) % 4) + ".ts");
+      fs.readFile(file, (err, data) => {
+        if (err) { res.writeHead(404); return res.end(); }
+        res.writeHead(200, { "content-type": "video/mp2t", "cache-control": "no-store", "access-control-allow-origin": "*" });
+        res.end(data);
+      });
+      return;
+    }
     if (url.pathname.indexOf("/media/") === 0) {
       const file = path.normalize(path.join(mediaDir, url.pathname.slice("/media/".length)));
       if (file !== mediaDir && !file.startsWith(mediaDir + path.sep)) { res.writeHead(403); return res.end(); }
@@ -242,6 +295,7 @@ async function main() {
           const session = await openPage(browser, origin, size);
           try {
             row = await sample(session.page, origin, size);
+            if (!bench) await assertClimb(session.page);
           } catch (err) {
             last = err;
           } finally {

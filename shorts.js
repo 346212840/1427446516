@@ -1288,7 +1288,7 @@
     climbTimer = setTimeout(function () {
       if (qualityLock || hls !== player) return;
       var current = player.currentLevel;
-      var pinned = pinRef.level;
+      var pinned = pinRef.climb;
       if (current >= 0 && current < pinned) {
         player.currentLevel = current + 1;
         showLiveLevel(player, player.currentLevel, pinned);
@@ -1389,7 +1389,9 @@
         player.on(Hls.Events.MANIFEST_PARSED, function () {
           if (hls !== player) return;
           var top = topLevel(player);
-          var pinRef = { level: top };
+          /* level is the rung that produced a picture. climb stays at the
+             top, so a fast start on the smallest rung still walks upward. */
+          var pinRef = { level: top, climb: top };
           player.capLevelToPlayerSize = false;
           /* Save data with HD off: stay below 720p and let the player adapt. */
           var saver = typeof window !== "undefined" ? window.ViktorychDataSaver : null;
@@ -1417,7 +1419,6 @@
             }).then(function (ok) {
               if (hls !== player || settled) return;
               if (ok) {
-                pinRef.level = level;
                 settled = true;
                 resolve();
                 return;
@@ -1425,6 +1426,7 @@
               var lower = lowerPlayable(player, level);
               if (lower >= 0) {
                 pinRef.level = lower;
+                pinRef.climb = lower;
                 player.currentLevel = lower;
                 showLiveLevel(player, lower, top);
                 return acceptOrStep(lower);
@@ -3998,7 +4000,7 @@
 
   function unmount() {
     document.documentElement.classList.remove("shorts-on");
-    document.removeEventListener("keydown", onKey);
+    document.removeEventListener("keydown", onKey, true);
     clearInterval(poll);
     poll = 0;
     clearInterval(boardTimer);
