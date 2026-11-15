@@ -55,13 +55,11 @@ export const MANAGED = [
   bool("translateAuto", "Automatically translate posts", true, "language"),
   pick("postAlign", "Alignment", ["left", "justify"], { left: "Left", justify: "Justified" }, "left", "look"),
   bool("postWrapAvatar", "Wrap around profile picture", false, "look"),
-  bool("reduceMotion", "Reduce motion", false, "look"),
   bool("notify", "Push notifications", false, "notifications"),
   pick("reactionsData", "Reactions", ["auto", "full", "lite"], { auto: "Automatic", full: "Full", lite: "Light" }, "auto", "media"),
-  pick("communityNotesData", "Community Notes", ["auto", "full", "lite"], { auto: "Automatic", full: "Full", lite: "Light" }, "auto", "media"),
-  bool("friendsRail", "Friends panel", true, "friends")
+  pick("communityNotesData", "Community Notes", ["auto", "full", "lite"], { auto: "Automatic", full: "Full", lite: "Light" }, "auto", "media")
 ];
-export const GROUPS = ["look", "feed", "media", "privacy", "language", "notifications", "friends"];
+export const GROUPS = ["look", "feed", "media", "privacy", "language", "notifications"];
 const BY_KEY = new Map(MANAGED.map((row) => [row.key, row]));
 const NO_STORE = { "cache-control": "private, no-store" };
 
@@ -107,10 +105,16 @@ export async function readLocks(env, publicId) {
   const out = {};
   if (!env || !env.DB || !publicId) return out;
   let rows = [];
+  try { await ensureSchema(env); } catch (err) { /* a missing table still reads as no locks */ }
   try {
     const res = await env.DB.prepare("SELECT key, value, at, note FROM owner_setting_locks WHERE public_id = ?").bind(String(publicId)).all();
     rows = (res && res.results) || [];
-  } catch (err) { return out; }
+  } catch (err) {
+    try {
+      const res = await env.DB.prepare("SELECT key, value, at FROM owner_setting_locks WHERE public_id = ?").bind(String(publicId)).all();
+      rows = (res && res.results) || [];
+    } catch (again) { return out; }
+  }
   rows.forEach((row) => {
     let value;
     try { value = JSON.parse(row.value); } catch (err) { return; }
@@ -282,6 +286,7 @@ async function handleBulk(request, env, deps, ownerId) {
   const body = await deps.readJson(request, 8000);
   if (body.error) return deps.json(400, { error: body.error });
   const locks = body.locks && typeof body.locks === "object" && !Array.isArray(body.locks) ? body.locks : {};
+  const values = body.values && typeof body.values === "object" && !Array.isArray(body.values) ? body.values : {};
   const keys = Object.keys(locks);
   if (!keys.length) return deps.json(400, { error: "nothing_to_change" });
   for (const key of keys) {
@@ -291,6 +296,13 @@ async function handleBulk(request, env, deps, ownerId) {
   const ids = ((listed && listed.results) || []).map((row) => String(row.public_id));
   if (body.confirm !== "apply") return deps.json(200, { preview: true, count: ids.length, keys }, NO_STORE);
   if (Number(body.count) !== ids.length) return deps.json(409, { error: "preview_stale", count: ids.length });
+  const cleaned = {};
+  for (const key of keys) {
+    if (!locks[key]) continue;
+    const clean = cleanValue(key, values[key]);
+    if (!clean.ok) return deps.json(400, { error: "bad_value", key: String(key).slice(0, 40) });
+    cleaned[key] = clean.value;
+  }
   const now = Date.now();
   for (const id of ids) {
     const saved = await loadPayload(env, id, deps);
@@ -298,12 +310,12 @@ async function handleBulk(request, env, deps, ownerId) {
     const have = await readLocks(env, id);
     enforceLocks(payload, have);
     const stmts = [];
+    if (!payload.prefsAt || typeof payload.prefsAt !== "object" || Array.isArray(payload.prefsAt)) payload.prefsAt = {};
     keys.forEach((key) => {
       if (locks[key]) {
-        const row = BY_KEY.get(key);
-        const clean = cleanValue(key, payload[key]);
-        const value = clean.ok ? clean.value : row.def;
+        const value = cleaned[key];
         payload[key] = value;
+        if (key !== "lang") payload.prefsAt[key] = now;
         stmts.push(env.DB.prepare("INSERT INTO owner_setting_locks (public_id, key, value, owner_id, at, note) VALUES (?, ?, ?, ?, ?, '') ON CONFLICT(public_id, key) DO UPDATE SET value = excluded.value, owner_id = excluded.owner_id, at = excluded.at").bind(id, key, JSON.stringify(value), ownerId, now));
         stmts.push(auditStmt(env, ownerId, id, key, have[key] ? have[key].value : null, value, "lock", now));
       } else if (have[key]) {
@@ -314,6 +326,7 @@ async function handleBulk(request, env, deps, ownerId) {
     const text = JSON.stringify(await deps.sealPayload(env, payload));
     stmts.push(env.DB.prepare("INSERT INTO sync_state (public_id, payload, updated_at) VALUES (?, ?, ?) ON CONFLICT(public_id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at").bind(id, text, now));
     await env.DB.batch(stmts);
+    try { if (deps.publish) await deps.publish(env, id, "sync", { updatedAt: now, device: "owner" }, id); } catch (err) { /* they check on return */ }
   }
   return deps.json(200, { preview: false, count: ids.length, keys }, NO_STORE);
 }

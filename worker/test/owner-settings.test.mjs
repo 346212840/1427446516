@@ -101,6 +101,8 @@ test("only the owner manages settings; locks hold through member syncs", async (
   assert.ok(read.body.schema.some((r) => r.key === "notify"));
   assert.ok(read.body.schema.some((r) => r.key === "postAlign"));
   assert.ok(read.body.schema.some((r) => r.key === "friendsRail"));
+  const schemaKeys = read.body.schema.map((r) => r.key);
+  assert.equal(new Set(schemaKeys).size, schemaKeys.length, "each setting is listed once");
   assert.ok(!read.body.schema.some((r) => r.key === "follows" || r.key === "blocks" || r.key === "history"));
 
   // Bad values and unknown keys are refused.
@@ -158,6 +160,10 @@ test("only the owner manages settings; locks hold through member syncs", async (
   assert.equal(beforeBulk.body.locks.notify, undefined);
   const stale = await call("/v1/owner/user-settings/bulk", { method: "POST", token: owner.token, body: { locks: { notify: true }, confirm: "apply", count: preview.body.count + 3 } });
   assert.equal(stale.status, 409);
+  const applied = await call("/v1/owner/user-settings/bulk", { method: "POST", token: owner.token, body: { locks: { notify: true }, values: { notify: false }, confirm: "apply", count: preview.body.count } });
+  assert.equal(applied.status, 200, JSON.stringify(applied.body));
+  const copied = await call("/v1/sync", { token: other.token });
+  assert.equal(copied.body.locks.notify, false);
   const pushed = await call("/v1/sync", { method: "PUT", token: member.token, body: { payload: { lang: "hi", appearance: "default" } } });
   assert.equal(pushed.status, 200);
   assert.equal(pushed.body.payload.lang, "en");

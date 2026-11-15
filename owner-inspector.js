@@ -321,7 +321,7 @@
     paint();
     api("/v1/owner/user-settings/" + encodeURIComponent(id), "PUT", change).then((res) => {
       S.manageBusy[id] = false;
-      if (res.ok && res.body && res.body.settings) { m.settings = res.body.settings; m.locks = res.body.locks || {}; toast(tr("Saved")); }
+      if (res.ok && res.body && res.body.settings) { m.settings = res.body.settings; m.locks = res.body.locks || {}; if (res.body.notes) m.notes = res.body.notes; if (res.body.audit) m.audit = res.body.audit; toast(tr("Saved")); }
       else toast(tr("Couldn’t save. Try again."));
       paint();
     });
@@ -486,12 +486,16 @@
       const id = btn.dataset.oiId;
       const m = S.manage[id];
       const locks = {};
-      Object.keys((m && m.locks) || {}).forEach((key) => { locks[key] = true; });
+      const values = {};
+      Object.keys((m && m.locks) || {}).forEach((key) => {
+        locks[key] = true;
+        values[key] = m.settings[key] == null ? (m.schema.find((row) => row.key === key) || {}).def : m.settings[key];
+      });
       if (!Object.keys(locks).length) { toast(tr("Couldn’t save. Try again.")); return; }
-      api("/v1/owner/user-settings/bulk", "POST", { locks, preview: true }).then((res) => {
+      api("/v1/owner/user-settings/bulk", "POST", { locks, values, preview: true }).then((res) => {
         const count = res.ok && res.body ? res.body.count : 0;
         if (!res.ok || !res.body || res.body.preview !== true) { toast(tr("Couldn’t save. Try again.")); return; }
-        S.sheet = { type: "bulk", id, count, keys: res.body.keys || [], locks };
+        S.sheet = { type: "bulk", id, count, keys: res.body.keys || [], locks, values };
         paint();
       });
       return;
@@ -501,7 +505,7 @@
       if (!sh || sh.busy) return;
       sh.busy = true;
       paint();
-      api("/v1/owner/user-settings/bulk", "POST", { locks: sh.locks || {}, confirm: "apply", count: sh.count }).then((res) => {
+      api("/v1/owner/user-settings/bulk", "POST", { locks: sh.locks || {}, values: sh.values || {}, confirm: "apply", count: sh.count }).then((res) => {
         S.sheet = null;
         toast(res.ok ? tr("Saved") : tr("Couldn’t save. Try again."));
         paint();
@@ -522,8 +526,9 @@
         manageSave(id, { locks: { [key]: !Object.prototype.hasOwnProperty.call(m.locks || {}, key) } });
       } else {
         const on = btn.dataset.oiOn === "1";
+        const query = String(S.manageQ || "").trim().toLowerCase();
         const locks = {};
-        m.schema.filter((r) => r.group === btn.dataset.oiV).forEach((r) => { locks[r.key] = on; });
+        m.schema.filter((r) => r.group === btn.dataset.oiV && (!query || String(r.label || "").toLowerCase().indexOf(query) >= 0 || String(r.key || "").toLowerCase().indexOf(query) >= 0)).forEach((r) => { locks[r.key] = on; });
         manageSave(id, { locks });
       }
       return;

@@ -1702,8 +1702,8 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
     });
     return reverted;
   }
-  const LOCK_FIXED = { theme: "appearance", autoplay: "autoplay", "haptics-pref": "haptics", "ava-shape": "avatarShape", "ui-lang": "lang", "live-preview": "livePreview", "ai-fab": "aiFab" };
-  const LOCK_ACTS = { theme: () => "appearance", autoplay: () => "autoplay", "haptics-pref": () => "haptics", "ava-shape": () => "avatarShape", "ui-lang": () => "lang", "live-preview": () => "livePreview", "ai-fab": () => "aiFab",
+  const LOCK_FIXED = { theme: "appearance", autoplay: "autoplay", "haptics-pref": "haptics", "ava-shape": "avatarShape", "ui-lang": "lang", "live-preview": "livePreview", "ai-fab": "aiFab", notify: "notify" };
+  const LOCK_ACTS = { theme: () => "appearance", autoplay: () => "autoplay", "haptics-pref": () => "haptics", "ava-shape": () => "avatarShape", "ui-lang": () => "lang", "live-preview": () => "livePreview", "ai-fab": () => "aiFab", notify: () => "notify",
     "face-pref": (el) => (el.dataset.kind === "banners" ? "showBanners" : "showPictures"),
     "pz-look": (el) => el.dataset.key, "pz-feed": (el) => el.dataset.key, "toggle-privacy-pref": (el) => el.dataset.key, "home-feature": (el) => el.dataset.key, "data-pref": (el) => el.dataset.key };
   function lockedKeyOf(el) {
@@ -1762,6 +1762,7 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
     if (key === "lang") return '[data-act="ui-lang"]';
     if (key === "livePreview") return '[data-act="live-preview"]';
     if (key === "aiFab") return '[data-act="ai-fab"]';
+    if (key === "notify") return '[data-act="notify"]';
     if (key === "showBanners") return '[data-act="face-pref"][data-kind="banners"]';
     if (key === "showPictures") return '[data-act="face-pref"]:not([data-kind="banners"])';
     return `[data-key="${key}"]`;
@@ -11570,13 +11571,14 @@ const here = parseRoute();
       event.stopImmediatePropagation();
       toast(tr("The site owner locked this setting."));
     }, true);
+    let lockSnap = JSON.stringify(settingLocks());
     window.addEventListener("viktorych-setting-locks", () => {
-      const locks = settingLocks();
-      if (window.__lockSeen) {
+      const now = JSON.stringify(settingLocks());
+      if (lockSnap !== now) {
         const note = { id: "owner-settings-" + Date.now(), at: Date.now(), name: tr("Settings"), text: tr("The owner updated a setting you use."), hash: "#/settings", platform: "settings", ids: [], handles: [] };
         try { commitBellNotes([note]); } catch (err) { /* the summary still shows the locks */ }
       }
-      window.__lockSeen = true;
+      lockSnap = now;
       paintSettingLocks();
       if (enforceSettingLocks()) { keepNewerBlocks(); writeStored(localStorage, "settings-v1", JSON.stringify(STATE.settings)); if (typeof applyTheme === "function") applyTheme(); }
       render({ y: window.scrollY });
