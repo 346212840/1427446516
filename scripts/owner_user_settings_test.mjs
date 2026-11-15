@@ -68,7 +68,7 @@ function seed(o) {
     ${o.notifyLock ? `window.__notifyAsks = 0;
     const Ask = function() {};
     Ask.permission = "default";
-    Ask.requestPermission = function() { window.__notifyAsks += 1; Ask.permission = "granted"; return Promise.resolve("granted"); };
+    Ask.requestPermission = function() { window.__notifyAsks += 1; Ask.permission = ${o.notifyLock === "deny" ? '"denied"' : '"granted"'}; return Promise.resolve(Ask.permission); };
     try { Object.defineProperty(window, "Notification", { configurable: true, value: Ask }); } catch (err) { window.Notification = Ask; }` : ""}
     window.VIKTORYCH_ACCOUNTS = { api: "https://accounts.test", gate: true };
   })()`;
@@ -95,7 +95,7 @@ function mock(page, log, who) {
     log.push(method + " " + url.pathname + " " + (req.postData() || ""));
     if (url.pathname === "/v1/sync") {
       if (who && who.notifyLock) {
-        const on = who.notifyLock === "on";
+        const on = who.notifyLock === "on" || who.notifyLock === "deny";
         return reply(route, 200, { payload: { notify: on, prefsAt: { notify: 5 } }, updatedAt: 7, locks: { notify: on } });
       }
       if (who && who.member) return reply(route, 200, { payload: { appearance: "dim", autoplay: "never", prefsAt: { appearance: 5 } }, updatedAt: 7, locks: { appearance: "dim", autoplay: "never" } });
@@ -192,7 +192,7 @@ async function notifyPermission(browser, origin, mode) {
     const node = document.querySelector('[data-act="notify"]');
     return node ? node.getAttribute("aria-disabled") : "missing";
   });
-  if (mode === "on" && button === "true") fail("notify on: permission button is marked disabled");
+  if (mode !== "off" && button === "true") fail("notify " + mode + ": permission button is marked disabled");
   if (mode === "off" && button !== "true") fail("notify off: button is not marked disabled");
   await page.click('[data-act="notify"]', { force: mode === "off" });
   await page.waitForTimeout(500);
@@ -201,9 +201,10 @@ async function notifyPermission(browser, origin, mode) {
     notify: JSON.parse(localStorage.getItem("viktorychapp-settings-v1") || "{}").notify,
     text: document.body.innerText
   }));
-  if (mode === "on") {
-    if (result.asks !== 1) fail("notify on: permission was not requested (" + result.asks + ")");
-    if (result.notify !== true) fail("notify on: stored " + result.notify);
+  if (mode === "on" || mode === "deny") {
+    if (result.asks !== 1) fail("notify " + mode + ": permission was not requested (" + result.asks + ")");
+    if (mode === "on" && result.notify !== true) fail("notify on: stored " + result.notify);
+    if (mode === "deny" && result.notify === true) fail("notify deny: stored stayed on after the browser refused");
   } else {
     if (result.asks !== 0) fail("notify off: permission was requested");
     if (!/locked this setting/.test(result.text)) fail("notify off: tap did not explain");
@@ -232,6 +233,7 @@ try {
   await member(browser, origin);
   await owner(browser, origin);
   await notifyPermission(browser, origin, "on");
+  await notifyPermission(browser, origin, "deny");
   await notifyPermission(browser, origin, "off");
   await switchedOff(browser, origin);
   console.log("owner user settings ok");

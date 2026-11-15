@@ -1696,8 +1696,11 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
     let reverted = false;
     if (!STATE.settings) return false;
     Object.keys(locks).forEach((key) => {
-      if (key === "lang" || JSON.stringify(STATE.settings[key]) === JSON.stringify(locks[key])) return;
-      STATE.settings[key] = locks[key];
+      if (key === "lang") return;
+      const accounts = window.ViktorychAccounts;
+      const next = key === "notify" && accounts && accounts.lockedNotifyValue ? accounts.lockedNotifyValue(locks) : locks[key];
+      if (JSON.stringify(STATE.settings[key]) === JSON.stringify(next)) return;
+      STATE.settings[key] = next;
       reverted = true;
     });
     return reverted;
@@ -33192,14 +33195,15 @@ if (data.historyPause) STATE.settings.historyPause = cleanHistoryPause(data.hist
     let permission = Notification.permission;
     if (permission !== "granted") permission = await Notification.requestPermission();
     if (locked && locks.notify === true) {
-      STATE.settings.notify = true;
+      const granted = permission === "granted";
+      STATE.settings.notify = granted;
       saveSettings();
-      if (permission === "granted") {
+      if (granted) {
         registerPeriodic();
         ensurePush();
       }
       render();
-      toast(permission === "granted" ? tr("Notifications on") : tr("Notifications stay off"));
+      toast(granted ? tr("Notifications on") : tr("Notifications stay off"));
       return;
     }
     STATE.settings.notify = permission === "granted";

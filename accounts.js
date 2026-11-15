@@ -3166,7 +3166,11 @@ var numberNote = form.passkey
     // Settings the owner locked (owner-settings.js on the Worker) win over
     // this device's own copy and its keep-on-this-device choices.
     var locks = settingLocks();
-    Object.keys(locks).forEach(function (key) { if (key !== "lang") settings[key] = locks[key]; });
+    Object.keys(locks).forEach(function (key) {
+      if (key === "lang") return;
+      if (key === "notify") { settings.notify = lockedNotifyValue(locks); return; }
+      settings[key] = locks[key];
+    });
     // Another tab can save a newer block list while this echo is applied.
     // The newer list stays. An older echo must not bring the blocked posts back.
     var disk = null;
@@ -3191,6 +3195,15 @@ var numberNote = form.passkey
     var session = readSession();
     var locks = session && session.settingLocks;
     return locks && typeof locks === "object" && !Array.isArray(locks) ? locks : {};
+  }
+  /* A lock of on must not be stored as on until the browser has allowed it.
+     notify true plus Notification.permission denied is the stuck push-revoked
+     alert, and the member cannot turn the locked setting off to clear it. */
+  function lockedNotifyValue(locks) {
+    if (!locks || !Object.prototype.hasOwnProperty.call(locks, "notify")) return null;
+    if (locks.notify !== true) return !!locks.notify;
+    var N = typeof Notification !== "undefined" ? Notification : null;
+    return N && N.permission === "granted" ? true : false;
   }
   function rememberLocks(body) {
     var session = readSession();
@@ -7809,6 +7822,7 @@ else if (act === "usage-retry") { loadUsage(true); if (window.ViktorychAccounts.
     aiSettings: aiSettings,
     aiSetting: aiSetting,
     settingLocks: function () { return Object.assign({}, settingLocks()); },
+    lockedNotifyValue: lockedNotifyValue,
     settingNotes: function () {
       var session = readSession();
       var notes = session && session.settingNotes;
