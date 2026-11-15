@@ -1725,16 +1725,55 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
     });
     return sel.length ? `${sel.join(",")}{opacity:.45;cursor:not-allowed}` : "";
   }
+  function lockLabel(key) {
+    const reg = window.ViktorychSettingsRegistry;
+    const row = reg && reg.get ? reg.get(key) : null;
+    return row && row.label ? tr(row.label) : key;
+  }
+  function lockNotes() {
+    const accounts = window.ViktorychAccounts;
+    const notes = accounts && accounts.settingNotes ? accounts.settingNotes() : {};
+    return notes && typeof notes === "object" ? notes : {};
+  }
   function paintSettingLocks() {
     let el = document.getElementById("owner-setting-locks");
     const css = lockStyleRules();
+    document.querySelectorAll("[data-owner-lock]").forEach((node) => node.remove());
     if (!css) { if (el) el.remove(); return; }
     if (!el) { el = document.createElement("style"); el.id = "owner-setting-locks"; document.head.appendChild(el); }
     if (el.textContent !== css) el.textContent = css;
+    const notes = lockNotes();
+    Object.keys(settingLocks()).forEach((key) => {
+      const node = document.querySelector(lockSelector(key));
+      if (!node || node.nextElementSibling && node.nextElementSibling.dataset && node.nextElementSibling.dataset.ownerLock === key) return;
+      node.setAttribute("aria-disabled", "true");
+      const tag = document.createElement("span");
+      tag.className = "owner-lock-tag";
+      tag.dataset.ownerLock = key;
+      tag.textContent = tr("Locked by the owner") + (notes[key] ? " · " + notes[key] : "");
+      node.insertAdjacentElement("afterend", tag);
+    });
+  }
+  function lockSelector(key) {
+    if (key === "appearance") return '[data-act="theme"]';
+    if (key === "autoplay") return '[data-act="autoplay"]';
+    if (key === "haptics") return '[data-act="haptics-pref"]';
+    if (key === "avatarShape") return '[data-act="ava-shape"]';
+    if (key === "lang") return '[data-act="ui-lang"]';
+    if (key === "livePreview") return '[data-act="live-preview"]';
+    if (key === "aiFab") return '[data-act="ai-fab"]';
+    if (key === "showBanners") return '[data-act="face-pref"][data-kind="banners"]';
+    if (key === "showPictures") return '[data-act="face-pref"]:not([data-kind="banners"])';
+    return `[data-key="${key}"]`;
   }
   function lockedSettingsNote() {
-    const n = Object.keys(settingLocks()).length;
-    return n ? `<p class="phandle set-block owner-locks-note">${esc(n === 1 ? tr("The site owner manages 1 of your settings.") : tr("The site owner manages {count} of your settings.", { count: String(n) }))}</p>` : "";
+    const locks = settingLocks();
+    const keys = Object.keys(locks);
+    const n = keys.length;
+    if (!n) return "";
+    const notes = lockNotes();
+    const rows = keys.map((key) => `<li class="owner-lock-row"><b>${esc(lockLabel(key))}</b> <span>${esc(tr("Locked by the owner"))}</span>${notes[key] ? `<span class="set-sub">${esc(notes[key])}</span>` : ""}</li>`).join("");
+    return `<section class="phandle set-block owner-locks-summary"><p class="owner-locks-note">${esc(n === 1 ? tr("The site owner manages 1 of your settings.") : tr("The site owner manages {count} of your settings.", { count: String(n) }))}</p><h2>${esc(tr("Managed by the owner"))}</h2><ul>${rows}</ul></section>`;
   }
 
   function keepNewerBlocks() {
@@ -11532,6 +11571,12 @@ const here = parseRoute();
       toast(tr("The site owner locked this setting."));
     }, true);
     window.addEventListener("viktorych-setting-locks", () => {
+      const locks = settingLocks();
+      if (window.__lockSeen) {
+        const note = { id: "owner-settings-" + Date.now(), at: Date.now(), name: tr("Settings"), text: tr("The owner updated a setting you use."), hash: "#/settings", platform: "settings", ids: [], handles: [] };
+        try { commitBellNotes([note]); } catch (err) { /* the summary still shows the locks */ }
+      }
+      window.__lockSeen = true;
       paintSettingLocks();
       if (enforceSettingLocks()) { keepNewerBlocks(); writeStored(localStorage, "settings-v1", JSON.stringify(STATE.settings)); if (typeof applyTheme === "function") applyTheme(); }
       render({ y: window.scrollY });

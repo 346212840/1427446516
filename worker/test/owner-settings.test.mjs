@@ -98,6 +98,9 @@ test("only the owner manages settings; locks hold through member syncs", async (
   assert.equal(read.body.settings.appearance, "default");
   assert.deepEqual(read.body.locks, {});
   assert.ok(read.body.schema.some((r) => r.key === "privacyWebRTC"));
+  assert.ok(read.body.schema.some((r) => r.key === "notify"));
+  assert.ok(read.body.schema.some((r) => r.key === "postAlign"));
+  assert.ok(read.body.schema.some((r) => r.key === "friendsRail"));
   assert.ok(!read.body.schema.some((r) => r.key === "follows" || r.key === "blocks" || r.key === "history"));
 
   // Bad values and unknown keys are refused.
@@ -140,6 +143,25 @@ test("only the owner manages settings; locks hold through member syncs", async (
   assert.deepEqual(unlock.body.locks, { lang: "en" });
   const free = await call("/v1/sync", { method: "PUT", token: member.token, body: { payload: { appearance: "default", prefsAt: { appearance: Date.now() } } } });
   assert.equal(free.body.payload.appearance, "default");
+
+  const noted = await call(route, { method: "PUT", token: owner.token, body: { locks: { haptics: true }, notes: { haptics: "Keep this on" } } });
+  assert.equal(noted.status, 200, JSON.stringify(noted.body));
+  assert.equal(noted.body.notes.haptics, "Keep this on");
+  assert.ok(noted.body.audit.some((row) => row.key === "haptics" && row.change === "lock"));
+  const denied = await call("/v1/owner/user-settings/bulk", { method: "POST", token: member.token, body: { locks: { haptics: true } } });
+  assert.equal(denied.status, 403);
+  const preview = await call("/v1/owner/user-settings/bulk", { method: "POST", token: owner.token, body: { locks: { notify: true } } });
+  assert.equal(preview.status, 200, JSON.stringify(preview.body));
+  assert.equal(preview.body.preview, true);
+  assert.ok(preview.body.count >= 2);
+  const beforeBulk = await call("/v1/sync", { token: other.token });
+  assert.equal(beforeBulk.body.locks.notify, undefined);
+  const stale = await call("/v1/owner/user-settings/bulk", { method: "POST", token: owner.token, body: { locks: { notify: true }, confirm: "apply", count: preview.body.count + 3 } });
+  assert.equal(stale.status, 409);
+  const pushed = await call("/v1/sync", { method: "PUT", token: member.token, body: { payload: { lang: "hi", appearance: "default" } } });
+  assert.equal(pushed.status, 200);
+  assert.equal(pushed.body.payload.lang, "en");
+  assert.ok(pushed.body.rejected.includes("lang"));
 
   // Each change is in the owner's access log.
   const audit = await call("/v1/owner/inspector/audit", { token: owner.token });

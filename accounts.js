@@ -3196,9 +3196,11 @@ var numberNote = form.passkey
     var session = readSession();
     if (!session) return;
     var next = body && body.locks && typeof body.locks === "object" && !Array.isArray(body.locks) ? body.locks : {};
-    var before = JSON.stringify(session.settingLocks || {});
-    if (before === JSON.stringify(next)) return;
+    var notes = body && body.notes && typeof body.notes === "object" && !Array.isArray(body.notes) ? body.notes : {};
+    var before = JSON.stringify(session.settingLocks || {}) + JSON.stringify(session.settingNotes || {});
+    if (before === JSON.stringify(next) + JSON.stringify(notes)) return;
     session.settingLocks = next;
+    session.settingNotes = notes;
     writeSession(session);
     try { window.dispatchEvent(new CustomEvent("viktorych-setting-locks")); } catch (err) { /* the next render reads them */ }
   }
@@ -7807,6 +7809,11 @@ else if (act === "usage-retry") { loadUsage(true); if (window.ViktorychAccounts.
     aiSettings: aiSettings,
     aiSetting: aiSetting,
     settingLocks: function () { return Object.assign({}, settingLocks()); },
+    settingNotes: function () {
+      var session = readSession();
+      var notes = session && session.settingNotes;
+      return notes && typeof notes === "object" ? Object.assign({}, notes) : {};
+    },
     signOut: function () { logout(false); },
     signOutAndWipe: function () {
       if (readSession()) logout(false, true);

@@ -303,7 +303,7 @@
      #/settings/accounts-inspector/manage:<id>. The Worker checks the owner,
      validates every value and keeps locked values on the member's syncs. */
   function manageOn() { return !(hooks && hooks.manageSettingsOn && !hooks.manageSettingsOn()); }
-  const GROUP_WORD = () => ({ look: tr("Look and menus"), feed: tr("Feed"), media: tr("Media"), privacy: tr("Privacy"), language: tr("Language") });
+  const GROUP_WORD = () => ({ look: tr("Look and menus"), feed: tr("Feed"), media: tr("Media"), privacy: tr("Privacy"), language: tr("Language"), notifications: tr("Notifications"), friends: tr("Friends") });
   function loadManage(id, force) {
     if (!force && (S.manage[id] || S.manageLoading[id])) return;
     S.manageLoading[id] = true;
@@ -342,9 +342,10 @@
     const busy = !!S.manageBusy[id];
     const gw = GROUP_WORD();
     const locks = m.locks || {};
-    const intro = `<p class="oi-sheet-sub oi-sec-sub oi-manage-intro">${esc(tr("Changes reach @{handle}'s devices on their next sync. A locked setting keeps your value and they can't change it.", { handle: m.handle }))}</p>`;
+    const query = String(S.manageQ || "").trim().toLowerCase();
+    const intro = `<p class="oi-sheet-sub oi-sec-sub oi-manage-intro">${esc(tr("Changes reach @{handle}'s devices on their next sync. A locked setting keeps your value and they can't change it.", { handle: m.handle }))}</p><input id="oi-ms-q" class="oi-ms-search" type="search" value="${esc(S.manageQ || "")}" placeholder="${esc(tr("Search settings"))}" aria-label="${esc(tr("Search settings"))}">`;
     const groups = (m.groups || []).map((g) => {
-      const rows = m.schema.filter((r) => r.group === g);
+      const rows = m.schema.filter((r) => r.group === g && (!query || String(r.label || "").toLowerCase().indexOf(query) >= 0 || String(r.key || "").toLowerCase().indexOf(query) >= 0));
       if (!rows.length) return "";
       const allLocked = rows.every((r) => Object.prototype.hasOwnProperty.call(locks, r.key));
       const items = rows.map((r) => {
@@ -365,8 +366,11 @@
       return `<section class="oi-sec oi-sec-rows oi-ms-sec"><div class="oi-ms-head"><h2>${esc(gw[g] || g)}</h2>${groupBtn}</div>${items}</section>`;
     }).join("");
     const count = Object.keys(locks).length;
+    const audit = (m.audit || []).slice(0, 12).map((row) => `<li><span>${esc(row.change || "")} ${esc(row.key || "")}</span> <span>${esc(String(row.from || ""))} → ${esc(String(row.to || ""))}</span></li>`).join("");
     const foot = `<p class="oi-note oi-note-foot">${icon("lock")}<span>${esc(count === 1 ? tr("1 setting locked") : tr("{count} settings locked", { count: String(count) }))} · ${esc(tr("Each change is logged in the access log."))}</span></p>`;
-    return `<div class="oi-page oi-manage">${intro}${groups}${foot}</div>`;
+    const bulk = `<button type="button" class="oi-link" data-oi-act="ms-bulk" data-oi-id="${esc(id)}"${busy ? " disabled" : ""}>${esc(tr("Apply to all members"))}</button>`;
+    const log = audit ? `<section class="oi-sec"><h2>${esc(tr("Access log"))}</h2><ul class="oi-ms-audit">${audit}</ul></section>` : "";
+    return `<div class="oi-page oi-manage">${intro}${groups}${bulk}${log}${foot}</div>`;
   }
 
   /* ---------- audit ---------- */
@@ -420,6 +424,10 @@
         return p.id && p.handle ? `<a class="set-row oi-person" href="#/settings/accounts-inspector/${encodeURIComponent(p.id)}" data-oi-act="close-sheet-go">${inner}</a>` : `<div class="set-row oi-person">${inner}</div>`;
       }).join("")}</div>${rows.length >= (pp.max || 500) ? `<p class="oi-sheet-sub">${esc(tr("Showing the first {count}", { count: String(pp.max || 500) }))}</p>` : ""}` : `<p class="oi-sheet-sub">${esc(tr("No one here"))}</p>`;
       foot = `<button type="button" class="oi-pill oi-pill-outline" data-oi-act="close-sheet">${esc(tr("Close"))}</button>`;
+    } else if (sh.type === "bulk") {
+      title = tr("Apply to all members");
+      body = `<p class="oi-sheet-sub">${esc(tr("This will change {count} accounts. Nothing is saved until you confirm.", { count: String(sh.count || 0) }))}</p>`;
+      foot = `<button type="button" class="oi-pill oi-pill-accent" data-oi-act="ms-bulk-apply"${sh.busy ? " disabled" : ""}>${esc(sh.busy ? tr("Saving…") : tr("Apply to all members"))}</button><button type="button" class="oi-pill oi-pill-outline" data-oi-act="close-sheet">${esc(tr("Cancel"))}</button>`;
     } else if (sh.type === "confirm") {
       title = tr("Change account type?");
       body = `<p class="oi-sheet-sub">${esc(tr("Change this account’s type to “{kind}”?", { kind: kindLabel(sh.kind) }))}</p>`;
@@ -435,8 +443,8 @@
     if (manageId) {
       const mhead = hooks.settingsHead ? hooks.settingsHead(tr("Manage settings"), "#/settings/accounts-inspector/" + encodeURIComponent(manageId)) : "";
       if (!ownerOn() || !manageOn()) return mhead + `<p class="oi-empty">${esc(tr("Only the owner can see this."))}</p>`;
-      S.sheet = null;
-      return mhead + manageView(manageId);
+      if (S.sheet && S.sheet.type !== "bulk") S.sheet = null;
+      return mhead + manageView(manageId) + sheetHtml();
     }
     const title = id === "audit" ? tr("Access log") : id ? (S.detail[id] ? "@" + S.detail[id].handle : tr("Account")) : tr("Accounts");
     const head = hooks.settingsHead ? hooks.settingsHead(title, back) : "";
@@ -474,6 +482,32 @@
     if (act === "retry-detail") { const id = btn.dataset.oiId; S.detailError[id] = ""; loadDetail(id, true); paint(); return; }
     if (act === "copy-id") { copy(btn.dataset.oiId || ""); return; }
     if (act === "retry-manage") { const id = btn.dataset.oiId; S.manageError[id] = ""; loadManage(id, true); paint(); return; }
+    if (act === "ms-bulk") {
+      const id = btn.dataset.oiId;
+      const m = S.manage[id];
+      const locks = {};
+      Object.keys((m && m.locks) || {}).forEach((key) => { locks[key] = true; });
+      if (!Object.keys(locks).length) { toast(tr("Couldn’t save. Try again.")); return; }
+      api("/v1/owner/user-settings/bulk", "POST", { locks, preview: true }).then((res) => {
+        const count = res.ok && res.body ? res.body.count : 0;
+        if (!res.ok || !res.body || res.body.preview !== true) { toast(tr("Couldn’t save. Try again.")); return; }
+        S.sheet = { type: "bulk", id, count, keys: res.body.keys || [], locks };
+        paint();
+      });
+      return;
+    }
+    if (act === "ms-bulk-apply") {
+      const sh = S.sheet;
+      if (!sh || sh.busy) return;
+      sh.busy = true;
+      paint();
+      api("/v1/owner/user-settings/bulk", "POST", { locks: sh.locks || {}, confirm: "apply", count: sh.count }).then((res) => {
+        S.sheet = null;
+        toast(res.ok ? tr("Saved") : tr("Couldn’t save. Try again."));
+        paint();
+      });
+      return;
+    }
     if (act === "ms-bool" || act === "ms-lock" || act === "ms-lock-group") {
       const id = btn.dataset.oiId;
       const m = S.manage[id];
@@ -529,6 +563,13 @@
   let typing = null;
   function onInput(event) {
     const el = event.target;
+    if (el && el.id === "oi-ms-q") {
+      S.manageQ = String(el.value || "");
+      paint();
+      const again = document.getElementById("oi-ms-q");
+      if (again) { again.focus(); try { again.setSelectionRange(again.value.length, again.value.length); } catch (err) {} }
+      return;
+    }
     if (!el || el.id !== "oi-q") return;
     clearTimeout(typing);
     typing = setTimeout(() => {

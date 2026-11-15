@@ -15,7 +15,8 @@
 import { logOwnerView } from "./owner-view.js";
 
 export const LOCKS_SCHEMA = [
-  "CREATE TABLE IF NOT EXISTS owner_setting_locks (public_id TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, owner_id TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (public_id, key))"
+  "CREATE TABLE IF NOT EXISTS owner_setting_locks (public_id TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, owner_id TEXT NOT NULL, at INTEGER NOT NULL, note TEXT NOT NULL DEFAULT '', PRIMARY KEY (public_id, key))",
+  "CREATE TABLE IF NOT EXISTS owner_setting_audit (id INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER NOT NULL, owner_id TEXT NOT NULL, public_id TEXT NOT NULL, key TEXT NOT NULL, old_value TEXT NOT NULL DEFAULT '', new_value TEXT NOT NULL DEFAULT '', change TEXT NOT NULL)"
 ];
 
 const bool = (key, label, def, group) => ({ key, type: "bool", label, def, group });
@@ -51,9 +52,16 @@ export const MANAGED = [
   bool("privacyAntiFingerprint", "Fingerprint resistance", true, "privacy"),
   pick("lang", "Display language", ["en", "es", "ru", "hi"], { en: "English", es: "Español", ru: "Русский", hi: "हिन्दी" }, "en", "language"),
   pick("translateTo", "Translate to", ["ui", "en", "es", "ru", "hi", "fr", "de", "pt", "it"], null, "ui", "language"),
-  bool("translateAuto", "Automatically translate posts", true, "language")
+  bool("translateAuto", "Automatically translate posts", true, "language"),
+  pick("postAlign", "Alignment", ["left", "justify"], { left: "Left", justify: "Justified" }, "left", "look"),
+  bool("postWrapAvatar", "Wrap around profile picture", false, "look"),
+  bool("reduceMotion", "Reduce motion", false, "look"),
+  bool("notify", "Push notifications", false, "notifications"),
+  pick("reactionsData", "Reactions", ["auto", "full", "lite"], { auto: "Automatic", full: "Full", lite: "Light" }, "auto", "media"),
+  pick("communityNotesData", "Community Notes", ["auto", "full", "lite"], { auto: "Automatic", full: "Full", lite: "Light" }, "auto", "media"),
+  bool("friendsRail", "Friends panel", true, "friends")
 ];
-export const GROUPS = ["look", "feed", "media", "privacy", "language"];
+export const GROUPS = ["look", "feed", "media", "privacy", "language", "notifications", "friends"];
 const BY_KEY = new Map(MANAGED.map((row) => [row.key, row]));
 const NO_STORE = { "cache-control": "private, no-store" };
 
@@ -73,8 +81,25 @@ export function cleanValue(key, value) {
 
 let ready = null;
 function ensureSchema(env) {
-  if (!ready) ready = env.DB.batch(LOCKS_SCHEMA.map((sql) => env.DB.prepare(sql))).catch((err) => { ready = null; throw err; });
+  if (!ready) ready = (async () => {
+    await env.DB.batch(LOCKS_SCHEMA.map((sql) => env.DB.prepare(sql)));
+    try { await env.DB.prepare("ALTER TABLE owner_setting_locks ADD COLUMN note TEXT NOT NULL DEFAULT ''").run(); } catch (err) { /* the column is already there */ }
+  })().catch((err) => { ready = null; throw err; });
   return ready;
+}
+
+export function lockNotes(locks) {
+  const out = {};
+  Object.keys(locks || {}).forEach((key) => { if (locks[key] && locks[key].note) out[key] = locks[key].note; });
+  return out;
+}
+
+function clipNote(value) {
+  return String(value || "").replace(/[\u0000-\u001f]/g, "").trim().slice(0, 140);
+}
+
+function auditValue(value) {
+  return JSON.stringify(value == null ? null : value).slice(0, 200);
 }
 
 /* { key: { value, at } } for one account. Missing table: no locks. */
@@ -83,14 +108,14 @@ export async function readLocks(env, publicId) {
   if (!env || !env.DB || !publicId) return out;
   let rows = [];
   try {
-    const res = await env.DB.prepare("SELECT key, value, at FROM owner_setting_locks WHERE public_id = ?").bind(String(publicId)).all();
+    const res = await env.DB.prepare("SELECT key, value, at, note FROM owner_setting_locks WHERE public_id = ?").bind(String(publicId)).all();
     rows = (res && res.results) || [];
   } catch (err) { return out; }
   rows.forEach((row) => {
     let value;
     try { value = JSON.parse(row.value); } catch (err) { return; }
     const clean = cleanValue(row.key, value);
-    if (clean.ok) out[row.key] = { value: clean.value, at: Number(row.at) || 0 };
+    if (clean.ok) out[row.key] = { value: clean.value, at: Number(row.at) || 0, note: String(row.note || "").slice(0, 140) };
   });
   return out;
 }
@@ -151,14 +176,15 @@ export async function handleOwnerUserSettings(request, env, path, deps) {
   const gate = await deps.requireOwner(request, env);
   if (gate.error) return gate.error;
   if (!env.DB) return deps.json(503, { error: "not_configured" });
-  const m = path.match(/^\/v1\/owner\/user-settings\/([A-Za-z0-9_-]{1,64})$/);
-  if (!m) return deps.json(404, { error: "not_found" });
   const ownerId = String(gate.row.public_id);
   const write = request.method === "PUT" || request.method === "POST";
   if (request.method !== "GET" && !write) return deps.json(405, { error: "method_not_allowed" });
   const hit = await deps.rateHit(env, "owner-user-settings:" + (write ? "w:" : "r:") + ownerId, write ? 300 : 600, 10 * 60 * 1000);
   if (!hit.ok) return deps.limited(hit);
   try { await ensureSchema(env); } catch (err) { return deps.json(503, { error: "not_configured" }); }
+  if (path === "/v1/owner/user-settings/bulk") return handleBulk(request, env, deps, ownerId);
+  const m = path.match(/^\/v1\/owner\/user-settings\/([A-Za-z0-9_-]{1,64})$/);
+  if (!m) return deps.json(404, { error: "not_found" });
 
   const target = await env.DB.prepare("SELECT public_id, handle, owner FROM accounts WHERE public_id = ?").bind(m[1]).first();
   if (!target) return deps.json(404, { error: "not_found" });
@@ -169,13 +195,15 @@ export async function handleOwnerUserSettings(request, env, path, deps) {
     const saved = await loadPayload(env, id, deps);
     const locks = await readLocks(env, id);
     enforceLocks(saved.payload, locks);
-    return deps.json(200, { id, handle: target.handle, settings: currentValues(saved.payload), locks: lockValues(locks), schema: schemaOut(), groups: GROUPS, updatedAt: saved.updatedAt }, NO_STORE);
+    const audit = await readAudit(env, id);
+    return deps.json(200, { id, handle: target.handle, settings: currentValues(saved.payload), locks: lockValues(locks), notes: lockNotes(locks), schema: schemaOut(), groups: GROUPS, audit, updatedAt: saved.updatedAt }, NO_STORE);
   }
 
   const body = await deps.readJson(request, 8000);
   if (body.error) return deps.json(400, { error: body.error });
   const values = body.values && typeof body.values === "object" && !Array.isArray(body.values) ? body.values : {};
   const lockAsk = body.locks && typeof body.locks === "object" && !Array.isArray(body.locks) ? body.locks : {};
+  const noteAsk = body.notes && typeof body.notes === "object" && !Array.isArray(body.notes) ? body.notes : {};
   const setKeys = Object.keys(values);
   const lockKeys = Object.keys(lockAsk);
   if (!setKeys.length && !lockKeys.length) return deps.json(400, { error: "nothing_to_change" });
@@ -195,24 +223,31 @@ export async function handleOwnerUserSettings(request, env, path, deps) {
   const locks = await readLocks(env, id);
   enforceLocks(payload, locks);
   if (!payload.prefsAt || typeof payload.prefsAt !== "object" || Array.isArray(payload.prefsAt)) payload.prefsAt = {};
+  const stmts = [];
   Object.keys(cleaned).forEach((key) => {
+    const before = payload[key];
     payload[key] = cleaned[key];
     if (key !== "lang") payload.prefsAt[key] = now;
+    if (JSON.stringify(before) !== JSON.stringify(cleaned[key])) stmts.push(auditStmt(env, ownerId, id, key, before, cleaned[key], "set", now));
   });
-  const stmts = [];
   // A locked key keeps the value it has now (or its default when the member never set it).
   lockKeys.forEach((key) => {
     if (lockAsk[key]) {
       const row = BY_KEY.get(key);
       const clean = cleanValue(key, payload[key]);
       const value = clean.ok ? clean.value : row.def;
+      const before = locks[key] ? locks[key].value : payload[key];
       payload[key] = value;
       if (key !== "lang") payload.prefsAt[key] = now;
-      locks[key] = { value, at: now };
-      stmts.push(env.DB.prepare("INSERT INTO owner_setting_locks (public_id, key, value, owner_id, at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(public_id, key) DO UPDATE SET value = excluded.value, owner_id = excluded.owner_id, at = excluded.at").bind(id, key, JSON.stringify(value), ownerId, now));
+      const note = clipNote(noteAsk[key] != null ? noteAsk[key] : (locks[key] && locks[key].note));
+      locks[key] = { value, at: now, note };
+      stmts.push(env.DB.prepare("INSERT INTO owner_setting_locks (public_id, key, value, owner_id, at, note) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(public_id, key) DO UPDATE SET value = excluded.value, owner_id = excluded.owner_id, at = excluded.at, note = excluded.note").bind(id, key, JSON.stringify(value), ownerId, now, note));
+      stmts.push(auditStmt(env, ownerId, id, key, before, value, "lock", now));
     } else {
+      const previous = locks[key] ? locks[key].value : null;
       delete locks[key];
       stmts.push(env.DB.prepare("DELETE FROM owner_setting_locks WHERE public_id = ? AND key = ?").bind(id, key));
+      stmts.push(auditStmt(env, ownerId, id, key, previous, null, "unlock", now));
     }
   });
   // A new value for a key that stays locked moves the lock with it.
@@ -228,5 +263,57 @@ export async function handleOwnerUserSettings(request, env, path, deps) {
   await logOwnerView(env, ownerId, id, "settings");
   // The member's open devices pull the change right away.
   try { if (deps.publish) await deps.publish(env, id, "sync", { updatedAt: now, device: "owner" }, id); } catch (err) { /* they check on return */ }
-  return deps.json(200, { id, handle: target.handle, settings: currentValues(payload), locks: lockValues(locks), updatedAt: now }, NO_STORE);
+  return deps.json(200, { id, handle: target.handle, settings: currentValues(payload), locks: lockValues(locks), notes: lockNotes(locks), audit: await readAudit(env, id), updatedAt: now }, NO_STORE);
+}
+
+function auditStmt(env, ownerId, id, key, oldValue, newValue, change, now) {
+  return env.DB.prepare("INSERT INTO owner_setting_audit (at, owner_id, public_id, key, old_value, new_value, change) VALUES (?, ?, ?, ?, ?, ?, ?)").bind(now, ownerId, id, key, auditValue(oldValue), auditValue(newValue), change);
+}
+
+async function readAudit(env, id) {
+  try {
+    const res = await env.DB.prepare("SELECT at, key, old_value, new_value, change FROM owner_setting_audit WHERE public_id = ? ORDER BY at DESC LIMIT 40").bind(id).all();
+    return ((res && res.results) || []).map((row) => ({ at: Number(row.at) || 0, key: row.key, from: row.old_value, to: row.new_value, change: row.change }));
+  } catch (err) { return []; }
+}
+
+async function handleBulk(request, env, deps, ownerId) {
+  if (request.method !== "POST") return deps.json(405, { error: "method_not_allowed" });
+  const body = await deps.readJson(request, 8000);
+  if (body.error) return deps.json(400, { error: body.error });
+  const locks = body.locks && typeof body.locks === "object" && !Array.isArray(body.locks) ? body.locks : {};
+  const keys = Object.keys(locks);
+  if (!keys.length) return deps.json(400, { error: "nothing_to_change" });
+  for (const key of keys) {
+    if (!managedKey(key) || typeof locks[key] !== "boolean") return deps.json(400, { error: "bad_lock", key: String(key).slice(0, 40) });
+  }
+  const listed = await env.DB.prepare("SELECT public_id FROM accounts WHERE owner = 0 ORDER BY public_id LIMIT 500").all();
+  const ids = ((listed && listed.results) || []).map((row) => String(row.public_id));
+  if (body.confirm !== "apply") return deps.json(200, { preview: true, count: ids.length, keys }, NO_STORE);
+  if (Number(body.count) !== ids.length) return deps.json(409, { error: "preview_stale", count: ids.length });
+  const now = Date.now();
+  for (const id of ids) {
+    const saved = await loadPayload(env, id, deps);
+    const payload = saved.payload;
+    const have = await readLocks(env, id);
+    enforceLocks(payload, have);
+    const stmts = [];
+    keys.forEach((key) => {
+      if (locks[key]) {
+        const row = BY_KEY.get(key);
+        const clean = cleanValue(key, payload[key]);
+        const value = clean.ok ? clean.value : row.def;
+        payload[key] = value;
+        stmts.push(env.DB.prepare("INSERT INTO owner_setting_locks (public_id, key, value, owner_id, at, note) VALUES (?, ?, ?, ?, ?, '') ON CONFLICT(public_id, key) DO UPDATE SET value = excluded.value, owner_id = excluded.owner_id, at = excluded.at").bind(id, key, JSON.stringify(value), ownerId, now));
+        stmts.push(auditStmt(env, ownerId, id, key, have[key] ? have[key].value : null, value, "lock", now));
+      } else if (have[key]) {
+        stmts.push(env.DB.prepare("DELETE FROM owner_setting_locks WHERE public_id = ? AND key = ?").bind(id, key));
+        stmts.push(auditStmt(env, ownerId, id, key, have[key].value, null, "unlock", now));
+      }
+    });
+    const text = JSON.stringify(await deps.sealPayload(env, payload));
+    stmts.push(env.DB.prepare("INSERT INTO sync_state (public_id, payload, updated_at) VALUES (?, ?, ?) ON CONFLICT(public_id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at").bind(id, text, now));
+    await env.DB.batch(stmts);
+  }
+  return deps.json(200, { preview: false, count: ids.length, keys }, NO_STORE);
 }

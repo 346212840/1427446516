@@ -122,6 +122,9 @@ async function member(browser, origin) {
   await page.waitForSelector(".owner-locks-note", { timeout: 20000 }).catch(() => fail("member: no 'owner manages' note in Settings"));
   const note = await page.textContent(".owner-locks-note");
   if (!/manages 2 of your settings/.test(note)) fail("member: note " + note);
+  if (!/Managed by the owner/.test(await page.textContent(".owner-locks-summary"))) fail("member: no managed summary");
+  if (!/Locked by the owner/.test(await page.textContent(".owner-locks-summary"))) fail("member: summary has no lock label");
+  if (SHOTS) await page.screenshot({ path: path.join(SHOTS, "member-managed.png"), fullPage: true });
   await page.goto(origin + "/index.html#/settings/display", { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-act="theme"][data-theme="default"]', { timeout: 15000 }).catch(() => fail("member: no theme buttons"));
   const look = await page.evaluate(() => {
