@@ -1,7 +1,9 @@
-/* Shorts page: a short plays, a wheel swipe reaches the next one, and a
-   live item plays a local playlist (original bytes, no re-encode).
+/* Shorts page when the switch is on: a short plays, a wheel swipe reaches
+   the next one, and a live item plays a local playlist (original bytes, no
+   re-encode). When the switch is off, #/shorts and a live address go home,
+   the nav entry stays hidden, and the quiet preload does not fetch the player.
    SHORTS_BENCH=1 prints first-frame quartiles for desktop and for a phone
-   viewport at 4x CPU. */
+   viewport at 4x CPU. The bench runs only while the switch is on. */
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
@@ -276,9 +278,39 @@ async function sample(page, origin, size) {
   return { shortMs: shortMs, liveMs: Date.now() - t1 };
 }
 
+function switchOn() {
+  const text = fs.readFileSync(path.join(root, "shorts-enabled.js"), "utf8");
+  return /var SHORTS_ENABLED = true;/.test(text);
+}
+
+async function parked(browser, origin) {
+  const session = await openPage(browser, origin, { width: 1280, height: 800, cpu: 1 });
+  try {
+    const page = session.page;
+    await page.goto(origin + "/index.html#/shorts", { waitUntil: "domcontentloaded" });
+    await page.waitForFunction(() => {
+      const hash = location.hash || "";
+      const link = document.querySelector('a[href="#/shorts"], a[href^="#/shorts/"]');
+      return (hash === "#/" || hash === "" || hash === "#") && !link && !document.getElementById("shorts-feed");
+    }, null, { timeout: 20000 });
+    await page.goto(origin + "/index.html#/shorts/live/now", { waitUntil: "domcontentloaded" });
+    await page.waitForFunction(() => {
+      const hash = location.hash || "";
+      return (hash === "#/" || hash === "" || hash === "#") && !document.querySelector("#shorts-live-player") && !document.querySelector('[data-shorts="watch"]');
+    }, null, { timeout: 20000 });
+    await page.waitForTimeout(2500);
+    const leaked = await page.evaluate(() => !!document.querySelector('script[src="shorts.js"], script[data-lazy="shorts.js"]'));
+    if (leaked) fail("the quiet preload still fetched shorts.js");
+    console.log("shorts parked ok");
+  } finally {
+    await session.context.close();
+  }
+}
+
 async function main() {
   if (!fs.existsSync(path.join(root, "hls-1.7.3.min.js"))) fail("hls.js is missing");
-  makeMedia();
+  const on = switchOn();
+  if (on) makeMedia();
   const server = await startServer();
   const origin = "http://127.0.0.1:" + server.address().port;
   const chromium = await loadPlaywright();
@@ -288,6 +320,10 @@ async function main() {
     : [{ name: "desktop", width: 1280, height: 800, cpu: 1 }]).filter((size) => !process.env.SHORTS_SIZE || size.name === process.env.SHORTS_SIZE);
   const out = {};
   try {
+    if (!on) {
+      await parked(browser, origin);
+      return;
+    }
     for (const size of sizes) {
       const shorts = [];
       const lives = [];
