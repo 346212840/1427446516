@@ -68,7 +68,7 @@ import { PROFILE_MEDIA_SCHEMA, applyViewer, rememberSlot, addMedia, updateMedia,
 import { handleOwnerFeeds, sweepOwnerFeeds } from "./owner-feeds.js";
 import { handleOwnerSourceLists, handleMySourceLists, refreshWanted } from "./source-lists.js";
 import { handleOwnerInspector } from "./owner-inspector.js";
-import { handleOwnerUserSettings, readLocks, enforceLocks, lockValues } from "./owner-settings.js";
+import { handleOwnerUserSettings, readLocks, enforceLocks, lockValues, lockNotes } from "./owner-settings.js";
 import { handleFeedRequests, handleOwnerFeedRequests, requestInsteadOfAdd, followGate, importFilter, feedRequestsOn, fileRequest, bannedKeys, newsletterBanned } from "./feed-requests.js";
 import { handleOwnerSms, handleMemberSms } from "./sms-pool.js";
 import { handleMail } from "./mail-relay.js";
@@ -1382,6 +1382,12 @@ async function handleProfilePatch(request, env) {
   if (!row) return json(401, { error: "unauthorized" });
   const body = await readJson(request, AVATAR_TEXT + BANNER_TEXT + 8000);
   if (body.error) return json(body.error === "too_large" ? 413 : 400, { error: body.error });
+  const profileLocks = await ownerLocksFor(env, row);
+  if (profileLocks) {
+    ["displayName", "bio", "location", "website", "protected", "privateFollows", "profileLess", "hideAvatar"].forEach((key) => {
+      if (profileLocks[key]) body[key] = profileLocks[key].value;
+    });
+  }
   let handle = row.handle;
   let skeleton = "";
   if (body.handle != null && String(body.handle) !== row.handle) {
@@ -1571,7 +1577,7 @@ async function handleSyncGet(request, env) {
   if (!row) return json(401, { error: "unauthorized" });
   const locks = await ownerLocksFor(env, row);
   const saved = await env.DB.prepare("SELECT payload, updated_at FROM sync_state WHERE public_id = ?").bind(row.public_id).first();
-  if (!saved) return json(200, locks ? { payload: null, updatedAt: 0, locks: lockValues(locks) } : { payload: null, updatedAt: 0 });
+  if (!saved) return json(200, locks ? { payload: null, updatedAt: 0, locks: lockValues(locks), notes: lockNotes(locks) } : { payload: null, updatedAt: 0 });
   let payload = null;
   try { payload = JSON.parse(saved.payload); }
   catch (err) { payload = null; }
@@ -1582,7 +1588,7 @@ async function handleSyncGet(request, env) {
     delete payload.bellRead;
     if (locks) enforceLocks(payload, locks);
   }
-  return json(200, locks ? { payload, updatedAt: saved.updated_at, locks: lockValues(locks) } : { payload, updatedAt: saved.updated_at });
+  return json(200, locks ? { payload, updatedAt: saved.updated_at, locks: lockValues(locks), notes: lockNotes(locks) } : { payload, updatedAt: saved.updated_at });
 }
 
 /* Settings the owner locked for this account (owner-settings.js), or null
@@ -1700,7 +1706,7 @@ async function handleSyncPut(request, env) {
   }
   // Settings the owner locked keep the owner's value, whatever a device sent.
   const locks = await ownerLocksFor(env, row);
-  if (locks) enforceLocks(payload, locks);
+  const rejected = locks ? enforceLocks(payload, locks) : [];
   const text = JSON.stringify(payload);
   if (text.length > SYNC_MAX) return json(413, { error: "too_large" });
   const base = Number(body.baseUpdatedAt || 0);
@@ -1715,7 +1721,10 @@ async function handleSyncPut(request, env) {
     try { await publishToAccount(env, row.public_id, "sync", { updatedAt: now, device }, row.public_id); }
     catch (err) { /* devices also check when they come back */ }
   }
-  return json(200, locks ? { payload: body.payload, updatedAt: now, locks: lockValues(locks) } : { payload: body.payload, updatedAt: now });
+  const answered = { payload: body.payload, updatedAt: now };
+  if (locks) { answered.locks = lockValues(locks); answered.notes = lockNotes(locks); }
+  if (rejected.length) answered.rejected = rejected;
+  return json(200, answered);
 }
 
 const DATA_KEY = /^(?:feeds|stories|people|suggestions|status|feeds\.config)\.json$|^data\/music\.json$|^(?:live|archive|comments|fallback)\/[A-Za-z0-9._-]{1,120}\.json$|^discord\/(?:index|state|vk)\.json$|^discord\/(?:messages|pins)\/\d{1,22}\.json$|^discord\/messages\/\d{1,22}\/p\/\d{1,4}\.json$|^data\/communities\/(?:index|[a-z0-9_]{2,21})\.json$|^data\/communities\/[a-z0-9_]{2,21}\/\d{1,20}\.json$/;
