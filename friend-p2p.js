@@ -12,8 +12,9 @@ const THREADS = "viktorychapp-friend-threads";
 const ACK_MS = 1000;
 const CONNECT_MS = 4000;
 const IDLE_MS = 5 * 60 * 1000;
-const PING_MS = 1000;
-const QUIET_MS = 6000;
+const HERE_MS = 25000;
+const PING_MS = 2000;
+const QUIET_MS = 12000;
 const DISCONNECT_MS = 2500;
 const PEER_MAX = 6;
 const CHUNK = 16 * 1024;
@@ -76,7 +77,7 @@ function signal(to, data) { return call("/v1/p2p/signal", { method: "POST", body
 
 function newPeer(id, sid, offering) {
   const pc = new RTCPeerConnection({ iceServers: [{ urls: STUN_URLS }] });
-  const peer = { id: id, sid: sid, pc: pc, dc: null, open: false, offering: offering, last: Date.now(), heard: Date.now(), gone: 0, waiters: [], queue: [] };
+  const peer = { id: id, sid: sid, pc: pc, dc: null, open: false, offering: offering, last: Date.now(), heard: Date.now(), quiet: 0, paused: false, gone: 0, waiters: [], queue: [] };
   pc.onicecandidate = (event) => {
     if (event.candidate) signal(id, { kind: "ice", sid: sid, cand: event.candidate.toJSON ? event.candidate.toJSON() : event.candidate });
   };
@@ -101,9 +102,11 @@ function wire(peer, dc) {
     peer.open = true;
     peer.last = Date.now();
     peer.heard = Date.now();
-    hello(peer);
+    peer.quiet = 0;
+    peer.paused = false;
     peer.waiters.splice(0).forEach((fn) => fn(true));
-    armHere();
+    if (document.hidden) send(peer, { t: "paused" });
+    else { ping(peer); hello(peer); armHere(); }
   };
   dc.onclose = () => { if (peers.get(peer.id) === peer) drop(peer.id); };
   dc.onmessage = (event) => onData(peer, event.data);
@@ -131,6 +134,7 @@ function drop(id, quiet) {
   if (!quiet && peer.open) { /* the friend left or the link broke */ }
   try { if (peer.dc) peer.dc.close(); } catch (err) { /* closed */ }
   try { peer.pc.close(); } catch (err) { /* closed */ }
+  if (!peers.size) stopHere();
 }
 function trim() {
   if (peers.size <= PEER_MAX) return;
@@ -195,19 +199,41 @@ function hello(peer) {
   if (state) send(peer, { t: "here", state: state });
 }
 function ping(peer) { send(peer, { t: "ping" }); }
+function stopHere() {
+  if (!hereTimer) return;
+  clearInterval(hereTimer);
+  hereTimer = 0;
+}
 function armHere() {
-  if (hereTimer) return;
-  hereTimer = setInterval(() => {
-    if (!peers.size) { clearInterval(hereTimer); hereTimer = 0; return; }
-    const now = Date.now();
-    peers.forEach((peer, id) => {
-      if (!peer.open) return;
-      /* Heard is inbound only. Our own pings must not keep a dead link. */
-      if (now - peer.heard > QUIET_MS || now - peer.last > IDLE_MS) { drop(id); return; }
-      if (document.hidden) ping(peer);
-      else hello(peer);
-    });
-  }, PING_MS);
+  if (hereTimer || document.hidden) return;
+  let open = false;
+  peers.forEach((peer) => { if (peer.open) open = true; });
+  if (!open) return;
+  hereTimer = setInterval(beat, PING_MS);
+}
+/* A late tick only counts one interval. A stalled main thread must not
+   look like seconds of silence when the event loop next runs. */
+function beat() {
+  if (document.hidden || !peers.size) { stopHere(); return; }
+  const now = Date.now();
+  const step = beat.at ? Math.min(PING_MS, Math.max(0, now - beat.at)) : 0;
+  beat.at = now;
+  const tell = !beat.told || now - beat.told >= HERE_MS;
+  if (tell) beat.told = now;
+  peers.forEach((peer, id) => {
+    if (!peer.open) return;
+    if (now - peer.last > IDLE_MS) { drop(id); return; }
+    /* A hidden friend asked us to wait on the channel, not on silence.
+       A visible keepalive is a ping, never a presence update. */
+    if (peer.paused) peer.quiet = 0;
+    else {
+      peer.quiet = (peer.quiet || 0) + step;
+      if (peer.quiet > QUIET_MS) { drop(id); return; }
+    }
+    ping(peer);
+    if (tell) hello(peer);
+  });
+  if (!peers.size) stopHere();
 }
 
 /* Local copy of direct messages, last 50 per friend. */
@@ -226,13 +252,19 @@ function thread(id) { const all = threads(); return Array.isArray(all[id]) ? all
 function onData(peer, data) {
   peer.last = Date.now();
   peer.heard = Date.now();
+  peer.quiet = 0;
   clearGone(peer);
   if (typeof data !== "string") return onChunk(peer, data);
   let msg = null;
   try { msg = JSON.parse(data); } catch (err) { return; }
   if (!msg || typeof msg.t !== "string") return;
+  if (msg.t === "paused") { peer.paused = true; return; }
+  peer.paused = false;
+  if (msg.t === "ping") return;
   const p = presence();
   if (msg.t === "here") {
+    /* A presence note must not repaint over a typing line. */
+    if ((typingUntil.get(peer.id) || 0) > Date.now()) return;
     if (p && p.seen) p.seen(peer.id, ["online", "idle", "dnd"].indexOf(msg.state) >= 0 ? msg.state : "online");
   } else if (msg.t === "typing") {
     typingUntil.set(peer.id, Date.now() + 5000);
@@ -456,7 +488,16 @@ function boot() {
     const timer = setInterval(() => { if (attach() || ++tries > 40) clearInterval(timer); }, 250);
   }
   window.addEventListener("online", () => flush());
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) flush(); });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      peers.forEach((peer) => { if (peer.open) send(peer, { t: "paused" }); });
+      stopHere();
+      return;
+    }
+    peers.forEach((peer) => { if (peer.open) { peer.quiet = 0; ping(peer); } });
+    armHere();
+    flush();
+  });
   document.addEventListener("click", (event) => {
     const el = event.target.closest && event.target.closest("[data-friend-p2p]");
     if (!el) return;
