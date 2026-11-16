@@ -23415,6 +23415,7 @@ if (STATE.histClear) {
   function commitApp(html, background) {
     const app = document.getElementById("app");
     if (!app) return;
+    const aiHeld = document.activeElement && document.activeElement.closest && app.contains(document.activeElement) && document.activeElement.closest('.mhead a.m-ai[href="#/ai"]');
     hscrollHolding = true;
     hscrollHoldGen = STATE.renderGen || 0;
     hscrollRemember(app);
@@ -23430,6 +23431,10 @@ if (STATE.histClear) {
     }
     while (app.firstChild) app.removeChild(app.firstChild);
     app.appendChild(tpl.content);
+    if (aiHeld) {
+      const next = app.querySelector('.mhead a.m-ai[href="#/ai"]');
+      if (next && document.activeElement !== next) next.focus({ preventScroll: true });
+    }
     scheduleImageSweep();
     hscrollSettle({ reveal: true });
     if (window.ViktorychAccounts && window.ViktorychAccounts.bindProfileTabs) window.ViktorychAccounts.bindProfileTabs();

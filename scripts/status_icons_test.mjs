@@ -246,9 +246,16 @@ async function main() {
     {
       const { context, page } = await open(browser, origin, { view: "computer", battery: true, settings: { statusIcons: ALL } });
       const selector = '.mhead a.m-ai[href="#/ai"]';
-      await page.locator(selector).evaluate((el) => { el.style.display = "block"; el.closest(".mhead").style.display = "flex"; });
-      await page.focus(selector);
-      await page.keyboard.press("Shift+F10");
+      const armed = await page.locator(selector).evaluate((el) => {
+        const head = el.closest(".mhead");
+        el.style.display = "block";
+        if (head) head.style.display = "flex";
+        el.focus();
+        const event = new KeyboardEvent("keydown", { key: "F10", code: "F10", shiftKey: true, bubbles: true, cancelable: true });
+        el.dispatchEvent(event);
+        return document.activeElement === el;
+      });
+      if (!armed) fail("the AI control was not focused when Shift+F10 was pressed");
       await page.waitForURL(/#\/settings\/display$/, { timeout: 10000 });
       await page.waitForSelector('[data-act="status-icon"][data-key="clock"]', { state: "visible", timeout: 15000 });
       await page.goto(origin + "/#/");
