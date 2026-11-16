@@ -422,3 +422,29 @@ test("a client message id is stored and pushed, and a repeat does not add a seco
   assert.match(rejected.body.id, /^dm_[a-f0-9]{16}$/);
   ws.close();
 });
+
+test("a message insert that is not a duplicate keeps the client id", async () => {
+  const left = await signup("203.0.113.190", "busy_left", "Busy Left");
+  const right = await signup("203.0.113.191", "busy_right", "Busy Right");
+  const mid = "ef".repeat(9);
+  const db = await mf.getD1Database("DB");
+  await db.prepare("CREATE TRIGGER account_messages_busy BEFORE INSERT ON account_messages WHEN NEW.id = '" + mid + "' BEGIN SELECT RAISE(ABORT, 'disk I/O error'); END").run();
+  const failed = await call("/v1/messages", {
+    method: "POST",
+    ip: "203.0.113.192",
+    token: left.token,
+    body: { id: right.account.publicId, text: "keep this", mid: mid }
+  });
+  assert.equal(failed.status, 503);
+  const stored = await db.prepare("SELECT id FROM account_messages WHERE sender_id = ?").bind(left.account.publicId).all();
+  assert.equal(((stored && stored.results) || []).length, 0);
+  await db.prepare("DROP TRIGGER account_messages_busy").run();
+  const retry = await call("/v1/messages", {
+    method: "POST",
+    ip: "203.0.113.193",
+    token: left.token,
+    body: { id: right.account.publicId, text: "keep this", mid: mid }
+  });
+  assert.equal(retry.status, 200);
+  assert.equal(retry.body.id, mid);
+});

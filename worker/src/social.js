@@ -86,6 +86,13 @@ function offeredMessageId(raw) {
   return /^[a-f0-9]{18}$/.test(id) ? id : "";
 }
 
+/* A repeated send of the same id hits the primary key. A disk or network
+   failure does not, and must not be treated as that repeat. */
+function uniqueConflict(err) {
+  const message = String(err && (err.message || (err.cause && err.cause.message)) || err);
+  return /unique constraint failed|primary key constraint failed/i.test(message);
+}
+
 function pageLimit(url) {
   const n = Number(url && url.searchParams ? url.searchParams.get("limit") : PAGE_DEFAULT);
   if (!Number.isFinite(n) || n <= 0) return PAGE_DEFAULT;
@@ -697,7 +704,8 @@ async function writeMessage(request, env, viewer, deps) {
   }
   const tempGate = await tempDmGate(env, viewer, otherId, deps.rateHit);
   if (tempGate) return deps.json(tempGate.status, { error: tempGate.error, message: "Temporary accounts can message only a few new people a day. Save this account to lift the limit." }, { "retry-after": String(tempGate.retry || 3600) });
-  let id = offeredMessageId(body.mid) || newKey("dm_");
+  const clientMid = offeredMessageId(body.mid);
+  let id = clientMid || newKey("dm_");
   const now = Date.now();
   const insertMessage = (key, at) => env.DB.prepare(
     "INSERT INTO account_messages (id, sender_id, recipient_id, body, created_at, deleted_at) VALUES (?, ?, ?, ?, ?, 0)"
@@ -705,12 +713,19 @@ async function writeMessage(request, env, viewer, deps) {
   try {
     await insertMessage(id, now);
   } catch (err) {
+    if (!uniqueConflict(err)) return deps.json(503, { error: "unavailable" });
     const existing = await env.DB.prepare(
       "SELECT sender_id, recipient_id, body FROM account_messages WHERE id = ?"
     ).bind(id).first();
-    if (!existing || existing.sender_id !== viewer.public_id || existing.recipient_id !== otherId || existing.body !== text) {
+    const same = existing && existing.sender_id === viewer.public_id && existing.recipient_id === otherId && existing.body === text;
+    if (clientMid && same) {
+      /* The first send already stored this exact message. */
+    } else if (clientMid) {
+      return deps.json(409, { error: "conflict" });
+    } else {
       id = newKey("dm_");
-      await insertMessage(id, now);
+      try { await insertMessage(id, now); }
+      catch (again) { return deps.json(503, { error: "unavailable" }); }
     }
   }
   /* The live copy goes only to an accepted friend, and not when that
