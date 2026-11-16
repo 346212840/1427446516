@@ -249,6 +249,85 @@ async function main() {
     await ctxA.setOffline(false);
     await pa.waitForFunction(() => window.ViktorychFriendP2P.outbox().length === 0 && window.__server.some((m) => m.text === "later"), null, { timeout: 15000 });
 
+    /* A link that keeps answering stays up. A friend who stops sending is
+       dropped by the heartbeat, without waiting for the browser to notice. */
+    /* The fallback above starts a connect while the friend is off. Let that
+       attempt end before opening a new one. */
+    await new Promise((resolve) => setTimeout(resolve, 4500));
+    await pb.evaluate(() => window.ViktorychFriendP2P.setEnabled(true));
+    const again = await pa.evaluate((b) => window.ViktorychFriendP2P.connect(b).then((p) => !!p), B);
+    if (!again) fail("the friends' devices did not reconnect");
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+    if ((await pa.evaluate(() => window.ViktorychFriendP2P.peers().length)) !== 1) fail("a live link was dropped while both sides were answering");
+
+    await pa.evaluate(() => {
+      window.__out = [];
+      const orig = RTCDataChannel.prototype.send;
+      RTCDataChannel.prototype.send = function (data) {
+        if (typeof data === "string") window.__out.push(data);
+        return orig.apply(this, arguments);
+      };
+    });
+    await pb.evaluate(() => {
+      window.__out = [];
+      const orig = RTCDataChannel.prototype.send;
+      RTCDataChannel.prototype.send = function (data) {
+        if (typeof data === "string") window.__out.push(data);
+        return orig.apply(this, arguments);
+      };
+    });
+
+    /* Invisible still keeps the channel: the keepalive is a ping, not presence. */
+    await pa.evaluate(() => { window.ViktorychPresence.myState = () => "invisible"; window.__out.length = 0; });
+    await new Promise((resolve) => setTimeout(resolve, 8000));
+    if ((await pa.evaluate(() => window.ViktorychFriendP2P.peers().length)) !== 1) fail("an invisible tab was dropped");
+    if ((await pb.evaluate(() => window.ViktorychFriendP2P.peers().length)) !== 1) fail("the friend dropped an invisible tab");
+    const whileInvisible = await pa.evaluate(() => window.__out.slice());
+    const invPings = whileInvisible.filter((row) => row.indexOf('"t":"ping"') >= 0).length;
+    const invHere = whileInvisible.filter((row) => row.indexOf('"t":"here"') >= 0).length;
+    if (invPings < 2) fail("an invisible tab sent no keepalive: " + whileInvisible.join("|"));
+    if (invHere) fail("an invisible tab announced presence: " + whileInvisible.join("|"));
+    await pa.evaluate(() => { window.ViktorychPresence.myState = () => "online"; });
+
+    /* A hidden tab sends one paused note and then nothing, and the link stays. */
+    await pb.evaluate(() => { window.__out.length = 0; });
+    const hid = await pb.evaluate(() => {
+      try {
+        Object.defineProperty(document, "hidden", { configurable: true, get: () => window.__hide === true });
+        window.__hide = true;
+        document.dispatchEvent(new Event("visibilitychange"));
+        return "ok";
+      } catch (err) { return String(err); }
+    });
+    if (hid !== "ok") fail("could not hide the tab: " + hid);
+    await new Promise((resolve) => setTimeout(resolve, 3500));
+    const whileHidden = await pb.evaluate(() => window.__out.slice());
+    const hidPings = whileHidden.filter((row) => row.indexOf('"t":"ping"') >= 0 || row.indexOf('"t":"here"') >= 0).length;
+    const hidPaused = whileHidden.filter((row) => row.indexOf('"t":"paused"') >= 0).length;
+    if (hidPings) fail("a hidden tab kept sending: " + whileHidden.join("|"));
+    if (hidPaused !== 1) fail("a hidden tab did not announce one pause: " + whileHidden.join("|"));
+    if ((await pa.evaluate(() => window.ViktorychFriendP2P.peers().length)) !== 1) fail("a paused friend was dropped");
+    const hiddenSend = await pa.evaluate((b) => window.ViktorychFriendP2P.send(b, "while hidden"), B);
+    if (!hiddenSend || hiddenSend.via !== "p2p") fail("a message to a hidden friend was not acked on the open link: " + JSON.stringify(hiddenSend));
+    await new Promise((resolve) => setTimeout(resolve, 30000));
+    if ((await pa.evaluate(() => window.ViktorychFriendP2P.peers().length)) !== 1 || (await pb.evaluate(() => window.ViktorychFriendP2P.peers().length)) !== 1) fail("an ack from a hidden friend cleared the pause");
+    await pb.evaluate(() => { window.__out.length = 0; window.__hide = false; document.dispatchEvent(new Event("visibilitychange")); });
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+    const resumed = await pb.evaluate(() => window.__out.slice());
+    if (!resumed.some((row) => row.indexOf('"t":"ping"') >= 0)) fail("pings did not resume when the tab returned: " + resumed.join("|"));
+    if ((await pa.evaluate(() => window.ViktorychFriendP2P.peers().length)) !== 1 || (await pb.evaluate(() => window.ViktorychFriendP2P.peers().length)) !== 1) fail("the link did not survive returning");
+
+    /* An 8s stall of the main thread is not silence. */
+    await pa.evaluate(() => { const t = Date.now(); while (Date.now() - t < 8000) { /* stall */ } });
+    if ((await pa.evaluate(() => window.ViktorychFriendP2P.peers().length)) !== 1 || (await pb.evaluate(() => window.ViktorychFriendP2P.peers().length)) !== 1) fail("a stalled tab was dropped");
+
+    await pb.evaluate(() => { RTCDataChannel.prototype.send = function () {}; });
+    const silentAt = Date.now();
+    const dropped = await pa.waitForFunction(() => window.ViktorychFriendP2P.peers().length === 0, null, { timeout: 20000 }).then(() => true).catch(() => false);
+    const silentMs = Date.now() - silentAt;
+    if (!dropped || silentMs < 9000 || silentMs > 18000) fail("a silent friend was not dropped in time: " + silentMs);
+    console.log("silent link dropped in " + silentMs + "ms");
+
     const html = await pa.evaluate(() => window.ViktorychFriendP2P.settingsHtml());
     if (!/data-friend-p2p="toggle"/.test(html) || !/IP address/.test(html)) fail("settings are missing");
     if (errors.length) fail("page errors: " + errors.join("; "));
