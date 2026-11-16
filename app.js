@@ -24412,6 +24412,7 @@ if (STATE.histClear) {
         }
         if (!decision || !decision.commit) return;
         if (slot && slot.force) slot.force = false;
+        const restoreAi = !!(document.activeElement && document.activeElement.closest && document.activeElement.closest('.mhead a.m-ai[href="#/ai"]'));
         parkLiveView();
         commitApp(html, !userPaintNow);
         if (key) {
@@ -24420,6 +24421,10 @@ if (STATE.histClear) {
           const appNow = document.getElementById("app");
           viewParks.set(key, { stamp: viewStamp(route), scope: viewerScope(), live: true, root: appNow ? wrapLive(appNow) : null, y: window.scrollY || 0, at: Date.now(), force: false, shown: false });
           evictParks();
+        }
+        if (restoreAi) {
+          const next = document.querySelector('#app .mhead a.m-ai[href="#/ai"]');
+          if (next && document.activeElement !== next) next.focus({ preventScroll: true });
         }
       }
       applied = true;
