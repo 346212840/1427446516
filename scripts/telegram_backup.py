@@ -128,6 +128,46 @@ MIME = {
 }
 
 
+def cloudflare_error_code(raw: bytes) -> str:
+    """A numeric Cloudflare error code, or nothing. The body is not logged."""
+    try:
+        data = json.loads((raw or b"").decode("utf-8", "replace"))
+    except (json.JSONDecodeError, UnicodeError):
+        return ""
+    errors = data.get("errors") if isinstance(data, dict) else None
+    if not isinstance(errors, list) or not errors or not isinstance(errors[0], dict):
+        return ""
+    code = errors[0].get("code")
+    return str(code) if code not in (None, "") else ""
+
+
+def copy_failure_kind(message: str) -> str:
+    """missing: the source object is gone. transient: try again. other: report it."""
+    text = str(message or "")
+    lowered = text.lower()
+    if "not found" in lowered or "nosuchkey" in lowered or "download http 404" in lowered or "cloudflare http 404" in lowered:
+        return "missing"
+    status = 0
+    for token in text.replace(":", " ").split():
+        if token.isdigit() and int(token) in {400, 401, 403, 404, 408, 409, 429, 500, 502, 503, 504}:
+            status = int(token)
+            break
+    if status == 404:
+        return "missing"
+    if status in {429, 500, 502, 503, 504} or "bad gateway" in lowered or "cloudflare network error" in lowered or "timed out" in lowered:
+        return "transient"
+    return "other"
+
+
+def failure_action(message: str, attempt: int, limit: int = 4) -> str:
+    kind = copy_failure_kind(message)
+    if kind == "missing":
+        return "skip"
+    if kind == "transient" and attempt + 1 < limit:
+        return "retry"
+    return "fail"
+
+
 def scrub(text: str, secrets) -> str:
     out = str(text or "")
     for secret in secrets or []:
@@ -1449,7 +1489,9 @@ def cf_json(method: str, url: str, token: str, payload: bytes | None = None, con
             time.sleep(2.0 * (attempt + 1))
             continue
         if status >= 400:
-            raise RuntimeError("cloudflare http " + str(status))
+            code = cloudflare_error_code(raw)
+            detail = (" code " + code) if code else ""
+            raise RuntimeError("cloudflare http " + str(status) + detail)
         if not raw:
             return {}
         data = json.loads(raw.decode("utf-8"))
@@ -1528,17 +1570,36 @@ def download_object(token: str, account: str, bucket: str, key: str, dest: Path)
             return hash_file(dest)
     url = f"https://api.cloudflare.com/client/v4/accounts/{account}/r2/buckets/{urllib.parse.quote(bucket)}/objects/{quote_key(key)}"
     req = urllib.request.Request(url, headers={"Authorization": "Bearer " + token, "User-Agent": UA})
-    digest = hashlib.sha256()
-    with urllib.request.urlopen(req, timeout=120) as res, dest.open("wb") as out:
-        if res.status >= 400:
-            raise RuntimeError("download http " + str(res.status))
-        while True:
-            block = res.read(1024 * 1024)
-            if not block:
-                break
-            out.write(block)
-            digest.update(block)
-    return digest.hexdigest()
+    last = RuntimeError("download http 0")
+    for attempt in range(4):
+        digest = hashlib.sha256()
+        try:
+            with urllib.request.urlopen(req, timeout=120) as res, dest.open("wb") as out:
+                if res.status >= 400:
+                    raise RuntimeError("download http " + str(res.status))
+                while True:
+                    block = res.read(1024 * 1024)
+                    if not block:
+                        break
+                    out.write(block)
+                    digest.update(block)
+            return digest.hexdigest()
+        except urllib.error.HTTPError as err:
+            code = int(err.code or 0)
+            last = RuntimeError("download http " + str(code or 0))
+            if code == 404:
+                raise last
+            if code in {429, 500, 502, 503, 504} and attempt < 3:
+                time.sleep(2.0 * (attempt + 1))
+                continue
+            raise last
+        except (urllib.error.URLError, TimeoutError, OSError) as err:
+            last = RuntimeError("cloudflare network error: %s" % err)
+            if attempt < 3:
+                time.sleep(2.0 * (attempt + 1))
+                continue
+            raise last
+    raise last
 
 
 def delete_object(token: str, account: str, bucket: str, key: str) -> None:
@@ -2076,6 +2137,9 @@ def send_document(api_base: str, token: str, channel: str, path: Path, caption: 
             desc = scrub(str(parsed.get("description") or ""), current_secrets())
             code = parsed.get("error_code")
             status = int(code or parsed.get("_status") or 0)
+            if status in (500, 502, 503, 504):
+                pause(min(30, 2 ** (_attempt + 1)))
+                continue
             if status in (401, 403) and owner_token_rejected(token, status):
                 raise OwnerKeyRejected("owner key needs attention")
             reason = f" ({code}: {desc})" if (code or desc) else ""
@@ -2100,22 +2164,26 @@ def d1_kind(role: str) -> str:
 
 def remember_d1(token: str, account: str, database: str, entry: dict, part: dict, verified: bool, object_key: str = "") -> None:
     serve = 1 if entry.get("serve") and part["role"] in {"file", "segment", "init"} else 0
-    d1_exec(token, account, database, D1_UPSERT, [
-        object_key or entry["key"],
-        d1_kind(part["role"]),
-        int(part["index"]),
-        entry["bucket"],
-        part["file_id"],
-        int(part["message_id"]),
-        int(part["size"]),
-        part["sha256"],
-        part.get("mime") or "application/octet-stream",
-        float(part.get("duration") or 0),
-        serve,
-        1 if verified else 0,
-        1 if entry.get("encrypted") else 0,
-        int(time.time()),
-    ])
+    try:
+        d1_exec(token, account, database, D1_UPSERT, [
+            object_key or entry["key"],
+            d1_kind(part["role"]),
+            int(part["index"]),
+            entry["bucket"],
+            part["file_id"],
+            int(part["message_id"]),
+            int(part["size"]),
+            part["sha256"],
+            part.get("mime") or "application/octet-stream",
+            float(part.get("duration") or 0),
+            serve,
+            1 if verified else 0,
+            1 if entry.get("encrypted") else 0,
+            int(time.time()),
+        ])
+    except Exception as err:
+        log("[telegram-backup] d1 update unavailable")
+        log(scrub(str(err), current_secrets()))
 
 
 WORKER_LIMITED = False
@@ -3068,6 +3136,7 @@ def backup(loop_only: bool = False, shard: tuple[int, int] | None = None) -> int
 
         stopped = False
         failed_objects: list[str] = []
+        missing_objects: list[str] = []
         if not loop_only and (not shard or shard[0] == 0):
             try:
                 forget_deleted_accounts(rows, manifest, cf, directory)
@@ -3095,15 +3164,33 @@ def backup(loop_only: bool = False, shard: tuple[int, int] | None = None) -> int
             if loop_only and plan_kind(obj["key"], int(obj["size"]), obj.get("content_type") or "", False, version) != "loop":
                 continue
             try:
-                result = process(obj, manifest, cf, state, directory)
+                result = None
+                last_error = ""
+                for attempt in range(4):
+                    try:
+                        result = process(obj, manifest, cf, state, directory)
+                        last_error = ""
+                        break
+                    except Exception as err:
+                        last_error = scrub(str(err), current_secrets())
+                        if failure_action(last_error, attempt) != "retry":
+                            break
+                        time.sleep(min(8, 2 ** attempt))
+                if last_error:
+                    if failure_action(last_error, 3) == "skip":
+                        log("[telegram-backup] missing %s/%s" % (obj["bucket"], obj["key"]))
+                        log(last_error)
+                        missing_objects.append(key_str)
+                    else:
+                        log("[telegram-backup] failed %s/%s" % (obj["bucket"], obj["key"]))
+                        log(last_error)
+                        save_manifest(cf, manifest, directory)
+                        failed_objects.append(key_str)
+                    continue
             except Exception as err:
                 log("[telegram-backup] failed %s/%s" % (obj["bucket"], obj["key"]))
                 log(scrub(str(err), current_secrets()))
-                save_manifest(cf, manifest, directory)
                 failed_objects.append(key_str)
-                if len(failed_objects) >= 5:
-                    log("[telegram-backup] aborting runner after %s object failures" % len(failed_objects))
-                    return 1
                 continue
             if result == "stop":
                 log("[telegram-backup] reached the run cap")
@@ -3119,9 +3206,10 @@ def backup(loop_only: bool = False, shard: tuple[int, int] | None = None) -> int
         log_d1_newest(cf)
         if loop_only:
             log("[telegram-backup] loop mirror stored %s segments, largest %s bytes" % (state.get("loop_segments") or 0, state.get("loop_max") or 0))
+        log("[telegram-backup] failed %s, missing %s" % (len(failed_objects), len(missing_objects)))
         if shard:
             log("[telegram-backup] shard %s/%s finished" % (shard[0], shard[1]))
-        return 0
+        return 1 if failed_objects else 0
     except Exception as err:
         log("[telegram-backup] backup failed")
         log(scrub(str(err), current_secrets()))
@@ -3243,6 +3331,16 @@ def selftest() -> int:
         except RuntimeError as err:
             rejected = "rejected" in str(err)
         check(rejected and sends["n"] == 1, "a rejected telegram upload is not retried")
+        sends["n"] = 0
+
+        def gateway(*_args):
+            sends["n"] += 1
+            if sends["n"] < 3:
+                return {"ok": False, "error_code": 502, "description": "Bad Gateway", "_status": 502}
+            return {"ok": True, "result": {"message_id": 5, "document": {"file_id": "doc", "file_size": sample.stat().st_size}}}
+
+        sent = send_document("https://api.telegram.org", "token", "1", sample, "clip", {}, post=gateway, pause=lambda _s: None)
+        check(sends["n"] == 3 and sent["file_id"] == "doc", "a telegram 502 is retried")
         calls["n"] = 0
 
         def already():
@@ -3340,6 +3438,13 @@ def selftest() -> int:
     check(cdn_fallback_ok("photo", "https://pbs.twimg.com/media/a.jpg?name=orig") is True, "a full-size photo may use the original CDN file")
     check(cdn_fallback_ok("photo", "https://pbs.twimg.com/media/a.jpg?name=small") is False, "a resized photo is not the original")
     check(cdn_fallback_ok("thumb", "https://i.ytimg.com/vi/x/hqdefault.jpg") is True, "a thumbnail still uses its CDN file")
+    check(copy_failure_kind("download http 404") == "missing", "a missing source is not a failed copy")
+    check(copy_failure_kind("cloudflare http 404 code 10007") == "missing", "a Cloudflare not-found code is a missing source")
+    check(copy_failure_kind("cloudflare http 400 code 10006") == "other", "a rejected request is reported, not retried forever")
+    check(copy_failure_kind("cloudflare http 502") == "transient" and copy_failure_kind("telegram rejected a document (502: Bad Gateway)") == "transient", "a 502 is tried again")
+    check(failure_action("cloudflare http 502", 0) == "retry" and failure_action("cloudflare http 502", 3) == "fail", "a transient copy is retried and then reported")
+    check(failure_action("download http 404", 0) == "skip" and failure_action("cloudflare http 400", 0) == "fail", "a missing source is skipped and a 400 is reported")
+    check(cloudflare_error_code(b'{"success":false,"errors":[{"code":10006,"message":"bad"}]}') == "10006", "a Cloudflare error code is kept without the body")
     summary = upload_summary({"files": 2, "bytes": 9, "kinds": {"small": 2}, "kind_bytes": {"small": 9}, "newest": 1761157560})
     check(summary.startswith("[telegram-backup] uploaded 2 files, 9 bytes") and "newest " in summary, "the summary names the newest sendDocument time")
     kept = merge_manifest(
