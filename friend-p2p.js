@@ -9,10 +9,12 @@ import { STUN_URLS } from "./shared/peer-media.js";
 const PREF = "viktorychapp-friend-p2p";
 const OUTBOX = "viktorychapp-friend-outbox";
 const THREADS = "viktorychapp-friend-threads";
-const ACK_MS = 800;
+const ACK_MS = 1000;
 const CONNECT_MS = 4000;
 const IDLE_MS = 5 * 60 * 1000;
-const HERE_MS = 25000;
+const PING_MS = 1000;
+const QUIET_MS = 6000;
+const DISCONNECT_MS = 2500;
 const PEER_MAX = 6;
 const CHUNK = 16 * 1024;
 const MEDIA_MAX = 25 * 1024 * 1024;
@@ -74,13 +76,18 @@ function signal(to, data) { return call("/v1/p2p/signal", { method: "POST", body
 
 function newPeer(id, sid, offering) {
   const pc = new RTCPeerConnection({ iceServers: [{ urls: STUN_URLS }] });
-  const peer = { id: id, sid: sid, pc: pc, dc: null, open: false, offering: offering, last: Date.now(), waiters: [], queue: [] };
+  const peer = { id: id, sid: sid, pc: pc, dc: null, open: false, offering: offering, last: Date.now(), heard: Date.now(), gone: 0, waiters: [], queue: [] };
   pc.onicecandidate = (event) => {
     if (event.candidate) signal(id, { kind: "ice", sid: sid, cand: event.candidate.toJSON ? event.candidate.toJSON() : event.candidate });
   };
-  pc.onconnectionstatechange = () => {
-    if (pc.connectionState === "failed" || pc.connectionState === "closed") drop(id);
+  const onLink = (state) => {
+    if (peers.get(id) !== peer) return;
+    if (state === "failed" || state === "closed") drop(id);
+    else if (state === "disconnected") armGone(peer);
+    else if (state === "connected" || state === "completed" || state === "checking") clearGone(peer);
   };
+  pc.onconnectionstatechange = () => onLink(pc.connectionState);
+  pc.oniceconnectionstatechange = () => onLink(pc.iceConnectionState);
   pc.ondatachannel = (event) => wire(peer, event.channel);
   peers.set(id, peer);
   trim();
@@ -93,17 +100,33 @@ function wire(peer, dc) {
   dc.onopen = () => {
     peer.open = true;
     peer.last = Date.now();
+    peer.heard = Date.now();
     hello(peer);
     peer.waiters.splice(0).forEach((fn) => fn(true));
     armHere();
   };
-  dc.onclose = () => drop(peer.id);
+  dc.onclose = () => { if (peers.get(peer.id) === peer) drop(peer.id); };
   dc.onmessage = (event) => onData(peer, event.data);
+}
+function clearGone(peer) {
+  if (!peer || !peer.gone) return;
+  clearTimeout(peer.gone);
+  peer.gone = 0;
+}
+function armGone(peer) {
+  /* A slow link can sit in "disconnected" and then recover. Wait before
+     dropping, and only after the channel has actually opened. */
+  if (!peer || !peer.open || peer.gone || peers.get(peer.id) !== peer) return;
+  peer.gone = setTimeout(() => {
+    peer.gone = 0;
+    if (peers.get(peer.id) === peer) drop(peer.id);
+  }, DISCONNECT_MS);
 }
 function drop(id, quiet) {
   const peer = peers.get(id);
   if (!peer) return;
   peers.delete(id);
+  clearGone(peer);
   peer.waiters.splice(0).forEach((fn) => fn(false));
   if (!quiet && peer.open) { /* the friend left or the link broke */ }
   try { if (peer.dc) peer.dc.close(); } catch (err) { /* closed */ }
@@ -120,7 +143,10 @@ function connect(id) {
   if (have && have.open) return Promise.resolve(have);
   const peer = have || newPeer(id, rid(), true);
   const ready = new Promise((resolve) => {
-    const timer = setTimeout(() => resolve(false), CONNECT_MS);
+    const timer = setTimeout(() => {
+      resolve(false);
+      if (peers.get(id) === peer && !peer.open) drop(id);
+    }, CONNECT_MS);
     peer.waiters.push((ok) => { clearTimeout(timer); resolve(ok); });
   });
   if (!have) {
@@ -168,16 +194,20 @@ function hello(peer) {
   const state = myState();
   if (state) send(peer, { t: "here", state: state });
 }
+function ping(peer) { send(peer, { t: "ping" }); }
 function armHere() {
   if (hereTimer) return;
   hereTimer = setInterval(() => {
     if (!peers.size) { clearInterval(hereTimer); hereTimer = 0; return; }
     const now = Date.now();
     peers.forEach((peer, id) => {
-      if (now - peer.last > IDLE_MS) drop(id);
-      else if (!document.hidden) hello(peer);
+      if (!peer.open) return;
+      /* Heard is inbound only. Our own pings must not keep a dead link. */
+      if (now - peer.heard > QUIET_MS || now - peer.last > IDLE_MS) { drop(id); return; }
+      if (document.hidden) ping(peer);
+      else hello(peer);
     });
-  }, HERE_MS);
+  }, PING_MS);
 }
 
 /* Local copy of direct messages, last 50 per friend. */
@@ -195,6 +225,8 @@ function thread(id) { const all = threads(); return Array.isArray(all[id]) ? all
 
 function onData(peer, data) {
   peer.last = Date.now();
+  peer.heard = Date.now();
+  clearGone(peer);
   if (typeof data !== "string") return onChunk(peer, data);
   let msg = null;
   try { msg = JSON.parse(data); } catch (err) { return; }

@@ -249,6 +249,23 @@ async function main() {
     await ctxA.setOffline(false);
     await pa.waitForFunction(() => window.ViktorychFriendP2P.outbox().length === 0 && window.__server.some((m) => m.text === "later"), null, { timeout: 15000 });
 
+    /* A link that keeps answering stays up. A friend who stops sending is
+       dropped by the heartbeat, without waiting for the browser to notice. */
+    /* The fallback above starts a connect while the friend is off. Let that
+       attempt end before opening a new one. */
+    await new Promise((resolve) => setTimeout(resolve, 4500));
+    await pb.evaluate(() => window.ViktorychFriendP2P.setEnabled(true));
+    const again = await pa.evaluate((b) => window.ViktorychFriendP2P.connect(b).then((p) => !!p), B);
+    if (!again) fail("the friends' devices did not reconnect");
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+    if ((await pa.evaluate(() => window.ViktorychFriendP2P.peers().length)) !== 1) fail("a live link was dropped while both sides were answering");
+    await pb.evaluate(() => { RTCDataChannel.prototype.send = function () {}; });
+    const silentAt = Date.now();
+    const dropped = await pa.waitForFunction(() => window.ViktorychFriendP2P.peers().length === 0, null, { timeout: 12000 }).then(() => true).catch(() => false);
+    const silentMs = Date.now() - silentAt;
+    if (!dropped || silentMs < 3000 || silentMs > 10000) fail("a silent friend was not dropped in time: " + silentMs);
+    console.log("silent link dropped in " + silentMs + "ms");
+
     const html = await pa.evaluate(() => window.ViktorychFriendP2P.settingsHtml());
     if (!/data-friend-p2p="toggle"/.test(html) || !/IP address/.test(html)) fail("settings are missing");
     if (errors.length) fail("page errors: " + errors.join("; "));
