@@ -1696,14 +1696,21 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
     let reverted = false;
     if (!STATE.settings) return false;
     Object.keys(locks).forEach((key) => {
-      if (key === "lang" || JSON.stringify(STATE.settings[key]) === JSON.stringify(locks[key])) return;
-      STATE.settings[key] = locks[key];
+      if (key === "lang") return;
+      const accounts = window.ViktorychAccounts;
+      const next = key === "notify" && accounts && accounts.lockedNotifyValue ? accounts.lockedNotifyValue(locks) : locks[key];
+      if (JSON.stringify(STATE.settings[key]) === JSON.stringify(next)) return;
+      STATE.settings[key] = next;
       reverted = true;
     });
+    const accounts = window.ViktorychAccounts;
+    if (Object.keys(locks).length && accounts && accounts.applyOwnerLockExtras) accounts.applyOwnerLockExtras(STATE.settings, locks);
     return reverted;
   }
-  const LOCK_FIXED = { theme: "appearance", autoplay: "autoplay", "haptics-pref": "haptics", "ava-shape": "avatarShape", "ui-lang": "lang", "live-preview": "livePreview", "ai-fab": "aiFab" };
-  const LOCK_ACTS = { theme: () => "appearance", autoplay: () => "autoplay", "haptics-pref": () => "haptics", "ava-shape": () => "avatarShape", "ui-lang": () => "lang", "live-preview": () => "livePreview", "ai-fab": () => "aiFab",
+  const LOCK_FIXED = { theme: "appearance", autoplay: "autoplay", "haptics-pref": "haptics", "ava-shape": "avatarShape", "ui-lang": "lang", "live-preview": "livePreview", "ai-fab": "aiFab", notify: "notify", "page-zoom": "pageZoom" };
+  const LOCK_ACTS = { theme: () => "appearance", autoplay: () => "autoplay", "haptics-pref": () => "haptics", "ava-shape": () => "avatarShape", "ui-lang": () => "lang", "live-preview": () => "livePreview", "ai-fab": () => "aiFab", notify: () => "notify", "page-zoom": () => "pageZoom",
+    "desk-pref": (el) => (el.dataset.key === "showScrollbar" ? "deskShowScrollbar" : ""),
+    "desk-scale-mode": () => "deskScaleMode",
     "face-pref": (el) => (el.dataset.kind === "banners" ? "showBanners" : "showPictures"),
     "pz-look": (el) => el.dataset.key, "pz-feed": (el) => el.dataset.key, "toggle-privacy-pref": (el) => el.dataset.key, "home-feature": (el) => el.dataset.key, "data-pref": (el) => el.dataset.key };
   function lockedKeyOf(el) {
@@ -1712,10 +1719,20 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
     const key = fn ? fn(el) : "";
     return key && Object.prototype.hasOwnProperty.call(settingLocks(), key) ? key : "";
   }
+  /* The notify control is the browser permission prompt. Locked on still has
+     to open that prompt; locked off stays blocked like every other setting. */
+  function lockBlocksAct(el) {
+    const key = lockedKeyOf(el);
+    if (!key) return false;
+    if (key === "notify" && settingLocks().notify === true) return false;
+    return true;
+  }
   function lockStyleRules() {
-    const keys = Object.keys(settingLocks());
+    const locks = settingLocks();
+    const keys = Object.keys(locks);
     const sel = [];
     keys.forEach((key) => {
+      if (key === "notify" && locks.notify === true) return;
       Object.keys(LOCK_ACTS).forEach((act) => {
         const fixed = LOCK_FIXED[act];
         if (fixed) { if (fixed === key) sel.push(`[data-act="${act}"]`); return; }
@@ -1725,16 +1742,68 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
     });
     return sel.length ? `${sel.join(",")}{opacity:.45;cursor:not-allowed}` : "";
   }
+  function lockLabel(key) {
+    const reg = window.ViktorychSettingsRegistry;
+    const row = reg && reg.get ? reg.get(key) : null;
+    return row && row.label ? tr(row.label) : key;
+  }
+  function lockNotes() {
+    const accounts = window.ViktorychAccounts;
+    const notes = accounts && accounts.settingNotes ? accounts.settingNotes() : {};
+    return notes && typeof notes === "object" ? notes : {};
+  }
   function paintSettingLocks() {
     let el = document.getElementById("owner-setting-locks");
+    const locks = settingLocks();
+    const keys = Object.keys(locks);
+    if (!keys.length) {
+      if (el) el.remove();
+      if (document.querySelector("[data-owner-lock]")) document.querySelectorAll("[data-owner-lock]").forEach((node) => node.remove());
+      return;
+    }
+    armLockClicks();
     const css = lockStyleRules();
-    if (!css) { if (el) el.remove(); return; }
-    if (!el) { el = document.createElement("style"); el.id = "owner-setting-locks"; document.head.appendChild(el); }
-    if (el.textContent !== css) el.textContent = css;
+    document.querySelectorAll("[data-owner-lock]").forEach((node) => node.remove());
+    if (!css && !keys.length) { if (el) el.remove(); return; }
+    if (!css) { if (el) el.remove(); }
+    else {
+      if (!el) { el = document.createElement("style"); el.id = "owner-setting-locks"; document.head.appendChild(el); }
+      if (el.textContent !== css) el.textContent = css;
+    }
+    const notes = lockNotes();
+    keys.forEach((key) => {
+      const node = document.querySelector(lockSelector(key));
+      if (!node || node.nextElementSibling && node.nextElementSibling.dataset && node.nextElementSibling.dataset.ownerLock === key) return;
+      if (!(key === "notify" && settingLocks()[key] === true)) node.setAttribute("aria-disabled", "true");
+      const tag = document.createElement("span");
+      tag.className = "owner-lock-tag";
+      tag.dataset.ownerLock = key;
+      tag.textContent = tr("Locked by the owner") + (notes[key] ? " · " + notes[key] : "");
+      node.insertAdjacentElement("afterend", tag);
+    });
+  }
+  function lockSelector(key) {
+    if (key === "appearance") return '[data-act="theme"]';
+    if (key === "autoplay") return '[data-act="autoplay"]';
+    if (key === "haptics") return '[data-act="haptics-pref"]';
+    if (key === "avatarShape") return '[data-act="ava-shape"]';
+    if (key === "lang") return '[data-act="ui-lang"]';
+    if (key === "livePreview") return '[data-act="live-preview"]';
+    if (key === "aiFab") return '[data-act="ai-fab"]';
+    if (key === "notify") return '[data-act="notify"]';
+    if (key === "pageZoom") return '[data-act="page-zoom"]';
+    if (key === "showBanners") return '[data-act="face-pref"][data-kind="banners"]';
+    if (key === "showPictures") return '[data-act="face-pref"]:not([data-kind="banners"])';
+    return `[data-key="${key}"]`;
   }
   function lockedSettingsNote() {
-    const n = Object.keys(settingLocks()).length;
-    return n ? `<p class="phandle set-block owner-locks-note">${esc(n === 1 ? tr("The site owner manages 1 of your settings.") : tr("The site owner manages {count} of your settings.", { count: String(n) }))}</p>` : "";
+    const locks = settingLocks();
+    const keys = Object.keys(locks);
+    const n = keys.length;
+    if (!n) return "";
+    const notes = lockNotes();
+    const rows = keys.map((key) => `<li class="owner-lock-row"><b>${esc(lockLabel(key))}</b> <span>${esc(tr("Locked by the owner"))}</span>${notes[key] ? `<span class="set-sub">${esc(notes[key])}</span>` : ""}</li>`).join("");
+    return `<section class="phandle set-block owner-locks-summary"><p class="owner-locks-note">${esc(n === 1 ? tr("The site owner manages 1 of your settings.") : tr("The site owner manages {count} of your settings.", { count: String(n) }))}</p><h2>${esc(tr("Managed by the owner"))}</h2><ul>${rows}</ul></section>`;
   }
 
   function keepNewerBlocks() {
@@ -11522,21 +11591,64 @@ const here = parseRoute();
     return `<a class="logo${pref.mode === "text" ? " logo-custom" : ""}" href="#/" aria-label="${productName("app")}" data-tooltip="${productName("app")}">${brandLogoInner(pref)}</a>`;
   }
 
-  /* Wired outside the nav block so its tests can load that block without a page. */
-  function wireSettingLocks() {
-    document.addEventListener("click", (event) => {
-      const el = event.target && event.target.closest ? event.target.closest("[data-act]") : null;
-      if (!el || !lockedKeyOf(el)) return;
+  /* A member with no locks never installs the click catch or scans the page.
+     The catch is armed only after a lock exists, from a sync event or from
+     the settings page that has to show the lock. */
+  let lockClicksOn = false;
+  function onLockClick(event) {
+    const raw = event.target;
+    const p2p = raw && raw.closest ? raw.closest("[data-friend-p2p]") : null;
+    if (p2p && Object.prototype.hasOwnProperty.call(settingLocks(), "friendP2P")) {
       event.preventDefault();
       event.stopImmediatePropagation();
       toast(tr("The site owner locked this setting."));
-    }, true);
+      return;
+    }
+    const scale = raw && raw.closest ? raw.closest("[data-desk-scale]") : null;
+    if (scale) {
+      const which = "deskScale" + String(scale.getAttribute("data-key") || "").replace(/^./, (ch) => ch.toUpperCase());
+      if (Object.prototype.hasOwnProperty.call(settingLocks(), which)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        toast(tr("The site owner locked this setting."));
+        return;
+      }
+    }
+    const el = raw && raw.closest ? raw.closest("[data-act]") : null;
+    if (!el || !lockBlocksAct(el)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    toast(tr("The site owner locked this setting."));
+  }
+  function armLockClicks() {
+    if (lockClicksOn) return;
+    if (!Object.keys(settingLocks()).length) return;
+    lockClicksOn = true;
+    document.addEventListener("click", onLockClick, true);
+  }
+  function wireSettingLocks() {
+    let lockSnap = null;
+    const have = settingLocks();
+    if (Object.keys(have).length) {
+      lockSnap = JSON.stringify(have);
+      armLockClicks();
+    }
     window.addEventListener("viktorych-setting-locks", () => {
+      const locks = settingLocks();
+      const now = Object.keys(locks).length ? JSON.stringify(locks) : "";
+      if (lockSnap !== null && lockSnap === now) {
+        paintSettingLocks();
+        render({ y: window.scrollY });
+        return;
+      }
+      lockSnap = now;
+      const note = { id: "owner-settings-" + Date.now(), at: Date.now(), name: tr("Settings"), text: tr("The owner updated a setting you use."), hash: "#/settings", platform: "settings", ids: [], handles: [] };
+      try { commitBellNotes([note]); } catch (err) { /* the summary still shows the locks */ }
+      if (now) armLockClicks();
       paintSettingLocks();
       if (enforceSettingLocks()) { keepNewerBlocks(); writeStored(localStorage, "settings-v1", JSON.stringify(STATE.settings)); if (typeof applyTheme === "function") applyTheme(); }
       render({ y: window.scrollY });
     });
-    setTimeout(paintSettingLocks, 0);
   }
   wireSettingLocks();
 
@@ -24444,6 +24556,7 @@ if (route.name === "music" && window.SIntelMusic && window.SIntelMusic.titleFor)
         const center = document.querySelector(".center");
         if (center) center.classList.add("route-in");
       }
+      if (route.name === "settings") paintSettingLocks();
       watchHydration();
       scheduleDetect();
       if (window.FeedsTranslate) window.FeedsTranslate.paint();
@@ -33123,8 +33236,23 @@ if (data.historyPause) STATE.settings.historyPause = cleanHistoryPause(data.hist
 
   async function enableNotifications() {
     if (typeof Notification === "undefined") { toast(tr("Notifications aren’t available")); return; }
+    const locks = settingLocks();
+    const locked = Object.prototype.hasOwnProperty.call(locks, "notify");
+    if (locked && locks.notify === false) { toast(tr("The site owner locked this setting.")); return; }
     let permission = Notification.permission;
     if (permission !== "granted") permission = await Notification.requestPermission();
+    if (locked && locks.notify === true) {
+      const granted = permission === "granted";
+      STATE.settings.notify = granted;
+      saveSettings();
+      if (granted) {
+        registerPeriodic();
+        ensurePush();
+      }
+      render();
+      toast(granted ? tr("Notifications on") : tr("Notifications stay off"));
+      return;
+    }
     STATE.settings.notify = permission === "granted";
     saveSettings();
     if (STATE.settings.notify) {
@@ -34769,14 +34897,23 @@ if (data.historyPause) STATE.settings.historyPause = cleanHistoryPause(data.hist
   });
   setTimeout(deviceHello, 6000);
   syncServerFeatures();
-  /* The owner page check looks for Shorts within a few seconds of the load
-     event. An idle preload that waits eight seconds, then for an idle
-     callback, missed that window once the first load got faster. Start the
-     download with the app, but quietly: a repaint when the file arrives
-     was moving the page under an open phone drawer. The server off-switch
-     still skips it. Opening Shorts still paints, because that call is not
-     quiet. */
-  if (shortsEnabled() && window.ViktorychLazy && window.ViktorychLazy.ensure) window.ViktorychLazy.ensure("shorts", true);
+  /* Quiet Shorts fetch. It waits for the first paint, then an idle slot,
+     so it does not sit on the cold open. The idle wait gives up after two
+     seconds, which is still inside the owner page check. A repaint when the
+     file arrives stays quiet so it does not move an open phone drawer. The
+     server off-switch still skips it. Opening Shorts still paints, because
+     that call is not quiet. */
+  if (shortsEnabled() && window.ViktorychLazy && window.ViktorychLazy.ensure) {
+    var pullShorts = function () {
+      if (window.ViktorychLazy && window.ViktorychLazy.ensure) window.ViktorychLazy.ensure("shorts", true);
+    };
+    var afterPaint = function () {
+      if (typeof requestIdleCallback === "function") requestIdleCallback(pullShorts, { timeout: 2000 });
+      else setTimeout(pullShorts, 1);
+    };
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(function () { requestAnimationFrame(afterPaint); });
+    else pullShorts();
+  }
   if (musicSessionOpen() || parseRoute().name === "music") ensureMusic();
   setTimeout(() => {
     if (window.ViktorychLazy && window.ViktorychLazy.preload) {
@@ -35001,6 +35138,7 @@ if (data.historyPause) STATE.settings.historyPause = cleanHistoryPause(data.hist
       if (row.store === "state") {
         const parts = row.key.split(".");
         if (row.id === "notify") {
+          if (Object.prototype.hasOwnProperty.call(settingLocks(), "notify") && v !== true) { jobs.push(Promise.resolve({ id: row.id, ok: false })); return; }
           if (v) { jobs.push(enableNotifications().then(() => ({ id: row.id, ok: !!STATE.settings.notify }))); return; }
           STATE.settings.notify = false;
         } else if (parts[0] === "historyPause") {

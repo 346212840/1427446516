@@ -115,6 +115,22 @@ async function main() {
     const vt = await page.evaluate(() => window.__vt);
     if (vt) problems.push(vt + " route change(s) ran a document view transition, which blocks clicks");
     console.log("sidebar clicks during feed load (ms after release): " + times.join(" "));
+    const visitPage = await ctx.newPage();
+    await visitPage.goto(base + "/index.html#/", { waitUntil: "commit" });
+    await visitPage.waitForFunction(() => window.ViktorychLazy && window.ViktorychLazy.ensure, null, { timeout: 20000 });
+    await visitPage.mouse.move(8, 8);
+    await visitPage.mouse.down();
+    const visit = await visitPage.evaluate(() => {
+      const lazy = window.ViktorychLazy;
+      lazy.ensure("shorts", true);
+      const pending = lazy.ensure("shorts", false);
+      return Promise.race([
+        pending.then(() => (window.ViktorychShorts ? "ready" : "empty")),
+        new Promise((resolve) => setTimeout(() => resolve("slow"), 1500))
+      ]);
+    });
+    await visitPage.mouse.up();
+    if (visit !== "ready") problems.push("opening Shorts during a quiet load stayed " + visit);
     await ctx.close();
   } finally {
     await browser.close();

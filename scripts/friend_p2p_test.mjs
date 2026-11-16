@@ -211,10 +211,14 @@ async function main() {
     // copy goes out too. Both carry the same id and the friend keeps one.
     delayAcks = true;
     await pb.evaluate(() => { window.__delayAck = true; });
-    const late = await pa.evaluate((b) => window.ViktorychFriendP2P.send(b, "late confirm"), B);
+    const late = await pa.evaluate((b) => {
+      const t = performance.now();
+      return window.ViktorychFriendP2P.send(b, "late confirm").then((sent) => ({ via: sent.via, mid: sent.mid, ms: performance.now() - t }));
+    }, B);
     delayAcks = false;
     await pb.evaluate(() => { window.__delayAck = false; });
-    if (!late || late.via !== "server" || !/^[a-f0-9]{18}$/.test(late.mid || "")) fail("a late confirmation did not fall back with the client id: " + JSON.stringify(late));
+    if (!late || late.via !== "server" || !/^[a-f0-9]{18}$/.test(late.mid || "") || late.ms < 700 || late.ms > 1800) fail("a late confirmation did not fall back with the client id: " + JSON.stringify(late));
+    console.log("server fallback after a late ack " + Math.round(late.ms) + "ms");
     const lateRows = await pb.evaluate((a) => window.ViktorychFriendP2P.thread(a).filter((m) => m.text === "late confirm"), A);
     if (lateRows.length !== 1 || lateRows[0].mid !== late.mid) fail("the direct copy was not the only row: " + JSON.stringify(lateRows));
     const posted = await pa.evaluate(() => window.__server.filter((m) => m.text === "late confirm"));
@@ -232,6 +236,7 @@ async function main() {
       return { via: sent.via, ms: performance.now() - t };
     }, B);
     if (fallback.via !== "server" || fallback.ms > 1000) fail("no fast server fallback: " + JSON.stringify(fallback));
+    console.log("server fallback with the link down " + Math.round(fallback.ms) + "ms");
     const serverTexts = await pa.evaluate(() => window.__server.map((m) => m.text));
     if (serverTexts[serverTexts.length - 1] !== "via server") fail("the server copy is wrong: " + serverTexts.join("|"));
     const onB = await pb.waitForFunction((a) => window.ViktorychFriendP2P.thread(a).some((m) => m.text === "via server" && !m.mine), A, { timeout: 3000 }).then(() => true).catch(() => false);

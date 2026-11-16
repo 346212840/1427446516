@@ -8,6 +8,7 @@ import { blocksEither, hiddenAuthorSet } from "./social.js";
 import { awardActivity, clawback } from "./points.js";
 import { redactPublicIds } from "../../shared/profile-privacy.js";
 import { visibleAvatarUrl } from "./profile-media.js";
+import { activeLock } from "./owner-settings.js";
 
 export const COMMUNITY_SCHEMA = [
   "CREATE TABLE IF NOT EXISTS community_posts (id TEXT PRIMARY KEY, community_id TEXT NOT NULL, author_id TEXT NOT NULL, parent_id TEXT NOT NULL DEFAULT '', body TEXT NOT NULL, created_at INTEGER NOT NULL, deleted_at INTEGER NOT NULL DEFAULT 0)",
@@ -136,6 +137,7 @@ async function writeFeedPref(env, publicId, communityId, patch) {
   const current = await env.DB.prepare("SELECT show_home, muted FROM community_feed_prefs WHERE public_id = ? AND community_id = ?").bind(publicId, communityId).first();
   const show = patch.showHome == null ? (current ? Number(current.show_home) : 1) : (patch.showHome ? 1 : 0);
   const muted = patch.muted == null ? (current ? Number(current.muted) : 0) : (patch.muted ? 1 : 0);
+  if (current && Number(current.show_home) === show && Number(current.muted) === muted) return { showHome: show === 1, muted: muted === 1 };
   await env.DB.prepare("INSERT INTO community_feed_prefs (public_id, community_id, show_home, muted) VALUES (?, ?, ?, ?) ON CONFLICT(public_id, community_id) DO UPDATE SET show_home = excluded.show_home, muted = excluded.muted").bind(publicId, communityId, show, muted).run();
   return { showHome: show === 1, muted: muted === 1 };
 }
@@ -158,8 +160,12 @@ export async function communityHomeRows(env, request, viewer, presentAccount, op
   const authorId = opts && opts.authorId ? String(opts.authorId) : "";
   let communitiesHome = true;
   if (!authorId) try {
-    const global = await env.DB.prepare("SELECT show_home FROM community_feed_prefs WHERE public_id = ? AND community_id = ''").bind(viewerId).first();
-    if (global && Number(global.show_home) === 0) communitiesHome = false;
+    const locked = await activeLock(env, viewerId, "communitiesHome");
+    if (locked === false) return { posts: [], communitiesHome: false };
+    if (locked !== true) {
+      const global = await env.DB.prepare("SELECT show_home FROM community_feed_prefs WHERE public_id = ? AND community_id = ''").bind(viewerId).first();
+      if (global && Number(global.show_home) === 0) communitiesHome = false;
+    }
   } catch (err) {
     return { posts: [], communitiesHome: true };
   }
@@ -574,8 +580,12 @@ async function createPost(request, env, name, row, json, readJson, rateHit, limi
 async function readGlobalHome(env, row, json) {
   let showHome = true;
   try {
-    const global = await env.DB.prepare("SELECT show_home FROM community_feed_prefs WHERE public_id = ? AND community_id = ''").bind(row.public_id).first();
-    if (global && Number(global.show_home) === 0) showHome = false;
+    const locked = await activeLock(env, row.public_id, "communitiesHome");
+    if (locked === true || locked === false) showHome = locked;
+    else {
+      const global = await env.DB.prepare("SELECT show_home FROM community_feed_prefs WHERE public_id = ? AND community_id = ''").bind(row.public_id).first();
+      if (global && Number(global.show_home) === 0) showHome = false;
+    }
   } catch (err) { showHome = true; }
   return json(200, { showHome: showHome });
 }
@@ -585,7 +595,9 @@ async function writeGlobalHome(request, env, row, json, readJson, rateHit, limit
   if (!hit.ok) return limited(hit);
   const body = await readJson(request, 1000);
   if (body.error) return json(400, { error: body.error });
-  const saved = await writeFeedPref(env, row.public_id, "", { showHome: !(body.showHome === false || body.showHome === 0) });
+  const locked = await activeLock(env, row.public_id, "communitiesHome");
+  const showHome = locked === true || locked === false ? locked : !(body.showHome === false || body.showHome === 0);
+  const saved = await writeFeedPref(env, row.public_id, "", { showHome: showHome });
   return json(200, { showHome: saved.showHome });
 }
 

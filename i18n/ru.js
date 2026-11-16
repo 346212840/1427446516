@@ -6225,6 +6225,12 @@ SI18n.addPack("ru", {
   "Manage member settings": "Управление настройками участников",
   "In Accounts you can change a member's settings and lock them so they can't change them. Off gives every choice back to members.": "В разделе «Аккаунты» можно менять настройки участника и блокировать их, чтобы он не мог их изменить. Если выключить, все решения вернутся участникам.",
   "The site owner locked this setting.": "Владелец сайта заблокировал эту настройку.",
+  "Locked by the owner": "Заблокировано владельцем",
+  "Managed by the owner": "Управляет владелец",
+  "The owner updated a setting you use.": "Владелец изменил одну из ваших настроек.",
+  "Search settings": "Поиск настроек",
+  "Apply to all members": "Применить ко всем",
+  "This will change {count} accounts. Nothing is saved until you confirm.": "Это затронет {count} аккаунтов. Ничего не сохранится, пока вы не подтвердите.",
   "The site owner manages 1 of your settings.": "Владелец сайта управляет 1 вашей настройкой.",
   "The site owner manages {count} of your settings.": "Владелец сайта управляет вашими настройками: {count}.",
   "Manage settings": "Управлять настройками",
@@ -6437,5 +6443,7 @@ SI18n.addPack("ru", {
   "Copies the largest listed picture. It is not a proven original file. Color, HDR and animation may not match.": "Копирует самую большую картинку из списка. Это не подтверждённый исходный файл. Цвет, HDR и анимация могут не совпасть.",
   "Copy the largest listed picture": "Копировать самую большую картинку из списка",
   "Copy a smaller listed picture": "Копировать картинку поменьше из списка",
-  "Copied a smaller listed picture. It is not the full file.": "Скопирована картинка поменьше из списка. Это не полный файл."
+  "Copied a smaller listed picture. It is not the full file.": "Скопирована картинка поменьше из списка. Это не полный файл.",
+  "Pick a model automatically": "Выбирать модель автоматически",
+  "Sync settings": "Синхронизировать настройки"
 });

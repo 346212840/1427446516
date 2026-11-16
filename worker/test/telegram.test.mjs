@@ -121,6 +121,7 @@ test("a signed-in viewer receives a ranged telegram file and a playlist", async 
     const session = await signup.json();
     assert.equal(signup.status, 201);
     const db = await mf.getBindings();
+    const signedIn = await db.DB.prepare("SELECT expires_at FROM sessions").first();
     await db.DB.prepare(
       "INSERT INTO telegram_files (object_key, kind, part_index, bucket, file_id, message_id, size, sha256, mime, duration, serve, verified, encrypted, updated_at) VALUES (?, 'single', 0, 'viktorych-data', 'PHOTO', 1, 4, 'abc', 'image/jpeg', 0, 1, 1, 0, 1)"
     ).bind("photos/a.jpg").run();
@@ -162,6 +163,10 @@ test("a signed-in viewer receives a ranged telegram file and a playlist", async 
 
     const playlist = await call(mf, "/tg/clips/a.mp4/index.m3u8", { ip: "203.0.113.97", token: session.token });
     assert.equal(playlist.status, 200);
+    const again = await call(mf, "/tg/clips/a.mp4/index.m3u8", { ip: "203.0.113.97", token: session.token });
+    assert.equal(again.status, 200);
+    const still = await db.DB.prepare("SELECT expires_at FROM sessions").first();
+    assert.equal(Number(still.expires_at), Number(signedIn.expires_at));
     const text = new TextDecoder().decode(playlist.bytes);
     assert.match(text, /#EXTM3U/);
     assert.match(text, /\/tg\/clips\/a\.mp4\/init/);

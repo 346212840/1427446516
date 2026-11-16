@@ -303,7 +303,7 @@
      #/settings/accounts-inspector/manage:<id>. The Worker checks the owner,
      validates every value and keeps locked values on the member's syncs. */
   function manageOn() { return !(hooks && hooks.manageSettingsOn && !hooks.manageSettingsOn()); }
-  const GROUP_WORD = () => ({ look: tr("Look and menus"), feed: tr("Feed"), media: tr("Media"), privacy: tr("Privacy"), language: tr("Language") });
+  const GROUP_WORD = () => ({ look: tr("Look and menus"), feed: tr("Feed"), media: tr("Media"), privacy: tr("Privacy"), language: tr("Language"), notifications: tr("Notifications"), friends: tr("Friends"), device: tr("This device"), profile: tr("Profile"), network: tr("Network") });
   function loadManage(id, force) {
     if (!force && (S.manage[id] || S.manageLoading[id])) return;
     S.manageLoading[id] = true;
@@ -321,7 +321,7 @@
     paint();
     api("/v1/owner/user-settings/" + encodeURIComponent(id), "PUT", change).then((res) => {
       S.manageBusy[id] = false;
-      if (res.ok && res.body && res.body.settings) { m.settings = res.body.settings; m.locks = res.body.locks || {}; toast(tr("Saved")); }
+      if (res.ok && res.body && res.body.settings) { m.settings = res.body.settings; m.locks = res.body.locks || {}; if (res.body.notes) m.notes = res.body.notes; if (res.body.audit) m.audit = res.body.audit; toast(tr("Saved")); }
       else toast(tr("Couldn’t save. Try again."));
       paint();
     });
@@ -342,9 +342,10 @@
     const busy = !!S.manageBusy[id];
     const gw = GROUP_WORD();
     const locks = m.locks || {};
-    const intro = `<p class="oi-sheet-sub oi-sec-sub oi-manage-intro">${esc(tr("Changes reach @{handle}'s devices on their next sync. A locked setting keeps your value and they can't change it.", { handle: m.handle }))}</p>`;
+    const query = String(S.manageQ || "").trim().toLowerCase();
+    const intro = `<p class="oi-sheet-sub oi-sec-sub oi-manage-intro">${esc(tr("Changes reach @{handle}'s devices on their next sync. A locked setting keeps your value and they can't change it.", { handle: m.handle }))}</p><input id="oi-ms-q" class="oi-ms-search" type="search" value="${esc(S.manageQ || "")}" placeholder="${esc(tr("Search settings"))}" aria-label="${esc(tr("Search settings"))}">`;
     const groups = (m.groups || []).map((g) => {
-      const rows = m.schema.filter((r) => r.group === g);
+      const rows = m.schema.filter((r) => r.group === g && (!query || String(r.label || "").toLowerCase().indexOf(query) >= 0 || String(r.key || "").toLowerCase().indexOf(query) >= 0));
       if (!rows.length) return "";
       const allLocked = rows.every((r) => Object.prototype.hasOwnProperty.call(locks, r.key));
       const items = rows.map((r) => {
@@ -354,19 +355,28 @@
         if (r.type === "bool") {
           const on = v == null ? r.def === true : v === true;
           control = `<button type="button" class="tab-switch oi-ms-switch${on ? " on" : ""}" role="switch" aria-checked="${on ? "true" : "false"}" aria-label="${esc(tr(r.label))}" data-oi-act="ms-bool" data-oi-id="${esc(id)}" data-oi-k="${esc(r.key)}"${busy ? " disabled" : ""}><i></i></button>`;
+        } else if (r.type === "text") {
+          control = `<input class="oi-ms-text" type="text" maxlength="${Number(r.max) || 80}" aria-label="${esc(tr(r.label))}" data-oi-ms="value" data-oi-id="${esc(id)}" data-oi-k="${esc(r.key)}" value="${esc(v == null ? "" : String(v))}"${busy ? " disabled" : ""}>`;
+        } else if (r.type === "json") {
+          const shown = v == null ? "" : JSON.stringify(v);
+          control = `<textarea class="oi-ms-text" rows="3" aria-label="${esc(tr(r.label))}" data-oi-ms="value" data-oi-id="${esc(id)}" data-oi-k="${esc(r.key)}"${busy ? " disabled" : ""}>${esc(shown)}</textarea>`;
         } else {
           const cur = v == null ? r.def : v;
           control = `<select class="oi-ms-select" aria-label="${esc(tr(r.label))}" data-oi-ms="value" data-oi-id="${esc(id)}" data-oi-k="${esc(r.key)}"${busy ? " disabled" : ""}>${cur != null && r.values.map(String).indexOf(String(cur)) < 0 ? `<option value="" selected disabled>${esc(String(cur))}</option>` : ""}${r.values.map((x) => `<option value="${esc(String(x))}"${String(x) === String(cur) ? " selected" : ""}>${esc(valueWord(r, x))}</option>`).join("")}</select>`;
         }
         const lockBtn = `<button type="button" class="oi-ms-lock${locked ? " on" : ""}" aria-label="${esc(tr(r.label) + " · " + (locked ? tr("Locked") : tr("Lock")))}" aria-pressed="${locked ? "true" : "false"}" data-oi-act="ms-lock" data-oi-id="${esc(id)}" data-oi-k="${esc(r.key)}"${busy ? " disabled" : ""}>${icon("lock")}<span>${esc(locked ? tr("Locked") : tr("Lock"))}</span></button>`;
-        return `<div class="oi-ms-row${locked ? " is-locked" : ""}"><span class="set-copy"><b>${esc(tr(r.label))}</b><span class="set-sub">${esc(v == null ? tr("Their choice") + " · " + valueWord(r, r.def) : valueWord(r, v))}</span></span><span class="oi-ms-ctl">${control}${lockBtn}</span></div>`;
+        const where = r.device ? " · " + tr("This device") : "";
+        return `<div class="oi-ms-row${locked ? " is-locked" : ""}"><span class="set-copy"><b>${esc(tr(r.label))}</b><span class="set-sub">${esc((v == null ? tr("Their choice") + " · " + valueWord(r, r.def) : valueWord(r, v)) + where)}</span></span><span class="oi-ms-ctl">${control}${lockBtn}</span></div>`;
       }).join("");
       const groupBtn = `<button type="button" class="oi-link oi-ms-group" data-oi-act="ms-lock-group" data-oi-id="${esc(id)}" data-oi-v="${esc(g)}" data-oi-on="${allLocked ? "0" : "1"}"${busy ? " disabled" : ""}>${esc(allLocked ? tr("Unlock all") : tr("Lock all"))}</button>`;
       return `<section class="oi-sec oi-sec-rows oi-ms-sec"><div class="oi-ms-head"><h2>${esc(gw[g] || g)}</h2>${groupBtn}</div>${items}</section>`;
     }).join("");
     const count = Object.keys(locks).length;
+    const audit = (m.audit || []).slice(0, 12).map((row) => `<li><span>${esc(row.change || "")} ${esc(row.key || "")}</span> <span>${esc(String(row.from || ""))} → ${esc(String(row.to || ""))}</span></li>`).join("");
     const foot = `<p class="oi-note oi-note-foot">${icon("lock")}<span>${esc(count === 1 ? tr("1 setting locked") : tr("{count} settings locked", { count: String(count) }))} · ${esc(tr("Each change is logged in the access log."))}</span></p>`;
-    return `<div class="oi-page oi-manage">${intro}${groups}${foot}</div>`;
+    const bulk = `<button type="button" class="oi-link" data-oi-act="ms-bulk" data-oi-id="${esc(id)}"${busy ? " disabled" : ""}>${esc(tr("Apply to all members"))}</button>`;
+    const log = audit ? `<section class="oi-sec"><h2>${esc(tr("Access log"))}</h2><ul class="oi-ms-audit">${audit}</ul></section>` : "";
+    return `<div class="oi-page oi-manage">${intro}${groups}${bulk}${log}${foot}</div>`;
   }
 
   /* ---------- audit ---------- */
@@ -420,6 +430,10 @@
         return p.id && p.handle ? `<a class="set-row oi-person" href="#/settings/accounts-inspector/${encodeURIComponent(p.id)}" data-oi-act="close-sheet-go">${inner}</a>` : `<div class="set-row oi-person">${inner}</div>`;
       }).join("")}</div>${rows.length >= (pp.max || 500) ? `<p class="oi-sheet-sub">${esc(tr("Showing the first {count}", { count: String(pp.max || 500) }))}</p>` : ""}` : `<p class="oi-sheet-sub">${esc(tr("No one here"))}</p>`;
       foot = `<button type="button" class="oi-pill oi-pill-outline" data-oi-act="close-sheet">${esc(tr("Close"))}</button>`;
+    } else if (sh.type === "bulk") {
+      title = tr("Apply to all members");
+      body = `<p class="oi-sheet-sub">${esc(tr("This will change {count} accounts. Nothing is saved until you confirm.", { count: String(sh.count || 0) }))}</p>`;
+      foot = `<button type="button" class="oi-pill oi-pill-accent" data-oi-act="ms-bulk-apply"${sh.busy ? " disabled" : ""}>${esc(sh.busy ? tr("Saving…") : tr("Apply to all members"))}</button><button type="button" class="oi-pill oi-pill-outline" data-oi-act="close-sheet">${esc(tr("Cancel"))}</button>`;
     } else if (sh.type === "confirm") {
       title = tr("Change account type?");
       body = `<p class="oi-sheet-sub">${esc(tr("Change this account’s type to “{kind}”?", { kind: kindLabel(sh.kind) }))}</p>`;
@@ -435,8 +449,8 @@
     if (manageId) {
       const mhead = hooks.settingsHead ? hooks.settingsHead(tr("Manage settings"), "#/settings/accounts-inspector/" + encodeURIComponent(manageId)) : "";
       if (!ownerOn() || !manageOn()) return mhead + `<p class="oi-empty">${esc(tr("Only the owner can see this."))}</p>`;
-      S.sheet = null;
-      return mhead + manageView(manageId);
+      if (S.sheet && S.sheet.type !== "bulk") S.sheet = null;
+      return mhead + manageView(manageId) + sheetHtml();
     }
     const title = id === "audit" ? tr("Access log") : id ? (S.detail[id] ? "@" + S.detail[id].handle : tr("Account")) : tr("Accounts");
     const head = hooks.settingsHead ? hooks.settingsHead(title, back) : "";
@@ -474,6 +488,36 @@
     if (act === "retry-detail") { const id = btn.dataset.oiId; S.detailError[id] = ""; loadDetail(id, true); paint(); return; }
     if (act === "copy-id") { copy(btn.dataset.oiId || ""); return; }
     if (act === "retry-manage") { const id = btn.dataset.oiId; S.manageError[id] = ""; loadManage(id, true); paint(); return; }
+    if (act === "ms-bulk") {
+      const id = btn.dataset.oiId;
+      const m = S.manage[id];
+      const locks = {};
+      const values = {};
+      Object.keys((m && m.locks) || {}).forEach((key) => {
+        locks[key] = true;
+        values[key] = m.settings[key] == null ? (m.schema.find((row) => row.key === key) || {}).def : m.settings[key];
+      });
+      if (!Object.keys(locks).length) { toast(tr("Couldn’t save. Try again.")); return; }
+      api("/v1/owner/user-settings/bulk", "POST", { locks, values, preview: true }).then((res) => {
+        const count = res.ok && res.body ? res.body.count : 0;
+        if (!res.ok || !res.body || res.body.preview !== true) { toast(tr("Couldn’t save. Try again.")); return; }
+        S.sheet = { type: "bulk", id, count, keys: res.body.keys || [], locks, values };
+        paint();
+      });
+      return;
+    }
+    if (act === "ms-bulk-apply") {
+      const sh = S.sheet;
+      if (!sh || sh.busy) return;
+      sh.busy = true;
+      paint();
+      api("/v1/owner/user-settings/bulk", "POST", { locks: sh.locks || {}, values: sh.values || {}, confirm: "apply", count: sh.count }).then((res) => {
+        S.sheet = null;
+        toast(res.ok ? tr("Saved") : tr("Couldn’t save. Try again."));
+        paint();
+      });
+      return;
+    }
     if (act === "ms-bool" || act === "ms-lock" || act === "ms-lock-group") {
       const id = btn.dataset.oiId;
       const m = S.manage[id];
@@ -488,8 +532,9 @@
         manageSave(id, { locks: { [key]: !Object.prototype.hasOwnProperty.call(m.locks || {}, key) } });
       } else {
         const on = btn.dataset.oiOn === "1";
+        const query = String(S.manageQ || "").trim().toLowerCase();
         const locks = {};
-        m.schema.filter((r) => r.group === btn.dataset.oiV).forEach((r) => { locks[r.key] = on; });
+        m.schema.filter((r) => r.group === btn.dataset.oiV && (!query || String(r.label || "").toLowerCase().indexOf(query) >= 0 || String(r.key || "").toLowerCase().indexOf(query) >= 0)).forEach((r) => { locks[r.key] = on; });
         manageSave(id, { locks });
       }
       return;
@@ -529,6 +574,13 @@
   let typing = null;
   function onInput(event) {
     const el = event.target;
+    if (el && el.id === "oi-ms-q") {
+      S.manageQ = String(el.value || "");
+      paint();
+      const again = document.getElementById("oi-ms-q");
+      if (again) { again.focus(); try { again.setSelectionRange(again.value.length, again.value.length); } catch (err) {} }
+      return;
+    }
     if (!el || el.id !== "oi-q") return;
     clearTimeout(typing);
     typing = setTimeout(() => {
@@ -547,7 +599,11 @@
     const m = S.manage[id];
     const row = m ? m.schema.find((r) => r.key === el.dataset.oiK) : null;
     if (!row) return;
-    const value = row.type === "number" ? Number(el.value) : String(el.value);
+    let value = row.type === "number" ? Number(el.value) : String(el.value);
+    if (row.type === "json") {
+      try { value = el.value.trim() ? JSON.parse(el.value) : row.def; }
+      catch (err) { toast(tr("Couldn’t save. Try again.")); return; }
+    }
     manageSave(id, { values: { [row.key]: value } });
   }
   function onSubmit(event) {
