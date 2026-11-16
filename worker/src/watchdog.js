@@ -456,13 +456,17 @@ export async function watchdogPause(env, now) {
   return !!(doc.pause && at - Number(doc.at || 0) < 3 * HOUR);
 }
 
+function publicRow(row) {
+  return !!(row && typeof row === "object");
+}
+
 export function publicSummary(doc) {
   const d = applyPaused(doc || {});
   return {
     ok: d.ok !== false,
     at: Number(d.at) || 0,
-    problems: (d.problems || []).map((p) => ({ code: p.code, level: p.level, text: p.text, since: p.since })),
-    paused: (d.paused || []).map((p) => ({ id: p.id, code: p.code, level: "paused", text: p.text, reason: p.reason, since: p.since })),
+    problems: (d.problems || []).filter(publicRow).map((p) => ({ code: p.code, level: p.level, text: p.text, since: p.since })),
+    paused: (d.paused || []).filter(publicRow).map((p) => ({ id: p.id, code: p.code, level: "paused", text: p.text, reason: p.reason, since: p.since })),
     signups: d.signups || null
   };
 }
