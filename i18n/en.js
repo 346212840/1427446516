@@ -6223,6 +6223,12 @@ SI18n.addPack("en", {
   "Manage member settings": "Manage member settings",
   "In Accounts you can change a member's settings and lock them so they can't change them. Off gives every choice back to members.": "In Accounts you can change a member's settings and lock them so they can't change them. Off gives every choice back to members.",
   "The site owner locked this setting.": "The site owner locked this setting.",
+  "Locked by the owner": "Locked by the owner",
+  "Managed by the owner": "Managed by the owner",
+  "The owner updated a setting you use.": "The owner updated a setting you use.",
+  "Search settings": "Search settings",
+  "Apply to all members": "Apply to all members",
+  "This will change {count} accounts. Nothing is saved until you confirm.": "This will change {count} accounts. Nothing is saved until you confirm.",
   "The site owner manages 1 of your settings.": "The site owner manages 1 of your settings.",
   "The site owner manages {count} of your settings.": "The site owner manages {count} of your settings.",
   "Manage settings": "Manage settings",
@@ -6435,5 +6441,7 @@ SI18n.addPack("en", {
   "Copies the largest listed picture. It is not a proven original file. Color, HDR and animation may not match.": "Copies the largest listed picture. It is not a proven original file. Color, HDR and animation may not match.",
   "Copy the largest listed picture": "Copy the largest listed picture",
   "Copy a smaller listed picture": "Copy a smaller listed picture",
-  "Copied a smaller listed picture. It is not the full file.": "Copied a smaller listed picture. It is not the full file."
+  "Copied a smaller listed picture. It is not the full file.": "Copied a smaller listed picture. It is not the full file.",
+  "Pick a model automatically": "Pick a model automatically",
+  "Sync settings": "Sync settings"
 });

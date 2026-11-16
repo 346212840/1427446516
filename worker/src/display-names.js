@@ -29,6 +29,7 @@
    routes answer 403 for everyone else. */
 
 import { inspectHandle } from "../../shared/handle-skeleton.js";
+import { activeLock } from "./owner-settings.js";
 import {
   audienceIn, audienceOut, cleanRel, idForHandle, normalizeNameAudience, ownerLists,
   parseAudience, pickName, previewRel, relationTo
@@ -433,7 +434,10 @@ export async function handleDisplayNames(request, env, path, deps) {
     if (body.name != null && !name) return json(400, { error: "invalid_name" });
     if (item.primary) {
       if (audience) await savePrimaryAudience(env, ownerId, audience);
-      if (name) await env.DB.prepare("UPDATE accounts SET display_name = ? WHERE public_id = ?").bind(name, ownerId).run();
+      const lockedName = await activeLock(env, ownerId, "displayName");
+      if (lockedName !== undefined) {
+        await env.DB.prepare("UPDATE accounts SET display_name = ? WHERE public_id = ?").bind(String(lockedName), ownerId).run();
+      } else if (name) await env.DB.prepare("UPDATE accounts SET display_name = ? WHERE public_id = ?").bind(name, ownerId).run();
     } else {
       await env.DB.prepare("UPDATE display_names SET name = COALESCE(?, name), audience = COALESCE(?, audience) WHERE id = ? AND public_id = ?").bind(name, audience, item.id, ownerId).run();
     }
@@ -452,6 +456,8 @@ export async function handleDisplayNames(request, env, path, deps) {
     const item = target();
     if (!item) return json(404, { error: "not_found" });
     if (item.primary) return json(200, await present(env, request, ownerId), nocache);
+    const lockedName = await activeLock(env, ownerId, "displayName");
+    if (lockedName !== undefined) return json(409, { error: "locked" });
     const paced = await deps.rateHit(env, "dname-main:" + ownerId, 10, DAY);
     if (!paced.ok) return deps.limited(paced);
     const main = set.names[0];

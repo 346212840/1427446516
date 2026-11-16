@@ -243,6 +243,10 @@ const PAGE_STEPS = [
     weight: 25, needs: ["pw", "browser"],
     paths: [file("live_page_test.mjs"), ...APP]
   }),
+  step("shorts-page", "node scripts/shorts_page_test.mjs", {
+    weight: 30, needs: ["pw", "browser"],
+    paths: [file("shorts_page_test.mjs"), /^shorts\.js$/, /^shorts-enabled\.js$/, /^shorts\.css$/, ...APP]
+  }),
   step("storage-recordings", "node scripts/storage_recordings_test.mjs", {
     paths: [file("storage_recordings_test.mjs"), /^storage-recordings\.js$/, /^shared\/storage-/, /^vendor\/age-/]
   }),
@@ -291,7 +295,7 @@ const NAV_STEPS = [
 
 const SHARDS = {
   checks: ["action-bar", "assemble-self", "r2-catalog", "catalog-migrate", "handle-guard", "i18n", "telegram-stories", "stories", "device", "translate", "ondevice-ai", "dock", "for-you", "storage-recordings", "app-scale", "image-copy"],
-  site: ["about-layout", "points-layout", "stories-layout", "assemble-site", "smoke-site", "smoke-mirror", "yt-embed", "x-video", "ios", "live"],
+  site: ["about-layout", "points-layout", "stories-layout", "assemble-site", "smoke-site", "smoke-mirror", "yt-embed", "x-video", "ios", "live", "shorts-page"],
   "ui-fast": ["notifications", "scrollbar-hidden", "pill-fit", "sidebar", "privacy", "title-privacy", "desktop-squares", "storage-page"],
   sw: ["sw-update"],
   "ui-profile": ["profile", "profile-tab-scroll"],

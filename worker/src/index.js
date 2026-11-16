@@ -68,7 +68,7 @@ import { PROFILE_MEDIA_SCHEMA, applyViewer, rememberSlot, addMedia, updateMedia,
 import { handleOwnerFeeds, sweepOwnerFeeds } from "./owner-feeds.js";
 import { handleOwnerSourceLists, handleMySourceLists, refreshWanted } from "./source-lists.js";
 import { handleOwnerInspector } from "./owner-inspector.js";
-import { handleOwnerUserSettings, readLocks, enforceLocks, lockValues } from "./owner-settings.js";
+import { handleOwnerUserSettings, readLocks, enforceLocks, lockValues, lockNotes } from "./owner-settings.js";
 import { handleFeedRequests, handleOwnerFeedRequests, requestInsteadOfAdd, followGate, importFilter, feedRequestsOn, fileRequest, bannedKeys, newsletterBanned } from "./feed-requests.js";
 import { handleOwnerSms, handleMemberSms } from "./sms-pool.js";
 import { handleMail } from "./mail-relay.js";
@@ -1092,11 +1092,28 @@ async function handleLogin(request, env) {
   return json(200, { token, account: await presentAccount(env, request, row, true) });
 }
 
+/* A playlist or file used to extend the session on every request. The
+   session already lasts 60 days, so it is only rewritten during its last
+   day, and at most once an hour on this isolate. */
+const SLIDE_HOLD_MS = 60 * 60 * 1000;
+const slideSeen = new Map();
+export function sessionNeedsSlide(expiresAt, now) {
+  const left = Number(expiresAt) - Number(now);
+  if (!(left > 0)) return false;
+  return left <= 24 * 60 * 60 * 1000;
+}
+
 async function slideSession(env, request) {
   const token = bearer(request);
   if (!token || token.length > 200 || !env.DB) return;
   const hash = await sha256Hex(token);
   const now = Date.now();
+  const seen = slideSeen.get(hash);
+  if (seen && now - seen < SLIDE_HOLD_MS) return;
+  if (slideSeen.size > 2000) slideSeen.clear();
+  slideSeen.set(hash, now);
+  const row = await env.DB.prepare("SELECT expires_at FROM sessions WHERE token_hash = ?").bind(hash).first();
+  if (!row || !sessionNeedsSlide(row.expires_at, now)) return;
   await env.DB.prepare("UPDATE sessions SET expires_at = ? WHERE token_hash = ? AND expires_at > ?").bind(now + SESSION_MS, hash, now).run();
 }
 
@@ -1382,6 +1399,12 @@ async function handleProfilePatch(request, env) {
   if (!row) return json(401, { error: "unauthorized" });
   const body = await readJson(request, AVATAR_TEXT + BANNER_TEXT + 8000);
   if (body.error) return json(body.error === "too_large" ? 413 : 400, { error: body.error });
+  const profileLocks = await ownerLocksFor(env, row);
+  if (profileLocks) {
+    ["displayName", "bio", "location", "website", "protected", "privateFollows", "profileLess", "hideAvatar"].forEach((key) => {
+      if (profileLocks[key]) body[key] = profileLocks[key].value;
+    });
+  }
   let handle = row.handle;
   let skeleton = "";
   if (body.handle != null && String(body.handle) !== row.handle) {
@@ -1571,7 +1594,7 @@ async function handleSyncGet(request, env) {
   if (!row) return json(401, { error: "unauthorized" });
   const locks = await ownerLocksFor(env, row);
   const saved = await env.DB.prepare("SELECT payload, updated_at FROM sync_state WHERE public_id = ?").bind(row.public_id).first();
-  if (!saved) return json(200, locks ? { payload: null, updatedAt: 0, locks: lockValues(locks) } : { payload: null, updatedAt: 0 });
+  if (!saved) return json(200, locks ? { payload: null, updatedAt: 0, locks: lockValues(locks), notes: lockNotes(locks) } : { payload: null, updatedAt: 0 });
   let payload = null;
   try { payload = JSON.parse(saved.payload); }
   catch (err) { payload = null; }
@@ -1582,7 +1605,7 @@ async function handleSyncGet(request, env) {
     delete payload.bellRead;
     if (locks) enforceLocks(payload, locks);
   }
-  return json(200, locks ? { payload, updatedAt: saved.updated_at, locks: lockValues(locks) } : { payload, updatedAt: saved.updated_at });
+  return json(200, locks ? { payload, updatedAt: saved.updated_at, locks: lockValues(locks), notes: lockNotes(locks) } : { payload, updatedAt: saved.updated_at });
 }
 
 /* Settings the owner locked for this account (owner-settings.js), or null
@@ -1700,22 +1723,30 @@ async function handleSyncPut(request, env) {
   }
   // Settings the owner locked keep the owner's value, whatever a device sent.
   const locks = await ownerLocksFor(env, row);
-  if (locks) enforceLocks(payload, locks);
+  const rejected = locks ? enforceLocks(payload, locks) : [];
   const text = JSON.stringify(payload);
   if (text.length > SYNC_MAX) return json(413, { error: "too_large" });
   const base = Number(body.baseUpdatedAt || 0);
   if (current && base && Number(current.updated_at) !== base) {
     return json(409, { error: "conflict", payload: previous, updatedAt: current.updated_at });
   }
-  const now = Date.now();
-  await env.DB.prepare("INSERT INTO sync_state (public_id, payload, updated_at) VALUES (?, ?, ?) ON CONFLICT(public_id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at").bind(row.public_id, JSON.stringify(await sealPayload(env, payload)), now).run();
+  const unchanged = !!(current && previousText === canonicalJson(payload));
+  const now = unchanged ? (Number(current.updated_at) || Date.now()) : Date.now();
+  // An unchanged sync used to rewrite the row anyway. That is one billed
+  // write per open, even when the device is only checking in.
+  if (!unchanged) {
+    await env.DB.prepare("INSERT INTO sync_state (public_id, payload, updated_at) VALUES (?, ?, ?) ON CONFLICT(public_id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at").bind(row.public_id, JSON.stringify(await sealPayload(env, payload)), now).run();
+  }
   // Other signed-in devices hear about a real change and pull it.
-  if (!current || previousText !== canonicalJson(payload)) {
+  if (!unchanged) {
     const device = String(body.device || "").replace(/[^a-z0-9]/gi, "").slice(0, 24);
     try { await publishToAccount(env, row.public_id, "sync", { updatedAt: now, device }, row.public_id); }
     catch (err) { /* devices also check when they come back */ }
   }
-  return json(200, locks ? { payload: body.payload, updatedAt: now, locks: lockValues(locks) } : { payload: body.payload, updatedAt: now });
+  const answered = { payload: body.payload, updatedAt: now };
+  if (locks) { answered.locks = lockValues(locks); answered.notes = lockNotes(locks); }
+  if (rejected.length) answered.rejected = rejected;
+  return json(200, answered);
 }
 
 const DATA_KEY = /^(?:feeds|stories|people|suggestions|status|feeds\.config)\.json$|^data\/music\.json$|^(?:live|archive|comments|fallback)\/[A-Za-z0-9._-]{1,120}\.json$|^discord\/(?:index|state|vk)\.json$|^discord\/(?:messages|pins)\/\d{1,22}\.json$|^discord\/messages\/\d{1,22}\/p\/\d{1,4}\.json$|^data\/communities\/(?:index|[a-z0-9_]{2,21})\.json$|^data\/communities\/[a-z0-9_]{2,21}\/\d{1,20}\.json$/;
@@ -6031,6 +6062,12 @@ async function route(request, env, ctx) {
   }
   if (path.startsWith("/v1/ytm/") && request.method === "GET") {
     return handleYtm(request, env, { fetch: (url, init) => fetch(url, init), cache: caches.default, r2: env.DATA || null, now: () => Date.now(), waitUntil: ctx && ctx.waitUntil ? (p) => ctx.waitUntil(p) : null });
+  }
+  // The public summary is one stored document. It must answer even when the
+  // database setup is busy or briefly failing; a retry used to be the only
+  // way past that 500.
+  if (path === "/v1/watchdog" && request.method === "GET") {
+    return handleWatchdog(request, env, path, { json, requireOwner });
   }
   await ensureSchema(env);
   if (path === "/v1/reader" && request.method === "GET") {
