@@ -34,13 +34,16 @@ const FRIEND = `<!doctype html><html><head><meta charset="utf-8"></head><body>
       if (p === "/v1/messages") {
         if (!navigator.onLine) return Promise.reject(new Error("offline"));
         window.__server.push(o.body);
-        return Promise.resolve({ status: 200 });
+        const id = (o.body && o.body.mid) || "";
+        if (window.__relayDm && id) window.__relayDm(me, o.body.id, o.body.text, id);
+        return Promise.resolve({ status: 200, id: id });
       }
       return Promise.resolve(null);
     } };
   window.ViktorychPresence = { onChannel: (fn) => listeners.push(fn), stateOf: () => "online", myState: () => "online", refresh: () => {},
     seen: (id, state) => window.__seen.push([id, state]) };
   window.__deliver = (from, sig) => listeners.forEach((fn) => fn({ op: "event", topic: "p2p", data: { from: from, signal: JSON.parse(sig) } }));
+  window.__deliverDm = (from, text, id) => listeners.forEach((fn) => fn({ op: "event", topic: "dm", data: { from: from, text: text, id: id, at: Date.now() } }));
 </script>
 <script type="module" src="/friend-p2p.js"></script></body></html>`;
 
@@ -306,8 +309,14 @@ async function main() {
       const target = from === A ? pb : pa;
       target.evaluate(([f, s]) => window.__deliver(f, s), [from, sig]).catch(() => {});
     };
+    const relayDm = (from, to, text, id) => {
+      const target = to === A ? pa : pb;
+      return target.evaluate(([f, t, i]) => window.__deliverDm(f, t, i), [from, text, id]);
+    };
     await pa.exposeFunction("__relay", relay);
     await pb.exposeFunction("__relay", relay);
+    await pa.exposeFunction("__relayDm", relayDm);
+    await pb.exposeFunction("__relayDm", relayDm);
     await arm(pa, fake, pipe);
     await arm(pb, fake, pipe);
     await pa.goto(base + "/friend.html?me=" + A + "&other=" + B, { waitUntil: "domcontentloaded" });
@@ -354,8 +363,8 @@ async function main() {
     }), B);
     const onB = await pb.evaluate((id) => window.ViktorychFriendP2P.thread(id).filter((m) => m.text === "bench later").length, A);
     /* The sender keeps one local copy and posts one server copy. The
-       friend's own thread only updates when the bytes arrived peer to
-       peer, so a server fallback is still missing on device B. */
+       mock relays that post the way the account channel does, and the
+       friend's thread keeps a single row for that message id. */
     const drained = queued === "outbox" && queuedN === 1 && after.out === 0 && after.mine === 1 && after.server === 1;
     const dup = after.mine > 1 || after.server > 1 || onB > 1;
     await ctxA.close();
