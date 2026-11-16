@@ -79,6 +79,20 @@ function newKey(prefix) {
   return prefix + hex;
 }
 
+/* The sender's own message id. Eighteen hex characters, same as the direct
+   copy, and never a server dm_ key, so one client cannot pick another's row. */
+function offeredMessageId(raw) {
+  const id = String(raw || "");
+  return /^[a-f0-9]{18}$/.test(id) ? id : "";
+}
+
+/* A repeated send of the same id hits the primary key. A disk or network
+   failure does not, and must not be treated as that repeat. */
+function uniqueConflict(err) {
+  const message = String(err && (err.message || (err.cause && err.cause.message)) || err);
+  return /unique constraint failed|primary key constraint failed/i.test(message);
+}
+
 function pageLimit(url) {
   const n = Number(url && url.searchParams ? url.searchParams.get("limit") : PAGE_DEFAULT);
   if (!Number.isFinite(n) || n <= 0) return PAGE_DEFAULT;
@@ -690,11 +704,40 @@ async function writeMessage(request, env, viewer, deps) {
   }
   const tempGate = await tempDmGate(env, viewer, otherId, deps.rateHit);
   if (tempGate) return deps.json(tempGate.status, { error: tempGate.error, message: "Temporary accounts can message only a few new people a day. Save this account to lift the limit." }, { "retry-after": String(tempGate.retry || 3600) });
-  const id = newKey("dm_");
+  const clientMid = offeredMessageId(body.mid);
+  let id = clientMid || newKey("dm_");
   const now = Date.now();
-  await env.DB.prepare(
+  const insertMessage = (key, at) => env.DB.prepare(
     "INSERT INTO account_messages (id, sender_id, recipient_id, body, created_at, deleted_at) VALUES (?, ?, ?, ?, ?, 0)"
-  ).bind(id, viewer.public_id, otherId, text, now).run();
+  ).bind(key, viewer.public_id, otherId, text, at).run();
+  try {
+    await insertMessage(id, now);
+  } catch (err) {
+    if (!uniqueConflict(err)) return deps.json(503, { error: "unavailable" });
+    const existing = await env.DB.prepare(
+      "SELECT sender_id, recipient_id, body FROM account_messages WHERE id = ?"
+    ).bind(id).first();
+    const same = existing && existing.sender_id === viewer.public_id && existing.recipient_id === otherId && existing.body === text;
+    if (clientMid && same) {
+      /* The first send already stored this exact message. */
+    } else if (clientMid) {
+      return deps.json(409, { error: "conflict" });
+    } else {
+      id = newKey("dm_");
+      try { await insertMessage(id, now); }
+      catch (again) { return deps.json(503, { error: "unavailable" }); }
+    }
+  }
+  /* The live copy goes only to an accepted friend, and not when that
+     friend already hides this sender. Anyone else keeps today's stored
+     message and does not get the text on the channel. */
+  try {
+    const friend = await env.DB.prepare("SELECT friend_id FROM account_friends WHERE user_id = ? AND friend_id = ?").bind(viewer.public_id, otherId).first();
+    if (friend && !(await actorHidden(env, otherId, viewer.public_id))) {
+      const channel = await import("./channel.js");
+      await channel.publishToAccount(env, otherId, "dm", { from: viewer.public_id, id: id, text: clip(text, 2000), at: now }, viewer.public_id);
+    }
+  } catch (err) { /* the message is saved; the friend can read it on the next open */ }
   if (!(await actorHidden(env, otherId, viewer.public_id))) {
     try {
       const notes = await import("./notifications.js");
