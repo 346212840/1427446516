@@ -6063,6 +6063,12 @@ async function route(request, env, ctx) {
   if (path.startsWith("/v1/ytm/") && request.method === "GET") {
     return handleYtm(request, env, { fetch: (url, init) => fetch(url, init), cache: caches.default, r2: env.DATA || null, now: () => Date.now(), waitUntil: ctx && ctx.waitUntil ? (p) => ctx.waitUntil(p) : null });
   }
+  // The public summary is one stored document. It must answer even when the
+  // database setup is busy or briefly failing; a retry used to be the only
+  // way past that 500.
+  if (path === "/v1/watchdog" && request.method === "GET") {
+    return handleWatchdog(request, env, path, { json, requireOwner });
+  }
   await ensureSchema(env);
   if (path === "/v1/reader" && request.method === "GET") {
     return handleReader(request, {

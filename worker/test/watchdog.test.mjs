@@ -122,4 +122,9 @@ test("a full run re-enables, redeploys, and opens an issue only when Actions sto
   assert.ok(!JSON.stringify(doc).includes("test-token"));
   const summary = publicSummary(doc);
   assert.ok(summary.problems.every((p) => p.code && p.text));
+  const holes = publicSummary({ at: 5, problems: [null, { code: "x", level: "warn", text: "t" }], paused: [null] });
+  assert.equal(holes.ok, true);
+  assert.equal(holes.at, 5);
+  assert.deepEqual(holes.problems, [{ code: "x", level: "warn", text: "t", since: undefined }]);
+  assert.deepEqual(holes.paused, []);
 });
