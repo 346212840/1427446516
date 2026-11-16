@@ -307,8 +307,14 @@ async function main() {
     if (hidPings) fail("a hidden tab kept sending: " + whileHidden.join("|"));
     if (hidPaused !== 1) fail("a hidden tab did not announce one pause: " + whileHidden.join("|"));
     if ((await pa.evaluate(() => window.ViktorychFriendP2P.peers().length)) !== 1) fail("a paused friend was dropped");
-    await pb.evaluate(() => { window.__hide = false; document.dispatchEvent(new Event("visibilitychange")); });
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const hiddenSend = await pa.evaluate((b) => window.ViktorychFriendP2P.send(b, "while hidden"), B);
+    if (!hiddenSend || hiddenSend.via !== "p2p") fail("a message to a hidden friend was not acked on the open link: " + JSON.stringify(hiddenSend));
+    await new Promise((resolve) => setTimeout(resolve, 30000));
+    if ((await pa.evaluate(() => window.ViktorychFriendP2P.peers().length)) !== 1 || (await pb.evaluate(() => window.ViktorychFriendP2P.peers().length)) !== 1) fail("an ack from a hidden friend cleared the pause");
+    await pb.evaluate(() => { window.__out.length = 0; window.__hide = false; document.dispatchEvent(new Event("visibilitychange")); });
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+    const resumed = await pb.evaluate(() => window.__out.slice());
+    if (!resumed.some((row) => row.indexOf('"t":"ping"') >= 0)) fail("pings did not resume when the tab returned: " + resumed.join("|"));
     if ((await pa.evaluate(() => window.ViktorychFriendP2P.peers().length)) !== 1 || (await pb.evaluate(() => window.ViktorychFriendP2P.peers().length)) !== 1) fail("the link did not survive returning");
 
     /* An 8s stall of the main thread is not silence. */

@@ -259,8 +259,9 @@ function onData(peer, data) {
   try { msg = JSON.parse(data); } catch (err) { return; }
   if (!msg || typeof msg.t !== "string") return;
   if (msg.t === "paused") { peer.paused = true; return; }
-  peer.paused = false;
-  if (msg.t === "ping") return;
+  /* An ack or a message from a hidden tab is not a return. Only an
+     explicit resume, or a ping once the tab is visible again, clears it. */
+  if (msg.t === "resumed" || msg.t === "ping") { peer.paused = false; return; }
   const p = presence();
   if (msg.t === "here") {
     /* A presence note must not repaint over a typing line. */
@@ -494,7 +495,12 @@ function boot() {
       stopHere();
       return;
     }
-    peers.forEach((peer) => { if (peer.open) { peer.quiet = 0; ping(peer); } });
+    peers.forEach((peer) => {
+      if (!peer.open) return;
+      peer.quiet = 0;
+      send(peer, { t: "resumed" });
+      ping(peer);
+    });
     armHere();
     flush();
   });
