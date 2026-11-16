@@ -242,6 +242,55 @@ async function main() {
       if (!/#\/settings\/display$/.test(page.url())) fail("AI hold release activated another control");
       await context.close();
     }
+    // A Home repaint puts focus back only when the AI control itself had it.
+    {
+      const { context, page } = await open(browser, origin, { view: "phone", battery: true, settings: { statusIcons: ALL } });
+      const ai = '.mhead a.m-ai[href="#/ai"]';
+      await page.waitForSelector(ai, { state: "visible" });
+      const repaint = () => page.evaluate(() => {
+        const tab = document.querySelector(".tabs-bar .tab.on");
+        if (!tab) throw new Error("no home tab");
+        tab.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      });
+      const activeIs = (sel) => page.evaluate((s) => !!(document.activeElement && document.activeElement.matches(s)), sel);
+      async function focusVisible(sel) {
+        const handle = page.locator(sel).locator("visible=true").first();
+        await handle.waitFor({ state: "visible", timeout: 5000 });
+        await handle.focus();
+        if (!await activeIs(sel)) fail("could not focus " + sel);
+      }
+      await focusVisible(ai);
+      await repaint();
+      if (!await activeIs(ai)) fail("a Home repaint dropped the focused AI control");
+      await focusVisible(".fab");
+      await repaint();
+      if (await activeIs(ai)) fail("a Home repaint moved focus from Post to the AI control");
+      let item = page.locator('[role="menu"] [role="menuitem"], [role="menu"] [role="menuitemradio"]').locator("visible=true");
+      if (await item.count() === 0) {
+        await page.locator(".tabs-bar .tab-caret").first().evaluate((el) => el.click());
+        item = page.locator('[role="menu"] [role="menuitem"], [role="menu"] [role="menuitemradio"]').locator("visible=true");
+      }
+      await item.first().waitFor({ state: "visible", timeout: 5000 });
+      await item.first().focus();
+      if (await activeIs(ai)) fail("the menu did not take focus");
+      await repaint();
+      if (await activeIs(ai)) fail("a Home repaint moved focus from a menu to the AI control");
+      await context.close();
+    }
+    {
+      const { context, page } = await open(browser, origin, { view: "computer", battery: true, settings: { statusIcons: ALL } });
+      await page.locator("#side-q").waitFor({ state: "visible", timeout: 15000 });
+      await page.focus("#side-q");
+      if (!await page.evaluate(() => document.activeElement && document.activeElement.id === "side-q")) fail("could not focus Search");
+      await page.evaluate(() => {
+        const tab = document.querySelector(".tabs-bar .tab.on");
+        if (!tab) throw new Error("no home tab");
+        tab.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      });
+      const stole = await page.evaluate(() => !!(document.activeElement && document.activeElement.matches('.mhead a.m-ai[href="#/ai"]')));
+      if (stole) fail("a Home repaint moved focus from Search to the AI control");
+      await context.close();
+    }
     // 4. Keyboard and the equivalent computer hold reach the same controls.
     {
       const { context, page } = await open(browser, origin, { view: "computer", battery: true, settings: { statusIcons: ALL } });
