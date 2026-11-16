@@ -81,10 +81,18 @@ async function run(browser, origin) {
     await page.waitForSelector("#app .topbar", { timeout: 20000 });
     await page.waitForTimeout(1500);
     await page.evaluate(() => { if (location.hash !== "#/") location.hash = "#/"; });
-    // The first paint is a loading shell with a top bar and no tabs. The tab
-    // row replaces it, then the For You module still needs a moment to load.
-    await page.waitForSelector("#app [data-hscroll='home-tabs'] [data-act='htab']", { timeout: 20000 });
-    await page.waitForTimeout(2000);
+    // The first paint is a loading shell with a top bar and no tabs. Wait
+    // until the active tab and the For You module match the saved choice.
+    await page.waitForFunction(() => {
+      const tab = document.querySelector("#app [data-hscroll='home-tabs'] [data-act='htab'].on");
+      if (!tab) return false;
+      let server = [];
+      try { server = JSON.parse(localStorage.getItem("viktorychapp-server-off") || "[]") || []; }
+      catch (err) { server = []; }
+      const off = localStorage.getItem("viktorychapp-off-foryou") === "1" && server.indexOf("foryou_off") < 0;
+      if (off) return tab.getAttribute("data-tab") === "following" && !document.querySelector("#app [data-act='htab'][data-tab='foryou']");
+      return tab.getAttribute("data-tab") === "foryou" && !!window.ForYou;
+    }, null, { timeout: 20000 });
   };
   const fresh = async () => {
     await page.evaluate(() => { location.hash = "#/"; localStorage.removeItem("viktorych-screen-v1"); });
