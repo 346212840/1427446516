@@ -1419,9 +1419,16 @@
     var html = setupHtml();
     var card = slot.querySelector(".lai-su-card");
     var top = card ? card.scrollTop : 0;
+    var sameStep = slot.querySelector(".lai-su") && slot.querySelector(".lai-su").getAttribute("data-step");
     slot.innerHTML = html;
     var c2 = slot.querySelector(".lai-su-card");
-    if (c2) c2.scrollTop = top;
+    if (c2) {
+      c2.scrollTop = top;
+      // A storage refresh of the step already on screen must not replay the
+      // slide-up. That animation was still moving when the smoke check looked.
+      var nowStep = slot.querySelector(".lai-su") && slot.querySelector(".lai-su").getAttribute("data-step");
+      if (sameStep && sameStep === nowStep) c2.style.animation = "none";
+    }
   }
   /* Download progress without repainting the whole step. */
   function paintSetupProgress() {
