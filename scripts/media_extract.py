@@ -601,6 +601,19 @@ def download_x(ytdlp: list, account: dict, work: Path, archive: Path, limit: int
     return "ok", ""
 
 
+def backup_notice_error(text: str) -> bool:
+    """A Telegram 5xx while sending the backup copy. The file can be tried later."""
+    raw = str(text or "")
+    lowered = raw.lower()
+    if "telegram rejected a document" not in lowered and "bad gateway" not in lowered:
+        return False
+    return any(code in raw for code in ("500", "502", "503", "504"))
+
+
+def notice_pause(seconds: float) -> None:
+    time.sleep(seconds)
+
+
 def publish_file(path: Path, key: str, role: str, info: dict, cf: dict, manifest: dict, state: dict, directory: Path) -> str:
     if not key or not path.is_file() or path.stat().st_size <= 0:
         return "skip"
@@ -622,13 +635,23 @@ def publish_file(path: Path, key: str, role: str, info: dict, cf: dict, manifest
         "info": info,
         "probe": probe,
     }
-    try:
-        return tb.store_loaded(path, obj, kind, manifest, cf, state, directory, obj["etag"], copy_only=role == "video")
-    except RuntimeError as err:
-        if "telegram returned no file id" not in str(err):
+    for attempt in range(4):
+        try:
+            return tb.store_loaded(path, obj, kind, manifest, cf, state, directory, obj["etag"], copy_only=role == "video")
+        except RuntimeError as err:
+            text = str(err)
+            if "telegram returned no file id" in text:
+                log("[media-extract] skipped_no_file_id %s" % key)
+                return "fail"
+            if backup_notice_error(text) and attempt < 3:
+                notice_pause(min(8, 2 ** attempt))
+                continue
+            if backup_notice_error(text):
+                log("[media-extract] backup notice failed %s" % key)
+                log(tb.scrub(text, tb.current_secrets()))
+                return "fail"
             raise
-        log("[media-extract] skipped_no_file_id %s" % key)
-        return "fail"
+    return "fail"
 
 
 def video_posts(work: Path, account: dict, catalog: dict) -> list:
@@ -1207,6 +1230,36 @@ def selftest() -> int:
     finally:
         tb.store_loaded = saved_store
         tb.probe_saved = saved_probe
+    calls = {"n": 0}
+    def gateway(*_args, **_kwargs):
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise RuntimeError("telegram rejected a document (502: Bad Gateway)")
+        return "ok"
+    tb.store_loaded = gateway
+    tb.probe_saved = lambda _path: {}
+    saved_pause = notice_pause
+    globals()["notice_pause"] = lambda _seconds: None
+    try:
+        with tempfile.TemporaryDirectory() as note_dir:
+            clip = Path(note_dir) / "clip.mp4"
+            clip.write_bytes(b"not-a-real-video")
+            result = publish_file(clip, "social/x/1/video/0", "video", {}, {}, {"files": []}, {}, Path(note_dir))
+        check(result == "ok" and calls["n"] == 3, "a Telegram 502 is retried and does not fail the extract")
+        calls["n"] = 0
+        def always(*_args, **_kwargs):
+            calls["n"] += 1
+            raise RuntimeError("telegram rejected a document (502: Bad Gateway)")
+        tb.store_loaded = always
+        with tempfile.TemporaryDirectory() as note_dir:
+            clip = Path(note_dir) / "clip.mp4"
+            clip.write_bytes(b"not-a-real-video")
+            result = publish_file(clip, "social/x/1/video/0", "video", {}, {}, {"files": []}, {}, Path(note_dir))
+        check(result == "fail" and calls["n"] == 4, "a Telegram 502 that keeps failing skips that file")
+    finally:
+        tb.store_loaded = saved_store
+        tb.probe_saved = saved_probe
+        globals()["notice_pause"] = saved_pause
     print("media extract selftest ok")
     return 0
 
