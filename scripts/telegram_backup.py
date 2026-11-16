@@ -130,15 +130,44 @@ MIME = {
 
 def cloudflare_error_code(raw: bytes) -> str:
     """A numeric Cloudflare error code, or nothing. The body is not logged."""
+    code, _message = cloudflare_error_parts(raw)
+    return code
+
+
+def cloudflare_error_parts(raw: bytes) -> tuple[str, str]:
+    """Code and a short message from a Cloudflare error body. The raw body is dropped."""
     try:
         data = json.loads((raw or b"").decode("utf-8", "replace"))
     except (json.JSONDecodeError, UnicodeError):
-        return ""
+        return "", ""
     errors = data.get("errors") if isinstance(data, dict) else None
     if not isinstance(errors, list) or not errors or not isinstance(errors[0], dict):
-        return ""
+        return "", ""
     code = errors[0].get("code")
-    return str(code) if code not in (None, "") else ""
+    code_text = str(code) if code not in (None, "") else ""
+    message = " ".join(str(errors[0].get("message") or "").split())[:160]
+    return code_text, message
+
+
+def cloudflare_http_error(status: int, raw: bytes) -> RuntimeError:
+    """Status, code, and a short scrubbed message. Not the raw body and not the token."""
+    code, message = cloudflare_error_parts(raw)
+    if message:
+        message = scrub(message, current_secrets())
+    if int(status) >= 400:
+        text = "cloudflare http " + str(int(status))
+    else:
+        text = "cloudflare request failed"
+    if code:
+        text += " code " + code
+    if message:
+        text += " " + message
+    return RuntimeError(text)
+
+
+def d1_write_limited(message: str) -> bool:
+    """D1 answered 400 because the free daily row-write cap is used up. Reads still work."""
+    return "row write limit" in str(message or "").lower()
 
 
 def copy_failure_kind(message: str) -> str:
@@ -1489,14 +1518,12 @@ def cf_json(method: str, url: str, token: str, payload: bytes | None = None, con
             time.sleep(2.0 * (attempt + 1))
             continue
         if status >= 400:
-            code = cloudflare_error_code(raw)
-            detail = (" code " + code) if code else ""
-            raise RuntimeError("cloudflare http " + str(status) + detail)
+            raise cloudflare_http_error(status, raw)
         if not raw:
             return {}
         data = json.loads(raw.decode("utf-8"))
         if isinstance(data, dict) and data.get("success") is False:
-            raise RuntimeError("cloudflare request failed")
+            raise cloudflare_http_error(status, raw)
         return data if isinstance(data, dict) else {}
     raise RuntimeError("cloudflare request timed out")
 
@@ -2164,26 +2191,77 @@ def d1_kind(role: str) -> str:
 
 def remember_d1(token: str, account: str, database: str, entry: dict, part: dict, verified: bool, object_key: str = "") -> None:
     serve = 1 if entry.get("serve") and part["role"] in {"file", "segment", "init"} else 0
+    d1_exec(token, account, database, D1_UPSERT, [
+        object_key or entry["key"],
+        d1_kind(part["role"]),
+        int(part["index"]),
+        entry["bucket"],
+        part["file_id"],
+        int(part["message_id"]),
+        int(part["size"]),
+        part["sha256"],
+        part.get("mime") or "application/octet-stream",
+        float(part.get("duration") or 0),
+        serve,
+        1 if verified else 0,
+        1 if entry.get("encrypted") else 0,
+        int(time.time()),
+    ])
+
+
+def d1_same_part(row: dict | None, part: dict, verified: bool) -> bool:
+    """True when D1 already has this Telegram file, so another upsert would only burn a write."""
+    if not isinstance(row, dict) or not row.get("file_id"):
+        return False
+    if str(row.get("file_id")) != str(part.get("file_id") or ""):
+        return False
+    if str(row.get("sha256") or "") != str(part.get("sha256") or ""):
+        return False
+    if verified and int(row.get("verified") or 0) != 1:
+        return False
+    return True
+
+
+def note_d1_write_limit(cf: dict) -> None:
+    if not isinstance(cf, dict) or cf.get("d1_write_limit"):
+        return
+    cf["d1_write_limit"] = True
+    log("[telegram-backup] d1 daily write limit reached; already copied files stay and the index catches up after the limit resets")
+
+
+def index_part(cf: dict, entry: dict, part: dict, verified: bool, object_key: str = "") -> str:
+    """Write the D1 row only when it is missing or different.
+
+    A matching row is not written again. The free daily write cap returns HTTP
+    400 with a row-write-limit message; that leaves an already copied file in
+    place and waits for the cap to reset. Any other Cloudflare error is raised.
+    """
+    if not cf.get("database"):
+        return "skipped"
+    key = object_key or entry.get("key") or ""
     try:
-        d1_exec(token, account, database, D1_UPSERT, [
-            object_key or entry["key"],
-            d1_kind(part["role"]),
-            int(part["index"]),
-            entry["bucket"],
-            part["file_id"],
-            int(part["message_id"]),
-            int(part["size"]),
-            part["sha256"],
-            part.get("mime") or "application/octet-stream",
-            float(part.get("duration") or 0),
-            serve,
-            1 if verified else 0,
-            1 if entry.get("encrypted") else 0,
-            int(time.time()),
-        ])
+        rows = d1_rows(
+            cf["token"], cf["account"], cf["database"],
+            "SELECT file_id, sha256, verified FROM telegram_files WHERE object_key = ? AND kind = ? AND part_index = ? LIMIT 1",
+            [key, d1_kind(part["role"]), int(part["index"])],
+        )
     except Exception as err:
-        log("[telegram-backup] d1 update unavailable")
+        if d1_write_limited(str(err)):
+            note_d1_write_limit(cf)
+            return "limited"
+        log("[telegram-backup] d1 lookup unavailable")
         log(scrub(str(err), current_secrets()))
+        rows = []
+    if rows and d1_same_part(rows[0], part, verified):
+        return "current"
+    try:
+        remember_d1(cf["token"], cf["account"], cf["database"], entry, part, verified, key)
+    except Exception as err:
+        if d1_write_limited(str(err)):
+            note_d1_write_limit(cf)
+            return "limited"
+        raise
+    return "written"
 
 
 WORKER_LIMITED = False
@@ -2295,7 +2373,7 @@ def upload_path(api_base: str, token: str, channel: str, path: Path, caption: st
     stored_key = d1_key or entry["key"]
     if existing and existing.get("sha256") == sha:
         if cf.get("database"):
-            remember_d1(cf["token"], cf["account"], cf["database"], entry, existing, bool(entry.get("verified")), stored_key)
+            index_part(cf, entry, existing, bool(entry.get("verified")), stored_key)
         return
     if cf.get("database"):
         saved = None
@@ -2343,7 +2421,7 @@ def upload_path(api_base: str, token: str, channel: str, path: Path, caption: st
     }
     upsert_part(entry, part)
     if cf.get("database"):
-        remember_d1(cf["token"], cf["account"], cf["database"], entry, part, False, stored_key)
+        index_part(cf, entry, part, False, stored_key)
     state["files"] = int(state.get("files") or 0) + 1
     state["bytes"] = int(state.get("bytes") or 0) + path.stat().st_size
     label = str(entry.get("kind") or "other")
@@ -2649,7 +2727,7 @@ def finish_verified(entry: dict, obj: dict, manifest: dict, cf: dict, directory:
     entry["verified"] = True
     for part in entry.get("parts") or []:
         if cf.get("database"):
-            remember_d1(cf["token"], cf["account"], cf["database"], entry, part, True)
+            index_part(cf, entry, part, True)
     save_manifest(cf, manifest, directory)
     if obj.get("bucket") == "cdn":
         if obj.get("r2_bucket") and obj.get("r2_key") and may_delete(entry.get("kind") or "", True, int(entry.get("size") or 0)):
@@ -2817,13 +2895,13 @@ def process(obj: dict, manifest: dict, cf: dict, state: dict, directory: Path) -
             done = part_done(prior, part["role"], part["index"]) if part else None
             if done and done.get("sha256") == prior.get("sha256"):
                 if cf.get("database"):
-                    remember_d1(cf["token"], cf["account"], cf["database"], prior, done, bool(prior.get("verified")), part["group"])
+                    index_part(cf, prior, done, bool(prior.get("verified")), part["group"])
                 return "skip"
         elif kind == "mirror":
             done = part_done(prior, "file", 0)
             if done and done.get("sha256") == prior.get("sha256"):
                 if cf.get("database"):
-                    remember_d1(cf["token"], cf["account"], cf["database"], prior, done, bool(prior.get("verified")))
+                    index_part(cf, prior, done, bool(prior.get("verified")))
                 return "skip"
         elif prior.get("verified"):
             if may_delete(prior.get("kind") or "", True, int(prior.get("size") or 0)) and not prior.get("deleted"):
@@ -2933,7 +3011,7 @@ def process(obj: dict, manifest: dict, cf: dict, state: dict, directory: Path) -
             entry["verified"] = True
             for part in entry.get("parts") or []:
                 if cf.get("database"):
-                    remember_d1(cf["token"], cf["account"], cf["database"], entry, part, True)
+                    index_part(cf, entry, part, True)
             save_manifest(cf, manifest, directory)
             if may_delete(entry.get("kind") or "", True, int(entry.get("size") or 0)):
                 delete_object(cf["token"], cf["account"], obj["bucket"], obj["key"])
@@ -3219,6 +3297,8 @@ def backup(loop_only: bool = False, shard: tuple[int, int] | None = None) -> int
 
 
 def selftest() -> int:
+    global d1_rows, d1_exec
+
     def check(cond, message):
         if not cond:
             raise SystemExit("FAIL: " + message)
@@ -3445,6 +3525,130 @@ def selftest() -> int:
     check(failure_action("cloudflare http 502", 0) == "retry" and failure_action("cloudflare http 502", 3) == "fail", "a transient copy is retried and then reported")
     check(failure_action("download http 404", 0) == "skip" and failure_action("cloudflare http 400", 0) == "fail", "a missing source is skipped and a 400 is reported")
     check(cloudflare_error_code(b'{"success":false,"errors":[{"code":10006,"message":"bad"}]}') == "10006", "a Cloudflare error code is kept without the body")
+    write_limit_body = (
+        b'{"success":false,"errors":[{"code":7500,"message":"Your account has exceeded '
+        b"D1's free tier daily row write limit. Upgrade to a paid plan or wait until tomorrow (midnight UTC) to continue.\"}]}"
+    )
+    limited_code, limited_message = cloudflare_error_parts(write_limit_body)
+    check(limited_code == "7500" and "row write limit" in limited_message.lower(), "a D1 write-limit body keeps code 7500 and the message")
+    check(d1_write_limited("cloudflare http 400 code 7500 " + limited_message), "that message is the daily write cap")
+    check(not d1_write_limited("cloudflare http 400 code 10020 Invalid object name"), "an invalid object name is not the write cap")
+    check(not d1_write_limited("cloudflare http 400 code 7500 NOT NULL constraint failed: telegram_files.sha256"), "a SQL error that uses code 7500 is not the write cap")
+    check(cloudflare_error_parts(b"") == ("", ""), "an empty error body has no code and no message")
+    check(cloudflare_error_parts(b'{"success":false,"errors":[{"code":10020,"message":"Invalid object name"}]}') == ("10020", "Invalid object name"), "an invalid object name keeps code 10020")
+    comment_key = "comments/1001.json"
+    image_key = "post-media/0123456789abcdef.jpg"
+    check(quote_key(comment_key) == comment_key and quote_key(image_key) == image_key, "comment and image keys keep a literal slash")
+    check(len(comment_key) < 1024 and len(image_key) < 1024 and " " not in comment_key and " " not in image_key, "those keys are short legal object names")
+    saved_cf_token = os.environ.get("CLOUDFLARE_API_TOKEN")
+    os.environ["CLOUDFLARE_API_TOKEN"] = "sentinel-cf-token"
+    try:
+        import threading
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self):
+                length = int(self.headers.get("Content-Length") or 0)
+                self.rfile.read(length)
+                body = Handler.reply
+                self.send_response(Handler.status)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, fmt, *args):
+                return
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            poisoned = write_limit_body.replace(b"continue.", b"continue. sentinel-cf-token")
+            Handler.status = 400
+            Handler.reply = poisoned
+            raised = None
+            try:
+                cf_json("POST", "http://127.0.0.1:%s/query" % server.server_address[1], "sentinel-cf-token", b"{}", "application/json")
+            except RuntimeError as err:
+                raised = err
+            check(raised is not None and "code 7500" in str(raised) and "row write limit" in str(raised).lower(), "a failing request exposes the Cloudflare code and message")
+            check(raised is not None and "sentinel-cf-token" not in str(raised), "the error text does not include the API token")
+            Handler.reply = b""
+            empty_raised = None
+            try:
+                cf_json("POST", "http://127.0.0.1:%s/query" % server.server_address[1], "sentinel-cf-token", b"{}", "application/json")
+            except RuntimeError as err:
+                empty_raised = err
+            check(str(empty_raised) == "cloudflare http 400", "an empty 400 body stays status-only")
+            Handler.reply = b'{"success":false,"errors":[{"code":10020,"message":"Invalid object name"}]}'
+            name_raised = None
+            try:
+                cf_json("POST", "http://127.0.0.1:%s/query" % server.server_address[1], "sentinel-cf-token", b"{}", "application/json")
+            except RuntimeError as err:
+                name_raised = err
+            check(name_raised is not None and "code 10020" in str(name_raised) and "Invalid object name" in str(name_raised), "an invalid object name is read from the response")
+        finally:
+            server.shutdown()
+            server.server_close()
+    finally:
+        if saved_cf_token is None:
+            os.environ.pop("CLOUDFLARE_API_TOKEN", None)
+        else:
+            os.environ["CLOUDFLARE_API_TOKEN"] = saved_cf_token
+
+    sha = "ab" * 32
+    part = {"role": "file", "index": 0, "sha256": sha, "size": 12, "message_id": 4, "file_id": "fid", "duration": 0, "mime": "application/json"}
+
+    def mirrored(key):
+        entry = {
+            "bucket": "viktorych-data", "key": key, "etag": "etag1", "sha256": sha, "size": 12,
+            "mime": "application/json", "kind": "mirror", "serve": True, "verified": False,
+            "encrypted": False, "parts": [dict(part)],
+        }
+        obj = {"bucket": "viktorych-data", "key": key, "size": 12, "etag": "etag1", "content_type": "application/json"}
+        return obj, {"v": 1, "files": [entry]}
+
+    saved_rows, saved_exec = d1_rows, d1_exec
+    writes = []
+    state_box = {"rows": [{"file_id": "fid", "sha256": sha, "verified": 0}], "err": None}
+
+    def fake_rows(token, account, database, sql, params):
+        return list(state_box["rows"])
+
+    def fake_exec(token, account, database, sql, params):
+        if state_box["err"]:
+            raise state_box["err"]
+        writes.append(list(params))
+
+    d1_rows, d1_exec = fake_rows, fake_exec
+    try:
+        obj, manifest = mirrored(comment_key)
+        cf = {"token": "t", "account": "a", "database": "db", "blocked_keys": set()}
+        directory = Path(tempfile.mkdtemp(prefix="tg-index-"))
+        try:
+            result = process(obj, manifest, cf, new_entry_state(), directory)
+            check(result == "skip" and writes == [], "an already indexed comment is not written to D1 again")
+            state_box["rows"] = []
+            result = process(obj, manifest, cf, new_entry_state(), directory)
+            check(result == "skip" and len(writes) == 1 and writes[0][0] == comment_key, "a copied comment missing from D1 is indexed once")
+            writes.clear()
+            state_box["err"] = RuntimeError("cloudflare http 400 code 7500 Your account has exceeded D1's free tier daily row write limit.")
+            obj, manifest = mirrored(image_key)
+            result = process(obj, manifest, cf, new_entry_state(), directory)
+            check(result == "skip" and writes == [] and cf.get("d1_write_limit") is True, "a write-cap 400 leaves the already copied image in place")
+            state_box["err"] = RuntimeError("cloudflare http 400 code 10020 Invalid object name")
+            cf.pop("d1_write_limit", None)
+            blew = ""
+            try:
+                process(obj, manifest, cf, new_entry_state(), directory)
+            except RuntimeError as err:
+                blew = str(err)
+            check("10020" in blew, "an invalid object name still fails the copy")
+        finally:
+            shutil.rmtree(directory, ignore_errors=True)
+    finally:
+        d1_rows, d1_exec = saved_rows, saved_exec
     summary = upload_summary({"files": 2, "bytes": 9, "kinds": {"small": 2}, "kind_bytes": {"small": 9}, "newest": 1761157560})
     check(summary.startswith("[telegram-backup] uploaded 2 files, 9 bytes") and "newest " in summary, "the summary names the newest sendDocument time")
     kept = merge_manifest(
