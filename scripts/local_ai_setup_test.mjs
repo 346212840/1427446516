@@ -85,7 +85,14 @@ async function main() {
       check(!(await chatOpen(page)), size.name + " chat is locked on a first visit");
       await page.evaluate(() => window.ViktorychLocalAIPage.send("dark mode"));
       check((await page.evaluate(() => window.ViktorychLocalAIPage._state.chats.length)) === 0, size.name + " nothing can be sent before setup");
-      await page.waitForTimeout(400);
+      // The sheet slides up for 240ms, and a late storage refresh used to
+      // start that slide again. Measure only after the animation has stopped.
+      await page.waitForFunction(() => {
+        const card = document.querySelector(".lai-su-card");
+        if (!card || !card.getBoundingClientRect) return false;
+        const running = (card.getAnimations ? card.getAnimations() : []).some((a) => a.playState === "running");
+        return !running;
+      }, null, { timeout: 8000 });
       const card = await page.evaluate(() => { const r = document.querySelector(".lai-su-card").getBoundingClientRect(); return { top: r.top, bottom: r.bottom, w: r.width, h: innerHeight, vw: innerWidth }; });
       if (size.mobile) check(Math.abs(card.bottom - card.h) < 2 && card.w === card.vw, "phone setup is a bottom sheet " + JSON.stringify(card));
       else check(card.w <= 600 && card.top > 20, "desktop setup is a centred card");
