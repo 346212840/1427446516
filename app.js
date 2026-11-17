@@ -3617,7 +3617,7 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
       const w = Number(media && media.width) || 0;
       const h = Number(media && media.height) || 0;
       spec = frameSpec(w, h, frameNarrow());
-      if (spec && post && post.platform === "x" && media && (media.type === "video" || media.type === "animated_gif" || media.url)) {
+      if (spec && post && post.platform === "x" && media && (media.type === "video" || media.type === "animated_gif") && w > 0 && h > 0) {
         spec = { ratio: w / h, boxW: Math.round(w), boxH: Math.round(h), clamped: false, narrow: !!spec.narrow };
       }
       if (spec) fit = "feed";
