@@ -3617,6 +3617,9 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
       const w = Number(media && media.width) || 0;
       const h = Number(media && media.height) || 0;
       spec = frameSpec(w, h, frameNarrow());
+      if (spec && post && post.platform === "x" && media && (media.type === "video" || media.type === "animated_gif") && w > 0 && h > 0) {
+        spec = { ratio: w / h, boxW: Math.round(w), boxH: Math.round(h), clamped: false, narrow: !!spec.narrow };
+      }
       if (spec) fit = "feed";
     }
     if (!spec) return { attr: ' data-fit="pending"', cls: "", known: false, fit: "pending" };
@@ -3641,7 +3644,16 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
 
   function applyFrame(el, w, h, source) {
     if (!el || !(w > 0 && h > 0)) return;
-    if (el.dataset.fit === "feed") return;
+    if (el.dataset.xvideo === "1" && source === "video") {
+      el.style.aspectRatio = Math.round(w) + " / " + Math.round(h);
+      el.classList.add("has-ratio");
+      el.classList.remove("is-clamped");
+      el.dataset.mw = String(Math.round(w));
+      el.dataset.mh = String(Math.round(h));
+      el.dataset.fit = "video";
+      return;
+    }
+    if (el.dataset.fit === "feed" && el.dataset.xvideo !== "1") return;
     if (el.dataset.fit === "video" && source !== "video") return;
     const spec = frameSpec(w, h, frameNarrow());
     if (!spec) return;
@@ -3824,7 +3836,8 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
     const framed = mode === "feed" && arguments[4] !== false ? frameAttrs(post, media) : { attr: "", cls: "" };
     const poster = posterImg(post, media, "vposter");
     const posterHeld = / data-ds-src="/.test(poster) ? ` data-ds-poster="1"` : "";
-    return `<div class="tile vplay${round}${framed.cls || ""}"${posterHeld}${mode ? ` data-preview="${mode}"` : ""} data-act="play" data-pid="${esc((post && post.id) || "")}" data-mi="${index}"${framed.attr || ""}>
+    const xVideo = platform === "x" && media && media.type !== "photo" ? ` data-xvideo="1"` : "";
+    return `<div class="tile vplay${round}${framed.cls || ""}"${posterHeld}${xVideo}${mode ? ` data-preview="${mode}"` : ""} data-act="play" data-pid="${esc((post && post.id) || "")}" data-mi="${index}"${framed.attr || ""}>
       ${poster}
       ${bar}
       ${shieldBadge}
@@ -6458,6 +6471,8 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
       tapLabel: tr("Play with the X player"),
       refresh: () => xRefresh(post, media),
       title: (post && (post.title || post.text)) || tr("Video"),
+      width: Number(media && media.width) || 0,
+      height: Number(media && media.height) || 0,
       active: opts.active,
       onFrame: (video) => {
         if (!el.classList.contains("vplay")) return;

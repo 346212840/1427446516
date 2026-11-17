@@ -115,12 +115,12 @@ async function main() {
       return {
         src: box.querySelector("iframe").getAttribute("src"),
         overflow: getComputedStyle(box).overflow,
-        covers: frame.left <= slot.left + 1 && frame.top <= slot.top + 1 && frame.right >= slot.right - 1 && frame.bottom >= slot.bottom - 1,
+        fits: frame.left >= slot.left - 1 && frame.right <= slot.right + 1 && frame.top >= slot.top - 1 && frame.bottom <= slot.bottom + 1 && frame.width <= slot.width + 1 && frame.height <= slot.height + 1,
         centred: Math.abs((frame.left + frame.right) / 2 - (slot.left + slot.right) / 2) < 2
       };
     });
     if (fit.src.indexOf("https://platform.twitter.com/embed/Tweet.html?id=" + STATUS) !== 0) fail("embed src: " + fit.src);
-    if (fit.overflow !== "hidden" || !fit.covers || !fit.centred) fail("embed does not cover the frame: " + JSON.stringify(fit));
+    if (fit.overflow !== "hidden" || !fit.fits || !fit.centred) fail("embed does not fit the frame: " + JSON.stringify(fit));
 
     // TikTok: the official player waits behind its own placeholder.
     await page.evaluate(() => {
