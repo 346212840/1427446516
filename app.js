@@ -5167,11 +5167,20 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
   function deviceGuess() {
     const ua = String((navigator && navigator.userAgent) || "");
     const touchMac = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
-    let type = "desktop";
-    if (/SmartTV|AppleTV|GoogleTV|Tizen|Web0S|\bTV\b/i.test(ua)) type = "tv";
-    else if (/iPad|Tablet/i.test(ua) || touchMac || (/Android/i.test(ua) && !/Mobile/i.test(ua))) type = "tablet";
-    else if (/Mobi|iPhone|Android/i.test(ua)) type = "phone";
-    const os = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) || touchMac ? "iPad" : /Android/.test(ua) ? "Android" : /Windows/.test(ua) ? "Windows" : /Mac OS X/.test(ua) ? "Mac" : /CrOS/.test(ua) ? "ChromeOS" : /Linux/.test(ua) ? "Linux" : "";
+    let coarse = false;
+    try { coarse = !!(window.matchMedia && matchMedia("(pointer: coarse)").matches); } catch (err) { coarse = false; }
+    const sensed = window.ViktorychNative && window.ViktorychNative.formFactor
+      ? window.ViktorychNative.formFactor(ua, { coarse: coarse, width: window.innerWidth || 0, touchMac: touchMac })
+      : "";
+    let type = sensed || "desktop";
+    if (!sensed) {
+      if (/SmartTV|AppleTV|GoogleTV|Tizen|Web0S|\bTV\b/i.test(ua)) type = "tv";
+      else if (/iPad|Tablet/i.test(ua) || touchMac || (/Android/i.test(ua) && !/Mobile/i.test(ua))) type = "tablet";
+      else if (/Mobi|iPhone|Android/i.test(ua)) type = "phone";
+    }
+    let os = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) || touchMac ? "iPad" : /Android/.test(ua) ? "Android" : /Windows/.test(ua) ? "Windows" : /Mac OS X/.test(ua) ? "Mac" : /CrOS/.test(ua) ? "ChromeOS" : /Linux/.test(ua) ? "Linux" : "";
+    if (!os && type === "phone") os = "Phone";
+    else if (!os && type === "tablet") os = "Tablet";
     const browser = /Edg\//.test(ua) ? "Edge" : /OPR\//.test(ua) ? "Opera" : /Firefox\//.test(ua) ? "Firefox" : /CriOS|Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "";
     return { type, name: [os, browser].filter(Boolean).join(" · ") || tr("This device") };
   }
@@ -19187,7 +19196,17 @@ const here = parseRoute();
   // Which browser's own install steps to show when there is no install prompt.
   function installHelpKind(ua) {
     const text = String(ua == null ? navigator.userAgent || "" : ua);
-    const mobile = /android|mobile/i.test(text);
+    let coarse = false;
+    let fine = false;
+    let hover = false;
+    try {
+      coarse = !!(window.matchMedia && matchMedia("(pointer: coarse)").matches);
+      fine = !!(window.matchMedia && matchMedia("(pointer: fine)").matches);
+      hover = !!(window.matchMedia && matchMedia("(hover: hover)").matches);
+    } catch (err) { coarse = false; }
+    const mobile = window.ViktorychNative && window.ViktorychNative.installHandset
+      ? window.ViktorychNative.installHandset(text, { coarse: coarse, fine: fine, hover: hover })
+      : /android|mobile/i.test(text);
     if (/firefox\/|fxios/i.test(text)) return mobile ? "firefox-android" : "firefox";
     if (/edg\/|edga\//i.test(text)) return mobile ? "chrome-android" : "edge";
     if (/chrome|chromium/i.test(text)) return mobile ? "chrome-android" : "chrome";

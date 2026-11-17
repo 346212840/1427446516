@@ -5,7 +5,7 @@ import test from "node:test";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { windowGuess, scaleChoice, desktopGate } = require("../desktop-app.js");
+const { windowGuess, scaleChoice, desktopGate, scaleDesktop } = require("../desktop-app.js");
 
 const HD = { outerW: 1920, outerH: 1040, availW: 1920, availH: 1040 };
 const pref = { mode: "window", manual: 100, maximized: 150, windowed: 120 };
@@ -50,6 +50,10 @@ test("missing screen numbers are not a maximize", () => {
 test("a 600px window stays narrow at a 200% page scale", () => {
   assert.equal(desktopGate(600), false);
   assert.equal(desktopGate(1280), true);
+  assert.equal(scaleDesktop(1280, { coarse: true }), false);
+  assert.equal(scaleDesktop(390, { coarse: true }), false);
+  assert.equal(scaleDesktop(1280, { coarse: false, fine: true, hover: true }), true);
+  assert.equal(scaleDesktop(1280, { coarse: true, fine: true, hover: true }), true);
 });
 
 async function browserScale() {

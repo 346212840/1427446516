@@ -28,6 +28,12 @@ function windowGuess(m) {
 function desktopGate(innerWidth) {
   return (Number(innerWidth) || 0) >= 1000;
 }
+// A wide touch screen is still a handset. App scaling is for a mouse.
+function scaleDesktop(width, pointer) {
+  pointer = pointer || {};
+  if (pointer.coarse && !(pointer.fine && pointer.hover)) return false;
+  return desktopGate(width);
+}
 function clampScale(n) {
   var x = Math.round(Number(n) / 5) * 5;
   if (!isFinite(x)) return 100;
@@ -50,7 +56,7 @@ function scaleChoice(pref, guess, desktop) {
   return 100;
 }
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { windowGuess: windowGuess, clampScale: clampScale, scaleChoice: scaleChoice, desktopGate: desktopGate };
+  module.exports = { windowGuess: windowGuess, clampScale: clampScale, scaleChoice: scaleChoice, desktopGate: desktopGate, scaleDesktop: scaleDesktop };
 }
 
 (function () {
@@ -314,7 +320,12 @@ if (typeof module !== "undefined" && module.exports) {
   function desktopEnough() {
     // innerWidth is the window's CSS width. Our page scale does not change it,
     // so multiplying by the scale would keep a narrow window looking wide.
-    return desktopGate(root.innerWidth);
+    // A touch-only screen, however wide, is not the desktop this scale is for.
+    return scaleDesktop(root.innerWidth, {
+      coarse: mq("(pointer: coarse)"),
+      fine: mq("(pointer: fine)"),
+      hover: mq("(hover: hover)")
+    });
   }
   function applyScale() {
     if (!featureOn() || !desktopEnough()) {

@@ -36,6 +36,18 @@ assert.strictEqual(native.installKind("Mozilla/5.0 (Windows NT 10.0) Chrome/120.
 assert.strictEqual(native.installKind("Mozilla/5.0 (Windows NT 10.0) Edg/120.0.0.0 Safari/537.36"), "native");
 assert.strictEqual(native.installKind("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) Firefox/121.0"), "hint");
 assert.strictEqual(native.installKind("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) Version/17.0 Safari/605.1.15"), "hint");
+const HARMONY_PHONE = "Mozilla/5.0 (Phone; OpenHarmony 5.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 ArkWeb/4.1.6.1 HuaweiBrowser/15.0.4.300";
+const HARMONY_TABLET = "Mozilla/5.0 (Tablet; OpenHarmony 5.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 ArkWeb/4.1.6.1 HuaweiBrowser/15.0.4.300";
+assert.strictEqual(native.installKind(HARMONY_PHONE), "native");
+assert.strictEqual(native.installHandset(HARMONY_PHONE, {}), false);
+assert.strictEqual(native.installHandset(HARMONY_PHONE, { coarse: true }), true);
+assert.strictEqual(native.installHandset(HARMONY_TABLET, { coarse: true, fine: true, hover: true }), false);
+assert.strictEqual(native.installHandset("Mozilla/5.0 (Windows NT 10.0) Chrome/120.0.0.0 Safari/537.36", { coarse: false }), false);
+assert.strictEqual(native.formFactor(HARMONY_PHONE, {}), "desktop");
+assert.strictEqual(native.formFactor(HARMONY_PHONE, { coarse: true, width: 390 }), "phone");
+assert.strictEqual(native.formFactor(HARMONY_TABLET, { coarse: true, width: 1100 }), "tablet");
+assert.strictEqual(native.formFactor("Mozilla/5.0 (Linux; Android 13) Chrome/120.0.0.0 Mobile Safari/537.36", {}), "phone");
+assert.strictEqual(native.formFactor("Mozilla/5.0 (SMART-TV; Linux; Tizen) AppleWebKit/537.36", { coarse: true, width: 390 }), "tv");
 assert.strictEqual(native.installArrow("ios-safari", "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) Safari/604.1"), "down");
 assert.strictEqual(native.installArrow("ios-safari", "Mozilla/5.0 (iPad; CPU OS 16_0 like Mac OS X) Safari/604.1"), "up");
 assert.strictEqual(native.installArrow("hint", "Firefox"), "");

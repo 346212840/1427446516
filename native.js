@@ -38,6 +38,29 @@
     return false;
   }
 
+  /* A touch screen with no mouse is a handset, even when the user agent
+     never says Android or Mobile. OpenHarmony's browser is that case. */
+  function installHandset(ua, extra) {
+    extra = extra || {};
+    if (extra.coarse && !(extra.fine && extra.hover)) return true;
+    return /android|mobile|iphone|ipod/i.test(String(ua || ""));
+  }
+
+  /* Phone, tablet, desktop, or TV. Pointer and width decide the handset.
+     A television still comes from the user agent: a TV has no pointer we can trust. */
+  function formFactor(ua, extra) {
+    var text = String(ua || "");
+    extra = extra || {};
+    if (/SmartTV|AppleTV|GoogleTV|Tizen|Web0S|\bTV\b/i.test(text)) return "tv";
+    var width = Number(extra.width) || 0;
+    if (extra.coarse && width >= 700) return "tablet";
+    if (extra.coarse && width > 0 && width < 700) return "phone";
+    var touchMac = !!extra.touchMac;
+    if (/iPad|Tablet/i.test(text) || touchMac || (/Android/i.test(text) && !/Mobile/i.test(text))) return "tablet";
+    if (/Mobi|iPhone|Android/i.test(text)) return "phone";
+    return "desktop";
+  }
+
   function installKind(ua, extra) {
     var text = String(ua || "");
     var touchMac = !!(extra && extra.touchMac);
@@ -554,6 +577,8 @@
   return {
     shouldOfferInstall: shouldOfferInstall,
     installKind: installKind,
+    installHandset: installHandset,
+    formFactor: formFactor,
     installArrow: installArrow,
     readInstallChoice: readInstallChoice,
     writeInstallChoice: writeInstallChoice,
