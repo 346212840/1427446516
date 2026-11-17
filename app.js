@@ -5179,8 +5179,8 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
       else if (/Mobi|iPhone|Android/i.test(ua)) type = "phone";
     }
     let os = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) || touchMac ? "iPad" : /Android/.test(ua) ? "Android" : /Windows/.test(ua) ? "Windows" : /Mac OS X/.test(ua) ? "Mac" : /CrOS/.test(ua) ? "ChromeOS" : /Linux/.test(ua) ? "Linux" : "";
-    if (!os && type === "phone") os = "Phone";
-    else if (!os && type === "tablet") os = "Tablet";
+    if (!os && type === "phone") os = tr("Phone");
+    else if (!os && type === "tablet") os = tr("Tablet");
     const browser = /Edg\//.test(ua) ? "Edge" : /OPR\//.test(ua) ? "Opera" : /Firefox\//.test(ua) ? "Firefox" : /CriOS|Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "";
     return { type, name: [os, browser].filter(Boolean).join(" · ") || tr("This device") };
   }

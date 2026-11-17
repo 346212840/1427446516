@@ -5941,6 +5941,7 @@ SI18n.addPack("es", {
   "No Name": "Sin nombre",
   "Mobile": "Móvil",
   "Phone": "Teléfono",
+  "Tablet": "Tableta",
   "Upgrade app shortcut": "Actualizar acceso directo",
   "Viktorych Profiles": "Perfiles de Viktorych",
   "Share contact": "Compartir contacto",
