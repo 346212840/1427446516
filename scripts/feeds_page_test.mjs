@@ -313,6 +313,95 @@ async function runLarge(browser, origin, vp) {
   console.log("feeds page large ok " + vp.name + " rows " + mounted.rows + " nodes " + mounted.nodes);
 }
 
+async function runWindow(browser, origin, vp) {
+  const tag = "window-" + vp.name;
+  const accounts = [];
+  for (let i = 0; i < 80; i++) accounts.push(account("rss:lane" + i, "lane" + i, { platform: "rss", name: i === 70 ? "Zeta Offscreen Source" : "Lane " + i, order: i }));
+  for (let i = 0; i < 40; i++) accounts.push(account("telegram:fold" + i, "fold" + i, { platform: "telegram", name: i === 3 ? "Zeta Folded Source" : "Fold " + i, order: 100 + i }));
+  const context = await browser.newContext({ serviceWorkers: "block", viewport: { width: vp.width, height: vp.height } });
+  await context.route(/^https?:\/\/(?!127\.0\.0\.1)/, (route) => route.fulfill({ status: 200, body: "" }));
+  await context.route("**/v1/**", async (route) => {
+    const req = route.request();
+    const where = new URL(req.url()).pathname;
+    const body = where === "/v1/owner/feeds" && req.method() === "GET" ? { accounts: accounts, groups: [], places: [] } : { posts: [], ok: true };
+    return route.fulfill({ status: 200, contentType: "application/json", headers: { "cache-control": "no-store" }, body: JSON.stringify(body) });
+  });
+  const page = await context.newPage();
+  await page.addInitScript(() => {
+    localStorage.setItem("viktorychapp-lang-user-picked", "1");
+    localStorage.setItem("superintelapp-lang", "en");
+    localStorage.setItem("viktorychapp-welcome-v1", JSON.stringify({ step: 2, done: true }));
+    localStorage.setItem("viktorychapp-account-v1", JSON.stringify({ token: "local-test-token", account: { publicId: "100000000001", handle: "owner_test", displayName: "Owner Test", avatar: "", owner: true } }));
+    window.VIKTORYCH_ACCOUNTS = { api: location.origin, gate: true, tiktokAudience: "owner" };
+  });
+  await page.goto(origin + "/#/feeds", { waitUntil: "domcontentloaded" });
+  await page.locator(".feeds-fold").first().waitFor({ timeout: 20000 }).catch(() => fail(tag + ": the list did not paint"));
+  const foldedHit = await page.evaluate(() => window.find("Zeta Folded Source", false, false, true));
+  if (!foldedHit) fail(tag + ": a folded account name is not findable");
+  const folds = await page.locator(".feeds-fold").count();
+  if (folds < 2) fail(tag + ": expected two sections");
+  await page.locator(".feeds-fold").first().click();
+  await page.locator(".feeds-row").first().waitFor({ timeout: 5000 }).catch(() => fail(tag + ": the section did not open"));
+  const offscreenHit = await page.evaluate(() => window.find("Zeta Offscreen Source", false, false, true));
+  if (!offscreenHit) fail(tag + ": an offscreen account name is not findable");
+  if (await page.locator(".feeds-row").count() >= 80) fail(tag + ": findability mounted every row");
+  await page.evaluate(() => window.scrollTo(0, 2200));
+  await page.waitForFunction(() => window.scrollY > 1500, null, { timeout: 3000 }).catch(() => fail(tag + ": the page did not scroll"));
+  await page.waitForFunction(() => {
+    return Array.from(document.querySelectorAll(".feeds-row")).some((el) => {
+      const r = el.getBoundingClientRect();
+      return r.top > 80 && r.bottom < window.innerHeight;
+    });
+  }, null, { timeout: 5000 }).catch(() => fail(tag + ": scrolling did not bring a row into view"));
+  const target = await page.evaluate(() => {
+    const row = Array.from(document.querySelectorAll(".feeds-row")).find((el) => {
+      const r = el.getBoundingClientRect();
+      return r.top > 80 && r.bottom < window.innerHeight;
+    });
+    return row ? row.getAttribute("data-id") : "";
+  });
+  if (!target) fail(tag + ": no row to expand");
+  await page.locator('.feeds-row[data-id="' + target + '"] .feeds-expand').click();
+  const stayed = await page.evaluate((id) => {
+    const row = document.querySelector('.feeds-row[data-id="' + id + '"]');
+    if (!row) return { ok: false, reason: "missing" };
+    const r = row.getBoundingClientRect();
+    return { ok: r.bottom > 0 && r.top < window.innerHeight, top: r.top };
+  }, target);
+  if (!stayed.ok) fail(tag + ": a redraw while scrolled left the row " + JSON.stringify(stayed));
+  await page.locator('.feeds-row[data-id="' + target + '"] .feeds-expand').click();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.locator('.feeds-row[data-id="rss:lane0"] .feeds-more').focus();
+  await page.keyboard.press("ArrowDown");
+  await page.evaluate(() => {
+    const box = document.querySelector("[data-feed-window]");
+    const top = box.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo(0, Math.max(0, top + box.offsetHeight - window.innerHeight + 8));
+  });
+  await page.waitForFunction(() => {
+    return Array.from(document.querySelectorAll(".feeds-row")).some((el) => {
+      const r = el.getBoundingClientRect();
+      return r.bottom > 0 && r.top < window.innerHeight;
+    });
+  }, null, { timeout: 3000 }).catch(() => fail(tag + ": the list did not settle at the bottom"));
+  const spanned = await page.locator(".feeds-row").count();
+  if (spanned >= 70) fail(tag + ": one arrow key mounted the rows in between (" + spanned + ")");
+  const firstGone = await page.locator('.feeds-row[data-id="rss:lane0"]').count();
+  if (firstGone) fail(tag + ": the pinned first rows stayed mounted after scrolling away");
+  await page.locator(".feeds-row .feeds-more").first().click();
+  await page.locator(".feeds-menu input").first().waitFor({ timeout: 5000 }).catch(() => fail(tag + ": the menu has no label field"));
+  await page.locator(".feeds-menu input").first().focus();
+  await page.keyboard.press("ArrowDown");
+  const inputStays = await page.evaluate(() => document.activeElement && document.activeElement.tagName === "INPUT");
+  if (!inputStays) fail(tag + ": ArrowDown left the menu field");
+  await page.locator(".feeds-menu select").first().focus();
+  await page.keyboard.press("ArrowDown");
+  const selectStays = await page.evaluate(() => document.activeElement && document.activeElement.tagName === "SELECT");
+  if (!selectStays) fail(tag + ": ArrowDown left the menu list");
+  await context.close();
+  console.log("feeds window ok " + vp.name);
+}
+
 async function main() {
   const chromium = await loadPlaywright();
   const server = await startServer();
@@ -320,7 +409,10 @@ async function main() {
   const browser = await chromium.launch({ channel: "chrome", headless: true, args: ["--no-sandbox", "--disable-gpu"] });
   try {
     for (const vp of widths) await run(browser, origin, vp);
-    for (const vp of [{ width: 390, height: 844, name: "phone" }, { width: 1280, height: 800, name: "desktop" }]) await runLarge(browser, origin, vp);
+    for (const vp of [{ width: 390, height: 844, name: "phone" }, { width: 1280, height: 800, name: "desktop" }]) {
+      await runLarge(browser, origin, vp);
+      await runWindow(browser, origin, vp);
+    }
   } finally {
     await browser.close();
     server.close();

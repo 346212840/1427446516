@@ -26,7 +26,8 @@
     openId: "",
     folded: {},
     foldReady: false,
-    win: null
+    win: null,
+    winFocus: ""
   };
   const ROW_H = 48;
   const HEAD_H = 40;
@@ -828,14 +829,48 @@
     return html;
   }
 
+  function rowName(row) {
+    return String((row && (row.label || row.name || row.handle)) || "");
+  }
+
+  function currentViewTop() {
+    if (typeof document === "undefined") return 0;
+    const box = document.querySelector("[data-feed-window]");
+    if (!box || !box.getBoundingClientRect) return 0;
+    const y = window.scrollY || (document.documentElement && document.documentElement.scrollTop) || 0;
+    const top = box.getBoundingClientRect().top + y;
+    return Math.max(0, y - top);
+  }
+
+  function findHtml(items, prefixes, start, end) {
+    let html = "";
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const y = prefixes[i] || 0;
+      if (item.kind === "row") {
+        if (i >= start && i < end) continue;
+        const name = rowName(item.row);
+        if (name) html += `<span class="feeds-find" style="top:${y}px">${esc(name)}</span>`;
+      } else if (item.find && item.find.length) {
+        item.find.forEach((name, n) => {
+          if (name) html += `<span class="feeds-find" style="top:${y + n}px">${esc(name)}</span>`;
+        });
+      }
+    }
+    return html;
+  }
+
   function windowHtml(items) {
+    page.winFocus = "";
     const prefixes = prefixesOf(items);
     const total = prefixes[items.length] || 0;
     const viewH = typeof window !== "undefined" && window.innerHeight ? window.innerHeight : 800;
-    const range = visibleRange(items, prefixes, 0, viewH);
+    let viewTop = currentViewTop();
+    if (total > 0) viewTop = Math.min(viewTop, Math.max(0, total - viewH));
+    const range = visibleRange(items, prefixes, viewTop, viewH);
     page.win = { items: items, prefixes: prefixes, start: range.start, end: range.end };
     const offset = prefixes[range.start] || 0;
-    return `<div class="feeds-window" data-feed-window style="height:${total}px"><div class="feeds-window-rows" style="transform:translateY(${offset}px)">${sliceHtml(items, range.start, range.end)}</div></div>`;
+    return `<div class="feeds-window" data-feed-window style="height:${total}px"><div class="feeds-finds">${findHtml(items, prefixes, range.start, range.end)}</div><div class="feeds-window-rows" style="transform:translateY(${offset}px)">${sliceHtml(items, range.start, range.end)}</div></div>`;
   }
 
   function syncWindow() {
@@ -852,6 +887,8 @@
     const which = active && active.classList ? (active.classList.contains("feeds-more") ? "more" : active.classList.contains("feeds-expand") ? "expand" : active.classList.contains("feeds-switch") ? "switch" : "") : "";
     win.start = range.start;
     win.end = range.end;
+    const finds = box.querySelector(".feeds-finds");
+    if (finds) finds.innerHTML = findHtml(win.items, win.prefixes, range.start, range.end);
     const rows = box.querySelector(".feeds-window-rows");
     if (!rows) return;
     rows.style.transform = "translateY(" + (win.prefixes[range.start] || 0) + "px)";
@@ -876,11 +913,17 @@
     syncWindow();
     const next = document.querySelector('.feeds-row[data-id="' + String(id).replace(/"/g, "") + '"] .feeds-more');
     if (next && next.focus) next.focus();
+    page.winFocus = "";
   }
 
   function onFeedKey(event) {
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
-    const row = event.target && event.target.closest && event.target.closest(".feeds-row");
+    const target = event.target;
+    if (!target || !target.closest) return;
+    const tag = target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable) return;
+    if (target.closest(".feeds-menu, .feeds-more-panel, .feeds-confirm")) return;
+    const row = target.closest(".feeds-row");
     if (!row || !page.win || !page.win.items) return;
     const id = row.getAttribute("data-id");
     const ids = [];
@@ -972,7 +1015,8 @@
     const items = [];
     blocks.forEach((block) => {
       const open = filtered || page.folded[block.id] !== true;
-      items.push({ kind: "head", id: block.id, title: block.title, count: block.rows.length, open: open, drag: block.drag });
+      const find = open ? [] : block.rows.map((row) => row.label || row.name || row.handle || "").filter(Boolean);
+      items.push({ kind: "head", id: block.id, title: block.title, count: block.rows.length, open: open, drag: block.drag, find: find });
       if (open) block.rows.forEach((row) => items.push({ kind: "row", row: row }));
     });
     let body = items.length ? windowHtml(items) : "";

@@ -6269,6 +6269,7 @@ header.nav.nav-land { display: none; }
 .feeds-count { font-weight: 400; }
 .feeds-window { position: relative; }
 .feeds-window-rows { position: absolute; left: 0; right: 0; top: 0; }
+.feeds-find { position: absolute; left: 0; width: 1px; height: 1px; overflow: hidden; white-space: nowrap; pointer-events: none; color: transparent; }
 .feeds-section-head { height: 40px; display: flex; align-items: center; border-bottom: 1px solid var(--line); }
 .feeds-fold {
   width: 100%; min-width: 0; text-align: left; border: 0; background: transparent; color: var(--muted);
