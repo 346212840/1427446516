@@ -202,6 +202,11 @@ assert.ok(ttEmbed.width > 0 && ttEmbed.height > ttEmbed.width);
 const xEmbed = api.officialEmbed({ platform: "x", statusId: STATUS }, {});
 assert.strictEqual(xEmbed.site, "x");
 assert.strictEqual(xEmbed.url, api.xEmbedUrl(STATUS));
+assert.strictEqual(xEmbed.fit, "contain");
+const fitted = api.embedScale(350, 197, 550, 560, "contain");
+assert.ok(fitted * 550 <= 350 + 0.01 && fitted * 560 <= 197 + 0.01, "an X embed scales down to the card");
+const covered = api.embedScale(350, 197, 550, 560, "cover");
+assert.ok(covered > fitted, "cover still fills; contain does not crop");
 assert.strictEqual(api.officialEmbed({ platform: "rss" }, {}), null);
 const withBackups = api.xPlan({
   post: { platform: "x", statusId: STATUS },
