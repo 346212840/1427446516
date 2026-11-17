@@ -245,6 +245,74 @@ async function run(browser, origin, vp) {
   console.log("feeds page ok " + tag);
 }
 
+async function runLarge(browser, origin, vp) {
+  const phoneUa = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
+  const context = await browser.newContext(Object.assign({ serviceWorkers: "block", viewport: { width: vp.width, height: vp.height }, hasTouch: vp.name === "phone", isMobile: vp.name === "phone" }, vp.name === "phone" ? { userAgent: phoneUa } : {}));
+  const tag = "large-" + vp.name;
+  const accounts = [];
+  for (let i = 0; i < 240; i++) {
+    const platform = ["x", "telegram", "youtube", "rss"][i % 4];
+    accounts.push(account(platform + ":feed" + i, "feed" + i, { platform: platform, name: "Feed " + i, order: i }));
+  }
+  await context.route(/^https?:\/\/(?!127\.0\.0\.1)/, (route) => route.fulfill({ status: 200, body: "" }));
+  await context.route("**/v1/**", async (route) => {
+    const req = route.request();
+    const where = new URL(req.url()).pathname;
+    const reply = (body, status) => route.fulfill({ status: status || 200, contentType: "application/json", headers: { "cache-control": "no-store" }, body: JSON.stringify(body) });
+    if (where === "/v1/owner/feeds" && req.method() === "GET") return reply({ accounts: accounts, groups: [], places: [] });
+    return reply({ posts: [], ok: true });
+  });
+  const page = await context.newPage();
+  await page.addInitScript(() => {
+    localStorage.setItem("viktorychapp-lang-user-picked", "1");
+    localStorage.setItem("superintelapp-lang", "en");
+    localStorage.setItem("viktorychapp-welcome-v1", JSON.stringify({ step: 2, done: true }));
+    localStorage.setItem("viktorychapp-account-v1", JSON.stringify({ token: "local-test-token", account: { publicId: "100000000001", handle: "owner_test", displayName: "Owner Test", avatar: "", owner: true } }));
+    window.VIKTORYCH_ACCOUNTS = { api: location.origin, gate: true, tiktokAudience: "owner" };
+  });
+  await page.goto(origin + "/#/feeds", { waitUntil: "domcontentloaded" });
+  await page.locator(".feeds-fold, .feeds-row").first().waitFor({ timeout: 20000 }).catch(() => fail(tag + ": the list did not paint"));
+  const mounted = await page.evaluate(() => ({
+    rows: document.querySelectorAll(".feeds-row").length,
+    nodes: document.querySelectorAll(".feeds-org *").length,
+    height: document.documentElement.scrollHeight,
+    view: window.innerHeight,
+    folds: document.querySelectorAll(".feeds-fold").length
+  }));
+  if (mounted.folds < 2) fail(tag + ": platforms are not collapsible " + JSON.stringify(mounted));
+  if (mounted.rows >= 80) fail(tag + ": a collapsed list still mounts every row " + JSON.stringify(mounted));
+  await page.locator(".feeds-fold").first().click();
+  await page.locator(".feeds-row").first().waitFor({ timeout: 5000 }).catch(() => fail(tag + ": opening a section shows its rows"));
+  const opened = await page.evaluate(() => ({
+    rows: document.querySelectorAll(".feeds-row").length,
+    nodes: document.querySelectorAll(".feeds-org *").length,
+    height: document.documentElement.scrollHeight,
+    view: window.innerHeight
+  }));
+  if (opened.rows >= 80) fail(tag + ": offscreen rows are still mounted " + JSON.stringify(opened));
+  if (opened.rows < 8) fail(tag + ": the open section did not render " + JSON.stringify(opened));
+  if (opened.height < opened.view * 2) fail(tag + ": the list is not still scrollable " + JSON.stringify(opened));
+  await page.locator(".feeds-expand").first().click();
+  await page.waitForFunction(() => {
+    const row = document.querySelector(".feeds-row.is-open");
+    return row && row.querySelector(".feeds-status");
+  }, null, { timeout: 5000 }).catch(() => fail(tag + ": expand shows the details"));
+  await page.keyboard.press("Escape");
+  const more = page.locator(".feeds-row .feeds-more").first();
+  await more.focus();
+  await page.keyboard.press("ArrowDown");
+  const moved = await page.evaluate(() => {
+    const el = document.activeElement;
+    return !!(el && el.classList.contains("feeds-more"));
+  });
+  if (!moved) fail(tag + ": arrow keys do not move between rows");
+  await page.fill("#feeds-q", "feed200");
+  await page.locator('.feeds-row[data-id$="feed200"]').waitFor({ timeout: 5000 }).catch(() => fail(tag + ": search still finds a feed that was not on screen"));
+  await noOverflow(page, tag, "large list");
+  await context.close();
+  console.log("feeds page large ok " + vp.name + " rows " + mounted.rows + " nodes " + mounted.nodes);
+}
+
 async function main() {
   const chromium = await loadPlaywright();
   const server = await startServer();
@@ -252,6 +320,7 @@ async function main() {
   const browser = await chromium.launch({ channel: "chrome", headless: true, args: ["--no-sandbox", "--disable-gpu"] });
   try {
     for (const vp of widths) await run(browser, origin, vp);
+    for (const vp of [{ width: 390, height: 844, name: "phone" }, { width: 1280, height: 800, name: "desktop" }]) await runLarge(browser, origin, vp);
   } finally {
     await browser.close();
     server.close();

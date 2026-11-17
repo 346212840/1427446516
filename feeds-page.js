@@ -22,8 +22,16 @@
     selecting: false,
     loadError: false,
     filtersOpen: false,
-    groupsOpen: false
+    groupsOpen: false,
+    openId: "",
+    folded: {},
+    foldReady: false,
+    win: null
   };
+  const ROW_H = 48;
+  const HEAD_H = 40;
+  const MENU_H = 280;
+  const CONFIRM_H = 52;
   let hooks = null;
   const STORE = "owner-feeds-v1";
 
@@ -578,7 +586,9 @@
     else if (act === "bulk-move") patchIds(selectedIds(), { groupId: el.dataset.group || "" });
     else if (act === "clear-selected") { page.selected = {}; page.selecting = false; paint(); }
     else if (act === "selecting") { page.selecting = true; paint(); }
-    else if (act === "menu") { page.menuId = page.menuId === id ? "" : id; page.confirmId = ""; paint(); }
+    else if (act === "expand") { page.openId = page.openId === id ? "" : id; paint(); }
+    else if (act === "fold") { page.folded[id] = page.folded[id] !== true; page.foldReady = true; paint(); }
+    else if (act === "menu") { page.menuId = page.menuId === id ? "" : id; page.confirmId = ""; if (page.menuId) page.openId = id; paint(); }
     else if (act === "platform") { page.platform = el.dataset.platform || ""; paint(); }
     else if (act === "clear-filters") { page.q = ""; page.platform = ""; page.group = ""; page.status = ""; paint(); }
     else if (act === "reload") { page.loadError = false; load(); paint(); }
@@ -729,19 +739,21 @@
     const when = last && hooks.relTime ? hooks.relTime(last) : (last ? String(last).slice(0, 16) : "");
     const owner = ownerOn() && !row.site;
     const open = page.menuId === id;
+    const expanded = page.openId === id || open || page.confirmId === id;
     const statusText = status === "failing" && text ? tr(text) : healthLabel(status);
     const statusLine = row.site ? "" : `<span class="feeds-status is-${esc(status)}"><i class="feeds-dot" aria-hidden="true"></i><span>${esc(statusText)}</span>${when ? `<span class="feeds-when">· ${esc(when)}</span>` : ""}</span>`;
     const check = page.selecting && owner ? `<label class="feeds-check"><input type="checkbox" data-feed-act="select" data-id="${esc(id)}"${page.selected[id] ? " checked" : ""} aria-label="${esc(tr("Select"))}"></label>` : "";
     const toggle = owner ? `<button type="button" class="feeds-switch${row.paused ? "" : " on"}" role="switch" aria-checked="${row.paused ? "false" : "true"}" aria-label="${esc(row.paused ? tr("Resume") : tr("Pause"))}" data-feed-act="pause" data-id="${esc(id)}" data-on="${row.paused ? "1" : "0"}"><i></i></button>` : "";
     const more = `<button type="button" class="feeds-icon-btn feeds-more${open ? " on" : ""}" data-feed-act="menu" data-id="${esc(id)}" aria-haspopup="menu" aria-expanded="${open ? "true" : "false"}" aria-label="${esc(tr("More actions"))}">${hooks.icon ? hooks.icon("more") : "⋯"}</button>`;
+    const expand = `<button type="button" class="feeds-icon-btn feeds-expand${expanded ? " on" : ""}" data-feed-act="expand" data-id="${esc(id)}" aria-expanded="${expanded ? "true" : "false"}" aria-label="${esc(tr("Details"))}">${expanded ? "▾" : "›"}</button>`;
     const confirm = page.confirmId === id
       ? `<div class="feeds-confirm"><span>${esc(tr("Remove this account?"))}</span><button type="button" class="follow remove-pill" data-feed-act="confirm-remove" data-id="${esc(id)}">${esc(tr("Remove"))}</button><button type="button" class="outline" data-feed-act="cancel-remove">${esc(tr("Cancel"))}</button></div>`
       : "";
     const href = hooks.accountHash ? hooks.accountHash(row.platform, row.channelId || row.handle) : "#/feeds";
-    return `<article class="feeds-row${row.pinned ? " is-pinned" : ""}${row.paused ? " is-off" : ""}" data-feed-drag="${esc(id)}" data-feed-drop="row" data-id="${esc(id)}" data-group="${esc(row.groupId || "")}" draggable="${owner ? "true" : "false"}">
+    return `<article class="feeds-row${row.pinned ? " is-pinned" : ""}${row.paused ? " is-off" : ""}${expanded ? " is-open" : ""}" data-feed-drag="${esc(id)}" data-feed-drop="row" data-id="${esc(id)}" data-group="${esc(row.groupId || "")}" draggable="${owner ? "true" : "false"}">
       ${check}
       <a class="feeds-who" href="${esc(href)}">${faceOf(row)}<span class="feeds-copy"><span class="feeds-name">${esc(row.label || row.name || row.handle)}${row.pinned ? `<span class="feeds-pin" aria-label="${esc(tr("Pinned"))}">${hooks.icon ? hooks.icon("pin") : ""}</span>` : ""}</span><span class="feeds-sub">@${esc(row.handle || "")} · ${esc(platformLabel(row.platform))}</span>${statusLine}</span></a>
-      <span class="feeds-row-end">${toggle}${more}</span>
+      <span class="feeds-row-end">${expand}${toggle}${more}</span>
       ${open ? menuHtml(row) : ""}
       ${confirm}
     </article>`;
@@ -765,6 +777,130 @@
     </details>`;
   }
 
+  function rowPixelHeight(row) {
+    let height = ROW_H;
+    if (!row) return height;
+    if (page.openId === row.id) height += 28;
+    if (page.menuId === row.id) height += MENU_H;
+    if (page.confirmId === row.id) height += CONFIRM_H;
+    return height;
+  }
+
+  function itemHeight(item) {
+    return item.kind === "head" ? HEAD_H : rowPixelHeight(item.row);
+  }
+
+  function prefixesOf(items) {
+    const prefixes = new Array(items.length + 1);
+    prefixes[0] = 0;
+    for (let i = 0; i < items.length; i++) prefixes[i + 1] = prefixes[i] + itemHeight(items[i]);
+    return prefixes;
+  }
+
+  function visibleRange(items, prefixes, viewTop, viewHeight) {
+    const from = Math.max(0, viewTop - 700);
+    const to = viewTop + viewHeight + 700;
+    let start = 0;
+    while (start < prefixes.length - 1 && prefixes[start + 1] <= from) start++;
+    let end = start;
+    while (end < prefixes.length - 1 && prefixes[end] < to) end++;
+    const keep = page.openId || page.menuId || page.confirmId || page.winFocus || "";
+    if (keep) {
+      const at = items.findIndex((item) => item.kind === "row" && item.row && item.row.id === keep);
+      if (at >= 0) {
+        if (at < start) start = at;
+        if (at >= end) end = at + 1;
+      }
+    }
+    return { start: start, end: Math.max(end, start) };
+  }
+
+  function headHtml(item) {
+    const drag = item.drag ? ` data-feed-drag="group:${esc(item.id)}" draggable="true"` : "";
+    return `<div class="feeds-section-head" data-feed-drop="group" data-id="${esc(item.id)}" data-group="${esc(item.id)}"${drag}><button type="button" class="feeds-fold" data-feed-act="fold" data-id="${esc(item.id)}" aria-expanded="${item.open ? "true" : "false"}"><span>${esc(item.title)}</span> <span class="feeds-count">${esc(String(item.count))}</span></button></div>`;
+  }
+
+  function sliceHtml(items, start, end) {
+    let html = "";
+    for (let i = start; i < end && i < items.length; i++) {
+      html += items[i].kind === "head" ? headHtml(items[i]) : rowHtml(items[i].row);
+    }
+    return html;
+  }
+
+  function windowHtml(items) {
+    const prefixes = prefixesOf(items);
+    const total = prefixes[items.length] || 0;
+    const viewH = typeof window !== "undefined" && window.innerHeight ? window.innerHeight : 800;
+    const range = visibleRange(items, prefixes, 0, viewH);
+    page.win = { items: items, prefixes: prefixes, start: range.start, end: range.end };
+    const offset = prefixes[range.start] || 0;
+    return `<div class="feeds-window" data-feed-window style="height:${total}px"><div class="feeds-window-rows" style="transform:translateY(${offset}px)">${sliceHtml(items, range.start, range.end)}</div></div>`;
+  }
+
+  function syncWindow() {
+    const box = document.querySelector("[data-feed-window]");
+    const win = page.win;
+    if (!box || !win || !win.items || !win.prefixes) return;
+    const y = window.scrollY || document.documentElement.scrollTop || 0;
+    const top = box.getBoundingClientRect().top + y;
+    const viewTop = Math.max(0, y - top);
+    const range = visibleRange(win.items, win.prefixes, viewTop, window.innerHeight || 800);
+    if (range.start === win.start && range.end === win.end) return;
+    const active = document.activeElement;
+    const activeId = active && active.closest ? (active.closest(".feeds-row") || {}).getAttribute && active.closest(".feeds-row").getAttribute("data-id") : "";
+    const which = active && active.classList ? (active.classList.contains("feeds-more") ? "more" : active.classList.contains("feeds-expand") ? "expand" : active.classList.contains("feeds-switch") ? "switch" : "") : "";
+    win.start = range.start;
+    win.end = range.end;
+    const rows = box.querySelector(".feeds-window-rows");
+    if (!rows) return;
+    rows.style.transform = "translateY(" + (win.prefixes[range.start] || 0) + "px)";
+    rows.innerHTML = sliceHtml(win.items, range.start, range.end);
+    if (activeId && which) {
+      const next = box.querySelector('.feeds-row[data-id="' + String(activeId).replace(/"/g, "") + '"] .' + (which === "more" ? "feeds-more" : which === "expand" ? "feeds-expand" : "feeds-switch"));
+      if (next && next.focus) next.focus();
+    }
+  }
+
+  function focusFeedRow(id) {
+    const win = page.win;
+    if (!win || !win.items) return;
+    const index = win.items.findIndex((item) => item.kind === "row" && item.row && item.row.id === id);
+    if (index < 0) return;
+    page.winFocus = id;
+    const box = document.querySelector("[data-feed-window]");
+    if (box) {
+      const top = box.getBoundingClientRect().top + (window.scrollY || 0);
+      window.scrollTo(0, Math.max(0, top + (win.prefixes[index] || 0) - 80));
+    }
+    syncWindow();
+    const next = document.querySelector('.feeds-row[data-id="' + String(id).replace(/"/g, "") + '"] .feeds-more');
+    if (next && next.focus) next.focus();
+  }
+
+  function onFeedKey(event) {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    const row = event.target && event.target.closest && event.target.closest(".feeds-row");
+    if (!row || !page.win || !page.win.items) return;
+    const id = row.getAttribute("data-id");
+    const ids = [];
+    page.win.items.forEach((item) => { if (item.kind === "row" && item.row) ids.push(item.row.id); });
+    const at = ids.indexOf(id);
+    const next = ids[at + (event.key === "ArrowDown" ? 1 : -1)];
+    if (!next) return;
+    event.preventDefault();
+    focusFeedRow(next);
+  }
+
+  function onFeedScroll() {
+    if (page.winTick) return;
+    page.winTick = true;
+    requestAnimationFrame(() => {
+      page.winTick = false;
+      syncWindow();
+    });
+  }
+
   function view() {
     if (!hooks) return "";
     keepAddFocus();
@@ -782,15 +918,20 @@
     const loose = (organized.sections || []).filter((block) => !block.id);
     let blocks = [];
     if (!page.group) {
-      blocks = named.map((block) => sectionHtml(block, true));
+      blocks = named.map((block) => ({ id: block.id, title: block.title || tr("Ungrouped"), rows: block.rows || [], drag: true }));
       (organized.ungroupedByPlatform || []).forEach((block) => {
         const platform = String(block.id || "").replace(/^platform:/, "");
-        blocks.push(sectionHtml({ id: "", title: platformLabel(platform), platform: platform, rows: block.rows }, false));
+        blocks.push({ id: "platform:" + platform, title: platformLabel(platform), rows: block.rows || [], drag: false });
       });
     } else {
-      blocks = (page.group === "none" ? loose : named).map((block) => sectionHtml(block, !!block.id));
+      blocks = (page.group === "none" ? loose : named).map((block) => ({
+        id: block.id || "loose",
+        title: block.title || tr("Ungrouped"),
+        rows: block.rows || [],
+        drag: !!block.id
+      }));
     }
-    blocks = blocks.filter(Boolean);
+    blocks = blocks.filter((block) => block.rows.length);
     const platforms = {};
     rows.forEach((row) => { platforms[row.platform || "rss"] = true; });
     const chips = [`<button type="button" class="feeds-chip${page.platform ? "" : " on"}" data-feed-act="platform" data-platform="" aria-pressed="${page.platform ? "false" : "true"}">${esc(tr("All"))}</button>`]
@@ -824,7 +965,17 @@
     </div>`;
     const pending = page.adding.map(pendingHtml).join("");
     const filtered = !!(page.q || page.platform || page.group || page.status);
-    let body = blocks.join("");
+    if (!page.foldReady && !filtered && blocks.length > 1 && rows.length > 40) {
+      page.foldReady = true;
+      blocks.forEach((block) => { page.folded[block.id] = true; });
+    }
+    const items = [];
+    blocks.forEach((block) => {
+      const open = filtered || page.folded[block.id] !== true;
+      items.push({ kind: "head", id: block.id, title: block.title, count: block.rows.length, open: open, drag: block.drag });
+      if (open) block.rows.forEach((row) => items.push({ kind: "row", row: row }));
+    });
+    let body = items.length ? windowHtml(items) : "";
     if (!body && !pending) {
       body = rows.length && filtered
         ? `<div class="feeds-empty"><b>${esc(tr("No matches"))}</b><span>${esc(tr("Try another search or filter."))}</span><button type="button" class="feeds-pill" data-feed-act="clear-filters">${esc(tr("Clear filters"))}</button></div>`
@@ -859,7 +1010,10 @@
     document.addEventListener("click", onClick);
     document.addEventListener("change", onChange);
     document.addEventListener("input", onInput);
+    document.addEventListener("keydown", onFeedKey);
     document.addEventListener("toggle", onToggle, true);
+    window.addEventListener("scroll", onFeedScroll, { passive: true });
+    document.addEventListener("scroll", onFeedScroll, { passive: true, capture: true });
     document.addEventListener("dragstart", onDragStart);
     document.addEventListener("dragover", onDragOver);
     document.addEventListener("drop", onDrop);

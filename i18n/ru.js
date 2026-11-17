@@ -2356,6 +2356,7 @@ SI18n.addPack("ru", {
   "Last fetch": "Последняя загрузка",
   "Last updated": "Обновлено",
   "Search feeds": "Искать ленты",
+  "Details": "Подробности",
   "All platforms": "Все площадки",
   "All groups": "Все группы",
   "All statuses": "Все состояния",

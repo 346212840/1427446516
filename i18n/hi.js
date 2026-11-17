@@ -2059,6 +2059,7 @@ SI18n.addPack("hi", {
   "Last fetch": "आखिरी फ़ेच",
   "Last updated": "आखिरी अपडेट",
   "Search feeds": "फ़ीड सर्च करें",
+  "Details": "विवरण",
   "All platforms": "सभी प्लेटफ़ॉर्म",
   "All groups": "सभी ग्रुप",
   "All statuses": "सभी स्टेटस",
