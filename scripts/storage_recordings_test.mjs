@@ -18,6 +18,7 @@ import {
   storageReadiness
 } from "../shared/storage-contract.js";
 import { decryptBytes, encryptBytes } from "../shared/storage-age.js";
+import { expiryHint, telegramFileGone } from "../shared/telegram-expiry.js";
 import { audioKind, avc1Codec, classifyMp4, likelyMime } from "../shared/storage-mp4.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -149,4 +150,9 @@ assert.equal(JSON.stringify(sealed).includes("file_id"), false);
 const lied = JSON.parse(catalogText);
 lied.packages[0].rows[0].uploaded = true;
 assert.equal(parseSealedCatalog(lied, { authenticated: true }).error, "catalog");
+assert.equal(telegramFileGone({ ok: false, description: "Bad Request: file not found" }), true);
+assert.equal(telegramFileGone({ ok: false, description: "Bad Request: file is temporarily unavailable" }), false);
+const hint = expiryHint(Date.UTC(2025, 10, 17), Date.UTC(2026, 10, 1));
+assert.equal(hint.soon, true);
+assert.ok(hint.expiresAt > hint.uploadedAt);
 console.log("storage recordings ok");

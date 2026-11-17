@@ -4,7 +4,7 @@ const VERSION = "viktorych-a281-__SW_VERSION__";
 const BUILT = "__SW_BUILT__";
 const MIRROR_GITHUB = "__MIRROR_GITHUB__";
 const MIRROR_PAGES = "__MIRROR_PAGES__";
-// cache-bust: 2026-11-17T14:20:00.000Z-x-video-photo
+// cache-bust: 2026-11-17T23:20:00.000Z-telegram-expiry
 try { importScripts("./shorts-enabled.js"); } catch (err) { /* Shorts stays off when the switch file is missing */ }
 
 const ACCOUNTS_WALL = false;
@@ -256,6 +256,7 @@ const SHELL_FILES = [
   "./weather.js",
   "./weather.css",
   "./shared/drive-crypto.js",
+  "./shared/telegram-expiry.js",
   "./shared/drive-photos.js",
   "./shared/mirror.js",
   "./video-embed.js",
