@@ -54,8 +54,9 @@ let guardAt = 0;
 function gh(env, path, init, fetcher) {
   const token = String(env.GITHUB_DISPATCH_TOKEN || "").trim();
   const opts = init || {};
-  return fetcher(path.startsWith("http") ? path : API + path, {
+    return fetcher(path.startsWith("http") ? path : API + path, {
     method: opts.method || "GET",
+    cache: "no-store",
     headers: {
       Authorization: "Bearer " + token,
       Accept: "application/vnd.github+json",
@@ -154,6 +155,72 @@ export function usageProblems(usage, storage) {
 /* Optional cron work pauses while a daily limit is nearly spent. */
 export function shouldPause(problems) {
   return (problems || []).some((p) => (p.code === "usage_worker_requests" || p.code === "usage_d1_reads" || p.code === "usage_d1_writes" || p.code === "usage_r2_class_a" || p.code === "usage_durable") && Number(p.ratio) >= USAGE_PAUSE);
+}
+
+const SYNC_STALE_TEXT = "No successful Sync feeds run for over six hours. GitHub Actions may be off, out of quota or blocked (runbook section 4).";
+const SYNC_ACTIVE = { in_progress: 1, queued: 1, waiting: 1, pending: 1, requested: 1 };
+export const SYNC_DEBOUNCE_MS = 22 * 60 * 1000;
+export const SYNC_REFRESH_MS = 30 * 60 * 1000;
+const SYNC_RECHECK_MS = 2 * 60 * 1000;
+
+export function syncSuccessAt(runs) {
+  const last = runs && runs[0];
+  if (!last) return 0;
+  const at = Date.parse(last.updated_at || last.created_at || "");
+  return Number.isFinite(at) ? at : 0;
+}
+
+/* Drop or keep sync_stale from the newest successful Sync feeds run.
+   GET /v1/watchdog serves the stored document, so a success that lands
+   after the hourly sample has to be applied here or the alarm stays up. */
+export function withSyncVerdict(doc, now, lastSuccessAt) {
+  const prev = doc && typeof doc === "object" ? doc : {};
+  const problems = (prev.problems || []).filter((row) => row && row.code !== "sync_stale");
+  if (!lastSuccessAt || now - lastSuccessAt > SYNC_STALE_MS) {
+    const old = (prev.problems || []).find((row) => row && row.code === "sync_stale");
+    problems.push(old || { code: "sync_stale", level: "down", text: SYNC_STALE_TEXT, since: now });
+  }
+  const next = applyPaused(Object.assign({}, prev, { problems, at: now, syncCheckedAt: now }));
+  next.pause = shouldPause(next.problems);
+  return next;
+}
+
+/* active: a sync is queued or running. debounce: one started within the
+   same 22 minutes the Sync feeds gate uses. Otherwise look at refresh jobs. */
+export function syncDispatchBlock(runs, now) {
+  const list = runs || [];
+  for (let i = 0; i < list.length; i++) {
+    if (SYNC_ACTIVE[String(list[i] && list[i].status || "")]) return "active";
+  }
+  for (let i = 0; i < list.length; i++) {
+    const run = list[i] || {};
+    const started = Date.parse(run.run_started_at || run.created_at || "");
+    if (!Number.isFinite(started)) continue;
+    const status = String(run.status || "");
+    const conclusion = String(run.conclusion || "");
+    const failed = status === "completed" && conclusion !== "success" && conclusion !== "skipped";
+    const counts = !failed && (SYNC_ACTIVE[status] || status === "completed");
+    if (counts && now - started < SYNC_DEBOUNCE_MS) return "debounce";
+  }
+  return "";
+}
+
+/* refreshById maps a run id to its refresh job, or null when that job did
+   not run. The first job that finished success is the last real refresh. */
+export function syncRefreshPlan(runs, refreshById, now) {
+  const list = runs || [];
+  let last = 0;
+  for (let i = 0; i < list.length; i++) {
+    const run = list[i] || {};
+    const job = refreshById ? refreshById[String(run.id)] : null;
+    if (!(job && job.status === "completed" && job.conclusion === "success")) continue;
+    const when = Date.parse(job.started_at || "") || Date.parse(run.run_started_at || run.created_at || "");
+    last = Number.isFinite(when) ? when : 0;
+    break;
+  }
+  if (!last) return { dispatch: true, reason: "no-refresh" };
+  if (now - last >= SYNC_REFRESH_MS) return { dispatch: true, reason: "stale-refresh" };
+  return { dispatch: false, reason: "fresh" };
 }
 
 const STORAGE_QUERY = `query S($acc: String!, $since: Date!) {
@@ -505,14 +572,104 @@ export async function signupCheck(env, at) {
   return { newest, ownerFollowBackfill: backfill };
 }
 
+/* The public summary is the hourly snapshot. While it says the sync is
+   stale, look at GitHub again, at most once every two minutes, and clear
+   the alarm when a successful run has finished since that snapshot. */
+export async function rereadSyncAlarm(env, doc, now, fetcher) {
+  const at = Number(now) || Date.now();
+  const prev = doc && typeof doc === "object" ? doc : {};
+  const stale = (prev.problems || []).some((row) => row && row.code === "sync_stale");
+  if (!stale) return prev;
+  if (prev.syncCheckedAt && at - Number(prev.syncCheckedAt) < SYNC_RECHECK_MS) return prev;
+  if (!String(env && env.GITHUB_DISPATCH_TOKEN || "").trim()) return prev;
+  const f = fetcher || ((url, init) => fetch(url, init));
+  try {
+    const res = await gh(env, "/actions/workflows/sync.yml/runs?status=success&per_page=1", null, f);
+    const body = res.ok ? await safeJson(res) : null;
+    const runs = body && body.workflow_runs;
+    if (!res.ok || !Array.isArray(runs)) return prev;
+    const next = withSyncVerdict(prev, at, syncSuccessAt(runs));
+    await writeDoc(env, next);
+    guardMemo = next;
+    guardAt = at;
+    return next;
+  } catch (err) {
+    return prev;
+  }
+}
+
+/* GitHub often never creates the scheduled Sync feeds or Sync keepalive
+   runs. The Worker cron is the clock that still fires. Dispatch source=chain
+   so the sync gate still skips a start that would cancel a running refresh. */
+export async function keepSyncFresh(env, now, fetcher) {
+  const at = Number(now) || Date.now();
+  if (!String(env && env.GITHUB_DISPATCH_TOKEN || "").trim()) return { dispatch: false, reason: "no-token" };
+  const f = fetcher || ((url, init) => fetch(url, init));
+  const prev = await readDoc(env);
+  if (prev.syncDispatchedAt && at - Number(prev.syncDispatchedAt) < SYNC_DEBOUNCE_MS) {
+    await rereadSyncAlarm(env, prev, at, f);
+    return { dispatch: false, reason: "dispatched" };
+  }
+  let runs = [];
+  try {
+    const res = await gh(env, "/actions/workflows/sync.yml/runs?per_page=10", null, f);
+    const body = res.ok ? await safeJson(res) : null;
+    runs = body && Array.isArray(body.workflow_runs) ? body.workflow_runs : [];
+    if (!res.ok) return { dispatch: false, reason: "github" };
+  } catch (err) {
+    return { dispatch: false, reason: "github" };
+  }
+  const block = syncDispatchBlock(runs, at);
+  if (block) {
+    await rereadSyncAlarm(env, prev, at, f);
+    return { dispatch: false, reason: block };
+  }
+  const refreshById = {};
+  for (let i = 0; i < runs.length && i < 8; i++) {
+    const id = runs[i] && runs[i].id;
+    if (!id) continue;
+    try {
+      const res = await gh(env, "/actions/runs/" + id + "/jobs?per_page=30", null, f);
+      const body = res.ok ? await safeJson(res) : null;
+      const jobs = body && Array.isArray(body.jobs) ? body.jobs : [];
+      const job = jobs.find((row) => row && row.name === "refresh") || null;
+      refreshById[String(id)] = job;
+      if (job && job.status === "completed" && job.conclusion === "success") break;
+    } catch (err) {
+      refreshById[String(id)] = null;
+    }
+  }
+  const plan = syncRefreshPlan(runs, refreshById, at);
+  if (!plan.dispatch) {
+    await rereadSyncAlarm(env, prev, at, f);
+    return plan;
+  }
+  try {
+    const res = await gh(env, "/actions/workflows/sync.yml/dispatches", {
+      method: "POST",
+      body: { ref: "main", inputs: { source: "chain" } }
+    }, f);
+    const ok = res.status === 204 || res.ok;
+    if (ok) {
+      prev.syncDispatchedAt = at;
+      await writeDoc(env, prev);
+    }
+    return { dispatch: ok, reason: plan.reason };
+  } catch (err) {
+    return { dispatch: false, reason: "dispatch" };
+  }
+}
+
 export async function handleWatchdog(request, env, path, deps) {
   if (path === "/v1/watchdog" && request.method === "GET") {
-    return deps.json(200, publicSummary(await readDoc(env)));
+    const doc = await rereadSyncAlarm(env, await readDoc(env), Date.now());
+    return deps.json(200, publicSummary(doc));
   }
   if (path === "/v1/owner/health" && request.method === "GET") {
     const gate = await deps.requireOwner(request, env);
     if (gate.error) return gate.error;
-    return deps.json(200, applyPaused(await readDoc(env)));
+    const doc = await rereadSyncAlarm(env, await readDoc(env), Date.now());
+    return deps.json(200, applyPaused(doc));
   }
   if (path === "/v1/owner/health" && request.method === "POST") {
     const gate = await deps.requireOwner(request, env);

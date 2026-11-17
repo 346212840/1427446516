@@ -52,7 +52,7 @@ import { handleReader } from "./reader.js";
 import { handleXVideo } from "./xvideo.js";
 import { handleXBroadcast } from "./xbroadcast.js";
 import { handleNewsletter, sweepNewsletters } from "./newsletters.js";
-import { handleWatchdog, runWatchdog, watchdogPause } from "./watchdog.js";
+import { handleWatchdog, keepSyncFresh, runWatchdog, watchdogPause } from "./watchdog.js";
 import { handleComments } from "./comments-edge.js";
 import { handleYtm } from "./ytmusic.js";
 import { handleNzlay } from "./nzlay-forum.js";
@@ -6629,6 +6629,10 @@ export default {
     // Hourly unattended watchdog: re-enables workflows, re-runs a stuck
     // deploy and records health for the owner (src/watchdog.js).
     if (minute === 7) jobs.push(runWatchdog(env, at));
+    // GitHub drops scheduled Sync feeds runs for hours. Every ten minutes,
+    // start one if the last real refresh is older than half an hour, and
+    // clear a stale watchdog alarm once a success has actually finished.
+    if (minute % 10 === 3) jobs.push(keepSyncFresh(env, at).catch(() => null));
     if (minute === 0) run("birthdays", () => runBirthdaySweep(env, at));
     if (minute === 23) jobs.push(sweepNewsletters(env.DATA, at).catch(() => 0));
     if (minute === 7) jobs.push(refreshWanted(env, at).catch(() => null));

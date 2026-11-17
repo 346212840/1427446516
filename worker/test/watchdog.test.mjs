@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { planWorkflows, planVersion, tokenDaysLeft, usageProblems, shouldPause, runWatchdog, publicSummary, WATCH_KEY } from "../src/watchdog.js";
+import { planWorkflows, planVersion, tokenDaysLeft, usageProblems, shouldPause, runWatchdog, publicSummary, WATCH_KEY, withSyncVerdict, syncDispatchBlock, syncRefreshPlan, rereadSyncAlarm, keepSyncFresh, SYNC_DEBOUNCE_MS } from "../src/watchdog.js";
 import { STATUS_PAUSED, applyPaused } from "../src/status-paused.js";
 
 const H = 36e5;
@@ -127,4 +127,89 @@ test("a full run re-enables, redeploys, and opens an issue only when Actions sto
   assert.equal(holes.at, 5);
   assert.deepEqual(holes.problems, [{ code: "x", level: "warn", text: "t", since: undefined }]);
   assert.deepEqual(holes.paused, []);
+});
+
+test("a success after the hourly sample clears sync_stale; an old success does not", () => {
+  const now = Date.UTC(2026, 10, 17, 11, 47);
+  const stored = {
+    at: Date.UTC(2026, 10, 17, 11, 7),
+    ok: false,
+    problems: [{ code: "sync_stale", level: "down", text: "old", since: Date.UTC(2026, 10, 17, 11, 7) }, { code: "pages_down", level: "down", text: "pages" }]
+  };
+  const fresh = withSyncVerdict(stored, now, now - 28 * 60 * 1000);
+  assert.equal(fresh.ok, false);
+  assert.deepEqual(fresh.problems.map((p) => p.code), ["pages_down"]);
+  const still = withSyncVerdict(stored, now, now - 7 * H);
+  assert.ok(still.problems.some((p) => p.code === "sync_stale"));
+  assert.equal(still.problems.find((p) => p.code === "sync_stale").since, stored.at);
+});
+
+test("the public watchdog re-reads GitHub when its snapshot still says the sync is stale", async () => {
+  const now = Date.UTC(2026, 10, 17, 11, 47);
+  const env = { DATA: memoryR2(), GITHUB_DISPATCH_TOKEN: "test-token" };
+  const stored = { at: Date.UTC(2026, 10, 17, 11, 7), ok: false, problems: [{ code: "sync_stale", level: "down", text: "old", since: Date.UTC(2026, 10, 17, 11, 7) }] };
+  env.DATA.map.set(WATCH_KEY, JSON.stringify(stored));
+  let calls = 0;
+  const fetcher = async (url) => {
+    calls += 1;
+    assert.equal(url.includes("cache"), false);
+    assert.ok(url.includes("status=success"));
+    return reply(200, { workflow_runs: [{ updated_at: new Date(now - 20 * 60 * 1000).toISOString() }] });
+  };
+  const doc = await rereadSyncAlarm(env, stored, now, fetcher);
+  assert.equal(calls, 1);
+  assert.equal(doc.ok, true);
+  assert.equal(doc.problems.length, 0);
+  const again = await rereadSyncAlarm(env, doc, now + 30 * 1000, fetcher);
+  assert.equal(calls, 1);
+  assert.equal(again.ok, true);
+});
+
+test("a quiet GitHub schedule starts one chain sync, and a running or recent refresh does not", async () => {
+  const now = Date.UTC(2026, 10, 17, 8, 3);
+  const iso = (ms) => new Date(ms).toISOString();
+  assert.equal(syncDispatchBlock([{ status: "in_progress", run_started_at: iso(now - 5 * 60 * 1000) }], now), "active");
+  assert.equal(syncDispatchBlock([{ id: 1, status: "completed", conclusion: "success", run_started_at: iso(now - 10 * 60 * 1000) }], now), "debounce");
+  assert.equal(syncDispatchBlock([{ id: 2, status: "completed", conclusion: "success", run_started_at: iso(now - 40 * 60 * 1000) }], now), "");
+  const skipped = syncRefreshPlan(
+    [
+      { id: 3, status: "completed", conclusion: "success", run_started_at: iso(now - 40 * 60 * 1000) },
+      { id: 4, status: "completed", conclusion: "success", run_started_at: iso(now - 80 * 60 * 1000) }
+    ],
+    {
+      "3": { name: "refresh", status: "completed", conclusion: "skipped", started_at: iso(now - 40 * 60 * 1000) },
+      "4": { name: "refresh", status: "completed", conclusion: "success", started_at: iso(now - 80 * 60 * 1000) }
+    },
+    now
+  );
+  assert.equal(skipped.dispatch, true);
+  assert.equal(skipped.reason, "stale-refresh");
+  const fresh = syncRefreshPlan(
+    [{ id: 5, status: "completed", conclusion: "success", run_started_at: iso(now - 40 * 60 * 1000) }],
+    { "5": { name: "refresh", status: "completed", conclusion: "success", started_at: iso(now - 20 * 60 * 1000) } },
+    now
+  );
+  assert.equal(fresh.dispatch, false);
+
+  const env = { DATA: memoryR2(), GITHUB_DISPATCH_TOKEN: "test-token" };
+  const posts = [];
+  const fetcher = async (url, init) => {
+    const method = (init && init.method) || "GET";
+    if (method === "POST") {
+      posts.push(JSON.parse(init.body));
+      return new Response(null, { status: 204 });
+    }
+    if (url.includes("/jobs")) return reply(200, { jobs: [{ name: "refresh", status: "completed", conclusion: "success", started_at: iso(now - 50 * 60 * 1000) }] });
+    return reply(200, { workflow_runs: [{ id: 9, status: "completed", conclusion: "success", run_started_at: iso(now - 50 * 60 * 1000), updated_at: iso(now - 40 * 60 * 1000) }] });
+  };
+  const result = await keepSyncFresh(env, now, fetcher);
+  assert.equal(result.dispatch, true);
+  assert.equal(result.reason, "stale-refresh");
+  assert.deepEqual(posts, [{ ref: "main", inputs: { source: "chain" } }]);
+  const saved = JSON.parse(env.DATA.map.get(WATCH_KEY));
+  assert.equal(saved.syncDispatchedAt, now);
+  const held = await keepSyncFresh(env, now + 5 * 60 * 1000, fetcher);
+  assert.equal(held.dispatch, false);
+  assert.equal(held.reason, "dispatched");
+  assert.ok(now + 5 * 60 * 1000 - now < SYNC_DEBOUNCE_MS);
 });
