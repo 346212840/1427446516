@@ -19205,7 +19205,7 @@ const here = parseRoute();
       hover = !!(window.matchMedia && matchMedia("(hover: hover)").matches);
     } catch (err) { coarse = false; }
     const mobile = window.ViktorychNative && window.ViktorychNative.installHandset
-      ? window.ViktorychNative.installHandset(text, { coarse: coarse, fine: fine, hover: hover })
+      ? window.ViktorychNative.installHandset(text, { coarse: coarse, fine: fine, hover: hover, width: window.innerWidth || 0 })
       : /android|mobile/i.test(text);
     if (/firefox\/|fxios/i.test(text)) return mobile ? "firefox-android" : "firefox";
     if (/edg\/|edga\//i.test(text)) return mobile ? "chrome-android" : "edge";

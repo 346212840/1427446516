@@ -54,6 +54,18 @@ test("a 600px window stays narrow at a 200% page scale", () => {
   assert.equal(scaleDesktop(390, { coarse: true }), false);
   assert.equal(scaleDesktop(1280, { coarse: false, fine: true, hover: true }), true);
   assert.equal(scaleDesktop(1280, { coarse: true, fine: true, hover: true }), true);
+  const win = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+  const cros = "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+  const mac = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+  const android = "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+  const harmony = "Mozilla/5.0 (Phone; OpenHarmony 5.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 ArkWeb/4.1.6.1 HuaweiBrowser/15.0.4.300";
+  assert.equal(scaleDesktop(1280, { coarse: true, ua: win }), true);
+  assert.equal(scaleDesktop(1366, { coarse: true, ua: cros }), true);
+  assert.equal(scaleDesktop(1440, { coarse: true, ua: mac }), true);
+  assert.equal(scaleDesktop(390, { coarse: true, ua: win }), false);
+  assert.equal(scaleDesktop(1280, { coarse: true, ua: android }), false);
+  assert.equal(scaleDesktop(390, { coarse: true, ua: harmony }), false);
+  assert.equal(scaleDesktop(1100, { coarse: true, ua: harmony }), false);
 });
 
 async function browserScale() {

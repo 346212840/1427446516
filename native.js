@@ -38,10 +38,19 @@
     return false;
   }
 
-  /* A touch screen with no mouse is a handset, even when the user agent
-     never says Android or Mobile. OpenHarmony's browser is that case. */
+  /* A wide Windows, Mac, ChromeOS or Linux screen stays a desktop even when
+     the keyboard is detached and the pointer is coarse. A narrow screen, or a
+     phone OS such as Android, iOS or OpenHarmony, is a handset. */
+  function wideDesktopOs(ua, width) {
+    if ((Number(width) || 0) < 1000) return false;
+    var text = String(ua || "");
+    if (/Android|iPhone|iPad|iPod|OpenHarmony|HarmonyOS|Mobile|SmartTV|AppleTV|GoogleTV|Tizen|Web0S|\bTV\b/i.test(text)) return false;
+    return /Windows NT|Macintosh|Mac OS X|CrOS|Linux|X11/i.test(text);
+  }
+
   function installHandset(ua, extra) {
     extra = extra || {};
+    if (wideDesktopOs(ua, extra.width)) return false;
     if (extra.coarse && !(extra.fine && extra.hover)) return true;
     return /android|mobile|iphone|ipod/i.test(String(ua || ""));
   }

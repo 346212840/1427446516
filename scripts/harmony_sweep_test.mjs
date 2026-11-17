@@ -93,7 +93,7 @@ async function sweep(browser, origin, size, signedIn) {
     return {
       coarse: coarse,
       factor: api.formFactor(navigator.userAgent, { coarse: coarse, width: window.innerWidth, fine: fine, hover: hover }),
-      handset: api.installHandset(navigator.userAgent, { coarse: coarse, fine: fine, hover: hover }),
+      handset: api.installHandset(navigator.userAgent, { coarse: coarse, fine: fine, hover: hover, width: window.innerWidth }),
       phoneBar: !!document.querySelector("nav.bottom-nav"),
       overflow: document.documentElement.scrollWidth > window.innerWidth + 1
     };
