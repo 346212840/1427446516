@@ -3,7 +3,8 @@
    The browser receives ciphertext bytes only, never file_id. An empty
    file_id means the object was not uploaded; this does not invent one. */
 
-import { safeTelegramPath } from "./telegram.js";
+import { expiredBody } from "../../shared/telegram-expiry.js";
+import { freshExpired, markTelegramExpired, readTelegramBytes } from "./telegram-expiry.js";
 
 const NAME_RE = /^(?:manifest|[a-f0-9]{64})\.age$/;
 const MAX_BYTES = 19 * 1024 * 1024;
@@ -32,23 +33,6 @@ async function sha256Hex(bytes) {
   return hex;
 }
 
-async function downloadCipher(env, fileId) {
-  const token = String(env.TELEGRAM_BOT_TOKEN || "");
-  if (!token || !fileId) return null;
-  let data = null;
-  try {
-    const res = await fetch("https://api.telegram.org/bot" + token + "/getFile?file_id=" + encodeURIComponent(fileId));
-    data = await res.json();
-  } catch (err) {
-    data = null;
-  }
-  const remote = safeTelegramPath(data && data.ok && data.result && data.result.file_path);
-  if (!remote) return null;
-  const upstream = await fetch("https://api.telegram.org/file/bot" + token + "/" + remote);
-  if (!upstream.ok) return null;
-  return new Uint8Array(await upstream.arrayBuffer());
-}
-
 export async function handleVsrRoute(request, env, path, deps) {
   const gate = await ownerGate(env, request, deps);
   if (gate.response) return gate.response;
@@ -58,15 +42,21 @@ export async function handleVsrRoute(request, env, path, deps) {
   if (!name) return deps.json(404, { error: "not_found" });
   if (!env.DB) return deps.json(503, { error: "not_configured" });
   const row = await env.DB.prepare(
-    "SELECT object_key, kind, part_index, file_id, size, sha256, mime, serve, encrypted FROM telegram_files WHERE object_key = ? AND kind = 'age' AND encrypted = 1 AND serve = 1"
+    "SELECT object_key, kind, part_index, file_id, size, sha256, mime, serve, encrypted, expired_at, updated_at FROM telegram_files WHERE object_key = ? AND kind = 'age' AND encrypted = 1 AND serve = 1"
   ).bind("vsr/" + name).first();
   if (!row || row.object_key !== "vsr/" + name) return deps.json(404, { error: "not_found" });
   const fileId = String(row.file_id || "");
   if (!fileId) return deps.json(404, { error: "not_uploaded" });
+  if (freshExpired(row)) return deps.json(410, expiredBody(row.updated_at));
   if (!String(env.TELEGRAM_BOT_TOKEN || "") || !String(env.TELEGRAM_CHANNEL_ID || "")) {
     return deps.json(503, { error: "not_configured" });
   }
-  const bytes = await downloadCipher(env, fileId);
+  const loaded = await readTelegramBytes(env, fileId);
+  if (loaded.error === "expired") {
+    await markTelegramExpired(env, row);
+    return deps.json(410, expiredBody(row.updated_at));
+  }
+  const bytes = loaded.bytes;
   const size = Number(row.size) || 0;
   if (!bytes || size <= 0 || size > MAX_BYTES || bytes.byteLength !== size) {
     return deps.json(502, { error: "unavailable" });

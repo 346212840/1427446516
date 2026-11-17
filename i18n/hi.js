@@ -6433,5 +6433,9 @@ SI18n.addPack("hi", {
   "Copy a smaller listed picture": "सूची की छोटी तस्वीर कॉपी करें",
   "Copied a smaller listed picture. It is not the full file.": "सूची की छोटी तस्वीर कॉपी हुई। यह पूरी फ़ाइल नहीं है।",
   "Pick a model automatically": "मॉडल अपने आप चुनें",
-  "Sync settings": "सेटिंग्स सिंक करें"
+  "Sync settings": "सेटिंग्स सिंक करें",
+  "Expired from Telegram backup": "Telegram बैकअप से हट गया",
+  "The catalog stays. Nothing was deleted.": "सूची बनी रहती है। कुछ नहीं मिटा।",
+  "Expired from Telegram backup. Kept until {date}.": "Telegram बैकअप से हट गया। {date} तक रखा गया था।",
+  "Telegram backup expires {date}": "Telegram बैकअप {date} को खत्म होगा"
 });

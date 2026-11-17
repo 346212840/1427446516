@@ -18,6 +18,7 @@ import {
   unlockVault,
   verifyMaster
 } from "./shared/drive-crypto.js";
+import { expiryHint } from "./shared/telegram-expiry.js";
 import {
   captureFromParts,
   createSha256,
@@ -379,6 +380,11 @@ async function getChunk(id, index, attempt) {
   } catch (err) {
     if ((attempt || 0) < 4) return getChunk(id, index, (attempt || 0) + 1);
     throw err;
+  }
+  if (res.status === 410) {
+    var gone = new Error("expired");
+    gone.code = "expired";
+    throw gone;
   }
   if ((res.status === 429 || res.status >= 500) && (attempt || 0) < 4) {
     await sleep(DRIVE_PACE_MS * ((attempt || 0) + 1));
@@ -794,7 +800,17 @@ async function readPlain(item) {
   for (var i = 0; i < parts.length; i++) {
     state.transfer = { name: item.meta.name, done: i, total: parts.length, kind: "download" };
     paint();
-    var cipher = await getChunk(item.id, parts[i].index, 0);
+    var cipher;
+    try {
+      cipher = await getChunk(item.id, parts[i].index, 0);
+    } catch (err) {
+      if (err && err.code === "expired") {
+        item.telegramExpired = true;
+        parts[i].expiredAt = Date.now();
+        throw err;
+      }
+      throw err;
+    }
     var plain = await decryptBytes(item.key, b64ToBytes(parts[i].iv), cipher);
     out.push(plain);
     total += plain.length;
@@ -837,7 +853,7 @@ async function downloadItem(item, previewOnly) {
       state.preview = { url: URL.createObjectURL(blob), mime: type, name: item.meta.name, kind: view, id: item.id };
     } else saveBlob(blob, item.meta.name);
   } catch (err) {
-    state.error = previewOnly ? tr("Could not open that file.") : tr("Could not download.");
+    state.error = err && err.code === "expired" ? tr("Expired from Telegram backup") : (previewOnly ? tr("Could not open that file.") : tr("Could not download."));
   }
   state.transfer = null;
   state.busy = false;
@@ -959,13 +975,27 @@ function itemFace(item) {
   if (item.thumbUrl) return '<span class="drive-thumb"><img alt="" src="' + esc(item.thumbUrl) + '"></span>';
   return '<span class="drive-thumb">' + svg(item.kind === "folder" ? ICO.folder : ICO.file) + "</span>";
 }
+function telegramBackupText(item) {
+  if (!item || item.kind === "folder") return "";
+  var chunks = item.chunks || [];
+  if (item.telegramExpired || chunks.some(function (part) { return Number(part.expiredAt) > 0; })) return tr("Expired from Telegram backup");
+  var hint = expiryHint(itemTime(item), Date.now());
+  if (!hint || (!hint.soon && !hint.past)) return "";
+  var date = "";
+  try { date = new Date(hint.expiresAt).toLocaleDateString(lang(), { month: "short", day: "numeric", year: "numeric" }); }
+  catch (err) { date = ""; }
+  return date ? tr("Telegram backup expires {date}", { date: date }) : "";
+}
 function itemMeta(item) {
   var need = partCount(item.meta && item.meta.size);
   if (item.kind === "file" && (item.chunks || []).length < need) return esc(tr("Upload did not finish."));
+  var backup = telegramBackupText(item);
+  if (backup && (item.telegramExpired || (item.chunks || []).some(function (part) { return Number(part.expiredAt) > 0; }))) return esc(backup);
   if (item.kind === "folder") return esc(tr("Folder"));
   var when = itemStamp(item);
   var size = formatSize(item.meta && item.meta.size);
-  return esc(when ? size + " · " + when : size);
+  var line = when ? size + " · " + when : size;
+  return esc(backup ? line + " · " + backup : line);
 }
 function itemOpen(item) {
   var name = esc(item.meta && item.meta.name || tr("File"));
@@ -979,12 +1009,14 @@ function itemOpen(item) {
 }
 function itemCard(item) {
   var more = '<button class="icon-btn drive-more" type="button" data-act="stop" data-drive="menu" data-id="' + esc(item.id) + '" aria-label="' + esc(tr("More")) + '">' + svg(ICO.more) + "</button>";
+  var backup = telegramBackupText(item);
+  var telegram = (item.telegramExpired || (item.chunks || []).some(function (part) { return Number(part.expiredAt) > 0; })) ? "expired" : (backup ? "soon" : "");
   if (state.view === "list") {
-    return '<div class="drive-row" data-drive-name="' + esc(item.meta.name || "") + '">' + itemOpen(item) +
-      '<span class="drive-col drive-col-size">' + esc(sizeLabel(item)) + "</span>" +
+    return '<div class="drive-row" data-drive-name="' + esc(item.meta.name || "") + '"' + (telegram ? ' data-telegram="' + telegram + '"' : "") + ">" + itemOpen(item) +
+      '<span class="drive-col drive-col-size">' + esc(backup || sizeLabel(item)) + "</span>" +
       '<span class="drive-col drive-col-when">' + esc(itemStamp(item)) + "</span>" + more + "</div>";
   }
-  return '<div class="drive-card" data-drive-name="' + esc(item.meta.name || "") + '">' + itemOpen(item) + more + "</div>";
+  return '<div class="drive-card" data-drive-name="' + esc(item.meta.name || "") + '"' + (telegram ? ' data-telegram="' + telegram + '"' : "") + ">" + itemOpen(item) + more + "</div>";
 }
 function childFolders(parent) {
   return state.items.filter(function (item) {

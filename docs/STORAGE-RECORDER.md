@@ -14,6 +14,8 @@ A single age file that is not this package is a download. It is not played. `tel
 
 An empty `file_id` answers `not_uploaded` and does not call Telegram. If `TELEGRAM_BOT_TOKEN` or `TELEGRAM_CHANNEL_ID` is missing, a row that does have a `file_id` answers `not_configured` and does not call Telegram. This page does not upload, record, or schedule anything.
 
+A channel that auto-deletes messages after one year makes `getFile` say the file is gone. That answer is `410` with `error: expired`. The `telegram_files` or `drive_chunks` row stays, including its name and caption, and the next request does not call Telegram again. A copy already in R2, the live buffer, or this tab is used instead. The Storage page says Expired from Telegram backup. A file saved less than a year ago shows the date it will reach one year when that date is within 30 days.
+
 When those two Worker secrets are added later, use the existing names. The recorder reads the channel as `TELEGRAM_CHAT_ID`; that is an alias, not a second bot. From `worker/`:
 
 ```sh
