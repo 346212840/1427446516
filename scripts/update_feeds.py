@@ -467,6 +467,12 @@ def read_source(url: str) -> str:
     headers = {"User-Agent": UA, "Accept": "*/*"}
     headers.update(auth_cookie_header(url))
     headers.update(proxy_token_header(url))
+    if "instagram.com" in url:
+        from ig_public import public_headers
+
+        # A public Instagram page is read with no cookie. A stored session is not added.
+        headers.pop("Cookie", None)
+        headers.update(public_headers(url))
     with _HTTP_LOCK:
         cached = dict(_HTTP_CACHE.get(url) or {})
     if cached.get("etag"):
@@ -609,16 +615,28 @@ def _fetch_one(url: str, adapter_name: str, feed: dict, errors: list, attempts: 
 
 
 def _fetch_sources(urls, adapter_name, feed, config, errors):
-    """Try each mirror. A bridge error falls through to the next URL."""
+    """Try each mirror. An error page or an empty list falls through.
+
+    A bridge that answers 200 with no posts must not hide a later mirror
+    that still has the timeline. A 304 keeps the saved copy and stops.
+    """
     seen = set()
+    last_empty = None
     for source in urls or []:
         url = expand(source, config, feed)
         if not url or url in seen:
             continue
         seen.add(url)
         payload, result = _fetch_one(url, adapter_name, feed, errors)
-        if result is not None:
+        if result is None:
+            continue
+        if isinstance(result, dict) and result.get("_not_modified"):
             return payload, url, adapter_name, result
+        if isinstance(result, dict) and (result.get("posts") or []):
+            return payload, url, adapter_name, result
+        last_empty = (payload, url, adapter_name, result)
+    if last_empty:
+        return last_empty
     return None, "", adapter_name, None
 
 
