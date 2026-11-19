@@ -456,7 +456,11 @@ export function createEngine(cfg) {
       method: "POST",
       body: JSON.stringify({ target: p.target, source: p.source || undefined, voice: p.voice || undefined, resume: p.resume || undefined, key: (cfg.getKey && cfg.getKey()) || undefined, lexicon: cleanLexicon(cfg.getLexicon()) })
     });
-    if (!res || !res.ok) return { mode: "text", reason: res && res.status === 429 ? "quota" : "" };
+    if (!res || !res.ok) {
+      E._mint = { ok: false, status: res ? res.status : 0, reason: res && res.status === 429 ? "quota" : "http", source: "", at: now() };
+      return { mode: "text", reason: res && res.status === 429 ? "quota" : "" };
+    }
+    E._mint = { ok: true, status: res.status, reason: String((res.data && res.data.reason) || ""), source: String((res.data && res.data.keySource) || ""), mode: String((res.data && res.data.mode) || ""), at: now() };
     return res.data;
   }
   function makePipe(isTx, target, voice, out) {
@@ -713,6 +717,7 @@ export function createEngine(cfg) {
     emit("quota", { reason: reason });
   }
   E.stats = () => ({ via: route.via, rx: !!rx && rx.ready, tx: !!tx && tx.ready, peer: peer, usage: live.quota(now()), speakers: ears.speakers() });
+  E.mintInfo = () => E._mint || null;
   E.metrics = () => ({ firstAudio: metrics.firstAudio, endLag: metrics.endLag });
   E.micClone = () => {
     if (!micStream) return null;
