@@ -20,7 +20,7 @@ Any person or agent can take over from this section. Rules for shipping, checks 
 
 **Hard rules.** No usernames, handles, display names or account identifiers in the public repository, pull requests, commits or logs. Never weaken the handle guard. Secrets live only in GitHub Actions secrets and Cloudflare Worker secrets. Do not edit `.github/` without the owner's approval; put a ready patch in `docs/owner-patches/` instead. No force-push and no history rewrite without asking. No paid APIs. Do not bypass a block, a guard or a failed check.
 
-**Instagram timelines.** An empty bridge answer does not hide the next source. After RSSHub and `rss-bridge.org`, the sync tries `rss-bridge.ggc-project.de`, then the public profile embed and the public profile JSON. No cookie is sent. A login wall is a failed source. The last posts stay when every source is empty.
+**Instagram timelines.** An empty bridge answer does not hide the next source. After RSSHub and `rss-bridge.org`, the sync tries `rss-bridge.ggc-project.de`, then the public profile embed and the public profile JSON. No cookie is sent. A login wall is a failed source. The last posts stay when every source is empty. The shared catalog keeps a few of each feed's newest posts, including a feed whose posts have no trusted time, so a busy timeline cannot push that feed out of the 300.
 
 **Thread lookup.** A reply loaded for one account is not returned to another account, or after sign-out, by share, bookmarks, history, or the media viewer. A reply that arrives after the account changed is dropped. Test: `scripts/reply_lookup_test.mjs`.
 
