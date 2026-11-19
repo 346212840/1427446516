@@ -6,6 +6,7 @@ import { normalizeVolumes, VOLUME_KEYS, VOLUME_DEFAULTS, outputGains, createMete
 import { normalizeMode, transmitOriginal, micOpen, noteRelease, noteShouldAutoplay, showOriginalSub, showTranslationSub, threadVisible, takeClauses, QUICK_PHRASES, guestFeature, NOTE_CANCEL_DX } from "./shared/call-mode.js";
 import { createVoiceMatch, PREBUILT_VOICES, DEFAULT_VOICE } from "./shared/call-voice.js";
 import { lighterFor, pickSink, cleanLexicon, lexiconHint, rememberLine } from "./shared/call-quality.js";
+import { createLiveSession, MIC_WORKLET, OUTPUT_RATE, CHUNK_SAMPLES, proxiesAudio } from "./shared/call-gemini.js";
 import { createDiarizer } from "./shared/call-speakers.js";
 
 const DEVICE_KEY = "viktorych-calls-device-v1";
@@ -194,7 +195,7 @@ function callScreen() {
     ${state.mode.send === "text" ? `<form class="calls-type" data-act="call-type-form"><input name="text" maxlength="500" aria-label="${esc(tr("Type to them"))}" autocomplete="off"></form>` : ""}
     ${state.mode.send === "note" ? `<button type="button" class="calls-talk" data-act="call-talk">${esc(state.recording ? tr("Slide to cancel") : tr("Hold to talk"))}</button>` : ""}
     <div class="calls-controls" data-essentials="mute speaker hangup talk">
-      <button type="button" data-act="call-mute" aria-label="${esc(state.muted ? tr("Unmute microphone") : tr("Mute microphone"))}">${esc(state.muted ? tr("Unmute microphone") : tr("Mute microphone"))}</button>
+      <button type="button" data-act="call-mute" aria-label="${esc(state.muted ? tr("Unmute microphone") : tr("Mute microphone"))}">${esc(state.muted ? tr("Unmute") : tr("Mute"))}</button>
       <button type="button" data-act="call-speaker" aria-pressed="${state.speakerOn ? "true" : "false"}">${esc(tr("Speaker"))}</button>
       <button type="button" class="calls-end" data-act="call-end">${esc(tr("End call"))}</button>
       <button type="button" data-act="call-switch" aria-pressed="${talking ? "true" : "false"}">${esc(talking ? tr("Talk") : tr("Type to them"))}</button>
