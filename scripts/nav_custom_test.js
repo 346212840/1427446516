@@ -14,6 +14,7 @@ global.window = {
     getLang: () => "en"
   },
   ViktorychShorts: { visible: () => true },
+  ViktorychServerFeature: () => true,
   ViktorychVault: { visible: () => true },
   ViktorychAccounts: null,
   SIntelMusic: null
@@ -33,6 +34,7 @@ const icon = (name) => `<svg data-icon="${name}"></svg>`;
 
 // Extract DEFAULT_NAV_CUSTOM, ALL_NAV_IDS, cleanNavCustom, navItemDef, folderDisplayName, etc.
 const scriptSandbox = `
+function featureOn() { return true; }
 function shortsEnabled() {
   return typeof SHORTS_ENABLED !== "undefined" && SHORTS_ENABLED === true;
 }
@@ -183,3 +185,40 @@ const cssCode = fs.readFileSync("styles.css", "utf-8");
 assert(appCode.includes('if (id === "customize") return { id: id, href: "", icon: "sliders", label: tr("Customize"), locked: true, act: "customize-page" };'), "the white Customize row must stay in the menu");
 assert(appCode.includes('data-act="drawer-edit"'), "the Customize page must keep its Edit menu row");
 console.log("  Legacy entry guard OK");
+
+// Calls and Contacts in the sidebar, the phone menu and the bottom bar, including for layouts saved before they existed.
+{
+  console.log("  Checking Calls and Contacts reach saved layouts...");
+  const ctx = navModule;
+  assert(ctx.ALL_NAV_IDS.includes("calls") && ctx.ALL_NAV_IDS.includes("contacts"), "ALL_NAV_IDS lists calls and contacts");
+  const saved = { folders: [], order: ["home", "explore", "notifications", "messages", "feeds", "lists", "settings"], hidden: [] };
+  const clean = ctx.cleanNavCustom(saved);
+  const mi = clean.order.indexOf("messages");
+  const ci = clean.order.indexOf("calls");
+  assert(ci > mi && clean.order.slice(mi + 1, ci).every((id) => id.indexOf("inbox-") === 0), "a saved sidebar gets Calls right under Inbox");
+  assert.strictEqual(clean.order[ci + 1], "contacts");
+  const hiddenKept = ctx.cleanNavCustom({ folders: [], order: saved.order, hidden: ["calls"] });
+  assert(!hiddenKept.order.includes("calls"), "a hidden Calls stays hidden");
+  assert(ctx.cleanNavCustom(null).order.includes("calls"), "the default sidebar has Calls");
+
+  const drawerSrc = appCode.slice(appCode.indexOf("const DRAWER_LOCKED ="), appCode.indexOf("function getDrawerMenu()"));
+  const drawer = new Function("tr", "window", drawerSrc + "; return { cleanDrawerMenu, defaultDrawerMenu, DRAWER_EXTRA, DRAWER_NAV };")(tr, global.window);
+  assert(!drawer.DRAWER_EXTRA.includes("calls") && !drawer.DRAWER_EXTRA.includes("contacts"), "Calls is not tucked behind More");
+  assert.strictEqual(drawer.DRAWER_NAV.calls, "calls");
+  const def = drawer.defaultDrawerMenu();
+  assert(def.order.indexOf("calls") > 0 && def.order.indexOf("calls") < def.order.indexOf("profile"), "the default phone menu lists Calls near the top");
+  // A menu saved before v2 had Calls appended at the end (behind More).
+  const old = drawer.cleanDrawerMenu({ order: ["home", "explore", "notifications", "profile", "tv", "messages", "calls", "contacts"], hidden: [], sections: [], popup: ["settings", "logout"] });
+  assert.deepStrictEqual(old.order.slice(0, 5), ["home", "explore", "notifications", "calls", "contacts"], "an old saved menu lifts Calls under Notifications");
+  assert.strictEqual(old.v, 2);
+  // Once stamped, the person's own placement is kept.
+  const mine = drawer.cleanDrawerMenu({ v: 2, order: ["home", "calls", "explore", "notifications"], hidden: [], sections: [], popup: ["settings", "logout"] });
+  assert.strictEqual(mine.order[1], "calls");
+  const hid = drawer.cleanDrawerMenu({ order: ["home", "calls"], hidden: ["calls"], sections: [], popup: ["settings", "logout"] });
+  assert(hid.hidden.includes("calls"), "hiding Calls in the menu sticks");
+  const missing = drawer.cleanDrawerMenu({ v: 2, order: ["home", "explore"], hidden: [], sections: [], popup: ["settings", "logout"] });
+  assert(missing.order.includes("calls") && missing.order.includes("contacts"), "an id missing from a saved menu is appended");
+
+  assert(/const BOTTOM_NAV_IDS = \[[^\]]*"calls"/.test(appCode), "the bottom bar can pin Calls");
+  console.log("  Calls and Contacts OK");
+}
