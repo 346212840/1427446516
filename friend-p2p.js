@@ -350,6 +350,9 @@ function sendMessage(id, text, mid) {
     if (ok) return { via: "p2p", mid: mid };
     return viaServer(id, text, mid).then((via) => {
       if (via === "offline") { queue(id, mid, text); return { via: "outbox", mid: mid }; }
+      /* A refusal is not a delivery. Keep the same id queued so a later
+         flush can try again, and do not report it as sent. */
+      if (via === "refused") { queue(id, mid, text); return { via: "refused", mid: mid }; }
       return { via: via, mid: mid };
     });
   });
