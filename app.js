@@ -5195,11 +5195,20 @@ const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "
   function deviceGuess() {
     const ua = String((navigator && navigator.userAgent) || "");
     const touchMac = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
-    let type = "desktop";
-    if (/SmartTV|AppleTV|GoogleTV|Tizen|Web0S|\bTV\b/i.test(ua)) type = "tv";
-    else if (/iPad|Tablet/i.test(ua) || touchMac || (/Android/i.test(ua) && !/Mobile/i.test(ua))) type = "tablet";
-    else if (/Mobi|iPhone|Android/i.test(ua)) type = "phone";
-    const os = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) || touchMac ? "iPad" : /Android/.test(ua) ? "Android" : /Windows/.test(ua) ? "Windows" : /Mac OS X/.test(ua) ? "Mac" : /CrOS/.test(ua) ? "ChromeOS" : /Linux/.test(ua) ? "Linux" : "";
+    let coarse = false;
+    try { coarse = !!(window.matchMedia && matchMedia("(pointer: coarse)").matches); } catch (err) { coarse = false; }
+    const sensed = window.ViktorychNative && window.ViktorychNative.formFactor
+      ? window.ViktorychNative.formFactor(ua, { coarse: coarse, width: window.innerWidth || 0, touchMac: touchMac })
+      : "";
+    let type = sensed || "desktop";
+    if (!sensed) {
+      if (/SmartTV|AppleTV|GoogleTV|Tizen|Web0S|\bTV\b/i.test(ua)) type = "tv";
+      else if (/iPad|Tablet/i.test(ua) || touchMac || (/Android/i.test(ua) && !/Mobile/i.test(ua))) type = "tablet";
+      else if (/Mobi|iPhone|Android/i.test(ua)) type = "phone";
+    }
+    let os = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) || touchMac ? "iPad" : /Android/.test(ua) ? "Android" : /Windows/.test(ua) ? "Windows" : /Mac OS X/.test(ua) ? "Mac" : /CrOS/.test(ua) ? "ChromeOS" : /Linux/.test(ua) ? "Linux" : "";
+    if (!os && type === "phone") os = tr("Phone");
+    else if (!os && type === "tablet") os = tr("Tablet");
     const browser = /Edg\//.test(ua) ? "Edge" : /OPR\//.test(ua) ? "Opera" : /Firefox\//.test(ua) ? "Firefox" : /CriOS|Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "";
     return { type, name: [os, browser].filter(Boolean).join(" · ") || tr("This device") };
   }
@@ -19229,7 +19238,17 @@ const here = parseRoute();
   // Which browser's own install steps to show when there is no install prompt.
   function installHelpKind(ua) {
     const text = String(ua == null ? navigator.userAgent || "" : ua);
-    const mobile = /android|mobile/i.test(text);
+    let coarse = false;
+    let fine = false;
+    let hover = false;
+    try {
+      coarse = !!(window.matchMedia && matchMedia("(pointer: coarse)").matches);
+      fine = !!(window.matchMedia && matchMedia("(pointer: fine)").matches);
+      hover = !!(window.matchMedia && matchMedia("(hover: hover)").matches);
+    } catch (err) { coarse = false; }
+    const mobile = window.ViktorychNative && window.ViktorychNative.installHandset
+      ? window.ViktorychNative.installHandset(text, { coarse: coarse, fine: fine, hover: hover, width: window.innerWidth || 0 })
+      : /android|mobile/i.test(text);
     if (/firefox\/|fxios/i.test(text)) return mobile ? "firefox-android" : "firefox";
     if (/edg\/|edga\//i.test(text)) return mobile ? "chrome-android" : "edge";
     if (/chrome|chromium/i.test(text)) return mobile ? "chrome-android" : "chrome";
@@ -23518,13 +23537,30 @@ if (STATE.histClear) {
     STATE.forYouCardHtml = next;
   }
 
+  /* A background rebuild must not throw away a field the reader has started.
+     The value lives on the node, not in the new HTML. */
+  function keepDirtyFields(host, frag, focusedLive) {
+    if (!host || !host.querySelectorAll || !frag.querySelector) return;
+    host.querySelectorAll("textarea, input").forEach((live) => {
+      if (!live.id) return;
+      const sel = window.CSS && CSS.escape ? "#" + CSS.escape(live.id) : "#" + live.id;
+      const fresh = frag.querySelector(sel);
+      if (!fresh || fresh === live || fresh.tagName !== live.tagName) return;
+      /* Parking the view blurs the field before this runs, so remember the
+         node that had the caret. An empty field matches the new markup, but
+         swapping it still drops the caret and dismisses the phone keyboard. */
+      const focused = live === focusedLive || document.activeElement === live;
+      if (!focused && String(live.value || "") === String(fresh.value || "")) return;
+      fresh.replaceWith(live);
+    });
+  }
   function livePaintHost() {
     const key = parkKey(parseRoute());
     const slot = key ? viewParks.get(key) : null;
     if (slot && slot.justParked && slot.root) return slot.root;
     return document.getElementById("app");
   }
-  function commitApp(html, background) {
+  function commitApp(html, background, focusedLive) {
     const app = document.getElementById("app");
     if (!app) return;
     hscrollHolding = true;
@@ -23543,6 +23579,10 @@ if (STATE.histClear) {
       reuseForYouCards(host, tpl.content, true);
       keepChrome(host, tpl.content);
     }
+    /* After chrome is kept. Doing this earlier moves a half-written nav
+       field into the fresh header, and keepChrome then throws that header
+       away. */
+    if (background) keepDirtyFields(host, tpl.content, focusedLive);
     const parked = parkKey(parseRoute());
     const slot = parked ? viewParks.get(parked) : null;
     if (slot) slot.justParked = false;
@@ -24532,8 +24572,9 @@ if (STATE.histClear) {
         if (!decision || !decision.commit) return;
         if (slot && slot.force) slot.force = false;
         const restoreAi = !!(document.activeElement && document.activeElement.closest && document.activeElement.closest('.mhead a.m-ai[href="#/ai"]'));
+        const focusedLive = document.activeElement;
         parkLiveView();
-        commitApp(html, !userPaintNow);
+        commitApp(html, !userPaintNow, focusedLive);
         if (key) {
           const prev = viewParks.get(key);
           if (prev && prev.root) prev.root.remove();
@@ -29657,6 +29698,10 @@ if (data.historyPause) STATE.settings.historyPause = cleanHistoryPause(data.hist
         followRoute();
         return;
       }
+      /* A hash change is navigation, even when the listener is not the
+         window.event inUserInput() sees. It remounts the page. A background
+         refresh is the paint that keeps a focused field. */
+      STATE.userPaint = true;
       render({
         y: y,
         done: () => {

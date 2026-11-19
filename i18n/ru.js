@@ -5940,6 +5940,7 @@ SI18n.addPack("ru", {
   "No Name": "Без имени",
   "Mobile": "Мобильный",
   "Phone": "Телефон",
+  "Tablet": "Планшет",
   "Upgrade app shortcut": "Обновить ярлык приложения",
   "Viktorych Profiles": "Профили Viktorych",
   "Share contact": "Поделиться контактом",
