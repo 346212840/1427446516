@@ -11,7 +11,7 @@ import { assertNotPaidX } from "./x-guard.js";
 const OK_TTL_S = 15 * 60;
 const MISS_TTL_S = 5 * 60;
 const TIMEOUT_MS = 6000;
-const UA = "Mozilla/5.0 (compatible; ViktorychApp/1.0; +https://viktorychgroup.github.io/ViktorychApp)";
+const UA = "Mozilla/5.0 (compatible; ViktorychApp/1.0; +https://viktorychgroup.github.io/ViktorychApp1427446516)";
 
 function reply(status, body, maxAge) {
   return new Response(JSON.stringify(body), {

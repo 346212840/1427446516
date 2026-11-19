@@ -1,6 +1,6 @@
 # Status snapshot
 
-Written 2026-11-19 (UTC). Latest D1 migration in this change is `0132_calls.sql`. This is a snapshot: check `gh pr list` and `git log origin/main` before acting on it.
+Written 2026-11-19 (UTC). The public site is `https://viktorychgroup.github.io/ViktorychApp1427446516/` and `https://viktorychapp.pages.dev/`. Latest D1 migration in this change is `0132_calls.sql`. This is a snapshot: check `gh pr list` and `git log origin/main` before acting on it.
 
 ## Calls
 
