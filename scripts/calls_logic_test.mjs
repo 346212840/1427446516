@@ -9,6 +9,7 @@ import {
   guestFeature, GUEST_FEATURES, modeSwitchKeepsCall, QUICK_PHRASES
 } from "../shared/call-mode.js";
 import { estimatePitch, matchVoice, resolveVoice, createVoiceMatch, voiceChanged, DEFAULT_VOICE } from "../shared/call-voice.js";
+import { langName } from "../shared/call-langs.js";
 import { createDiarizer, overlappingPitches } from "../shared/call-speakers.js";
 import { liveSetup, rejectsClone } from "../shared/call-setup.js";
 import { lighterFor, pickSink, sinkChangeKeepsCall, cleanLexicon, rememberLine } from "../shared/call-quality.js";
@@ -198,7 +199,8 @@ assert.equal(overlappingPitches(tone(120), 16000).length, 0);
 assert.equal(overlappingPitches(mixed, 16000).length, 2);
 const people = createDiarizer();
 const speakerA = people.push(tone(120), 16000, "Hello thanks and this is good");
-const speakerB = people.push(tone(220), 16000, "Hola gracias también estoy aquí");
+let speakerB = null;
+for (let i = 0; i < 12; i++) speakerB = people.push(tone(220), 16000, i === 11 ? "Hola gracias también estoy aquí" : "");
 assert.equal(speakerA.send, true);
 assert.equal(speakerB.send, true);
 assert.notEqual(speakerA.speaker.id, speakerB.speaker.id);
@@ -206,7 +208,25 @@ assert.equal(speakerA.speaker.lang, "en");
 assert.equal(speakerB.speaker.lang, "es");
 assert.notEqual(speakerA.speaker.voice, speakerB.speaker.voice);
 assert.equal(people.push(mixed, 16000, "").send, false);
+const one = createDiarizer();
+for (let i = 0; i < 60; i++) one.push(tone(i % 9 === 0 ? 0 : 120 + (i % 5) * 4), 16000, "");
+assert.equal(one.speakers().length, 1, "one steady voice with small pitch wobble stays one speaker");
+const breaths = createDiarizer();
+breaths.push(tone(125), 16000, "");
+for (let i = 0; i < 20; i++) breaths.push(tone(220), 16000, "");
+assert.equal(breaths.speakers().length, 2, "a clearly different voice is a second speaker once it holds");
+const blip = createDiarizer();
+blip.push(tone(125), 16000, "");
+blip.push(tone(230), 16000, "");
+blip.push(tone(125), 16000, "");
+assert.equal(blip.speakers().length, 1, "a single odd frame does not split the voice");
 people.rename(speakerB.speaker.id, "Nova");
 assert.equal(people.speakers().find((item) => item.id === speakerB.speaker.id).name, "Nova");
+
+assert.equal(langName("es", "en"), "Spanish");
+assert.equal(langName("es", "es"), "Español");
+assert.equal(langName("sv", "ru"), "Шведский");
+assert.equal(langName("ca", "hi").length > 0, true);
+assert.equal(langName("zz", "en"), "zz");
 
 console.log("calls logic ok", JSON.stringify(report));

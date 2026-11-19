@@ -48,9 +48,32 @@ export function normalizeLang(code) {
   return hit ? hit[0] : "";
 }
 
-export function langName(code) {
+function uiLang() {
+  try {
+    const g = typeof window !== "undefined" ? window : {};
+    const picked = (g.SI18n && g.SI18n.getLang && g.SI18n.getLang()) || (typeof document !== "undefined" && document.documentElement && document.documentElement.lang) || (typeof navigator !== "undefined" && navigator.language) || "en";
+    return String(picked || "en");
+  } catch (err) {
+    return "en";
+  }
+}
+
+const namers = {};
+/* The language's name in the language the page is shown in. Falls back to
+   the English name when the browser cannot name it. */
+export function langName(code, ui) {
   const row = CALL_LANGS.find((item) => item[0] === code);
-  return row ? row[1] : String(code || "");
+  const fallback = row ? row[1] : String(code || "");
+  const locale = String(ui || uiLang());
+  try {
+    if (typeof Intl === "undefined" || !Intl.DisplayNames) return fallback;
+    if (!namers[locale]) namers[locale] = new Intl.DisplayNames([locale], { type: "language", fallback: "none" });
+    const name = namers[locale].of(code);
+    if (!name || name === code) return fallback;
+    return name.charAt(0).toLocaleUpperCase(locale) + name.slice(1);
+  } catch (err) {
+    return fallback;
+  }
 }
 
 /* First guess from an account or browser tag. Unknown tags fall back to en. */
