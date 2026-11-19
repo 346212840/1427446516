@@ -70,6 +70,7 @@ async function main() {
   const server = await startServer();
   const port = server.address().port;
   const browser = await chromium.launch({ headless: true, channel: "chrome" });
+  let releaseFx = () => {};
   try {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: "block" });
     const page = await context.newPage();
@@ -94,7 +95,9 @@ async function main() {
       }
       return route.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true,"posts":[]}' });
     });
-    await page.route("https://api.fxtwitter.com/**", (route) => {
+    const fxGate = new Promise((resolve) => { releaseFx = resolve; });
+    await page.route("https://api.fxtwitter.com/**", async (route) => {
+      await fxGate;
       const url = new URL(route.request().url());
       if (url.pathname === "/" + HANDLE) {
         return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(fxUser()) });
@@ -107,6 +110,28 @@ async function main() {
       return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ results: results }) });
     });
     await page.goto("http://127.0.0.1:" + port + "/index.html#/@user_a", { waitUntil: "domcontentloaded" });
+    const waiting = await page.waitForFunction(() => {
+      const box = document.querySelector(".reply-empty");
+      const count = document.querySelector(".profile-chrome-count");
+      const text = document.body.innerText || "";
+      if (!box || box.textContent.indexOf("Loading") < 0) return false;
+      if (text.indexOf("No posts yet") >= 0) return false;
+      if (count && /0\s+posts/.test(count.textContent || "")) return false;
+      return { loading: box.textContent.trim(), count: count ? count.textContent.trim() : "" };
+    }, null, { timeout: 20000 }).catch(() => null);
+    if (!waiting) fail("the profile did not stay on Loading while the live read was in flight");
+    await page.goto("http://127.0.0.1:" + port + "/index.html#/@user_a?tab=replies", { waitUntil: "domcontentloaded" });
+    const waitingReplies = await page.waitForFunction(() => {
+      const box = document.querySelector(".reply-empty");
+      const text = document.body.innerText || "";
+      if (!box || box.textContent.indexOf("Loading") < 0) return false;
+      if (text.indexOf("No replies yet") >= 0) return false;
+      return true;
+    }, null, { timeout: 20000 }).catch(() => null);
+    if (!waitingReplies) fail("the replies tab did not stay on Loading while the live read was in flight");
+    releaseFx();
+    await page.waitForSelector("text=Fresh north wind reply", { timeout: 20000 }).catch(() => fail("the live reply did not join the profile"));
+    await page.goto("http://127.0.0.1:" + port + "/index.html#/@user_a", { waitUntil: "domcontentloaded" });
     await page.waitForSelector("text=Fresh north wind note", { timeout: 20000 }).catch(() => fail("the live post did not join the profile"));
     await page.goto("http://127.0.0.1:" + port + "/index.html#/@user_a?tab=replies", { waitUntil: "domcontentloaded" });
     await page.waitForSelector("text=Fresh north wind reply", { timeout: 20000 }).catch(() => fail("the live reply did not join the profile"));
@@ -115,6 +140,7 @@ async function main() {
     if (errors.length) fail(errors[0]);
     console.log("linked x live ok");
   } finally {
+    releaseFx();
     await browser.close();
     server.close();
   }

@@ -21175,6 +21175,7 @@ if (STATE.histClear) {
       }
       addPost(post);
     });
+    let livePending = false;
     if (identities.length) {
       const allPosts = (typeof posts === "function" ? posts() : null) || (STATE.data && STATE.data.posts) || [];
       identities.forEach((ident) => {
@@ -21200,6 +21201,7 @@ if (STATE.histClear) {
            and replies are read live, the same way its own page does. */
         if (idPlatform === "x" && idHandle) {
           const live = ensureLiveUser("x", idHandle);
+          if (live && !live.settled && (live.loading || live.pageTask)) livePending = true;
           ["posts", "replies", "media"].forEach((bucket) => {
             ((live && live[bucket]) || []).forEach((p) => addPost(lpMod ? lpMod.asOwn(p, account) : p));
           });
@@ -21221,6 +21223,12 @@ if (STATE.histClear) {
     /* Optional platform filters: All, Posts, X, Instagram… The default is the mixed timeline. */
     const pills = lpMod ? lpMod.filterHtml(account, postList) : "";
     if (pills) shown = shown.filter((post) => lpMod.filterPost(post, account));
+    /* A merged link's live read is still in flight and this tab has nothing
+       to show yet. Same gate as the live profile page: Loading, not an empty
+       count. */
+    if (livePending && !shown.length) {
+      return { html: `<div class="reply-empty">${tr("Loading…")}</div>`, count: postList.length ? postList.length : null };
+    }
     return { html: pills + shown.map((post) => card(post, "")).join("") + more, count: postList.length };
   }
 
