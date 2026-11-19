@@ -669,36 +669,39 @@
     paint();
   }
 
-  /* syncWindow refuses to rebuild while a drag is in progress. Every way
-     the drag ends has to clear that flag and let the window catch up,
-     including a drop that already cleared the flag before dragend. */
+  /* syncWindow refuses to rebuild while a drag is in progress. Drop and
+     dragend are the ends of a live gesture. A pointercancel ends one only
+     when no drag event follows it, so the window cannot stay frozen and a
+     hover outside the list cannot throw the drop away. */
   let dragCancelTimer = 0;
 
   function releaseDrag() {
     clearTimeout(dragCancelTimer);
     dragCancelTimer = 0;
+    page.dragLive = false;
     page.drag = "";
     syncWindow();
   }
 
-  /* Chrome fires pointercancel when a drag takes the pointer, then dragover
-     and dragend. Clearing the drag there drops the reorder. A cancel with no
-     following drag ends the gesture on its own. */
   function notePointerCancel() {
     if (!page.drag) return;
+    page.dragLive = false;
     clearTimeout(dragCancelTimer);
     dragCancelTimer = setTimeout(function () {
       dragCancelTimer = 0;
-      if (page.drag) releaseDrag();
+      if (page.drag && !page.dragLive) releaseDrag();
     }, 1000);
   }
 
-  function noteDragContinues() {
+  function noteDragActivity() {
+    if (!page.drag) return;
+    page.dragLive = true;
     clearTimeout(dragCancelTimer);
     dragCancelTimer = 0;
   }
 
   function onDragEnd() {
+    if (!page.drag && !page.dragGesture) return;
     if (page.dragGesture) {
       page.suppressClick = true;
       /* The click that ends a drag is dispatched in this same turn. A later
@@ -713,6 +716,7 @@
     const el = event.target && event.target.closest && event.target.closest("[data-feed-drag]");
     if (!el) return;
     page.dragGesture = true;
+    page.dragLive = false;
     page.drag = el.dataset.feedDrag || "";
     if (event.dataTransfer) {
       event.dataTransfer.setData("text/plain", page.drag);
@@ -722,9 +726,7 @@
 
   function onDragOver(event) {
     if (!page.drag) return;
-    /* Any dragover means the gesture is still live, including over the
-       filters and the rest of the page. Only a real drop target accepts it. */
-    noteDragContinues();
+    noteDragActivity();
     const el = event.target && event.target.closest && event.target.closest("[data-feed-drop]");
     if (!el) return;
     event.preventDefault();
@@ -1332,10 +1334,16 @@
     document.addEventListener("scroll", onFeedScroll, { passive: true, capture: true });
     document.addEventListener("pointerdown", function () { page.suppressClick = false; }, true);
     document.addEventListener("dragstart", onDragStart);
-    document.addEventListener("dragend", onDragEnd);
-    document.addEventListener("pointercancel", notePointerCancel);
+    document.addEventListener("drag", noteDragActivity);
+    document.addEventListener("dragenter", noteDragActivity);
+    document.addEventListener("dragleave", noteDragActivity);
     document.addEventListener("dragover", onDragOver);
     document.addEventListener("drop", onDrop);
+    document.addEventListener("dragend", onDragEnd);
+    document.addEventListener("pointercancel", notePointerCancel);
+    document.addEventListener("visibilitychange", function () {
+      if (document.hidden && page.drag) releaseDrag();
+    });
     if (typeof matchMedia === "function") {
       const media = matchMedia("(prefers-reduced-motion: reduce)");
       const onMotion = () => {

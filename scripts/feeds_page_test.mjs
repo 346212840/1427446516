@@ -692,20 +692,17 @@ async function runDrop(browser, origin) {
   const pointed = reorders[reorders.length - 1] || {};
   if (JSON.stringify(pointed.groups) !== JSON.stringify(["gbeta", "galpha"])) fail("drop: a pointer drag on the group title did not reorder " + JSON.stringify(reorders));
   const beforeLinger = reorders.length;
-  await page.evaluate(() => {
-    const from = document.querySelector('[data-feed-drag="group:gbeta"]');
-    const outside = document.querySelector("#feeds-q");
-    from.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true }));
-    document.dispatchEvent(new PointerEvent("pointercancel", { bubbles: true, cancelable: true }));
-    outside.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true }));
-  });
+  const fromBox = await page.locator('.feeds-section-head[data-id="gbeta"]').boundingBox();
+  const outsideBox = await page.locator("#feeds-q").boundingBox();
+  const toBox = await page.locator('.feeds-section-head[data-id="galpha"]').boundingBox();
+  if (!fromBox || !outsideBox || !toBox) fail("drop: a drag target is not on screen");
+  await page.mouse.move(fromBox.x + fromBox.width / 2, fromBox.y + fromBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(outsideBox.x + outsideBox.width / 2, outsideBox.y + outsideBox.height / 2, { steps: 15 });
   await new Promise((resolve) => setTimeout(resolve, 1100));
-  await page.evaluate(() => {
-    const to = document.querySelector('.feeds-section-head[data-id="galpha"]');
-    to.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true }));
-    document.dispatchEvent(new DragEvent("dragend", { bubbles: true, cancelable: true }));
-  });
-  for (let i = 0; i < 20 && reorders.length === beforeLinger; i++) await new Promise((resolve) => setTimeout(resolve, 25));
+  await page.mouse.move(toBox.x + toBox.width / 2, toBox.y + toBox.height / 2, { steps: 15 });
+  await page.mouse.up();
+  for (let i = 0; i < 40 && reorders.length === beforeLinger; i++) await new Promise((resolve) => setTimeout(resolve, 25));
   const lingered = reorders[reorders.length - 1] || {};
   if (JSON.stringify(lingered.groups) !== JSON.stringify(["gbeta", "galpha"])) fail("drop: hovering outside the list cancelled the drag " + JSON.stringify(reorders));
   if (!(await page.locator('.feeds-row[data-id="telegram:beta1"]').count())) fail("drop: dragging the group title folded it");
