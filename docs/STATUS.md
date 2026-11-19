@@ -1,6 +1,10 @@
 # Status snapshot
 
-Written 2026-11-17 (UTC). Main is `216c8891` until this change lands. Latest D1 migration is `0131_shorts_on.sql`. Telegram expiry is a column added at runtime, not a new migration. This is a snapshot: check `gh pr list` and `git log origin/main` before acting on it. Update this file at the end of every PR.
+Written 2026-11-19 (UTC). Latest D1 migration in this change is `0132_calls.sql`. This is a snapshot: check `gh pr list` and `git log origin/main` before acting on it.
+
+## Calls
+
+Voice and text calls (`calls`, off until the owner turns it on) are in `#/calls`. The key is the Worker secret `GEMINI_API_KEY`. Details: `docs/CALLS.md`. No camera. Catalan and Swedish are supported targets. Privacy, blocks, and quiet hours are enforced on the server. Guests join from a link with no account. The call screen is mute, speaker, hang up, and talk or type. The rest is under More.
 
 ## How to work on this repo
 

@@ -6507,5 +6507,9 @@ SI18n.addPack("es", {
   "The free Gemini quota is used up. You still hear the original voice.": "Se agotó la cuota gratuita de Gemini. Sigues oyendo la voz original.",
   "Translation paused. You still hear the original voice.": "Traducción en pausa. Sigues oyendo la voz original.",
   "This account isn’t taking calls.": "Esta cuenta no recibe llamadas.",
-  "Translation quota is tight. This call continues as text.": "La cuota de traducción está justa. La llamada sigue en texto."
+  "Translation quota is tight. This call continues as text.": "La cuota de traducción está justa. La llamada sigue en texto.",
+  "Talk": "Hablar",
+  "Speaker": "Altavoz",
+  "Answer": "Contestar",
+  "You can type instead of talking.": "Puedes escribir en vez de hablar."
 });

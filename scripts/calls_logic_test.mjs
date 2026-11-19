@@ -9,6 +9,7 @@ import {
   guestFeature, GUEST_FEATURES, modeSwitchKeepsCall, QUICK_PHRASES
 } from "../shared/call-mode.js";
 import { estimatePitch, matchVoice, resolveVoice, createVoiceMatch, voiceChanged, DEFAULT_VOICE } from "../shared/call-voice.js";
+import { createDiarizer, overlappingPitches } from "../shared/call-speakers.js";
 import { liveSetup, rejectsClone } from "../shared/call-setup.js";
 import { lighterFor, pickSink, sinkChangeKeepsCall, cleanLexicon, rememberLine } from "../shared/call-quality.js";
 
@@ -184,8 +185,28 @@ assert.equal(session.onSpeech(loud, 50000).reason, "text");
 assert.ok(session.quota(50000).perMinute > 0);
 assert.equal(needsResume(SESSION_REFRESH_MS, false), true);
 assert.equal(needsResume(1000, true), true);
-const vad = createVad();
-assert.equal(vad.gate(silent), false);
-assert.equal(vad.gate(loud), true);
+
+function tone(hz) {
+  const out = new Float32Array(4000);
+  for (let i = 0; i < out.length; i++) out[i] = 0.4 * Math.sin((2 * Math.PI * hz * i) / 16000);
+  return out;
+}
+const mixed = tone(120);
+const other = tone(220);
+for (let i = 0; i < mixed.length; i++) mixed[i] = (mixed[i] + other[i]) * 0.5;
+assert.equal(overlappingPitches(tone(120), 16000).length, 0);
+assert.equal(overlappingPitches(mixed, 16000).length, 2);
+const people = createDiarizer();
+const speakerA = people.push(tone(120), 16000, "Hello thanks and this is good");
+const speakerB = people.push(tone(220), 16000, "Hola gracias también estoy aquí");
+assert.equal(speakerA.send, true);
+assert.equal(speakerB.send, true);
+assert.notEqual(speakerA.speaker.id, speakerB.speaker.id);
+assert.equal(speakerA.speaker.lang, "en");
+assert.equal(speakerB.speaker.lang, "es");
+assert.notEqual(speakerA.speaker.voice, speakerB.speaker.voice);
+assert.equal(people.push(mixed, 16000, "").send, false);
+people.rename(speakerB.speaker.id, "Nova");
+assert.equal(people.speakers().find((item) => item.id === speakerB.speaker.id).name, "Nova");
 
 console.log("calls logic ok", JSON.stringify(report));

@@ -6494,5 +6494,9 @@ SI18n.addPack("hi", {
   "The free Gemini quota is used up. You still hear the original voice.": "मुफ़्त Gemini कोटा खत्म हो गया। मूल आवाज़ फिर भी सुनाई देगी।",
   "Translation paused. You still hear the original voice.": "अनुवाद रुका है। मूल आवाज़ सुनाई देगी।",
   "This account isn’t taking calls.": "यह खाता कॉल नहीं ले रहा।",
-  "Translation quota is tight. This call continues as text.": "अनुवाद कोटा कम है। कॉल पाठ के रूप में चलती रहेगी।"
+  "Translation quota is tight. This call continues as text.": "अनुवाद कोटा कम है। कॉल पाठ के रूप में चलती रहेगी।",
+  "Talk": "बात करें",
+  "Speaker": "स्पीकर",
+  "Answer": "उत्तर दें",
+  "You can type instead of talking.": "बोलने के बजाय लिख सकते हैं।"
 });

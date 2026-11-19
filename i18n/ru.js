@@ -6506,5 +6506,9 @@ SI18n.addPack("ru", {
   "The free Gemini quota is used up. You still hear the original voice.": "Бесплатная квота Gemini кончилась. Оригинальный голос всё ещё слышно.",
   "Translation paused. You still hear the original voice.": "Перевод на паузе. Оригинальный голос слышно.",
   "This account isn’t taking calls.": "Этот аккаунт не принимает звонки.",
-  "Translation quota is tight. This call continues as text.": "Квота перевода на исходе. Звонок продолжается текстом."
+  "Translation quota is tight. This call continues as text.": "Квота перевода на исходе. Звонок продолжается текстом.",
+  "Talk": "Говорить",
+  "Speaker": "Динамик",
+  "Answer": "Ответить",
+  "You can type instead of talking.": "Можно написать вместо разговора."
 });

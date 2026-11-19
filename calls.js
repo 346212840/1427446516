@@ -5,7 +5,7 @@ import { normalizeVolumes, VOLUME_KEYS, VOLUME_DEFAULTS, outputGains, createMete
 import { normalizeMode, transmitOriginal, micOpen, noteRelease, noteShouldAutoplay, showOriginalSub, showTranslationSub, threadVisible, takeClauses, QUICK_PHRASES, guestFeature, NOTE_CANCEL_DX } from "./shared/call-mode.js";
 import { createVoiceMatch, PREBUILT_VOICES, DEFAULT_VOICE } from "./shared/call-voice.js";
 import { lighterFor, pickSink, cleanLexicon, lexiconHint, rememberLine } from "./shared/call-quality.js";
-import { createLiveSession, MIC_WORKLET, OUTPUT_RATE, CHUNK_SAMPLES, proxiesAudio } from "./shared/call-gemini.js";
+import { createDiarizer } from "./shared/call-speakers.js";
 
 const DEVICE_KEY = "viktorych-calls-device-v1";
 const GUEST_KEY = "viktorych-calls-guest-v1";
@@ -71,7 +71,8 @@ const state = {
   pc: null,
   wake: null,
   status: "",
-  live: createLiveSession()
+  live: createLiveSession(),
+  ears: createDiarizer()
 };
 
 function loadDevice() {
@@ -79,6 +80,8 @@ function loadDevice() {
   state.volumes = normalizeVolumes(saved.volumes || {});
   state.lexicon = cleanLexicon(saved.lexicon || []);
   state.voice = typeof saved.voice === "string" ? saved.voice : "";
+  state.hintSeen = saved.hintSeen === true;
+  state.speakerOn = saved.speakerOn !== false;
   const guest = readJson(GUEST_KEY) || {};
   if (!window.ViktorychAccounts || !window.ViktorychAccounts.token || !window.ViktorychAccounts.token()) {
     state.mode = normalizeMode(guest.mode || {});
@@ -87,7 +90,7 @@ function loadDevice() {
   }
 }
 function saveDevice() {
-  writeJson(DEVICE_KEY, { volumes: state.volumes, lexicon: state.lexicon, voice: state.voice });
+  writeJson(DEVICE_KEY, { volumes: state.volumes, lexicon: state.lexicon, voice: state.voice, hintSeen: state.hintSeen, speakerOn: state.speakerOn });
   writeJson(GUEST_KEY, { mode: state.mode, name: state.name, missed: state.missed, invite: state.invite });
 }
 
@@ -129,10 +132,11 @@ function slider(key, label) {
 }
 
 function subtitleBlock() {
+  const who = state.whoLabel ? `<p class="calls-who">${esc(state.whoLabel)}</p>` : "";
   const original = showOriginalSub(state.mode) ? (state.partial.original || "") : "";
   const translation = showTranslationSub(state.mode) ? (state.partial.translation || "") : "";
-  if (!original && !translation) return "";
-  return `<div class="calls-subs" aria-live="polite">${original ? `<p class="calls-sub orig">${esc(original)}</p>` : ""}${translation ? `<p class="calls-sub trn">${esc(translation)}</p>` : ""}</div>`;
+  if (!original && !translation && !who) return "";
+  return `<div class="calls-subs" aria-live="polite">${who}${original ? `<p class="calls-sub orig">${esc(original)}</p>` : ""}${translation ? `<p class="calls-sub trn">${esc(translation)}</p>` : ""}</div>`;
 }
 
 function threadBlock() {
@@ -141,25 +145,9 @@ function threadBlock() {
   return `<div class="calls-thread">${rows}</div>`;
 }
 
-function callScreen() {
-  const live = state.phase === "active" || state.phase === "calling" || state.phase === "incoming";
-  const initial = (state.name || "G").slice(0, 1).toUpperCase();
-  return `<div class="calls-page${live ? " live" : ""}" ${live ? 'data-call-active="1"' : ""} data-video="0">
-    <header class="calls-bar"><a class="calls-back" href="#/calls">${esc(tr("Back"))}</a><h1>${esc(tr("Calls"))}</h1></header>
-    <div class="calls-stage">
-      <div class="calls-ava" data-speaking="${state.speaking ? "1" : "0"}">${esc(initial)}</div>
-      <h2 class="calls-name">${esc(state.name || tr("Guest"))}</h2>
-      <p class="calls-status" data-translating="${state.translating ? "1" : "0"}">${esc(state.status || (state.translating ? tr("Translating…") : tr("Connected")))}</p>
-      <p class="calls-quota" data-per-minute="${state.live.quota(nowMs()).perMinute}">${esc(quotaLine())}</p>
-      ${state.net.lighter ? `<p class="calls-net">${esc(tr("Network is weak. Using a lighter call."))}</p>` : ""}
-      ${subtitleBlock()}
-      ${threadBlock()}
-    </div>
-    <div class="calls-modes" role="group" aria-label="${esc(tr("I speak"))}">
-      ${pill("send", "voice", state.mode.send, tr("Live voice"))}
-      ${pill("send", "note", state.mode.send, tr("Tap to talk"))}
-      ${pill("send", "text", state.mode.send, tr("Type to them"))}
-    </div>
+function moreSheet() {
+  const voices = [`<option value="">${esc(tr("Match the voice automatically"))}</option>`].concat(PREBUILT_VOICES.map((row) => `<option value="${esc(row.name)}"${state.voice === row.name ? " selected" : ""}>${esc(row.name)}</option>`)).join("");
+  return `<div class="calls-sheet"${state.more ? "" : " hidden"}>
     <div class="calls-modes" role="group" aria-label="${esc(tr("I hear"))}">
       ${pill("receive", "voice", state.mode.receive, tr("Voice"))}
       ${pill("receive", "text", state.mode.receive, tr("Text"))}
@@ -171,56 +159,88 @@ function callScreen() {
       ${pill("subtitles", "original", state.mode.subtitles, tr("Original subtitles"))}
       ${pill("subtitles", "both", state.mode.subtitles, tr("Original and translation"))}
     </div>
+    <button type="button" data-act="call-set" data-group="send" data-value="note">${esc(tr("Tap to talk"))}</button>
+    <button type="button" data-act="call-set" data-group="translationOnly" data-value="${state.mode.translationOnly ? "0" : "1"}">${esc(tr("Others hear only the translation"))}</button>
     <div class="calls-quick">
       ${QUICK_PHRASES.map((phrase) => `<button type="button" data-act="call-phrase" data-text="${esc(phrase)}">${esc(phraseLabel(phrase))}</button>`).join("")}
       <button type="button" data-act="call-repeat">${esc(tr("Repeat that"))}</button>
     </div>
-    ${state.mode.send === "text" ? `<form class="calls-type" data-act="call-type-form"><input name="text" maxlength="500" aria-label="${esc(tr("Type to them"))}" autocomplete="off"><button type="submit">${esc(tr("Send voice note"))}</button></form>` : ""}
-    ${state.mode.send === "note" ? `<button type="button" class="calls-talk" data-act="call-talk">${esc(state.recording ? tr("Slide to cancel") : tr("Hold to talk"))}</button>` : ""}
-    ${state.review ? `<div class="calls-review"><button type="button" data-act="call-note-send">${esc(tr("Send voice note"))}</button><button type="button" data-act="call-note-cancel">${esc(tr("Cancel voice note"))}</button></div>` : ""}
-    <div class="calls-controls">
-      <button type="button" data-act="call-mute">${esc(state.muted ? tr("Unmute microphone") : tr("Mute microphone"))}</button>
-      <button type="button" class="calls-end" data-act="call-end">${esc(tr("End call"))}</button>
-      <button type="button" data-act="call-volumes">${esc(tr("Volumes"))}</button>
-    </div>
-    <div class="calls-sheet" hidden>
-      ${slider("trvol", tr("Translation volume"))}
-      ${slider("original", tr("Original volume"))}
-      ${slider("overall", tr("Call volume"))}
-      ${slider("ring", tr("Ringtone"))}
-      ${slider("mic", tr("Microphone level"))}
-      ${slider("tts", tr("Spoken text volume"))}
-    </div>
-    <audio class="calls-remote" autoplay playsinline></audio>
+    ${slider("trvol", tr("Translation volume"))}
+    ${slider("original", tr("Original volume"))}
+    ${slider("overall", tr("Call volume"))}
+    ${slider("ring", tr("Ringtone"))}
+    ${slider("mic", tr("Microphone level"))}
+    ${slider("tts", tr("Spoken text volume"))}
+    <label class="calls-vol">${esc(tr("Translation voice"))}<select data-act="call-voice">${voices}</select></label>
+    <p class="calls-privacy">${esc(quotaLine())}</p>
     <p class="calls-privacy">${esc(tr("On the free Gemini plan, Google may use call audio to improve its products."))}</p>
+  </div>`;
+}
+
+function callScreen() {
+  const initial = (state.name || "G").slice(0, 1).toUpperCase();
+  const talking = state.mode.send !== "text";
+  const hint = state.hintSeen ? "" : `<p class="calls-hint">${esc(tr("You can type instead of talking."))}</p>`;
+  return `<div class="calls-page live" data-call-active="1" data-video="0">
+    <header class="calls-bar"><a class="calls-back" href="#/calls">${esc(tr("Back"))}</a><h1>${esc(tr("Calls"))}</h1></header>
+    <div class="calls-stage">
+      <div class="calls-ava" data-speaking="${state.speaking ? "1" : "0"}">${esc(initial)}</div>
+      <h2 class="calls-name">${esc(state.name || tr("Guest"))}</h2>
+      <p class="calls-status" data-translating="${state.translating ? "1" : "0"}">${esc(state.translating ? tr("Translating…") : tr("Connected"))}</p>
+      ${subtitleBlock()}
+      ${threadBlock()}
+    </div>
+    ${state.mode.send === "text" ? `<form class="calls-type" data-act="call-type-form"><input name="text" maxlength="500" aria-label="${esc(tr("Type to them"))}" autocomplete="off"></form>` : ""}
+    ${state.mode.send === "note" ? `<button type="button" class="calls-talk" data-act="call-talk">${esc(state.recording ? tr("Slide to cancel") : tr("Hold to talk"))}</button>` : ""}
+    <div class="calls-controls" data-essentials="mute speaker hangup talk">
+      <button type="button" data-act="call-mute" aria-label="${esc(state.muted ? tr("Unmute microphone") : tr("Mute microphone"))}">${esc(state.muted ? tr("Unmute microphone") : tr("Mute microphone"))}</button>
+      <button type="button" data-act="call-speaker" aria-pressed="${state.speakerOn ? "true" : "false"}">${esc(tr("Speaker"))}</button>
+      <button type="button" class="calls-end" data-act="call-end">${esc(tr("End call"))}</button>
+      <button type="button" data-act="call-switch" aria-pressed="${talking ? "true" : "false"}">${esc(talking ? tr("Talk") : tr("Type to them"))}</button>
+    </div>
+    ${hint}
+    <button type="button" class="calls-more" data-act="call-more">${esc(tr("More"))}</button>
+    ${moreSheet()}
+    <audio class="calls-remote" autoplay playsinline></audio>
   </div>`;
 }
 
 function homeScreen() {
-  const missed = state.missed.map((row) => `<li><span>${esc(row.name || tr("Missed call"))}</span>${row.invite ? `<a href="#/call/${esc(row.invite)}">${esc(tr("Call back"))}</a>` : `<button type="button" data-act="call-back" data-handle="${esc(row.handle || "")}">${esc(tr("Call back"))}</button>`}</li>`).join("");
-  const setup = state.configured ? "" : `<section class="calls-setup"><h2>${esc(tr("Calls are not set up yet"))}</h2><p>${esc(tr("Set the Worker secret, then turn Calls on in Server features."))}</p><code>${esc(state.command)}</code></section>`;
+  const missed = state.missed.map((row) => `<li><button type="button" data-act="call-back" data-handle="${esc(row.handle || "")}" data-invite="${esc(row.invite || "")}">${esc(row.name || tr("Call back"))}</button></li>`).join("");
+  const quiet = state.configured ? "" : `<p class="calls-empty">${esc(tr("Calls are not set up yet"))}</p>`;
   return `<div class="calls-page" data-video="0">
     <header class="calls-bar"><a class="calls-back" href="#/">${esc(tr("Back"))}</a><h1>${esc(tr("Calls"))}</h1></header>
-    ${setup}
-    <button type="button" class="calls-go" data-act="call-invite">${esc(tr("New invite link"))}</button>
-    <h2>${esc(tr("Missed call"))}</h2>
+    ${quiet}
     ${missed ? `<ul class="calls-missed">${missed}</ul>` : `<p class="calls-empty">${esc(tr("No calls yet"))}</p>`}
-    <p class="calls-privacy">${esc(tr("On the free Gemini plan, Google may use call audio to improve its products."))}</p>
   </div>`;
 }
 
-function joinScreen(token) {
+function joinScreen() {
   return `<div class="calls-page" data-video="0">
     <header class="calls-bar"><h1>${esc(tr("Join call"))}</h1></header>
-    <label class="calls-vol"><span>${esc(tr("Your name on this call"))}</span><input id="calls-name" maxlength="40" value="${esc(state.name || "")}" aria-label="${esc(tr("Your name on this call"))}"></label>
-    <button type="button" class="calls-go" data-act="call-join" data-token="${esc(token)}">${esc(tr("Join call"))}</button>
-    <p class="calls-privacy">${esc(tr("On the free Gemini plan, Google may use call audio to improve its products."))}</p>
+    <button type="button" class="calls-go" data-act="call-join">${esc(tr("Join call"))}</button>
+  </div>`;
+}
+
+function incomingScreen() {
+  const initial = (state.name || "G").slice(0, 1).toUpperCase();
+  return `<div class="calls-page live" data-video="0">
+    <div class="calls-stage">
+      <div class="calls-ava">${esc(initial)}</div>
+      <h2 class="calls-name">${esc(state.name || tr("Guest"))}</h2>
+      <p class="calls-status">${esc(tr("Incoming call"))}</p>
+    </div>
+    <div class="calls-controls">
+      <button type="button" class="calls-go" data-act="call-join">${esc(tr("Answer"))}</button>
+      <button type="button" class="calls-end" data-act="call-end">${esc(tr("Decline"))}</button>
+    </div>
   </div>`;
 }
 
 function page(route) {
   loadDevice();
-  if (route && route.name === "callguest") return joinScreen(route.token || "");
+  if (route && route.name === "callguest") return joinScreen();
+  if (state.phase === "incoming") return incomingScreen();
   if (route && (route.id === "preview" || (route.query && route.query.get("demo") === "1")) && testMode()) {
     state.phase = "active";
     state.demo = true;
@@ -325,7 +345,8 @@ function repeatLast() {
 }
 
 function onSet(group, value) {
-  if (group === "send" || group === "receive" || group === "subtitles") applyMode({ [group]: value });
+  if (group === "translationOnly") applyMode({ translationOnly: value === "1" });
+  else if (group === "send" || group === "receive" || group === "subtitles") applyMode({ [group]: value });
   if (group === "who") {
     fetch(apiBase() + "/v1/calls/prefs", { method: "PUT", headers: authHeaders(), body: JSON.stringify({ who: value }) }).catch(() => {});
   }
@@ -333,6 +354,22 @@ function onSet(group, value) {
 
 function onAct(act, el) {
   if (act === "call-set") onSet(el.dataset.group, el.dataset.value);
+  else if (act === "call-more") {
+    state.more = !state.more;
+    state.hintSeen = true;
+    saveDevice();
+    paint();
+  } else if (act === "call-switch") {
+    state.mode = normalizeMode(Object.assign({}, state.mode, { send: state.mode.send === "text" ? "voice" : "text" }));
+    state.hintSeen = true;
+    saveDevice();
+    paint();
+  } else if (act === "call-speaker") {
+    state.speakerOn = !state.speakerOn;
+    const remote = document.querySelector(".calls-remote");
+    if (remote) remote.volume = state.speakerOn ? 1 : 0.4;
+    paint();
+  }
   else if (act === "call-volumes") {
     const sheet = document.querySelector(".calls-sheet");
     if (sheet) sheet.hidden = !sheet.hidden;
@@ -495,7 +532,12 @@ function debug() {
     worklet: MIC_WORKLET,
     warm: state.live.warm(),
     quota: state.live.quota(nowMs()),
-    onSpeech: (samples, at) => state.live.onSpeech(samples, at)
+    onSpeech: (samples, at) => state.live.onSpeech(samples, at),
+    hear(samples, rate, text) {
+      const decision = state.ears.push(samples, rate, text);
+      if (decision.speaker) state.whoLabel = decision.speaker.name;
+      return decision;
+    }
   };
 }
 

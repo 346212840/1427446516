@@ -45,7 +45,7 @@ export function frameEmbedding(samples, sampleRate, hz) {
   ];
   const max = Math.max(level, ...bands, 1e-6);
   const pitch = Math.max(0, Math.min(1, (Number(hz) || 0) / 320));
-  return [pitch, level / max].concat(bands.map((value) => value / max));
+  return [pitch * 4, level / max].concat(bands.map((value) => value / max));
 }
 
 function lagError(data, lag) {
@@ -59,32 +59,34 @@ function lagError(data, lag) {
   return err / n;
 }
 
-/* Two pitches that are not harmonics of each other. */
+/* Two pitches that are not harmonics of each other. A pure tone has one
+   peak. A mix of two voices has two. */
 export function overlappingPitches(samples, sampleRate) {
   const data = samples && samples.length ? samples : [];
   const rate = Number(sampleRate) || 16000;
   if (data.length < Math.floor(rate * 0.08) || rms(data) < 0.01) return [];
-  const minLag = Math.max(1, Math.floor(rate / 320));
-  const maxLag = Math.min(data.length - 1, Math.floor(rate / 70));
-  const hits = [];
-  let prev = Infinity;
-  for (let lag = minLag; lag <= maxLag; lag++) {
-    const err = lagError(data, lag);
-    if (err < prev && err < rms(data) * rms(data) * 0.35) hits.push({ lag: lag, err: err, hz: Math.round(rate / lag) });
-    prev = err;
+  const n = Math.min(data.length, 2048);
+  const peaks = [];
+  for (let hz = 80; hz <= 300; hz += 10) {
+    const w = (2 * Math.PI * hz) / rate;
+    let re = 0;
+    let im = 0;
+    for (let i = 0; i < n; i += 2) {
+      re += data[i] * Math.cos(w * i);
+      im -= data[i] * Math.sin(w * i);
+    }
+    peaks.push({ hz: hz, mag: re * re + im * im });
   }
-  hits.sort((a, b) => a.err - b.err);
-  const kept = [];
-  for (let i = 0; i < hits.length && kept.length < 2; i++) {
-    const hz = hits[i].hz;
-    if (kept.some((item) => {
-      const ratio = hz / item.hz;
-      return ratio > 1.9 && ratio < 2.15 || ratio > 0.46 && ratio < 0.53;
-    })) continue;
-    if (kept.some((item) => Math.abs(item.hz - hz) < 20)) continue;
-    kept.push(hits[i]);
+  peaks.sort((a, b) => b.mag - a.mag);
+  const top = peaks[0];
+  if (!top || top.mag <= 0) return [];
+  function harmonic(a, b) {
+    const ratio = Math.max(a, b) / Math.min(a, b);
+    return [2, 3, 4].some((k) => Math.abs(ratio - k) < 0.15);
   }
-  return kept.length >= 2 ? kept.map((item) => item.hz).sort((a, b) => a - b) : [];
+  const second = peaks.find((item) => Math.abs(item.hz - top.hz) > 40 && !harmonic(item.hz, top.hz));
+  if (!second || second.mag < top.mag * 0.35) return [];
+  return [top.hz, second.hz].sort((a, b) => a - b);
 }
 
 function distance(a, b) {
