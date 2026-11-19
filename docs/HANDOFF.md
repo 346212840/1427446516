@@ -114,7 +114,7 @@ To give TVs a short address, create the org Pages site once. It is free and stay
    ```html
    <!doctype html><meta charset="utf-8"><title>Viktorych</title>
    <meta name="description" content="Viktorych: open the app.">
-   <link rel="canonical" href="https://viktorychgroup.github.io/ViktorychApp/">
+   <link rel="canonical" href="https://viktorychapp.pages.dev/">
    <meta http-equiv="refresh" content="0; url=/ViktorychApp/">
    <script>location.replace("/ViktorychApp/" + location.search + location.hash);</script>
    <a href="/ViktorychApp/">Open Viktorych</a>

@@ -1,6 +1,6 @@
 # Status snapshot
 
-Written 2026-11-19 (UTC). The public site is `https://viktorychgroup.github.io/ViktorychApp/` and `https://viktorychapp.pages.dev/`. Latest D1 migration in this change is `0133_calls.sql`. Telegram expiry is a column added at runtime, not a new migration. This is a snapshot: check `gh pr list` and `git log origin/main` before acting on it. Update this file at the end of every PR.
+Written 2026-11-19 (UTC). The Pages directory is the repository name, read from the address on github.io and from `GITHUB_REPOSITORY` when the site is published. The Cloudflare mirror stays `https://viktorychapp.pages.dev/`. Latest D1 migration is `0133_calls.sql`. Telegram expiry is a column added at runtime, not a new migration. This is a snapshot: check `gh pr list` and `git log origin/main` before acting on it. Update this file at the end of every PR.
 
 ## Calls
 

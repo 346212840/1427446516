@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { appContact } from "../src/site-repo.js";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { featureFor } from "../src/feature-flags.js";
@@ -280,7 +281,7 @@ test("reader code does not special-case one publisher", () => {
 });
 
 test("a public okdiario article, when the site answers", async (t) => {
-  const ua = "ViktorychAppReader/1.0 (+https://viktorychgroup.github.io/ViktorychApp; public reading view)";
+  const ua = "ViktorychAppReader/1.0 (+" + appContact() + "; public reading view)";
   let found = "";
   try {
     const home = await fetch("https://okdiario.com/", { headers: { "user-agent": ua, accept: "text/html" }, signal: AbortSignal.timeout(8000) });

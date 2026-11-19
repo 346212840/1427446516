@@ -438,7 +438,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", default="")
     parser.add_argument("--publish", action="store_true")
     parser.add_argument("--set-primary", action="store_true")
-    parser.add_argument("--pages", default="https://viktorychgroup.github.io/ViktorychApp")
+    parser.add_argument("--pages", default="https://viktorychapp.pages.dev")
     parser.add_argument("--version", default="")
     args = parser.parse_args(argv)
     if args.self_check:

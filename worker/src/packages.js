@@ -15,6 +15,7 @@
    owner (in-app and web push) when the status changes. */
 
 import { CARRIERS, carrierById, cleanNumber, detectCarriers, trackingUrl, STATUSES } from "../../shared/packages-carriers.js";
+import { pagesBaseFor } from "./site-repo.js";
 
 export const PACKAGES_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS packages (
@@ -201,7 +202,7 @@ export async function readCarrier(env, carrierId, number, fetcher) {
     return doc.notFound ? { notFound: true } : (fromDhl(doc) || { notFound: true });
   }
   if (api === "bring") {
-    const doc = await getJson(f, "https://api.bring.com/tracking/api/v2/tracking.json?q=" + n, { headers: { "X-Mybring-API-Uid": String(env.BRING_API_UID), "X-Mybring-API-Key": String(env.BRING_API_KEY), "X-Bring-Client-URL": "https://viktorychgroup.github.io/ViktorychApp/", accept: "application/json" } });
+    const doc = await getJson(f, "https://api.bring.com/tracking/api/v2/tracking.json?q=" + n, { headers: { "X-Mybring-API-Uid": String(env.BRING_API_UID), "X-Mybring-API-Key": String(env.BRING_API_KEY), "X-Bring-Client-URL": pagesBaseFor(env), accept: "application/json" } });
     return doc.notFound ? { notFound: true } : (fromBring(doc) || { notFound: true });
   }
   if (api === "ups") {

@@ -13,9 +13,11 @@
    only passes through on the sign-in call. NZlay's captcha, if it ever asks
    for one, is never answered here; the app sends the person to NZlay. */
 
+import { appContact } from "./site-repo.js";
+
 export const NZLAY_ORIGIN = "https://nzlay.com";
 export const FORUM_URL = NZLAY_ORIGIN + "/forums";
-const UA = "ViktorychApp/1.0 (+https://viktorychgroup.github.io/ViktorychApp/; NZlay forum community, cached reads)";
+const UA = "ViktorychApp/1.0 (+" + appContact() + "/; NZlay forum community, cached reads)";
 const FEED_CACHE_S = 300;
 const THREAD_CACHE_S = 120;
 const MEMBERS_CACHE_S = 3600;

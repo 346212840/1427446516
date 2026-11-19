@@ -4,7 +4,7 @@ const VERSION = "viktorych-a281-__SW_VERSION__";
 const BUILT = "__SW_BUILT__";
 const MIRROR_GITHUB = "__MIRROR_GITHUB__";
 const MIRROR_PAGES = "__MIRROR_PAGES__";
-// cache-bust: 2026-11-19T13:29:46.000Z-tg-account
+// cache-bust: 2026-11-19T14:25:00.000Z-keep-column
 try { importScripts("./shorts-enabled.js"); } catch (err) { /* Shorts stays off when the switch file is missing */ }
 
 const ACCOUNTS_WALL = false;
@@ -136,6 +136,8 @@ const SHELL_FILES = [
   "./tv-tune.css",
   "./shared/tv-boot.js",
   "./shared/short-link.js",
+  "./shared/app-base.js",
+  "./shared/repo-name.js",
   "./shared/x-range.js",
   "./shared/tv-builder.js",
   "./tv-page.js",
@@ -325,6 +327,8 @@ const SHELL_CORE = [
   "./shared/ios.js",
   "./shared/tv-boot.js",
   "./shared/short-link.js",
+  "./shared/app-base.js",
+  "./shared/repo-name.js",
   "./privacy-screen.js",
   "./shared/lazy-modules.js",
   "./shorts-enabled.js",

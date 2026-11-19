@@ -523,7 +523,9 @@
     }
     const pagesHost = "viktorychapp.pages.dev";
     if (host === pagesHost || (host.length > pagesHost.length + 1 && host.slice(-(pagesHost.length + 1)) === "." + pagesHost)) {
-      return "ViktorychGroup/ViktorychApp";
+      const stamped = typeof ViktorychRepoName === "string" ? ViktorychRepoName : "";
+      if (stamped && stamped.indexOf("__") < 0 && stamped.indexOf("/") > 0) return stamped;
+      return "";
     }
     return "";
   }
@@ -23372,6 +23374,48 @@ if (STATE.histClear) {
     });
     while (live.children.length > ordered.length) live.removeChild(live.lastChild);
   }
+  /* Tab rows are reused on their own. The rest of the column is what a
+     background paint must not swap out from under a half-written control. */
+  function columnBody(main) {
+    const copy = main.cloneNode(true);
+    copy.querySelectorAll(".tabs, [role='tablist'], .cm-filter-bar, .vault-nav-tabs, .tv-tabs-nav").forEach((el) => el.remove());
+    copy.querySelectorAll("*").forEach((el) => {
+      el.removeAttribute("style");
+      [...el.attributes].forEach((attr) => {
+        if (attr.name.indexOf("hscroll") >= 0) el.removeAttribute(attr.name);
+      });
+    });
+    return copy.innerHTML;
+  }
+  function patchScrollersInPlace(live, fresh) {
+    const liveRows = hscrollList(live);
+    const freshRows = hscrollList(fresh);
+    const used = new Set();
+    freshRows.forEach((row) => {
+      const id = hscrollId(row, fresh);
+      let match = null;
+      for (let i = 0; i < liveRows.length; i++) {
+        if (used.has(liveRows[i])) continue;
+        const liveId = liveRows[i].dataset.hscrollKey || hscrollId(liveRows[i], live);
+        if (liveId === id) { match = liveRows[i]; break; }
+      }
+      if (!match || !isTabRow(match) || !isTabRow(row)) return;
+      used.add(match);
+      patchTabRow(match, row);
+    });
+  }
+  /* parkLiveView() has already moved the on-screen .view-slot onto slot.root,
+     so the column is not in #app. hscroll rows may already have been lifted
+     into the new tree; they are not part of this comparison. */
+  function keepMain(liveRoot, frag) {
+    const live = liveRoot && liveRoot.querySelector ? liveRoot.querySelector("main.center") : null;
+    const fresh = frag.querySelector("main.center");
+    if (!live || !fresh || !fresh.parentNode || live.tagName !== fresh.tagName) return false;
+    if (live.className !== fresh.className || columnBody(live) !== columnBody(fresh)) return false;
+    patchScrollersInPlace(live, fresh);
+    fresh.replaceWith(live);
+    return true;
+  }
   function keepChrome(liveRoot, frag) {
     const route = parseRoute();
     const key = parkKey(route);
@@ -23470,22 +23514,34 @@ if (STATE.histClear) {
     STATE.forYouCardHtml = next;
   }
 
+  function livePaintHost() {
+    const key = parkKey(parseRoute());
+    const slot = key ? viewParks.get(key) : null;
+    if (slot && slot.justParked && slot.root) return slot.root;
+    return document.getElementById("app");
+  }
   function commitApp(html, background) {
     const app = document.getElementById("app");
     if (!app) return;
     hscrollHolding = true;
     hscrollHoldGen = STATE.renderGen || 0;
-    hscrollRemember(app);
+    const host = livePaintHost() || app;
+    hscrollRemember(host);
     const tpl = document.createElement("template");
     tpl.innerHTML = html;
     /* A tap rebuilds the column. The tab strip is patched in place on every
        paint, including Edit tabs, so its grips and labels update without
-       mounting a second marquee. A background paint also keeps the header. */
-    hscrollReuse(app, tpl.content);
+       mounting a second marquee. A background paint also keeps the header
+       and, when the column text matches, the centre column itself. */
+    const keptMain = !!(background && keepMain(host, tpl.content));
+    if (!keptMain) hscrollReuse(host, tpl.content);
     if (background) {
-      reuseForYouCards(app, tpl.content, true);
-      keepChrome(app, tpl.content);
+      reuseForYouCards(host, tpl.content, true);
+      keepChrome(host, tpl.content);
     }
+    const parked = parkKey(parseRoute());
+    const slot = parked ? viewParks.get(parked) : null;
+    if (slot) slot.justParked = false;
     while (app.firstChild) app.removeChild(app.firstChild);
     app.appendChild(tpl.content);
     scheduleImageSweep();
@@ -24158,6 +24214,7 @@ if (STATE.histClear) {
       slot.root.querySelectorAll(".center.route-wait").forEach((el) => el.classList.remove("route-wait"));
       scrollLock = true;
       slot.root.remove();
+      slot.justParked = true;
       scrollLock = false;
       // 0 is a real position. A truthy fallback kept the previous
       // offset after the reader had already returned to the top.
@@ -33649,7 +33706,8 @@ if (data.historyPause) STATE.settings.historyPause = cleanHistoryPause(data.hist
   function registerSW() {
     if (!("serviceWorker" in navigator) || swStarted) return;
     swStarted = true;
-    navigator.serviceWorker.register("sw.js", { scope: "./", updateViaCache: "none" }).then((reg) => {
+    const adopt = window.ViktorychAppBase && window.ViktorychAppBase.adoptHere ? window.ViktorychAppBase.adoptHere() : Promise.resolve();
+    adopt.then(() => navigator.serviceWorker.register("sw.js", { scope: "./", updateViaCache: "none" })).then((reg) => {
       swReg = reg || swReg;
       if (reg && reg.update) reg.update().catch(() => {});
       syncWorkerState();
