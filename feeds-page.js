@@ -900,9 +900,35 @@
     return html;
   }
 
+  function foldTitleHtml(title) {
+    const safe = esc(title || "");
+    return `<span class="feeds-fold-title" data-fold-title><span class="sp-marquee" data-sp-marquee><span class="sp-marquee-clip"><span class="sp-marquee-track"><span class="sp-marquee-copy"><span class="sp-marquee-text">${safe}</span></span><span class="sp-marquee-copy" aria-hidden="true"><span class="sp-marquee-text">${safe}</span></span></span></span></span></span>`;
+  }
+
+  /* The window reserves 40px for every head. A long name stays on that line
+     and scrolls, instead of wrapping over the next row. */
+  function fitFoldTitles(root) {
+    if (!root || !root.querySelectorAll) return;
+    root.querySelectorAll("[data-fold-title]").forEach((el) => {
+      const marquee = el.querySelector("[data-sp-marquee]");
+      const clip = el.querySelector(".sp-marquee-clip");
+      const text = el.querySelector(".sp-marquee-text");
+      if (!marquee || !clip || !text) return;
+      marquee.classList.toggle("is-on", text.scrollWidth > clip.clientWidth + 1);
+    });
+  }
+
+  function scheduleFoldTitles() {
+    if (typeof requestAnimationFrame !== "function") return;
+    requestAnimationFrame(() => {
+      const box = document.querySelector("[data-feed-window]");
+      if (box) fitFoldTitles(box);
+    });
+  }
+
   function headHtml(item) {
     const drag = item.drag ? ` data-feed-drag="group:${esc(item.id)}" draggable="true"` : "";
-    return `<div class="feeds-section-head" data-feed-drop="group" data-id="${esc(item.id)}" data-group="${esc(item.id)}"${drag}><button type="button" class="feeds-fold" data-feed-act="fold" data-id="${esc(item.id)}" aria-expanded="${item.open ? "true" : "false"}"><span>${esc(item.title)}</span> <span class="feeds-count">${esc(String(item.count))}</span></button></div>`;
+    return `<div class="feeds-section-head" data-feed-drop="group" data-id="${esc(item.id)}" data-group="${esc(item.id)}"${drag}><button type="button" class="feeds-fold" data-feed-act="fold" data-id="${esc(item.id)}" aria-expanded="${item.open ? "true" : "false"}">${foldTitleHtml(item.title)}<span class="feeds-count">${esc(String(item.count))}</span></button></div>`;
   }
 
   function sliceHtml(items, start, end) {
@@ -1060,6 +1086,7 @@
     }
     pins.innerHTML = pinHtml(win.items, win.prefixes, extras);
     restoreLiveRows(pins, held);
+    fitFoldTitles(box);
     parkLiveRows(pins, win.items, win.prefixes, held);
     if ((held.live || []).some((row) => row.isConnected && row.contains(document.activeElement))) return;
     if (mark && (mark.tag === "INPUT" || mark.tag === "TEXTAREA" || mark.tag === "SELECT" || (active && active.closest && active.closest(".feeds-menu, .feeds-confirm")))) {
@@ -1221,6 +1248,7 @@
     const lists = signed && window.SourceLists
       ? `<a class="feeds-banner sl-link" href="#/feeds/lists"><span>${esc(ownerOn() ? tr("Source lists: extra sources only the accounts you pick see") : tr("Your extra sources and requests"))}</span><span aria-hidden="true">›</span></a>`
       : "";
+    scheduleFoldTitles();
     return head + `<div class="feeds-org">${lists}${add}${offline}${failed}${previewCard()}${tools}${bulk}${pending ? `<section class="feeds-section is-pending-list">${pending}</section>` : ""}${body}${groupsPanel()}</div>`;
   }
 

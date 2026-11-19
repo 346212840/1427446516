@@ -6278,11 +6278,14 @@ header.nav.nav-land { display: none; }
 .feeds-window-rows { position: absolute; left: 0; right: 0; top: 0; }
 .feeds-window-pins, .feeds-window-pin { position: absolute; left: 0; right: 0; top: 0; }
 .feeds-find { position: absolute; left: 0; width: 1px; height: 1px; overflow: hidden; white-space: nowrap; pointer-events: none; color: transparent; }
-.feeds-section-head { height: 40px; display: flex; align-items: center; border-bottom: 1px solid var(--line); }
+.feeds-section-head { height: 40px; overflow: hidden; display: flex; align-items: center; border-bottom: 1px solid var(--line); }
 .feeds-fold {
-  width: 100%; min-width: 0; text-align: left; border: 0; background: transparent; color: var(--muted);
-  font: inherit; font-size: 15px; font-weight: 800; padding: 8px 16px; cursor: pointer;
+  display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; height: 40px; max-height: 40px;
+  overflow: hidden; white-space: nowrap; text-align: left; border: 0; background: transparent; color: var(--muted);
+  font: inherit; font-size: 15px; font-weight: 800; padding: 0 16px; cursor: pointer;
 }
+.feeds-fold-title { flex: 1 1 auto; min-width: 0; overflow: hidden; }
+.feeds-fold .feeds-count { flex: 0 0 auto; }
 .feeds-fold:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
 .feeds-row {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center;

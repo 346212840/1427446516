@@ -620,7 +620,8 @@ async function runDrop(browser, origin) {
     account("rss:alpha1", "alpha1", { platform: "rss", name: "Alpha One", groupId: "galpha" }),
     account("telegram:beta1", "beta1", { platform: "telegram", name: "Beta One", groupId: "gbeta" })
   ];
-  const groups = [{ id: "galpha", name: "Alpha", order: 0 }, { id: "gbeta", name: "Beta", order: 1 }];
+  const longName = "Alpha " + "North ".repeat(24);
+  const groups = [{ id: "galpha", name: longName, order: 0 }, { id: "gbeta", name: "Beta", order: 1 }];
   const reorders = [];
   const context = await browser.newContext({ serviceWorkers: "block", viewport: { width: 1280, height: 800 } });
   await context.route(/^https?:\/\/(?!127\.0\.0\.1)/, (route) => route.fulfill({ status: 200, body: "" }));
@@ -648,6 +649,32 @@ async function runDrop(browser, origin) {
   await page.goto(origin + "/#/feeds", { waitUntil: "domcontentloaded" });
   await page.locator('[data-feed-drag="group:galpha"]').waitFor({ timeout: 20000 }).catch(() => fail("drop: the group head did not paint"));
   await page.locator('.feeds-section-head[data-id="platform:rss"]').waitFor({ timeout: 5000 }).catch(() => fail("drop: the platform head did not paint"));
+  const longHead = await page.waitForFunction(() => {
+    const head = document.querySelector('.feeds-section-head[data-id="galpha"]');
+    const short = document.querySelector('.feeds-section-head[data-id="gbeta"] [data-sp-marquee]');
+    if (!head || !short) return null;
+    const fold = head.querySelector(".feeds-fold");
+    const title = head.querySelector(".sp-marquee-text");
+    const count = head.querySelector(".feeds-count");
+    const marquee = head.querySelector("[data-sp-marquee]");
+    if (!fold || !title || !count || !marquee || !marquee.classList.contains("is-on")) return null;
+    const headR = head.getBoundingClientRect();
+    const foldR = fold.getBoundingClientRect();
+    const countR = count.getBoundingClientRect();
+    const below = document.elementFromPoint(Math.min(headR.right - 8, headR.left + 24), headR.bottom + 4);
+    return {
+      headH: Math.round(headR.height),
+      foldH: Math.round(foldR.height),
+      nowrap: getComputedStyle(fold).whiteSpace,
+      scrolling: true,
+      shortStill: short.classList.contains("is-on"),
+      countInside: countR.right <= headR.right + 1 && countR.left >= headR.left,
+      steals: !!(below && (below === fold || fold.contains(below)))
+    };
+  }, null, { timeout: 5000 }).catch(() => null);
+  if (!longHead) fail("drop: a long section title did not stay on one scrolling line");
+  const headShape = await longHead.jsonValue();
+  if (headShape.headH !== 40 || headShape.foldH > 40 || headShape.nowrap !== "nowrap" || headShape.shortStill || !headShape.countInside || headShape.steals) fail("drop: a long section title overflows the head " + JSON.stringify(headShape));
   await page.evaluate(() => {
     const from = document.querySelector('[data-feed-drag="group:galpha"]');
     const to = document.querySelector('.feeds-section-head[data-id="platform:rss"]');
