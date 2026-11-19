@@ -143,6 +143,8 @@ const state = {
   startedAt: 0,
   whoLabel: "",
   capSize: "m",
+  noMic: "",
+  micNote: "",
   ear: { on: false, auto: false, routed: false, note: "" },
   earRaise: true,
   sink: ""
@@ -507,7 +509,7 @@ function controlBar() {
   const subsOn = state.mode.subtitles !== "off";
   const hears = state.mode.receive !== "text";
   return `<div class="calls-controls" data-essentials="mute speaker hangup talk">
-    ${cbtn("call-mute", state.muted ? "micOff" : "mic", state.muted ? tr("Unmute") : tr("Mute"), { cls: state.muted ? "off" : "", aria: state.muted ? tr("Unmute microphone") : tr("Mute microphone") })}
+    ${state.noMic ? cbtn("call-focus-type", "micOff", tr("No mic"), { cls: "off", aria: tr("No mic, type to talk") }) : cbtn("call-mute", state.muted ? "micOff" : "mic", state.muted ? tr("Unmute") : tr("Mute"), { cls: state.muted ? "off" : "", aria: state.muted ? tr("Unmute microphone") : tr("Mute microphone") })}
     ${cbtn("call-speaker", state.speakerOn ? "speaker" : "speakerOff", tr("Speaker"), { pressed: state.speakerOn })}
     ${cbtn("call-set", "captions", tr("Captions"), { pressed: subsOn, data: { group: "subtitles", value: subsOn ? "off" : "translated" } })}
     ${cbtn("call-set", state.mode.send === "text" ? "text" : (state.mode.send === "note" ? "note" : "voice"), sendLabel(), { aria: tr("I send") + ": " + sendLabel(), data: { group: "send", value: nextSend() } })}
@@ -543,7 +545,8 @@ function callScreen() {
   const back = standalone() ? "" : "";
   const timer = state.startedAt ? clock(Date.now() - state.startedAt) : "";
   const noteBar = state.mode.send === "note" ? (state.review ? `<div class="calls-review"><button type="button" class="calls-go" data-act="call-note-send">${esc(tr("Send"))}</button><button type="button" data-act="call-note-cancel">${esc(tr("Cancel voice note"))}</button></div>` : `<button type="button" class="calls-talk" data-act="call-talk">${esc(state.recording ? tr("Slide to cancel") : tr("Hold to talk"))}</button>`) : "";
-  const typeBar = state.mode.send === "text" && state.panel !== "chat" ? `<form class="calls-type calls-float" data-act="call-type-form"><input name="text" maxlength="500" aria-label="${esc(tr("Type to them"))}" placeholder="${esc(tr("Type to them"))}" autocomplete="off"><button type="submit" class="cb send" aria-label="${esc(tr("Send"))}">${ico("outgoing")}</button></form>` : "";
+  const typeBar = (state.mode.send === "text" || state.noMic) && state.panel !== "chat" ? `<form class="calls-type calls-float" data-act="call-type-form"><input name="text" maxlength="500" aria-label="${esc(tr("Type to them"))}" placeholder="${esc(tr("Type to them"))}" autocomplete="off"><button type="submit" class="cb send" aria-label="${esc(tr("Send"))}">${ico("outgoing")}</button></form>` : "";
+  const nomic = state.noMic ? `<button type="button" class="calls-nomic" data-act="call-focus-type">${ico("micOff")}<span>${esc(tr("No mic, type to talk"))}</span></button>` : "";
   const hint = state.hintSeen ? "" : `<p class="calls-hint">${esc(tr("You can type instead of talking."))}</p>`;
   return `<div class="calls-page live" data-call-active="1" data-video="0" data-phase="${esc(state.phase)}" data-panel="${state.panel ? "1" : "0"}">
     <header class="calls-top">
@@ -561,7 +564,7 @@ function callScreen() {
       ${subtitleBlock()}
     </main>
     ${panelBlock()}
-    ${typeBar}${noteBar}${hint}
+    ${nomic}${typeBar}${noteBar}${hint}
     ${controlBar()}
   </div>`;
 }
@@ -680,6 +683,7 @@ function joinScreen(route) {
           <span class="calls-meter" aria-hidden="true"><i data-meter style="width:${mc ? Math.round(Math.min(1, mc.level * 4) * 100) : 0}%"></i></span>
           <button type="button" class="cb" data-act="call-checkspk">${ico("speaker")}<span class="cb-l">${esc(tr("Test speaker"))}</span></button>
         </div>
+        ${micNoteHtml()}
       </div>
       <div class="calls-joinform">
         <h1>${esc(title)}</h1>
@@ -696,6 +700,17 @@ function joinScreen(route) {
 }
 
 /* Microphone and speaker check before joining. The mic stays open only on this screen. */
+/* No microphone is never a blocker: the call starts, and typing is translated and spoken. */
+function focusType() {
+  setTimeout(() => {
+    const el = document.querySelector(".calls-page .calls-type input[name=text]");
+    if (el) { try { el.focus(); } catch (err) { /* no focus */ } }
+  }, 60);
+}
+function micNoteHtml() {
+  if (!state.micNote) return "";
+  return `<p class="calls-micnote" role="status">${esc(state.micNote)} <button type="button" class="calls-link" data-act="call-checkmic">${esc(tr("Try the microphone again"))}</button></p>`;
+}
 async function checkMic() {
   if (state.micCheck) { stopMicCheck(); paint(); return; }
   try {
@@ -708,6 +723,7 @@ async function checkMic() {
     const buf = new Uint8Array(an.fftSize);
     const mc = { stream: stream, ac: ac, level: 0, raf: 0, last: 0 };
     state.micCheck = mc;
+    state.micNote = "";
     const tick = (now) => {
       if (state.micCheck !== mc) return;
       an.getByteTimeDomainData(buf);
@@ -723,7 +739,8 @@ async function checkMic() {
     mc.raf = requestAnimationFrame(tick);
     paint();
   } catch (err) {
-    state.error = tr("The microphone is blocked. Allow it in the browser to join.");
+    const denied = err && (err.name === "NotAllowedError" || err.name === "SecurityError");
+    state.micNote = denied ? tr("The microphone is blocked. You can still join and type to talk.") : tr("No mic found, you can type to talk.");
     paint();
   }
 }
@@ -1155,6 +1172,12 @@ function onEngineEvent(type, d) {
     saveDevice();
     if (state.engine) state.engine.refresh();
     paint();
+  } else if (type === "nomic") {
+    state.noMic = d.reason || "none";
+    state.muted = true;
+    state.mode = normalizeMode(Object.assign({}, state.mode, { send: "text" }));
+    paint();
+    focusType();
   } else if (type === "partial") {
     if (d.mine) return;
     state.partial = { original: d.original || "", translation: d.translation || "" };
@@ -1220,15 +1243,14 @@ async function begin(info, role, extra) {
   state.muted = false;
   state.startedAt = 0;
   state.net = lighterFor(navigator.connection || {});
+  state.noMic = "";
   state.engine = createEngine(engineConfig(extra));
   paint();
   try {
     await state.engine.start({ id: info.id, ticket: info.ticket, iceServers: info.iceServers, role: role });
   } catch (err) {
-    const denied = err && (err.name === "NotAllowedError" || err.name === "SecurityError");
-    const none = err && err.name === "NotFoundError";
     await teardown(true);
-    state.error = denied ? tr("Allow the microphone to talk. You can still type.") : (none ? tr("No microphone was found.") : tr("The call could not start. Check your connection and try again."));
+    state.error = tr("The call could not start. Check your connection and try again.");
     paint();
     return false;
   }
@@ -1498,6 +1520,7 @@ function testPrepScreen() {
           <span class="calls-meter" aria-hidden="true"><i data-meter style="width:${mc ? Math.round(Math.min(1, mc.level * 4) * 100) : 0}%"></i></span>
           <button type="button" class="cb" data-act="call-checkspk">${ico("speaker")}<span class="cb-l">${esc(tr("Test speaker"))}</span></button>
         </div>
+        ${micNoteHtml()}
       </div>
       <div class="calls-joinform">
         <h1>${esc(tr("Test call"))}</h1>
@@ -1659,6 +1682,12 @@ function onAct(act, el) {
   else if (act === "call-ear") enterEar(false);
   else if (act === "call-ear-raise") { toggleEarRaise(); }
   else if (act === "call-pick-output") pickOutput();
+  else if (act === "call-focus-type") {
+    if (state.panel !== "chat" && !(state.mode.send === "text" || state.noMic)) setPanel("chat");
+    focusType();
+    const chat = document.querySelector(".calls-compose input[name=text]");
+    if (chat) chat.focus();
+  }
   else if (act === "call-test-start") startTest();
   else if (act === "call-test-cancel") cancelTest();
   else if (act === "call-test-copy") {

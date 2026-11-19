@@ -613,7 +613,14 @@ export function createEngine(cfg) {
     transToSend = ac.createGain();
     origToSend.connect(sendDest);
     transToSend.connect(sendDest);
-    micStream = cfg.getMic ? await cfg.getMic() : await navigator.mediaDevices.getUserMedia({ audio: MIC_CONSTRAINTS, video: false });
+    /* No microphone, or permission denied: the call still starts and typed text still works. */
+    try {
+      micStream = cfg.getMic ? await cfg.getMic() : await navigator.mediaDevices.getUserMedia({ audio: MIC_CONSTRAINTS, video: false });
+    } catch (err) {
+      micStream = null;
+      const denied = err && (err.name === "NotAllowedError" || err.name === "SecurityError");
+      emit("nomic", { reason: denied ? "denied" : "none" });
+    }
     ownMic = !cfg.getMic;
     if (micStream) {
       const micSrc = ac.createMediaStreamSource(micStream);
