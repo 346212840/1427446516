@@ -14,6 +14,7 @@ import {
   publicHostname,
   sourcePlan
 } from "../../shared/feed-sources.js";
+import { parseIgProfile } from "./ig-public.js";
 
 const CATALOG_KEY = "owner/feeds-catalog.json";
 const X_KEY = "owner/added-accounts.json";
@@ -87,16 +88,27 @@ async function pull(url, fetchImpl) {
     if (parsed.username || parsed.protocol !== "https:" || !publicHostname(parsed.hostname) || blockedApi(parsed.hostname)) {
       return { status: 0, text: "", retryAfter: 0, ms: 0, code: "private_host" };
     }
+    if (/\/accounts\/login/i.test(parsed.pathname)) {
+      return { status: 401, text: "", retryAfter: 0, ms: 0, code: "login" };
+    }
     const started = Date.now();
+    const headers = {
+      "user-agent": UA,
+      accept: "application/json, application/atom+xml, application/rss+xml, text/html;q=0.9, */*;q=0.8",
+      "accept-language": "en"
+    };
+    if (parsed.hostname === "www.instagram.com" || parsed.hostname === "instagram.com") {
+      headers.referer = "https://www.instagram.com/";
+      if (parsed.pathname.indexOf("web_profile_info") >= 0) {
+        headers.accept = "application/json";
+        headers["x-ig-app-id"] = "936619743392459";
+      }
+    }
     let res;
     try {
       res = await fetchImpl(current, {
         redirect: "manual",
-        headers: {
-          "user-agent": UA,
-          accept: "application/json, application/atom+xml, application/rss+xml, text/html;q=0.9, */*;q=0.8",
-          "accept-language": "en"
-        },
+        headers,
         signal: AbortSignal.timeout(8000)
       });
     } catch (err) {
@@ -106,6 +118,7 @@ async function pull(url, fetchImpl) {
     if (res.status >= 300 && res.status < 400) {
       const loc = res.headers.get("location") || "";
       if (!loc) return { status: res.status, text: "", retryAfter: 0, ms };
+      if (/\/accounts\/login/i.test(loc)) return { status: 401, text: "", retryAfter: 0, ms, code: "login" };
       try { current = new URL(loc, current).toString(); }
       catch (err) { return { status: 0, text: "", retryAfter: 0, ms }; }
       continue;
@@ -338,6 +351,7 @@ function parseStep(step, text, spec) {
   if (step.kind === "bsky-profile") return parseBskyProfile(text, spec);
   if (step.kind === "bsky-feed") return parseBskyFeed(text);
   if (step.kind === "mastodon-lookup") return parseMastodon(text, spec);
+  if (step.kind === "ig-profile") return parseIgProfile(text, spec);
   return null;
 }
 

@@ -46,6 +46,17 @@ def _image(channel) -> str:
 
 def parse(payload, feed: dict | None = None) -> dict:
     feed = feed or {}
+    if isinstance(payload, str):
+        sample = payload.lstrip()
+        if sample[:1] in "{[":
+            from ig_public import parse_web_profile
+
+            return parse_web_profile(payload, feed)
+        head = sample[:200].lower()
+        if "contextjson" in sample[:200000].lower() or head.startswith("<!doctype html") or head.startswith("<html"):
+            from ig_public import parse_profile_embed
+
+            return parse_profile_embed(payload, feed)
     root = parse_xml(payload) if isinstance(payload, str) else payload
     channel = _channel(root)
     title = child_text(channel, "title")
