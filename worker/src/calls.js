@@ -85,6 +85,12 @@ export const CALLS_SCHEMA = [
     mask TEXT NOT NULL,
     updated_at INTEGER NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS call_hidden (
+    public_id TEXT NOT NULL,
+    call_id TEXT NOT NULL,
+    hidden_at INTEGER NOT NULL,
+    PRIMARY KEY (public_id, call_id)
+  )`,
   `CREATE TABLE IF NOT EXISTS call_guests (
     token_hash TEXT PRIMARY KEY,
     call_id TEXT NOT NULL,
@@ -579,7 +585,7 @@ export async function handleCalls(request, env, path, url, deps) {
     const who = await member(env, request, deps);
     if (!who.account) return deps.json(401, { error: "unauthorized" });
     const me = who.account.public_id;
-    const listed = await env.DB.prepare("SELECT s.*, a.handle AS other_handle, COALESCE(NULLIF(a.display_name, ''), n.name, '') AS other_name FROM call_sessions s LEFT JOIN accounts a ON a.public_id = CASE WHEN s.host_id = ? THEN s.peer_id ELSE s.host_id END LEFT JOIN call_names n ON n.call_id = s.id WHERE s.host_id = ? OR s.peer_id = ? ORDER BY s.created_at DESC LIMIT 40").bind(me, me, me).all();
+    const listed = await env.DB.prepare("SELECT s.*, a.handle AS other_handle, COALESCE(NULLIF(a.display_name, ''), n.name, '') AS other_name FROM call_sessions s LEFT JOIN accounts a ON a.public_id = CASE WHEN s.host_id = ? THEN s.peer_id ELSE s.host_id END LEFT JOIN call_names n ON n.call_id = s.id WHERE (s.host_id = ? OR s.peer_id = ?) AND NOT EXISTS (SELECT 1 FROM call_hidden h WHERE h.public_id = ? AND h.call_id = s.id) ORDER BY s.created_at DESC LIMIT 40").bind(me, me, me, me).all();
     const calls = ((listed && listed.results) || []).map((row) => {
       const item = viewCall(row);
       item.handle = String(row.other_handle || "");
@@ -590,6 +596,38 @@ export async function handleCalls(request, env, path, url, deps) {
       return item;
     });
     return deps.json(200, { calls: calls });
+  }
+
+  /* Editing your call history only hides rows for you. The other person's history and the call itself stay. */
+  if ((path === "/v1/calls/history/hide" || path === "/v1/calls/history/unhide" || path === "/v1/calls/history/clear") && request.method === "POST") {
+    const who = await member(env, request, deps);
+    if (!who.account) return deps.json(401, { error: "unauthorized" });
+    const me = who.account.public_id;
+    const paced = await deps.rateHit(env, "callhist:" + me, 60, 10 * 60 * 1000);
+    if (!paced.ok) return deps.limited(paced);
+    const body = await deps.readJson(request, 8000);
+    if (body && body.error) return deps.json(400, { error: body.error });
+    if (path === "/v1/calls/history/clear") {
+      const mine = await env.DB.prepare("SELECT s.id FROM call_sessions s WHERE (s.host_id = ? OR s.peer_id = ?) AND NOT EXISTS (SELECT 1 FROM call_hidden h WHERE h.public_id = ? AND h.call_id = s.id) ORDER BY s.created_at DESC LIMIT 500").bind(me, me, me).all();
+      const ids = ((mine && mine.results) || []).map((row) => String(row.id));
+      const now = Date.now();
+      for (const id of ids) await env.DB.prepare("INSERT OR IGNORE INTO call_hidden (public_id, call_id, hidden_at) VALUES (?, ?, ?)").bind(me, id, now).run();
+      return deps.json(200, { ids: ids });
+    }
+    const wanted = (Array.isArray(body && body.ids) ? body.ids : []).map((id) => String(id || "")).filter((id) => /^[a-f0-9]{16,64}$/.test(id)).slice(0, 100);
+    if (!wanted.length) return deps.json(400, { error: "ids" });
+    const done = [];
+    for (const id of wanted) {
+      if (path === "/v1/calls/history/hide") {
+        const owned = await env.DB.prepare("SELECT id FROM call_sessions WHERE id = ? AND (host_id = ? OR peer_id = ?)").bind(id, me, me).first();
+        if (!owned) continue;
+        await env.DB.prepare("INSERT OR IGNORE INTO call_hidden (public_id, call_id, hidden_at) VALUES (?, ?, ?)").bind(me, id, Date.now()).run();
+      } else {
+        await env.DB.prepare("DELETE FROM call_hidden WHERE public_id = ? AND call_id = ?").bind(me, id).run();
+      }
+      done.push(id);
+    }
+    return deps.json(200, { ids: done });
   }
 
   if (path === "/v1/calls/incoming" && request.method === "GET") {

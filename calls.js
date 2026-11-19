@@ -7,6 +7,7 @@ import { guessLang, sameLang, PINNED_LANGS, CALL_LANGS, normalizeLang, detectLan
 import { normalizeVolumes, VOLUME_KEYS, VOLUME_DEFAULTS, MIC_CONSTRAINTS, OPUS_MAX_BITRATE } from "./shared/call-audio.js";
 import { normalizeMode, transmitOriginal, micOpen, noteRelease, noteShouldAutoplay, showOriginalSub, showTranslationSub, threadVisible, takeClauses, QUICK_PHRASES, guestFeature, NOTE_CANCEL_DX } from "./shared/call-mode.js";
 import { createVoiceMatch, PREBUILT_VOICES, DEFAULT_VOICE } from "./shared/call-voice.js";
+import { createHistory, recordLocal, swipeAction, toggleSet } from "./shared/call-history.js";
 import { createRaiseDetector, earSinkId, createUnlocker, EAR_VOLUME_CAP } from "./shared/call-ear.js";
 import { lighterFor, pickSink, cleanLexicon, lexiconHint, rememberLine } from "./shared/call-quality.js";
 import { createLiveSession, MIC_WORKLET, OUTPUT_RATE, CHUNK_SAMPLES, proxiesAudio } from "./shared/call-gemini.js";
@@ -27,6 +28,10 @@ const SESSION_KEYS = ["viktorychapp-account-v1", "superintelapp-account-v1"];
 function tr(key, vars) {
   const fn = window.t || (window.SI18n && window.SI18n.t);
   return fn ? fn(key, vars) : key;
+}
+function trn(key, n) {
+  const i = window.SI18n;
+  return i && i.tn ? i.tn(key, n) : String(n);
 }
 function esc(value) {
   return String(value == null ? "" : value).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -87,7 +92,10 @@ async function api(path, init) {
   } finally { clearTimeout(timer); }
 }
 
+const hist = createHistory({ api: (path, init) => api(path, init), storage: { getItem: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, setItem: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } } }, signedIn: () => signedIn() });
 const state = {
+  histSel: null,
+  histUndo: null,
   phase: "idle",
   configured: true,
   mode: normalizeMode({}),
@@ -252,6 +260,8 @@ function slider(key, label) {
 const HAND_PATH = "M21.5 16.9v2.6a2 2 0 0 1-2.2 2 18.7 18.7 0 0 1-8.1-2.9 18.4 18.4 0 0 1-5.7-5.7A18.7 18.7 0 0 1 2.6 4.7a2 2 0 0 1 2-2.2h2.6a2 2 0 0 1 2 1.7c.1.9.3 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 10.1a16 16 0 0 0 5.8 5.8l1.3-1.3a2 2 0 0 1 2.1-.5c.9.4 1.8.6 2.7.7a2 2 0 0 1 1.5 2.1z";
 const ICONS = {
   phone: `<path d="${HAND_PATH}"/>`,
+  trash: `<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12.2A2 2 0 0 0 9 21h6a2 2 0 0 0 2-1.8L18 7M9 7V4.5h6V7"/>`,
+  check: `<path d="M5 12.5l4.5 4.5L19 7.5"/>`,
   info: `<circle cx="12" cy="12" r="9"/><path d="M12 11v5.2M12 7.8h.01"/>`,
   hangup: `<g transform="rotate(135 12 12)"><path d="${HAND_PATH}"/></g>`,
   ear: `<path d="${HAND_PATH}"/><path d="M14.5 6.2a3.3 3.3 0 0 1 3.3 3.3"/><path d="M14.5 2.6a6.9 6.9 0 0 1 6.9 6.9"/>`,
@@ -621,14 +631,102 @@ function incomingScreen() {
 }
 
 function historyRows(tab) {
-  const list = state.history.filter((row) => tab !== "missed" || row.missed);
+  const all = state.history;
+  const list = all.filter((row) => tab !== "missed" || row.missed);
   if (!list.length) return `<p class="calls-empty">${esc(tab === "missed" ? tr("No missed calls.") : tr("No calls yet"))}</p>`;
-  return `<ul class="calls-list">${list.slice(0, 30).map((row) => {
+  const sel = state.histSel;
+  const bar = sel
+    ? `<div class="calls-histbar sel"><button type="button" class="calls-link" data-act="hist-cancel">${esc(tr("Cancel"))}</button><span class="calls-histn">${esc(trn("callsSelected", sel.size))}</span><button type="button" class="calls-link" data-act="hist-all">${esc(tr("Select all"))}</button><button type="button" class="calls-pill danger" data-act="hist-delete"${sel.size ? "" : " disabled"}>${ico("trash", "tiny")}${esc(tr("Delete"))}</button></div>`
+    : `<div class="calls-histbar"><button type="button" class="calls-link" data-act="hist-select">${esc(tr("Select"))}</button><button type="button" class="calls-link" data-act="hist-clear">${esc(tr("Clear all"))}</button></div>`;
+  const rows = list.slice(0, 30).map((row) => {
     const label = row.name || (row.handle ? "@" + row.handle : tr("Guest"));
     const kind = row.missed ? tr("Missed call") : (row.incoming ? tr("Incoming call") : tr("Outgoing call"));
     const dur = row.duration ? " · " + clock(row.duration) : "";
-    return `<li class="calls-row${row.missed ? " missed" : ""}"><div class="calls-ava sm">${esc(initialOf(label))}</div><div class="calls-rt"><b>${esc(label)}</b><span>${ico(row.incoming ? "incoming" : "outgoing", "tiny")}${esc(kind)} · ${esc(when(row.createdAt))}${esc(dur)}</span></div>${row.handle ? `<button type="button" class="cb sm" data-act="call-back" data-handle="${esc(row.handle)}" aria-label="${esc(tr("Call back"))}" title="${esc(tr("Call back"))}">${ico("phone")}</button>` : ""}</li>`;
-  }).join("")}</ul>`;
+    const picked = sel && sel.has(row.id);
+    const lead = sel
+      ? `<button type="button" class="calls-check${picked ? " on" : ""}" data-act="hist-pick" data-id="${esc(row.id)}" role="checkbox" aria-checked="${picked ? "true" : "false"}" aria-label="${esc(label)}">${picked ? ico("check", "tiny") : ""}</button>`
+      : "";
+    const back = !sel && row.handle ? `<button type="button" class="cb sm" data-act="call-back" data-handle="${esc(row.handle)}" aria-label="${esc(tr("Call back"))}" title="${esc(tr("Call back"))}">${ico("phone")}</button>` : "";
+    const del = !sel ? `<button type="button" class="calls-rowx" data-act="hist-del" data-id="${esc(row.id)}" aria-label="${esc(tr("Remove from history"))}" title="${esc(tr("Remove from history"))}">${ico("close", "tiny")}</button>` : "";
+    return `<li class="calls-row${row.missed ? " missed" : ""}${picked ? " picked" : ""}" data-id="${esc(row.id)}">${lead}<div class="calls-ava sm">${esc(initialOf(label))}</div><div class="calls-rt"><b>${esc(label)}</b><span>${ico(row.incoming ? "incoming" : "outgoing", "tiny")}${esc(kind)} · ${esc(when(row.createdAt))}${esc(dur)}</span></div>${back}${del}</li>`;
+  }).join("");
+  return bar + `<ul class="calls-list">${rows}</ul>`;
+}
+
+/* ---- editing call history: one row, many rows, or all of it, with an undo ---- */
+function histToast(text, token) {
+  clearTimeout(state.histTimer);
+  state.histUndo = token || null;
+  let el = document.querySelector(".calls-undo");
+  if (!el) { el = document.createElement("div"); el.className = "calls-undo"; el.setAttribute("role", "status"); document.body.appendChild(el); }
+  el.innerHTML = `<span>${esc(text)}</span>${token ? `<button type="button" data-hist-undo>${esc(tr("Undo"))}</button>` : ""}`;
+  el.onclick = (e) => { if (e.target.closest && e.target.closest("[data-hist-undo]")) histUndo(); };
+  state.histTimer = setTimeout(() => { state.histUndo = null; if (el.parentNode) el.parentNode.removeChild(el); }, 7000);
+}
+async function histRemove(ids) {
+  let token = null;
+  try { token = await hist.remove(ids); } catch (err) { state.history = hist.rows; paint(); histToast(tr("Could not update your history. Try again."), null); return; }
+  state.history = hist.rows;
+  state.histSel = null;
+  paint();
+  if (token) histToast(token.ids.length === 1 ? tr("Removed from your history") : trn("callsRemoved", token.ids.length), token);
+}
+async function histUndo() {
+  const token = state.histUndo;
+  state.histUndo = null;
+  const el = document.querySelector(".calls-undo");
+  if (el && el.parentNode) el.parentNode.removeChild(el);
+  clearTimeout(state.histTimer);
+  if (!token) return;
+  await hist.restore(token);
+  state.history = hist.rows;
+  paint();
+}
+async function histClearAll() {
+  let token = null;
+  try { token = await hist.clear(); } catch (err) { state.history = hist.rows; paint(); histToast(tr("Could not update your history. Try again."), null); return; }
+  state.history = hist.rows;
+  state.histSel = null;
+  paint();
+  if (token) histToast(tr("Call history cleared"), token);
+}
+function histConfirm() {
+  if (document.querySelector(".calls-mm-wrap")) return;
+  const el = document.createElement("div");
+  el.className = "calls-mm-wrap";
+  el.innerHTML = `<div class="calls-mm" role="alertdialog" aria-modal="true" aria-labelledby="calls-hc-t"><h2 id="calls-hc-t">${esc(tr("Clear all calls?"))}</h2><p class="calls-mm-p">${esc(tr("This only removes them from your own history. The other person keeps theirs."))}</p><div class="calls-mm-btns"><button type="button" class="calls-go danger" data-hc="yes">${esc(tr("Clear all"))}</button><button type="button" class="calls-pill" data-hc="no">${esc(tr("Cancel"))}</button></div></div>`;
+  const close = () => { document.removeEventListener("keydown", key, true); if (el.parentNode) el.parentNode.removeChild(el); };
+  const key = (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } };
+  document.addEventListener("keydown", key, true);
+  el.addEventListener("click", (e) => {
+    const t = e.target.closest && e.target.closest("[data-hc]");
+    if (t && t.dataset.hc === "yes") { close(); histClearAll(); }
+    else if (t || e.target === el) close();
+  });
+  document.body.appendChild(el);
+  const yes = el.querySelector('[data-hc="yes"]');
+  if (yes) yes.focus();
+}
+/* Swipe a row left to remove it on a touch screen. */
+let swipe = null;
+function swipeDown(e) {
+  if (e.pointerType !== "touch" || state.histSel) return;
+  const row = e.target.closest && e.target.closest(".calls-list .calls-row");
+  if (!row || e.target.closest("button")) return;
+  swipe = { row: row, x: e.clientX, y: e.clientY, dx: 0, dy: 0, w: row.offsetWidth };
+}
+function swipeMove(e) {
+  if (!swipe) return;
+  swipe.dx = e.clientX - swipe.x;
+  swipe.dy = e.clientY - swipe.y;
+  if (Math.abs(swipe.dx) > 8 && Math.abs(swipe.dx) > Math.abs(swipe.dy)) swipe.row.style.transform = "translateX(" + Math.min(0, swipe.dx) + "px)";
+}
+function swipeUp() {
+  if (!swipe) return;
+  const sw = swipe;
+  swipe = null;
+  if (swipeAction(sw.dx, sw.dy, sw.w) === "delete") { sw.row.classList.add("gone"); histRemove([sw.row.dataset.id]); }
+  else sw.row.style.transform = "";
 }
 
 function homeScreen(opts) {
@@ -639,7 +737,7 @@ function homeScreen(opts) {
   const signed = signedIn();
   const tab = state.tab || "recent";
   const tabs = [["recent", tr("Recent")], ["missed", tr("Missed")], ["scheduled", tr("Scheduled")]];
-  const list = tab === "scheduled" ? `<p class="calls-empty">${esc(tr("No scheduled calls yet."))}</p>` : (signed ? historyRows(tab) : `<p class="calls-empty">${esc(tr("Sign in to see your calls."))}</p>`);
+  const list = tab === "scheduled" ? `<p class="calls-empty">${esc(tr("No scheduled calls yet."))}</p>` : historyRows(tab);
   const side = `<aside class="calls-side">
     <header class="calls-side-head">${back}<span class="calls-logo">${ico("phone")}</span><h1>${esc(tr("Calls"))}</h1></header>
     <div class="calls-tabs" role="tablist" aria-label="${esc(tr("Calls"))}">${tabs.map((row) => `<button type="button" role="tab" class="calls-tab${tab === row[0] ? " on" : ""}" aria-selected="${tab === row[0] ? "true" : "false"}" data-act="call-tab" data-value="${row[0]}">${esc(row[1])}</button>`).join("")}</div>
@@ -1549,12 +1647,9 @@ async function checkIncoming(id) {
   }
 }
 async function loadHistory() {
-  if (!signedIn()) return;
-  const res = await api("/v1/calls/history").catch(() => null);
-  if (res && res.ok && res.data && Array.isArray(res.data.calls)) {
-    state.history = res.data.calls;
-    if (host() && state.phase === "idle") paint();
-  }
+  await hist.load();
+  state.history = hist.rows;
+  if (host() && state.phase === "idle" && !state.histSel) paint();
 }
 async function loadStatus() {
   const res = await api("/v1/calls/status").catch(() => null);
@@ -1568,6 +1663,10 @@ async function teardown(silent) {
   ringStop();
   const engine = state.engine;
   const partner = state.partner;
+  if (engine && !signedIn() && !state.test && state.callId && state.phase !== "calling") {
+    recordLocal({ getItem: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, setItem: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } } }, { id: state.callId, name: state.peerName || "", createdAt: state.startedAt || Date.now(), duration: state.startedAt ? Date.now() - state.startedAt : 0, incoming: false });
+    hist.load().then(() => { state.history = hist.rows; });
+  }
   state.engine = null;
   state.partner = null;
   state.test = null;
@@ -1841,6 +1940,13 @@ function onAct(act, el) {
   else if (act === "call-more") setPanel(state.panel === "settings" ? "" : "settings");
   else if (act === "call-panel") setPanel(el.dataset.value || "");
   else if (act === "call-tab") { state.tab = el.dataset.value || "recent"; paint(); }
+  else if (act === "hist-del") histRemove([el.dataset.id]);
+  else if (act === "hist-select") { state.histSel = new Set(); paint(); }
+  else if (act === "hist-cancel") { state.histSel = null; paint(); }
+  else if (act === "hist-pick") { state.histSel = toggleSet(state.histSel || new Set(), el.dataset.id); paint(); }
+  else if (act === "hist-all") { state.histSel = new Set(state.history.filter((r) => (state.tab || "recent") !== "missed" || r.missed).slice(0, 30).map((r) => r.id)); paint(); }
+  else if (act === "hist-delete") { if (state.histSel && state.histSel.size) histRemove(Array.from(state.histSel)); }
+  else if (act === "hist-clear") histConfirm();
   else if (act === "call-checkmic") checkMic();
   else if (act === "call-checkspk") checkSpeaker();
   else if (act === "call-switch") {
@@ -2084,6 +2190,10 @@ function mount(route) {
   if (!bound) {
     bound = true;
     target.addEventListener("pointerdown", onPointer);
+    target.addEventListener("pointerdown", swipeDown);
+    target.addEventListener("pointermove", swipeMove);
+    target.addEventListener("pointerup", swipeUp);
+    target.addEventListener("pointercancel", () => { if (swipe) { swipe.row.style.transform = ""; swipe = null; } });
     target.addEventListener("input", onInput);
     target.addEventListener("change", onChange);
     target.addEventListener("submit", onSubmit, true);

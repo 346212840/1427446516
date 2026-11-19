@@ -6737,5 +6737,19 @@ SI18n.addPack("es", {
   "Set Microphone to Allow.": "Pon Micrófono en Permitir.",
   "Click the site settings icon left of the address bar.": "Haz clic en el icono de ajustes del sitio a la izquierda de la barra de direcciones.",
   "Open Microphone and choose Allow.": "Abre Micrófono y elige Permitir.",
-  "Call details": "Detalles de la llamada"
+  "Call details": "Detalles de la llamada",
+  "Remove from history": "Quitar del historial",
+  "Removed from your history": "Quitada de tu historial",
+  "Could not update your history. Try again.": "No se pudo actualizar tu historial. Inténtalo de nuevo.",
+  "Call history cleared": "Historial de llamadas borrado",
+  "Clear all calls?": "¿Borrar todas las llamadas?",
+  "This only removes them from your own history. The other person keeps theirs.": "Solo se quitan de tu historial. La otra persona conserva el suyo.",
+  "callsSelected.one": "{n} seleccionada",
+  "callsSelected.other": "{n} seleccionadas",
+  "callsRemoved.one": "{n} llamada quitada de tu historial",
+  "callsRemoved.other": "{n} llamadas quitadas de tu historial",
+  "callsSelected.few": "{n} seleccionadas",
+  "callsSelected.many": "{n} seleccionadas",
+  "callsRemoved.few": "{n} llamadas quitadas de tu historial",
+  "callsRemoved.many": "{n} llamadas quitadas de tu historial"
 });

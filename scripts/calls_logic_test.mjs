@@ -12,6 +12,7 @@ import { estimatePitch, matchVoice, resolveVoice, createVoiceMatch, voiceChanged
 import { langName } from "../shared/call-langs.js";
 import { createDiarizer, overlappingPitches } from "../shared/call-speakers.js";
 import { liveSetup, rejectsClone } from "../shared/call-setup.js";
+import { createHistory, loadLocal, recordLocal, removeRows, restoreRows, swipeAction, toggleSet } from "../shared/call-history.js";
 import { createRaiseDetector, earSinkId, cheekLike, createUnlocker, EAR_VOLUME_CAP } from "../shared/call-ear.js";
 import { lighterFor, pickSink, sinkChangeKeepsCall, cleanLexicon, rememberLine } from "../shared/call-quality.js";
 
@@ -277,6 +278,53 @@ assert.equal(langName("zz", "en"), "zz");
   assert.equal(u.up(5, 100, 240, 3300), "unlock", "a swipe up unlocks");
   u.down(6, 100, 400, 4000, { width: 20, height: 20 });
   assert.equal(u.up(6, 100, 330, 4300), "", "a short drag is not a swipe");
+}
+
+/* Editing call history: hide for me, undo, clear all, guests stay local. */
+{
+  const mem = {};
+  const storage = { getItem: (k) => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); } };
+  recordLocal(storage, { id: "a1", name: "Ann", createdAt: 1000, duration: 5000 });
+  recordLocal(storage, { id: "b2", name: "Bo", createdAt: 3000 });
+  recordLocal(storage, { id: "a1", name: "Ann", createdAt: 1000 });
+  assert.deepEqual(loadLocal(storage).map((r) => r.id), ["a1", "b2"], "one row per call id, the latest record first");
+  assert.equal(loadLocal(storage).length, 2);
+  const calls = [];
+  const h = createHistory({ api: async (path, init) => { calls.push(path); return { ok: true, data: path.endsWith("/clear") ? { ids: ["x1", "x2"] } : { calls: [{ id: "x1", createdAt: 5 }, { id: "x2", createdAt: 9 }] } }; }, storage, signedIn: () => false });
+  await h.load();
+  assert.deepEqual(h.rows.map((r) => r.id).sort(), ["a1", "b2"]);
+  const t1 = await h.remove(["a1"]);
+  assert.deepEqual(h.rows.map((r) => r.id), ["b2"]);
+  assert.equal(calls.length, 0, "guests never call the Worker");
+  assert.deepEqual(loadLocal(storage).map((r) => r.id), ["b2"], "guest removal is saved on the device");
+  await h.restore(t1);
+  assert.equal(h.rows.length, 2);
+  assert.equal(h.rows[0].id, "b2", "newest first after undo");
+  const cleared = await h.clear();
+  assert.equal(h.rows.length, 0);
+  await h.restore(cleared);
+  assert.equal(h.rows.length, 2);
+
+  const s2 = createHistory({ api: async (path) => { calls.push(path); return { ok: true, data: path.endsWith("/clear") ? { ids: ["x1", "x2"] } : { calls: [{ id: "x1", createdAt: 5 }, { id: "x2", createdAt: 9 }] } }; }, storage, signedIn: () => true });
+  await s2.load();
+  assert.deepEqual(s2.rows.map((r) => r.id), ["x1", "x2"]);
+  const tk = await s2.remove(["x2"]);
+  assert.deepEqual(calls.slice(-1), ["/v1/calls/history/hide"]);
+  await s2.restore(tk);
+  assert.deepEqual(calls.slice(-1), ["/v1/calls/history/unhide"]);
+  const all = await s2.clear();
+  assert.deepEqual(all.ids, ["x1", "x2"]);
+  assert.equal(s2.rows.length, 0);
+  const bad = createHistory({ api: async () => ({ ok: false }), storage, signedIn: () => true });
+  bad.rows = [{ id: "q", createdAt: 1 }];
+  await assert.rejects(() => bad.remove(["q"]));
+  assert.equal(bad.rows.length, 1, "a failed hide puts the row back");
+  assert.equal(swipeAction(-120, 10, 320), "delete");
+  assert.equal(swipeAction(-60, 5, 320), "none");
+  assert.equal(swipeAction(-120, 90, 320), "none", "a mostly vertical drag is a scroll");
+  assert.deepEqual([...toggleSet(new Set(["a"]), "a")], []);
+  assert.deepEqual(removeRows([{ id: 1 }, { id: 2 }], [2]).kept, [{ id: 1 }]);
+  assert.equal(restoreRows([{ id: 1, createdAt: 1 }], [{ id: 2, createdAt: 2 }])[0].id, 2);
 }
 
 console.log("calls logic ok", JSON.stringify(report));

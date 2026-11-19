@@ -6736,5 +6736,19 @@ SI18n.addPack("ru", {
   "Set Microphone to Allow.": "Установите для микрофона «Разрешить».",
   "Click the site settings icon left of the address bar.": "Нажмите значок настроек сайта слева от адресной строки.",
   "Open Microphone and choose Allow.": "Откройте «Микрофон» и выберите «Разрешить».",
-  "Call details": "Сведения о звонке"
+  "Call details": "Сведения о звонке",
+  "Remove from history": "Убрать из истории",
+  "Removed from your history": "Убрано из вашей истории",
+  "Could not update your history. Try again.": "Не удалось обновить историю. Повторите попытку.",
+  "Call history cleared": "История звонков очищена",
+  "Clear all calls?": "Очистить все звонки?",
+  "This only removes them from your own history. The other person keeps theirs.": "Звонки удаляются только из вашей истории. У собеседника они сохранятся.",
+  "callsSelected.one": "Выбран {n}",
+  "callsSelected.other": "Выбрано {n}",
+  "callsSelected.few": "Выбрано {n}",
+  "callsSelected.many": "Выбрано {n}",
+  "callsRemoved.one": "{n} звонок убран из вашей истории",
+  "callsRemoved.other": "{n} звонков убрано из вашей истории",
+  "callsRemoved.few": "{n} звонка убрано из вашей истории",
+  "callsRemoved.many": "{n} звонков убрано из вашей истории"
 });
