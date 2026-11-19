@@ -5938,6 +5938,7 @@ SI18n.addPack("en", {
   "No Name": "No Name",
   "Mobile": "Mobile",
   "Phone": "Phone",
+  "Tablet": "Tablet",
   "Upgrade app shortcut": "Upgrade app shortcut",
   "Viktorych Profiles": "Viktorych Profiles",
   "Share contact": "Share contact",
