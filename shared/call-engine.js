@@ -688,6 +688,21 @@ export function createEngine(cfg) {
   }
   E.prewarm = function prewarm() { ensureRx(); };
 
+  /* The mic was allowed after the call started: wire it in without touching the peer connection. */
+  E.attachMic = async function attachMic(stream) {
+    if (micStream || !ac || !stream) return false;
+    micStream = stream;
+    ownMic = true;
+    const micSrc = ac.createMediaStreamSource(stream);
+    micLevel = ac.createGain();
+    micSrc.connect(micLevel);
+    micLevel.connect(origToSend);
+    const tapMic = await tapNode(onOwnFrame);
+    micLevel.connect(tapMic);
+    stream.getAudioTracks().forEach((track) => { track.enabled = !muted; });
+    applyGains();
+    return true;
+  };
   E.setMuted = (on) => {
     muted = !!on;
     if (micStream) micStream.getAudioTracks().forEach((t) => { t.enabled = !muted; });

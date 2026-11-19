@@ -311,27 +311,34 @@ async function geminiToken(env, key, target, voice, hint, source, resume) {
   return { mode: "token", direct: true, token: token, url: url, setup: setup };
 }
 
+const TEXT_MODELS = ["gemini-3.5-flash-lite", "gemini-3.8-flash"];
 async function translateText(env, key, text, target, hint) {
   const lang = normalizeLang(target) || "en";
   const clipped = String(text || "").slice(0, 500);
   const note = String(hint || "").slice(0, 800);
   if (mockKey(env, key)) return { text: clipped, translation: clipped, lang: lang, fallback: "speech" };
-  try {
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + encodeURIComponent(key), {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: (note ? note + "\n" : "") + "Translate into " + lang + ". Reply with only the translation.\n\n" + clipped }] }]
-      })
-    });
-    if (response.status === 429) return { error: "quota" };
-    if (response.status === 400 || response.status === 401 || response.status === 403) return { error: "badkey" };
-    const data = await response.json().catch(() => ({}));
-    const out = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0] && data.candidates[0].content.parts[0].text;
-    return { text: clipped, translation: String(out || clipped).slice(0, 800), lang: lang, fallback: "speech" };
-  } catch (err) {
-    return { text: clipped, translation: clipped, lang: lang, fallback: "speech" };
+  /* Models get retired (gemini-2.5-flash now answers 404), so walk a short list and never mistake a dead model for a translation. */
+  const prompt = (note ? note + "\n" : "") + "Translate into " + lang + ". Reply with only the translation.\n\n" + clipped;
+  let hardError = "";
+  for (const model of TEXT_MODELS) {
+    try {
+      const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + encodeURIComponent(key), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      });
+      if (response.status === 429) return { error: "quota" };
+      if (response.status === 401 || response.status === 403) return { error: "badkey" };
+      if (response.status === 400) { hardError = "badkey"; continue; }
+      if (!response.ok) continue;
+      const data = await response.json().catch(() => ({}));
+      const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+      const out = (parts || []).map((part) => (part && part.text) || "").join("").trim();
+      if (out) return { text: clipped, translation: out.slice(0, 800), lang: lang, fallback: "speech" };
+    } catch (err) { /* try the next model */ }
   }
+  if (hardError) return { error: hardError };
+  return { text: clipped, translation: clipped, lang: lang, fallback: "speech", untranslated: true };
 }
 
 function viewCall(row) {
