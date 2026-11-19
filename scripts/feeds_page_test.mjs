@@ -350,10 +350,22 @@ async function runWindow(browser, origin, vp) {
   await page.locator(".feeds-fold").first().waitFor({ timeout: 20000 }).catch(() => fail(tag + ": the list did not paint"));
   const foldedHit = await page.evaluate(() => window.find("Zeta Folded Source", false, false, true));
   if (!foldedHit) fail(tag + ": a folded account name is not findable");
+  const hiddenFind = await page.evaluate(() => {
+    const span = document.querySelector(".feeds-find");
+    return !!(span && span.getAttribute("aria-hidden") === "true");
+  });
+  if (!hiddenFind) fail(tag + ": an offscreen name is exposed to assistive tech");
   const folds = await page.locator(".feeds-fold").count();
   if (folds < 2) fail(tag + ": expected two sections");
-  await page.locator(".feeds-fold").first().click();
+  await page.locator(".feeds-fold").first().focus();
+  const foldId = await page.evaluate(() => document.activeElement && document.activeElement.getAttribute("data-id"));
+  await page.keyboard.press("Enter");
   await page.locator(".feeds-row").first().waitFor({ timeout: 5000 }).catch(() => fail(tag + ": the section did not open"));
+  const foldFocus = await page.evaluate(() => {
+    const el = document.activeElement;
+    return el && el.classList.contains("feeds-fold") ? el.getAttribute("data-id") : "";
+  });
+  if (!foldFocus || foldFocus !== foldId) fail(tag + ": the fold control lost keyboard focus");
   const dragged = await page.evaluate(() => new Promise((resolve) => {
     const row = document.querySelector('.feeds-row[data-id="rss:lane0"]');
     row.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true }));
@@ -368,6 +380,48 @@ async function runWindow(browser, origin, vp) {
     }));
   }));
   if (!dragged.same) fail(tag + ": a scroll unmounted the row being dragged");
+  const stillFrozen = await page.evaluate(() => !!document.querySelector('.feeds-row[data-id="rss:lane0"]'));
+  if (stillFrozen) fail(tag + ": dragend left the window frozen");
+  async function endDrag(how) {
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.locator('.feeds-row[data-id="rss:lane0"]').waitFor({ timeout: 5000 }).catch(() => fail(tag + ": " + how + " could not find the first row"));
+    const frozen = await page.evaluate(() => new Promise((resolve) => {
+      const row = document.querySelector('.feeds-row[data-id="rss:lane0"]');
+      row.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true }));
+      const box = document.querySelector("[data-feed-window]");
+      const top = box.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo(0, Math.max(0, top + 1400));
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        resolve(document.querySelector('.feeds-row[data-id="rss:lane0"]') === row);
+      }));
+    }));
+    if (!frozen) fail(tag + ": " + how + " did not start from a frozen drag");
+    await page.evaluate((name) => {
+      if (name === "drop") {
+        const target = document.querySelector('.feeds-row[data-id="rss:lane1"]');
+        target.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true }));
+      } else if (name === "noop") {
+        const head = document.querySelector(".feeds-section-head");
+        head.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true }));
+      } else if (name === "dragend") {
+        document.dispatchEvent(new DragEvent("dragend", { bubbles: true, cancelable: true }));
+      } else if (name === "escape") {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+      } else if (name === "pointercancel") {
+        document.dispatchEvent(new PointerEvent("pointercancel", { bubbles: true, cancelable: true }));
+      } else if (name === "remount") {
+        const chip = document.querySelector('[data-feed-act="platform"][data-platform=""]');
+        if (chip) chip.click();
+      }
+    }, how);
+    const released = await page.evaluate(() => new Promise((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        resolve(!document.querySelector('.feeds-row[data-id="rss:lane0"]'));
+      }));
+    }));
+    if (!released) fail(tag + ": " + how + " left the window frozen");
+  }
+  for (const how of ["drop", "noop", "dragend", "escape", "pointercancel", "remount"]) await endDrag(how);
   await page.evaluate(() => window.scrollTo(0, 0));
   const offscreenHit = await page.evaluate(() => window.find("Zeta Offscreen Source", false, false, true));
   if (!offscreenHit) fail(tag + ": an offscreen account name is not findable");

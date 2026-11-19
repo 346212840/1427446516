@@ -610,7 +610,18 @@
     else if (act === "clear-selected") { page.selected = {}; page.selecting = false; paint(); }
     else if (act === "selecting") { page.selecting = true; paint(); }
     else if (act === "expand") { page.openId = page.openId === id ? "" : id; paint(); }
-    else if (act === "fold") { page.folded[id] = page.folded[id] !== true; page.foldReady = true; paint(); }
+    else if (act === "fold") {
+      page.folded[id] = page.folded[id] !== true;
+      page.foldReady = true;
+      paint();
+      const sel = window.CSS && CSS.escape
+        ? '.feeds-fold[data-id="' + CSS.escape(id) + '"]'
+        : '.feeds-fold[data-id="' + String(id).replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"]';
+      const next = document.querySelector(sel);
+      if (next && next.focus) {
+        try { next.focus({ preventScroll: true }); } catch (err) { next.focus(); }
+      }
+    }
     else if (act === "menu") { page.menuId = page.menuId === id ? "" : id; page.confirmId = ""; if (page.menuId) page.openId = id; paint(); }
     else if (act === "platform") { page.platform = el.dataset.platform || ""; paint(); }
     else if (act === "clear-filters") { page.q = ""; page.platform = ""; page.group = ""; page.status = ""; paint(); }
@@ -654,10 +665,16 @@
     paint();
   }
 
-  function onDragEnd() {
-    if (!page.drag) return;
+  /* syncWindow refuses to rebuild while a drag is in progress. Every way
+     the drag ends has to clear that flag and let the window catch up,
+     including a drop that already cleared the flag before dragend. */
+  function releaseDrag() {
     page.drag = "";
     syncWindow();
+  }
+
+  function onDragEnd() {
+    releaseDrag();
   }
 
   function onDragStart(event) {
@@ -681,24 +698,27 @@
     if (!el || !page.drag) return;
     event.preventDefault();
     const kind = el.dataset.feedDrop;
-    if (kind === "group") {
-      const from = page.drag.indexOf("group:") === 0 ? page.drag.slice(6) : "";
-      const to = el.dataset.id || "";
-      page.drag = "";
-      if (!from || !to || from === to) return;
-      const groups = (page.doc.groups || []).map((group) => group.id);
-      const ids = groups.filter((id) => id !== from);
-      const at = ids.indexOf(to);
-      /* A platform section uses the same drop marker. It is not a group, so a
-         miss must leave the saved order alone instead of parking the group
-         at the end. */
-      if (at < 0) return;
-      ids.splice(at, 0, from);
-      sendOrder(null, null, ids);
-      return;
+    try {
+      if (kind === "group") {
+        const from = page.drag.indexOf("group:") === 0 ? page.drag.slice(6) : "";
+        const to = el.dataset.id || "";
+        if (!from || !to || from === to) return;
+        const groups = (page.doc.groups || []).map((group) => group.id);
+        const ids = groups.filter((id) => id !== from);
+        const at = ids.indexOf(to);
+        /* A platform section uses the same drop marker. It is not a group, so a
+           miss must leave the saved order alone instead of parking the group
+           at the end. */
+        if (at < 0) return;
+        ids.splice(at, 0, from);
+        sendOrder(null, null, ids);
+        return;
+      }
+      const groupId = el.dataset.group != null ? el.dataset.group : "";
+      dropOn(kind === "row" ? (el.dataset.id || "") : "", groupId);
+    } finally {
+      releaseDrag();
     }
-    const groupId = el.dataset.group != null ? el.dataset.group : "";
-    dropOn(kind === "row" ? (el.dataset.id || "") : "", groupId);
   }
 
   function option(value, label, current) {
@@ -905,10 +925,10 @@
       if (item.kind === "row") {
         if (i >= start && i < end) continue;
         const name = rowName(item.row);
-        if (name) html += `<span class="feeds-find" style="top:${y}px">${esc(name)}</span>`;
+        if (name) html += `<span class="feeds-find" aria-hidden="true" style="top:${y}px">${esc(name)}</span>`;
       } else if (item.find && item.find.length) {
         item.find.forEach((name, n) => {
-          if (name) html += `<span class="feeds-find" style="top:${y + n}px">${esc(name)}</span>`;
+          if (name) html += `<span class="feeds-find" aria-hidden="true" style="top:${y + n}px">${esc(name)}</span>`;
         });
       }
     }
@@ -916,6 +936,9 @@
   }
 
   function windowHtml(items) {
+    /* A remount replaces the slice. The drag target is gone, so the freeze
+       must not stick to the new window. */
+    page.drag = "";
     page.winFocus = "";
     const prefixes = prefixesOf(items);
     const total = prefixes[items.length] || 0;
@@ -1067,6 +1090,11 @@
   }
 
   function onFeedKey(event) {
+    if (event.key === "Escape" && page.drag) {
+      event.preventDefault();
+      releaseDrag();
+      return;
+    }
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
     if (menuField(event.target) || menuField(document.activeElement)) return;
     const target = event.target;
@@ -1214,6 +1242,7 @@
     document.addEventListener("scroll", onFeedScroll, { passive: true, capture: true });
     document.addEventListener("dragstart", onDragStart);
     document.addEventListener("dragend", onDragEnd);
+    document.addEventListener("pointercancel", function () { if (page.drag) releaseDrag(); });
     document.addEventListener("dragover", onDragOver);
     document.addEventListener("drop", onDrop);
   }
