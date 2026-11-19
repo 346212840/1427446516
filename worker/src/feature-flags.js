@@ -129,7 +129,10 @@ export const FEATURES = {
   // Encrypted recordings on the Storage page. The owner route returns
   // ciphertext only. The age identity stays in the tab. Off hides Storage
   // recordings and this route.
-  storage_recordings: { paths: ["/tg/vsr"] }
+  storage_recordings: { paths: ["/tg/vsr"] },
+  /* Live translation calls. Off until the owner turns it on. Needs
+     GEMINI_API_KEY. No camera. */
+  calls: { paths: ["/v1/calls"], defaultOff: true }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 

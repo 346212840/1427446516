@@ -1,0 +1,44 @@
+/* Calls. Audio and text only. The column stays dark like the rest of the app. */
+.calls-page { color: #e7e9ea; padding: 0 0 24px; }
+.calls-bar { display: flex; align-items: center; gap: 12px; min-height: 53px; padding: 0 16px; position: sticky; top: 0; background: rgba(0,0,0,.85); backdrop-filter: blur(12px); }
+.calls-bar h1 { font-size: 20px; font-weight: 700; margin: 0; }
+.calls-back { color: #e7e9ea; text-decoration: none; font-size: 15px; min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; }
+.calls-stage { display: flex; flex-direction: column; align-items: center; padding: 24px 16px 8px; text-align: center; }
+.calls-ava { width: 112px; height: 112px; border-radius: 50%; display: grid; place-items: center; font-size: 40px; background: #202327; margin-bottom: 12px; }
+.calls-ava[data-speaking="1"] { box-shadow: 0 0 0 6px rgba(29,155,240,.45); }
+.calls-name { margin: 0; font-size: 23px; }
+.calls-status { color: #71767b; margin: 6px 0 12px; min-height: 20px; }
+.calls-status[data-translating="1"] { color: #1d9bf0; }
+.calls-net { color: #71767b; font-size: 13px; }
+.calls-subs { width: 100%; max-width: 520px; }
+.calls-sub { margin: 4px 0; font-size: 22px; line-height: 1.3; }
+.calls-sub.orig { color: #71767b; font-size: 16px; }
+.calls-thread { width: 100%; max-width: 520px; text-align: left; margin-top: 8px; }
+.calls-bubble { border-top: 1px solid #2f3336; padding: 10px 0; }
+.calls-trn { color: #e7e9ea; }
+.calls-modes, .calls-quick, .calls-controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; padding: 8px 16px; }
+.calls-pill, .calls-quick button, .calls-controls button, .calls-talk, .calls-go, .calls-review button {
+  min-height: 36px; border-radius: 999px; border: 1px solid #536471; background: transparent; color: #e7e9ea; padding: 0 14px; font: inherit;
+}
+.calls-pill.on { background: #e7e9ea; color: #0f1419; border-color: #e7e9ea; }
+.calls-end { background: #f4212e; border-color: #f4212e; color: #fff; }
+.calls-talk { min-width: 160px; min-height: 64px; }
+.calls-talk.cancel { border-color: #f4212e; color: #f4212e; }
+.calls-sheet { padding: 8px 16px 16px; }
+.calls-sheet[hidden] { display: none; }
+.calls-vol { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; font-size: 15px; }
+.calls-privacy, .calls-empty, .calls-setup { color: #71767b; font-size: 13px; padding: 0 16px; }
+.calls-go { margin: 12px 16px; background: #1d9bf0; border-color: #1d9bf0; color: #fff; }
+.calls-missed { list-style: none; margin: 0; padding: 0 16px; }
+.calls-missed li { display: flex; justify-content: space-between; gap: 12px; min-height: 48px; align-items: center; border-top: 1px solid #2f3336; }
+.calls-remote { position: absolute; width: 0; height: 0; opacity: 0; }
+.calls-type { display: flex; gap: 8px; padding: 0 16px 8px; }
+.calls-type input, .calls-settings input, .calls-settings select { flex: 1; background: transparent; color: inherit; border: 1px solid #333; border-radius: 8px; min-height: 44px; padding: 0 12px; }
+@media (max-width: 699px) {
+  .calls-sub { font-size: 26px; }
+  .calls-sheet { position: sticky; bottom: 0; background: #000; }
+}
+@media (min-width: 700px) {
+  .calls-page.live { display: grid; grid-template-columns: 1fr 280px; }
+  .calls-bar, .calls-stage, .calls-privacy { grid-column: 1 / -1; }
+}

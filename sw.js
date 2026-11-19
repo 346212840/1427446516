@@ -4,7 +4,7 @@ const VERSION = "viktorych-a281-__SW_VERSION__";
 const BUILT = "__SW_BUILT__";
 const MIRROR_GITHUB = "__MIRROR_GITHUB__";
 const MIRROR_PAGES = "__MIRROR_PAGES__";
-// cache-bust: 2026-11-19T08:40:00.000Z-tab-sync
+// cache-bust: 2026-11-19T09:40:00.000Z-calls
 try { importScripts("./shorts-enabled.js"); } catch (err) { /* Shorts stays off when the switch file is missing */ }
 
 const ACCOUNTS_WALL = false;
@@ -308,7 +308,17 @@ const SHELL_FILES = [
   "./peer-pool.js",
   "./shared/peer-pool.js",
   "./shared/pool-scheduler.js",
-  "./shared/device-performance.js"
+  "./shared/device-performance.js",
+  "./calls.js",
+  "./calls.css",
+  "./shared/call-langs.js",
+  "./shared/call-audio.js",
+  "./shared/call-mode.js",
+  "./shared/call-voice.js",
+  "./shared/call-setup.js",
+  "./shared/call-privacy.js",
+  "./shared/call-quality.js",
+  "./shared/call-gemini.js"
 ];
 /* The first visit activates after these files. The rest of SHELL_FILES is
    cached when the page asks, once the browser is idle. */
@@ -1709,7 +1719,8 @@ const FEATURE_FILES = {
   homePills: ["./scores.js", "./scores.css", "./weather.js", "./weather.css", "./shared/pill-data.js"],
   stories: ["./stories.js", "./stories.css"],
   forYou: ["./shared/for-you.js"],
-  xBroadcast: ["./shared/x-broadcast.js"]
+  xBroadcast: ["./shared/x-broadcast.js"],
+  calls: ["./calls.js", "./calls.css", "./shared/call-langs.js", "./shared/call-audio.js", "./shared/call-mode.js", "./shared/call-voice.js", "./shared/call-setup.js", "./shared/call-privacy.js", "./shared/call-quality.js", "./shared/call-gemini.js", "./shared/call-speakers.js", "./calls-speaker-worker.js"]
 };
 async function offFeatureFiles() {
   try {
