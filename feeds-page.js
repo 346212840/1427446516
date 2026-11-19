@@ -31,7 +31,7 @@
   };
   const ROW_H = 48;
   const HEAD_H = 40;
-  const MENU_H = 280;
+  const MENU_H = 420;
   const CONFIRM_H = 52;
   let hooks = null;
   const STORE = "owner-feeds-v1";
@@ -654,6 +654,12 @@
     paint();
   }
 
+  function onDragEnd() {
+    if (!page.drag) return;
+    page.drag = "";
+    syncWindow();
+  }
+
   function onDragStart(event) {
     const el = event.target && event.target.closest && event.target.closest("[data-feed-drag]");
     if (!el) return;
@@ -988,6 +994,9 @@
     const box = document.querySelector("[data-feed-window]");
     const win = page.win;
     if (!box || !win || !win.items || !win.prefixes) return;
+    /* Rebuilding the slice unmounts the element under the pointer and the
+       browser cancels the drag. Wait until it ends. */
+    if (page.drag) return;
     const y = window.scrollY || document.documentElement.scrollTop || 0;
     const top = box.getBoundingClientRect().top + y;
     const viewTop = Math.max(0, y - top);
@@ -1204,6 +1213,7 @@
     window.addEventListener("scroll", onFeedScroll, { passive: true });
     document.addEventListener("scroll", onFeedScroll, { passive: true, capture: true });
     document.addEventListener("dragstart", onDragStart);
+    document.addEventListener("dragend", onDragEnd);
     document.addEventListener("dragover", onDragOver);
     document.addEventListener("drop", onDrop);
   }

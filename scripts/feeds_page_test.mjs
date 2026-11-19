@@ -214,6 +214,18 @@ async function run(browser, origin, vp) {
   const t0 = Date.now();
   await page.evaluate(() => document.querySelector("form.add-account button[type=submit]").click());
   await page.locator('.feeds-row.is-pending[aria-busy="true"]').waitFor({ timeout: 2000 }).catch(() => fail(tag + ": the new source shows at once with a progress state"));
+  const pendingStatus = await page.evaluate(() => {
+    const el = document.querySelector(".feeds-row.is-pending .feeds-status");
+    if (!el) return { missing: true };
+    const style = getComputedStyle(el);
+    return {
+      text: (el.textContent || "").trim(),
+      w: Math.round(el.getBoundingClientRect().width),
+      white: style.whiteSpace,
+      cut: el.scrollWidth > el.clientWidth + 2
+    };
+  });
+  if (pendingStatus.missing || pendingStatus.w < 80 || pendingStatus.white === "nowrap" || pendingStatus.cut) fail(tag + ": the pending status is clipped " + JSON.stringify(pendingStatus));
   if (Date.now() - t0 > 2000) fail(tag + ": the pending row took too long");
   if (sent.filter((s) => s.indexOf("add:") === 0).length !== 1 || sent.indexOf("add:https://t.me/sync_user:true") < 0) fail(tag + ": one add request, no separate preview " + JSON.stringify(sent));
   await noOverflow(page, tag, "pending row");
@@ -342,6 +354,21 @@ async function runWindow(browser, origin, vp) {
   if (folds < 2) fail(tag + ": expected two sections");
   await page.locator(".feeds-fold").first().click();
   await page.locator(".feeds-row").first().waitFor({ timeout: 5000 }).catch(() => fail(tag + ": the section did not open"));
+  const dragged = await page.evaluate(() => new Promise((resolve) => {
+    const row = document.querySelector('.feeds-row[data-id="rss:lane0"]');
+    row.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true }));
+    const box = document.querySelector("[data-feed-window]");
+    const top = box.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo(0, Math.max(0, top + 900));
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const live = document.querySelector('.feeds-row[data-id="rss:lane0"]');
+      const same = live === row && !!(live && live.isConnected);
+      document.dispatchEvent(new DragEvent("dragend", { bubbles: true, cancelable: true }));
+      resolve({ same: same });
+    }));
+  }));
+  if (!dragged.same) fail(tag + ": a scroll unmounted the row being dragged");
+  await page.evaluate(() => window.scrollTo(0, 0));
   const offscreenHit = await page.evaluate(() => window.find("Zeta Offscreen Source", false, false, true));
   if (!offscreenHit) fail(tag + ": an offscreen account name is not findable");
   if (await page.locator(".feeds-row").count() >= 80) fail(tag + ": findability mounted every row");
@@ -390,6 +417,16 @@ async function runWindow(browser, origin, vp) {
   if (firstGone) fail(tag + ": the pinned first rows stayed mounted after scrolling away");
   await page.locator(".feeds-row .feeds-more").first().click();
   await page.locator(".feeds-menu input").first().waitFor({ timeout: 5000 }).catch(() => fail(tag + ": the menu has no label field"));
+  const menuFit = await page.evaluate(() => {
+    const menu = document.querySelector(".feeds-menu");
+    const row = menu && menu.closest(".feeds-row");
+    const next = row && row.nextElementSibling;
+    if (!menu || !next || !next.getBoundingClientRect) return { ok: false, reason: "no neighbour" };
+    const menuBox = menu.getBoundingClientRect();
+    const nextBox = next.getBoundingClientRect();
+    return { ok: menuBox.bottom <= nextBox.top + 1, menuH: Math.round(menu.offsetHeight), gap: Math.round(nextBox.top - menuBox.bottom) };
+  });
+  if (!menuFit.ok) fail(tag + ": the open menu is taller than the reserved row " + JSON.stringify(menuFit));
   await page.locator(".feeds-menu input").first().focus();
   await page.keyboard.press("ArrowDown");
   const inputStays = await page.evaluate(() => document.activeElement && document.activeElement.tagName === "INPUT");

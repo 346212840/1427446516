@@ -6302,14 +6302,15 @@ header.nav.nav-land { display: none; }
 }
 .feeds-plat svg { width: 14px; height: 14px; fill: currentColor; }
 .feeds-copy { display: flex; flex-direction: row; align-items: baseline; gap: 8px; min-width: 0; }
-.feeds-row.is-open .feeds-copy { flex-direction: column; align-items: stretch; gap: 0; }
+.feeds-row.is-open .feeds-copy, .feeds-row.is-pending .feeds-copy { flex-direction: column; align-items: stretch; gap: 0; }
 .feeds-name { display: flex; gap: 4px; align-items: center; font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .feeds-pin svg { width: 14px; height: 14px; fill: var(--muted); }
 .feeds-sub { color: var(--muted); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .feeds-status { display: none; gap: 6px; align-items: center; color: var(--muted); font-size: 13px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .feeds-row.is-open .feeds-status, .feeds-row.is-pending .feeds-status { display: flex; }
 .feeds-row:not(.is-open):not(.is-pending) .feeds-status { display: flex; flex: 0 0 auto; }
-.feeds-row:not(.is-open) .feeds-status > span { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.feeds-row:not(.is-open):not(.is-pending) .feeds-status > span { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.feeds-row.is-pending .feeds-status, .feeds-row.is-pending .feeds-status > span { white-space: normal; overflow: visible; text-overflow: clip; }
 .feeds-status > span { overflow: hidden; text-overflow: ellipsis; }
 .feeds-dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: #00ba7c; }
 .feeds-status.is-slow .feeds-dot { background: #ff7a00; }
