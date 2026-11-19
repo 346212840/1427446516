@@ -586,7 +586,8 @@ async function main() {
       "printf '%s\\n' \"$pkgs\" | tr ' ' '\\n' | grep -Eq '^(fonts-|xfonts-)' && exit 1",
       "printf '%s\\n' \"$pkgs\" | tr ' ' '\\n' | grep -qx 'libgstreamer-plugins-bad1.0-0'",
       "echo \"webkit packages: $pkgs\"",
-      "for f in /etc/apt/sources.list /etc/apt/apt-mirrors.txt /etc/apt/sources.list.d/*; do [ -f \"$f\" ] || continue; sudo sed -i -E 's|https?://[a-z0-9.-]*archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' \"$f\"; done",
+      "if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then sudo sed -i 's|http://[a-z0-9.-]*archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources; fi",
+      "sudo sed -i 's|http://[a-z0-9.-]*archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list || true",
       "sudo DEBIAN_FRONTEND=noninteractive apt-get update -qq",
       "sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 install -y --no-install-recommends $pkgs"
     ].join("\n"), process.env);
