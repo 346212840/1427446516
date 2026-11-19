@@ -17,6 +17,7 @@ export default {
     try { upstream = await fetch(GEMINI + encodeURIComponent(token), { headers: { Upgrade: "websocket" } }); } catch (err) { upstream = null; }
     const up = upstream && upstream.webSocket;
     if (!up) return new Response('{"error":"upstream"}', { status: 502, headers: { "content-type": "application/json" } });
+    try { up.binaryType = "arraybuffer"; } catch (err) { /* the default is fine on newer runtimes */ }
     up.accept();
     const pair = new WebSocketPair();
     const client = pair[0];
@@ -27,7 +28,16 @@ export default {
       try { up.close(1000); } catch (err) { /* closed */ }
     };
     server.addEventListener("message", (event) => { try { up.send(event.data); } catch (err) { /* closed */ } });
-    up.addEventListener("message", (event) => { try { server.send(event.data); } catch (err) { /* closed */ } });
+    /* Gemini sends binary text frames. A Blob cannot be sent on as is (it turns into "[object Blob]"), so frames are
+       turned into bytes first and kept in order. */
+    let chain = Promise.resolve();
+    up.addEventListener("message", (event) => {
+      chain = chain.then(async () => {
+        let data = event.data;
+        if (data && typeof data !== "string" && typeof data.arrayBuffer === "function") data = await data.arrayBuffer();
+        try { server.send(data); } catch (err) { /* closed */ }
+      });
+    });
     server.addEventListener("close", (event) => closeBoth(event.code));
     up.addEventListener("close", (event) => closeBoth(event.code));
     server.addEventListener("error", () => closeBoth(1011));
