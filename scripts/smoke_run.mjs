@@ -211,6 +211,10 @@ const PAGE_STEPS = [
     needs: ["pw", "browser"],
     paths: [file("keep_column_test.mjs"), /^app\.js$/]
   }),
+  step("linked-x-live", "node scripts/linked_x_live_test.mjs", {
+    needs: ["pw", "browser"],
+    paths: [file("linked_x_live_test.mjs"), /^app\.js$/, /^accounts\.js$/, /^linked-profiles\.js$/]
+  }),
   step("action-speed", "node scripts/action_speed_test.mjs", {
     needs: ["pw", "browser"],
     paths: [file("action_speed_test.mjs"), file("action_speed_bench.mjs"), /^app\.js$/, /^accounts\.js$/]
@@ -317,7 +321,7 @@ const SHARDS = {
   sw: ["sw-update"],
   "ui-profile": ["profile", "profile-tab-scroll"],
   "ui-drawer": ["drawer"],
-  home: ["home-tabs", "tab-member", "reply-lookup", "foryou-chunks", "foryou-off", "home-watch-rearm", "keep-column"],
+  home: ["home-tabs", "tab-member", "reply-lookup", "foryou-chunks", "foryou-off", "home-watch-rearm", "keep-column", "linked-x-live"],
   "compose-core": ["compose-ai", "compose-page"],
   "compose-a": ["community-home", "communities-hub", "own-post", "author-card-race", "author-marks", "post-page"],
   "compose-b": ["music-dock", "video-fallback", "ig-media", "source-assign", "device-guard", "usernames", "owner-user-settings"],
@@ -338,7 +342,7 @@ const REQUIRED_PAGE = [
   "action-bar", "assemble-self", "r2-catalog", "catalog-migrate", "handle-guard", "repo-path", "i18n",
   "about-layout", "points-layout", "telegram-stories", "stories", "stories-layout",
   "assemble-site", "smoke-site", "smoke-mirror", "sw-update", "notifications", "scrollbar-hidden", "profile", "profile-tab-scroll",
-  "home-tabs", "tab-member", "reply-lookup", "home-watch-rearm", "keep-column", "pill-fit", "drawer", "sidebar", "privacy", "yt-embed", "x-video",
+  "home-tabs", "tab-member", "reply-lookup", "home-watch-rearm", "keep-column", "linked-x-live", "pill-fit", "drawer", "sidebar", "privacy", "yt-embed", "x-video",
   "signup-flows",
   "device", "translate", "ondevice-ai", "dock", "for-you", "compose-ai", "compose-page", "ios", "live", "shorts-page",
   "community-home", "communities-hub", "own-post", "author-card-race", "post-page", "music-dock", "video-fallback", "ig-media", "source-assign",

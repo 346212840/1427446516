@@ -21196,6 +21196,14 @@ if (STATE.histClear) {
             addPost(lpMod ? lpMod.asOwn(p, account) : p);
           }
         });
+        /* The catalog is the last sync. A linked X account's newest posts
+           and replies are read live, the same way its own page does. */
+        if (idPlatform === "x" && idHandle) {
+          const live = ensureLiveUser("x", idHandle);
+          ["posts", "replies", "media"].forEach((bucket) => {
+            ((live && live[bucket]) || []).forEach((p) => addPost(lpMod ? lpMod.asOwn(p, account) : p));
+          });
+        }
       });
     }
     ownApp.forEach((post) => {
