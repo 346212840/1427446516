@@ -1729,7 +1729,10 @@ async function handleSyncPut(request, env) {
   const text = JSON.stringify(payload);
   if (text.length > SYNC_MAX) return json(413, { error: "too_large" });
   const base = Number(body.baseUpdatedAt || 0);
-  if (current && base && Number(current.updated_at) !== base) {
+  // A missing base means this device has not read the account copy. Writing
+  // over it used to replace tabs and their accounts with whatever this
+  // device had saved locally, often nothing.
+  if (current && (!base || Number(current.updated_at) !== base)) {
     return json(409, { error: "conflict", payload: previous, updatedAt: current.updated_at });
   }
   const unchanged = !!(current && previousText === canonicalJson(payload));
