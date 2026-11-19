@@ -20,7 +20,7 @@ function startServer() {
     const url = new URL(req.url, "http://127.0.0.1");
     if (url.pathname === "/feeds.json") {
       res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
-      return res.end(JSON.stringify({ updated: "2026-11-07T00:00:00.000Z", feeds: [], posts: [] }));
+      return res.end(CATALOG);
     }
     let rel = decodeURIComponent(url.pathname);
     if (rel.endsWith("/")) rel += "index.html";
@@ -33,6 +33,22 @@ function startServer() {
   });
   return new Promise((resolve) => server.listen(0, "127.0.0.1", () => resolve(server)));
 }
+
+const CATALOG = JSON.stringify({
+  updated: "2026-11-07T00:00:00.000Z",
+  feeds: [{ id: "x:" + HANDLE, platform: "x", handle: HANDLE, name: "North Wind" }],
+  posts: [{
+    id: "x:" + HANDLE + ":8001",
+    statusId: "8001",
+    platform: "x",
+    kind: "post",
+    handle: HANDLE,
+    author: "North Wind",
+    text: "Catalog north wind note",
+    date: "2026-11-18T12:00:00.000Z",
+    url: "https://example.com/status/8001"
+  }]
+});
 
 const ACCOUNT = {
   publicId: "100000000001",
@@ -93,6 +109,9 @@ async function main() {
           body: JSON.stringify({ account: ACCOUNT, reposts: [] })
         });
       }
+      if (url.pathname.endsWith("/feeds.json")) {
+        return route.fulfill({ status: 200, contentType: "application/json", body: CATALOG });
+      }
       return route.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true,"posts":[]}' });
     });
     const fxGate = new Promise((resolve) => { releaseFx = resolve; });
@@ -110,25 +129,28 @@ async function main() {
       return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ results: results }) });
     });
     await page.goto("http://127.0.0.1:" + port + "/index.html#/@user_a", { waitUntil: "domcontentloaded" });
-    const waiting = await page.waitForFunction(() => {
-      const box = document.querySelector(".reply-empty");
-      const count = document.querySelector(".profile-chrome-count");
-      const text = document.body.innerText || "";
-      if (!box || box.textContent.indexOf("Loading") < 0) return false;
-      if (text.indexOf("No posts yet") >= 0) return false;
-      if (count && /0\s+posts/.test(count.textContent || "")) return false;
-      return { loading: box.textContent.trim(), count: count ? count.textContent.trim() : "" };
-    }, null, { timeout: 20000 }).catch(() => null);
-    if (!waiting) fail("the profile did not stay on Loading while the live read was in flight");
+    await page.waitForSelector("text=Catalog north wind note", { timeout: 20000 }).catch(() => fail("the catalog post did not show while the live read was in flight"));
+    await page.waitForSelector(".lp-pills", { timeout: 20000 }).catch(() => fail("the profile did not offer filter pills"));
+    await page.locator('.lp-pill[data-src="app"]').click();
+    const postsPill = await page.evaluate(() => {
+      const pills = document.querySelector(".lp-pills");
+      const all = document.querySelector('.lp-pill[data-src="all"]');
+      const loading = Array.from(document.querySelectorAll(".reply-empty")).some((el) => (el.textContent || "").indexOf("Loading") >= 0);
+      return { pills: !!pills, all: !!(all && all.isConnected), loading: loading };
+    });
+    if (!postsPill.pills || !postsPill.all || postsPill.loading) fail("the Posts filter replaced the pills with Loading " + JSON.stringify(postsPill));
+    await page.locator('.lp-pill[data-src="all"]').click();
+    await page.waitForSelector("text=Catalog north wind note", { timeout: 5000 }).catch(() => fail("All did not bring the catalog post back"));
     await page.goto("http://127.0.0.1:" + port + "/index.html#/@user_a?tab=replies", { waitUntil: "domcontentloaded" });
     const waitingReplies = await page.waitForFunction(() => {
+      const pills = document.querySelector(".lp-pills");
       const box = document.querySelector(".reply-empty");
       const text = document.body.innerText || "";
-      if (!box || box.textContent.indexOf("Loading") < 0) return false;
+      if (!pills || !box || box.textContent.indexOf("Loading") < 0) return false;
       if (text.indexOf("No replies yet") >= 0) return false;
       return true;
     }, null, { timeout: 20000 }).catch(() => null);
-    if (!waitingReplies) fail("the replies tab did not stay on Loading while the live read was in flight");
+    if (!waitingReplies) fail("the replies tab did not keep the pills while the live read was in flight");
     releaseFx();
     await page.waitForSelector("text=Fresh north wind reply", { timeout: 20000 }).catch(() => fail("the live reply did not join the profile"));
     await page.goto("http://127.0.0.1:" + port + "/index.html#/@user_a", { waitUntil: "domcontentloaded" });

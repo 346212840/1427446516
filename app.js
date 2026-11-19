@@ -21223,13 +21223,15 @@ if (STATE.histClear) {
     /* Optional platform filters: All, Posts, X, Instagram… The default is the mixed timeline. */
     const pills = lpMod ? lpMod.filterHtml(account, postList) : "";
     if (pills) shown = shown.filter((post) => lpMod.filterPost(post, account));
-    /* A merged link's live read is still in flight and this tab has nothing
-       to show yet. Same gate as the live profile page: Loading, not an empty
-       count. */
-    if (livePending && !shown.length) {
-      return { html: `<div class="reply-empty">${tr("Loading…")}</div>`, count: postList.length ? postList.length : null };
-    }
-    return { html: pills + shown.map((post) => card(post, "")).join("") + more, count: postList.length };
+    /* Loading belongs in the list, under the pills. An app-only filter does
+       not receive live X posts, so an empty Posts pill is just empty and the
+       pills stay so All is still one tap away. */
+    const wantsLive = livePending && (!lpMod || !lpMod.filterPost || lpMod.filterPost({ platform: "x", kind: "post" }, account));
+    const listHtml = (!shown.length && wantsLive)
+      ? `<div class="reply-empty">${tr("Loading…")}</div>`
+      : shown.map((post) => card(post, "")).join("") + more;
+    const count = postList.length ? postList.length : (!shown.length && wantsLive ? null : postList.length);
+    return { html: pills + listHtml, count: count };
   }
 
   function repostPostById(handle, id) {
