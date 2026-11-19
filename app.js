@@ -1440,10 +1440,6 @@
     return "t" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   }
 
-  /* Display name for #/studio. Change this string to rename the page. */
-  const AUDIO_STUDIO_NAME = "Audio Studio";
-  window.ViktorychAudioStudio = { name: AUDIO_STUDIO_NAME, route: "studio", href: "#/studio" };
-
   const DEFAULT_NAV_CUSTOM = {
     folders: [
       { id: "media", name: tr("Media"), items: ["music", "shorts", "tv", "games", "audiostudio"] },
@@ -1452,6 +1448,10 @@
     order: ["home", "explore", "notifications", "messages", "feeds", "lists", "folder:media", "folder:library", "settings"],
     hidden: []
   };
+
+  /* Display name for #/studio. Change this string to rename the page. */
+  const AUDIO_STUDIO_NAME = "Audio Studio";
+  window.ViktorychAudioStudio = { name: AUDIO_STUDIO_NAME, route: "studio", href: "#/studio" };
 
   const INBOX_NAV_IDS = ["inbox-servers", "inbox-discord", "inbox-mail", "inbox-sms"];
   const INBOX_NAV_FALLBACK = {
