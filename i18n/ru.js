@@ -6701,5 +6701,8 @@ SI18n.addPack("ru", {
   "Start test call": "Начать тестовый звонок",
   "No second device? A simulated partner joins by itself and you hear your own words translated.": "Нет второго устройства? Имитируемый собеседник подключится сам, и вы услышите свои слова в переводе.",
   "Waiting for your other device…": "Ожидание вашего другого устройства…",
-  "Your other device": "Ваше другое устройство"
+  "Your other device": "Ваше другое устройство",
+  "Caption size": "Размер субтитров",
+  "Large": "Большой",
+  "Extra large": "Очень большой"
 });

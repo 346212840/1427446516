@@ -12,6 +12,11 @@ import { createLiveSession, MIC_WORKLET, OUTPUT_RATE, CHUNK_SAMPLES, proxiesAudi
 import { createDiarizer } from "./shared/call-speakers.js";
 import { createEngine } from "./shared/call-engine.js";
 
+const CAP_SIZES = ["s", "m", "l", "xl"];
+const CAP_SHOW = 3;
+const CAP_FADE_MS = 9000;
+const CAP_GONE_MS = 16000;
+const WHO_COLORS = ["#1d9bf0", "#00ba7c", "#f91880", "#ffd400", "#7856ff", "#ff7a00"];
 const DEVICE_KEY = "viktorych-calls-device-v1";
 const GUEST_KEY = "viktorych-calls-guest-v1";
 const ROUTE_KEY = "viktorych-calls-route-v1";
@@ -136,6 +141,7 @@ const state = {
   callId: "",
   startedAt: 0,
   whoLabel: "",
+  capSize: "m",
   sink: ""
 };
 
@@ -146,6 +152,7 @@ function loadDevice() {
   state.voice = typeof saved.voice === "string" ? saved.voice : "";
   state.lang = typeof saved.lang === "string" ? saved.lang : "";
   state.hintSeen = saved.hintSeen === true;
+  state.capSize = CAP_SIZES.indexOf(saved.capSize) >= 0 ? saved.capSize : "m";
   state.speakerOn = saved.speakerOn !== false;
   state.mode = normalizeMode(saved.mode || {});
   const guest = readJson(GUEST_KEY) || {};
@@ -156,7 +163,7 @@ function loadDevice() {
   }
 }
 function saveDevice() {
-  writeJson(DEVICE_KEY, { volumes: state.volumes, lexicon: state.lexicon, voice: state.voice, lang: state.lang, hintSeen: state.hintSeen, speakerOn: state.speakerOn, mode: state.mode });
+  writeJson(DEVICE_KEY, { volumes: state.volumes, lexicon: state.lexicon, voice: state.voice, lang: state.lang, hintSeen: state.hintSeen, speakerOn: state.speakerOn, mode: state.mode, capSize: state.capSize });
   writeJson(GUEST_KEY, { name: state.name });
 }
 function nowMs() {
@@ -305,22 +312,60 @@ function cbtn(act, icon, label, opt) {
   return `<button type="button" class="cb${o.cls ? " " + o.cls : ""}${o.pressed ? " on" : ""}" data-act="${act}"${data}${pressed} aria-label="${esc(o.aria || label)}" title="${esc(o.aria || label)}">${ico(icon)}<span class="cb-l">${esc(label)}</span></button>`;
 }
 
-function subtitleBlock() {
-  const who = state.whoLabel ? `<p class="calls-who">${esc(state.whoLabel)}</p>` : "";
+function whoColor(name, mine) {
+  if (mine) return WHO_COLORS[0];
+  let h = 0;
+  const text = String(name || "");
+  for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) >>> 0;
+  return WHO_COLORS[1 + (h % (WHO_COLORS.length - 1))];
+}
+/* One chat bubble: translation large and bold, the original smaller and dimmer under it. */
+function bubbleHtml(row, opts) {
+  const o = opts || {};
+  const mine = !!row.mine;
   const shown = state.test ? Object.assign({}, state.mode, { subtitles: "both" }) : state.mode;
-  const original = showOriginalSub(shown) ? (state.partial.original || "") : "";
-  const translation = showTranslationSub(shown) ? (state.partial.translation || "") : "";
-  if (!original && !translation && !who) return `<div class="calls-subs" aria-live="polite"></div>`;
-  return `<div class="calls-subs" aria-live="polite">${who}${original ? `<p class="calls-sub orig">${esc(original)}</p>` : ""}${translation ? `<p class="calls-sub trn">${esc(translation)}</p>` : ""}</div>`;
+  const wantOrig = showOriginalSub(shown);
+  const wantTrn = showTranslationSub(shown);
+  const hasTrn = row.translation && row.translation !== row.original;
+  let big = "";
+  let small = "";
+  if (o.cap) {
+    if (hasTrn && wantTrn) { big = row.translation; small = wantOrig ? (row.original || "") : ""; }
+    else if (wantOrig || !hasTrn) { big = row.original || row.translation || ""; }
+    if (!big && !small) return "";
+  } else {
+    big = hasTrn ? row.translation : (row.original || "");
+    small = hasTrn ? (row.original || "") : "";
+  }
+  const who = String(row.who || "");
+  const note = row.note ? `<button type="button" data-act="call-replay" data-id="${esc(row.id)}">${esc(tr("Replay"))}</button>` : "";
+  const age = o.cap && row.at ? Date.now() - row.at : 0;
+  const fade = o.cap && !o.live && age > CAP_FADE_MS ? " fading" : "";
+  return `<article class="calls-bubble${mine ? " mine" : ""}${o.live ? " partial" : ""}${fade}" style="--who:${whoColor(who, mine)}">
+    <div class="calls-ava xs">${esc(initialOf(who || "?"))}</div>
+    <div class="calls-bbody"><span class="calls-bname">${esc(who)}</span>${big ? `<p class="calls-bbig">${esc(big)}</p>` : ""}${small ? `<p class="calls-bsmall">${esc(small)}</p>` : ""}${note}</div>
+  </article>`;
+}
+/* The last bubbles over the stage: left for others, right for you; older ones fade out. */
+function subtitleBlock() {
+  const rows = [];
+  const now = Date.now();
+  state.lines.filter((l) => !l.note && l.at && now - l.at < CAP_GONE_MS).slice(-(state.capSize === "xl" ? 2 : CAP_SHOW)).forEach((l) => rows.push(bubbleHtml(l, { cap: true })));
+  const p = state.partial || {};
+  if (p.original || p.translation) {
+    const mine = !!state.test;
+    const who = state.whoLabel || (mine ? tr("You") : (state.peerName || tr("Guest")));
+    rows.push(bubbleHtml({ who, mine, original: p.original || "", translation: p.translation || "" }, { cap: true, live: true }));
+  }
+  const html = rows.filter(Boolean).slice(-(state.capSize === "xl" ? 2 : CAP_SHOW)).join("");
+  return `<div class="calls-subs" data-size="${esc(state.capSize)}" aria-live="polite">${html}</div>`;
 }
 
 function bubble(line) {
-  const mine = line.mine ? " mine" : "";
-  const note = line.note ? `<button type="button" data-act="call-replay" data-id="${esc(line.id)}">${esc(tr("Replay"))}</button>` : "";
-  return `<article class="calls-bubble${mine}"><b>${esc(line.who || "")}</b>${line.original ? `<p>${esc(line.original)}</p>` : ""}${line.translation && line.translation !== line.original ? `<p class="calls-trn">${esc(line.translation)}</p>` : ""}${note}</article>`;
+  return bubbleHtml(line, {});
 }
 function threadBlock() {
-  return `<div class="calls-thread">${state.lines.slice(-12).map(bubble).join("")}</div>`;
+  return `<div class="calls-thread" data-size="${esc(state.capSize)}">${state.lines.slice(-30).map(bubble).join("")}</div>`;
 }
 
 function langOptions(current) {
@@ -368,6 +413,10 @@ function moreSheet() {
       ${pill("subtitles", "translated", state.mode.subtitles, tr("Translation subtitles"))}
       ${pill("subtitles", "original", state.mode.subtitles, tr("Original subtitles"))}
       ${pill("subtitles", "both", state.mode.subtitles, tr("Original and translation"))}
+    </div>
+    <h3>${esc(tr("Caption size"))}</h3>
+    <div class="calls-modes" role="group" aria-label="${esc(tr("Caption size"))}">
+      ${CAP_SIZES.map((z) => `<button type="button" class="calls-pill${state.capSize === z ? " on" : ""}" data-act="call-capsize" data-value="${z}" aria-pressed="${state.capSize === z ? "true" : "false"}">${esc(z === "s" ? tr("Small") : z === "m" ? tr("Medium") : z === "l" ? tr("Large") : tr("Extra large"))}</button>`).join("")}
     </div>
     <div class="calls-modes">
       <button type="button" class="calls-pill${state.mode.translationOnly ? " on" : ""}" data-act="call-set" data-group="translationOnly" data-value="${state.mode.translationOnly ? "0" : "1"}" aria-pressed="${state.mode.translationOnly ? "true" : "false"}">${esc(tr("Others hear only the translation"))}</button>
@@ -802,7 +851,7 @@ function live() {
   const test = el.querySelector("[data-test]");
   if (test && state.test) {
     const box = test.querySelector(".calls-thread");
-    if (box) box.innerHTML = state.test.lines.slice(-6).map((line) => `<article class="calls-bubble${line.mine ? " mine" : ""}"><b>${esc(line.who)}</b>${line.original ? `<p>${esc(line.original)}</p>` : ""}${line.translation ? `<p class="calls-trn">${esc(line.translation)}</p>` : ""}</article>`).join("");
+    if (box) box.innerHTML = state.test.lines.slice(-6).map((line) => bubbleHtml(line, {})).join("");
   }
 }
 function paintStats() {
@@ -878,7 +927,7 @@ function ringStop() {
 
 /* ---------- engine wiring ---------- */
 function pushLine(line) {
-  const row = Object.assign({ id: String(Date.now()) + Math.floor(Math.random() * 1000) }, line);
+  const row = Object.assign({ id: String(Date.now()) + Math.floor(Math.random() * 1000), at: Date.now() }, line);
   state.lines.push(row);
   if (row.translation && !row.mine) state.lastLine = rememberLine(state.lastLine, { text: row.translation });
   if (state.lines.length > 40) state.lines.shift();
@@ -1314,7 +1363,7 @@ async function startPartner(invite) {
         if (d.mine) state.test.lines.push({ who: tr("Test partner"), mine: true, original: d.original });
         else {
           state.test.lines.push({ who: tr("You"), original: d.original, translation: d.translation });
-          state.lines.push({ who: tr("You") + " → " + langName(state.test.lang), mine: true, original: d.original, translation: d.translation });
+          state.lines.push({ id: String(Date.now()), at: Date.now(), who: tr("You") + " → " + langName(state.test.lang), mine: true, original: d.original, translation: d.translation });
           if (state.lines.length > 40) state.lines.shift();
         }
         live();
@@ -1428,6 +1477,7 @@ function onAct(act, el) {
   else if (act === "call-open") { state.pendingTo = el.dataset.handle || ""; }
   else if (act === "call-invite") startInvite();
   else if (act === "call-test") prepareTest();
+  else if (act === "call-capsize") { if (CAP_SIZES.indexOf(el.dataset.value) >= 0) { state.capSize = el.dataset.value; saveDevice(); paint(); } }
   else if (act === "call-test-start") startTest();
   else if (act === "call-test-cancel") cancelTest();
   else if (act === "call-test-copy") {
