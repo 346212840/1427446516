@@ -6724,5 +6724,19 @@ SI18n.addPack("hi", {
   "Set Microphone to Allow.": "माइक्रोफ़ोन को अनुमति दें पर सेट करें।",
   "Click the site settings icon left of the address bar.": "एड्रेस बार के बाईं ओर साइट सेटिंग आइकन पर क्लिक करें।",
   "Open Microphone and choose Allow.": "माइक्रोफ़ोन खोलें और अनुमति दें चुनें।",
-  "Call details": "कॉल का विवरण"
+  "Call details": "कॉल का विवरण",
+  "Remove from history": "इतिहास से हटाएँ",
+  "Removed from your history": "आपके इतिहास से हटा दिया गया",
+  "Could not update your history. Try again.": "आपका इतिहास अपडेट नहीं हो सका। फिर कोशिश करें।",
+  "Call history cleared": "कॉल इतिहास साफ़ किया गया",
+  "Clear all calls?": "सभी कॉल साफ़ करें?",
+  "This only removes them from your own history. The other person keeps theirs.": "यह केवल आपके अपने इतिहास से हटाता है। दूसरे व्यक्ति का इतिहास बना रहता है।",
+  "callsSelected.one": "{n} चुनी गई",
+  "callsSelected.other": "{n} चुनी गईं",
+  "callsRemoved.one": "{n} कॉल आपके इतिहास से हटाई गई",
+  "callsRemoved.other": "{n} कॉल आपके इतिहास से हटाई गईं",
+  "callsSelected.few": "{n} चुनी गईं",
+  "callsSelected.many": "{n} चुनी गईं",
+  "callsRemoved.few": "{n} कॉल आपके इतिहास से हटाई गईं",
+  "callsRemoved.many": "{n} कॉल आपके इतिहास से हटाई गईं"
 });

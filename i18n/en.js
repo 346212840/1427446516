@@ -6734,5 +6734,19 @@ SI18n.addPack("en", {
   "Set Microphone to Allow.": "Set Microphone to Allow.",
   "Click the site settings icon left of the address bar.": "Click the site settings icon left of the address bar.",
   "Open Microphone and choose Allow.": "Open Microphone and choose Allow.",
-  "Call details": "Call details"
+  "Call details": "Call details",
+  "Remove from history": "Remove from history",
+  "Removed from your history": "Removed from your history",
+  "Could not update your history. Try again.": "Could not update your history. Try again.",
+  "Call history cleared": "Call history cleared",
+  "Clear all calls?": "Clear all calls?",
+  "This only removes them from your own history. The other person keeps theirs.": "This only removes them from your own history. The other person keeps theirs.",
+  "callsSelected.one": "{n} selected",
+  "callsSelected.other": "{n} selected",
+  "callsRemoved.one": "{n} call removed from your history",
+  "callsRemoved.other": "{n} calls removed from your history",
+  "callsSelected.few": "{n} selected",
+  "callsSelected.many": "{n} selected",
+  "callsRemoved.few": "{n} calls removed from your history",
+  "callsRemoved.many": "{n} calls removed from your history"
 });

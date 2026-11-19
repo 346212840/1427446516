@@ -21,7 +21,7 @@
   box-sizing: border-box;
 }
 .calls-page *, .calls-page *::before, .calls-page *::after, .calls-mm-wrap *, .calls-mm-wrap *::before, .calls-mm-wrap *::after { box-sizing: inherit; }
-.calls-page button, .calls-mm-wrap button { font: inherit; color: inherit; cursor: pointer; }
+:where(.calls-page, .calls-mm-wrap) button { font: inherit; color: inherit; cursor: pointer; }
 .calls-page button:disabled { opacity: 0.4; cursor: not-allowed; }
 .calls-page a { color: var(--c-blue); }
 .calls-ico { width: 22px; height: 22px; flex: none; }
@@ -320,3 +320,24 @@
 .calls-teststrip .calls-info .calls-ico { width: 20px; height: 20px; }
 .calls-teststrip .calls-info.on { background: var(--c-blue); color: #fff; }
 .calls-chips[hidden] { display: none; }
+
+/* ---- editing call history ---- */
+.calls-histbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 16px; min-height: 36px; }
+.calls-histbar .calls-link { text-decoration: none; font-size: 14px; }
+.calls-histbar.sel { position: sticky; top: 0; z-index: 2; background: var(--c-bg); border-bottom: 1px solid var(--c-line); }
+.calls-histn { flex: 1; text-align: center; font-weight: 700; font-size: 14px; }
+.calls-pill.danger, .calls-go.danger { background: var(--c-red); border-color: var(--c-red); color: #fff; }
+.calls-pill.danger { min-height: 32px; padding: 0 12px; }
+.calls-row { position: relative; transition: transform 0.15s ease, opacity 0.2s ease; touch-action: pan-y; }
+.calls-row.gone { opacity: 0; transform: translateX(-100%); }
+.calls-row.picked { background: var(--c-hover); }
+.calls-rowx { width: 32px; height: 32px; border-radius: 50%; border: 0; background: transparent; color: var(--c-muted); display: none; align-items: center; justify-content: center; flex: none; }
+.calls-rowx .calls-ico { width: 16px; height: 16px; margin: 0; }
+.calls-rowx:hover { background: var(--c-hover); color: var(--c-red); }
+.calls-row:hover .calls-rowx, .calls-row:focus-within .calls-rowx { display: inline-flex; }
+@media (hover: none) { .calls-row .calls-rowx { display: inline-flex; } }
+.calls-check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--c-muted); background: transparent; color: #fff; display: inline-flex; align-items: center; justify-content: center; flex: none; padding: 0; }
+.calls-check.on { background: var(--c-blue); border-color: var(--c-blue); }
+.calls-check .calls-ico { width: 14px; height: 14px; margin: 0; }
+.calls-undo { position: fixed; z-index: 650; left: 50%; bottom: 24px; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; max-width: calc(100vw - 24px); padding: 12px 16px; border-radius: 12px; background: #1d9bf0; color: #fff; font-size: 15px; font-weight: 500; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4); }
+.calls-undo button { background: transparent; border: 0; color: #fff; font: inherit; font-weight: 800; text-decoration: underline; cursor: pointer; padding: 4px; }

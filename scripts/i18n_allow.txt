@@ -624,3 +624,4 @@ calls.js|Sí, et sento.
 calls.js|Pots repetir-ho?
 calls.js|Gràcies, em va bé.
 keys: shared/call-engine.js
+calls.js|{n} selected
