@@ -113,6 +113,13 @@
     return { model: view.model, prompt: prompt };
   }
 
+  function repaint(host) {
+    var box = host.querySelector("[data-flow-root]");
+    if (!box) return;
+    box.outerHTML = html();
+    mount(host);
+  }
+
   function mount(host) {
     var slot = host.querySelector("[data-flow-root]") || host.querySelector("[data-local-voice]");
     var box = host.querySelector("[data-flow-root]");
