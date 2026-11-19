@@ -50,6 +50,8 @@
 
   function installHandset(ua, extra) {
     extra = extra || {};
+    /* iPadOS reports a Mac user agent. A touch Mac is still a handset. */
+    if (extra.touchMac) return true;
     if (wideDesktopOs(ua, extra.width)) return false;
     if (extra.coarse && !(extra.fine && extra.hover)) return true;
     return /android|mobile|iphone|ipod/i.test(String(ua || ""));
