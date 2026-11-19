@@ -288,6 +288,7 @@ const NAV_STEPS = [
   step("notif-sounds", "node scripts/notif_sounds_test.mjs", { needs: ["pw", "browser"], paths: [file("notif_sounds_test.mjs"), /^notif-sounds\.js$/, ...APP] }),
   step("menu-pages", "node scripts/menu_pages_test.mjs", { weight: 40, needs: ["pw", "browser"], paths: [file("menu_pages_test.mjs"), ...APP] }),
   step("x-card-fit", "node scripts/x_card_fit_test.mjs", { needs: ["pw", "browser"], paths: [file("x_card_fit_test.mjs"), /^video-embed\.js$/, ...APP] }),
+  step("app-base", "node scripts/app_base_test.mjs", { needs: ["pw", "browser"], paths: [file("app_base_test.mjs"), /^shared\/app-base\.js$/] }),
   step("about-layout", "node scripts/about_layout_test.mjs", { needs: ["pw"], paths: [file("about_layout_test.mjs")] }),
   step("points-layout", "node scripts/points_layout_test.mjs", { needs: ["pw"], paths: [file("points_layout_test.mjs")] }),
   step("stories-layout", "node scripts/stories_layout_test.mjs", { needs: ["pw"], paths: [file("stories_layout_test.mjs")] }),
@@ -296,7 +297,7 @@ const NAV_STEPS = [
 
 const SHARDS = {
   checks: ["action-bar", "assemble-self", "r2-catalog", "catalog-migrate", "handle-guard", "i18n", "telegram-stories", "stories", "device", "translate", "ondevice-ai", "dock", "for-you", "storage-recordings", "app-scale", "image-copy"],
-  site: ["about-layout", "points-layout", "stories-layout", "assemble-site", "smoke-site", "smoke-mirror", "yt-embed", "x-video", "ios", "live", "shorts-page"],
+  site: ["about-layout", "points-layout", "stories-layout", "assemble-site", "smoke-site", "smoke-mirror", "yt-embed", "x-video", "ios", "live", "shorts-page", "app-base"],
   "ui-fast": ["notifications", "scrollbar-hidden", "pill-fit", "sidebar", "privacy", "title-privacy", "desktop-squares", "storage-page"],
   sw: ["sw-update"],
   "ui-profile": ["profile", "profile-tab-scroll"],
@@ -329,7 +330,7 @@ const REQUIRED_PAGE = [
   "device-guard", "usernames", "display-names", "settings-assistant", "nostr-settings", "games-mobile",
   "live-translate", "friend-p2p", "friend-refresh", "communities-instant", "routes-instant", "profile-by-name", "people-search", "emoji-text", "post-menu", "show-more-scroll", "action-speed", "reply-pending", "tab-sync",
   "communities-rows", "friend-privacy", "foryou-communities", "foryou-chunks", "author-marks", "foryou-off", "title-privacy", "desktop-squares",
-  "storage-recordings", "storage-page", "app-scale", "image-copy"
+  "storage-recordings", "storage-page", "app-scale", "image-copy", "app-base"
 ];
 
 export function stepsFor(suite) {

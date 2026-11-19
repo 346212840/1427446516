@@ -97,7 +97,7 @@ async function cronWhilePaused(worker, minute) {
   const discordJobs = count("discord-live.yml");
   const mark = dispatches.length;
   await worker.scheduled({ cron: "* * * * *", scheduledTime: atMinute(minute) });
-  const added = dispatches.slice(mark);
+  const added = dispatches.slice(mark).filter((path) => path.indexOf("/repos/") === 0 && path.indexOf("/actions/") >= 0);
   const label = "minute " + minute;
   assert.equal(count("tiktok-live-upload.yml"), uploads, label + ": pause holds the upload job");
   assert.equal(count("tiktok-record.yml"), records, label + ": recording stays off");
