@@ -6286,6 +6286,12 @@ header.nav.nav-land { display: none; }
 }
 .feeds-fold-title { flex: 1 1 auto; min-width: 0; overflow: hidden; }
 .feeds-fold .feeds-count { flex: 0 0 auto; }
+@media (prefers-reduced-motion: reduce) {
+  .feeds-fold .sp-marquee.is-on .sp-marquee-track { animation: none; }
+  .feeds-fold .sp-marquee.is-on .sp-marquee-clip { -webkit-mask-image: none; mask-image: none; }
+  .feeds-fold .sp-marquee.is-on .sp-marquee-copy[aria-hidden="true"] { display: none; }
+  .feeds-fold .sp-marquee .sp-marquee-text { display: block; width: auto; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+}
 .feeds-fold:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
 .feeds-row {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center;

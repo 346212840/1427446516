@@ -675,6 +675,29 @@ async function runDrop(browser, origin) {
   if (!longHead) fail("drop: a long section title did not stay on one scrolling line");
   const headShape = await longHead.jsonValue();
   if (headShape.headH !== 40 || headShape.foldH > 40 || headShape.nowrap !== "nowrap" || headShape.shortStill || !headShape.countInside || headShape.steals) fail("drop: a long section title overflows the head " + JSON.stringify(headShape));
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const reducedHead = await page.waitForFunction(() => {
+    const marquee = document.querySelector('.feeds-section-head[data-id="galpha"] [data-sp-marquee]');
+    if (!marquee || marquee.classList.contains("is-on")) return null;
+    marquee.classList.add("is-on");
+    const copy = marquee.querySelector('.sp-marquee-copy[aria-hidden="true"]');
+    const text = marquee.querySelector(".sp-marquee-text");
+    const held = {
+      copy: copy ? getComputedStyle(copy).display : "",
+      ellipsis: text ? getComputedStyle(text).textOverflow : ""
+    };
+    marquee.classList.remove("is-on");
+    return held;
+  }, null, { timeout: 5000 }).catch(() => null);
+  if (!reducedHead) fail("drop: reduced motion left the section title scrolling");
+  const reducedShape = await reducedHead.jsonValue();
+  if (reducedShape.copy !== "none" || reducedShape.ellipsis !== "ellipsis") fail("drop: reduced motion did not keep a single ellipsis " + JSON.stringify(reducedShape));
+  await page.locator('[data-feed-act="platform"][data-platform=""]').click();
+  const stayedOff = await page.waitForFunction(() => {
+    const marquee = document.querySelector('.feeds-section-head[data-id="galpha"] [data-sp-marquee]');
+    return !!(marquee && !marquee.classList.contains("is-on"));
+  }, null, { timeout: 5000 }).catch(() => null);
+  if (!stayedOff) fail("drop: a redraw turned the section title scroll back on");
   await page.evaluate(() => {
     const from = document.querySelector('[data-feed-drag="group:galpha"]');
     const to = document.querySelector('.feeds-section-head[data-id="platform:rss"]');

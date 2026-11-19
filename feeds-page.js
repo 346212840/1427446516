@@ -905,16 +905,29 @@
     return `<span class="feeds-fold-title" data-fold-title><span class="sp-marquee" data-sp-marquee><span class="sp-marquee-clip"><span class="sp-marquee-track"><span class="sp-marquee-copy"><span class="sp-marquee-text">${safe}</span></span><span class="sp-marquee-copy" aria-hidden="true"><span class="sp-marquee-text">${safe}</span></span></span></span></span></span>`;
   }
 
+  function reducedMotion() {
+    return typeof matchMedia === "function" && !!matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
   /* The window reserves 40px for every head. A long name stays on that line
-     and scrolls, instead of wrapping over the next row. */
+     and scrolls, instead of wrapping over the next row. Reduced motion keeps
+     one ellipsis line: a later pass must not turn the scroll back on. */
   function fitFoldTitles(root) {
     if (!root || !root.querySelectorAll) return;
+    const reduced = reducedMotion();
     root.querySelectorAll("[data-fold-title]").forEach((el) => {
       const marquee = el.querySelector("[data-sp-marquee]");
       const clip = el.querySelector(".sp-marquee-clip");
       const text = el.querySelector(".sp-marquee-text");
       if (!marquee || !clip || !text) return;
-      marquee.classList.toggle("is-on", text.scrollWidth > clip.clientWidth + 1);
+      const previousDisplay = text.style.display;
+      const previousSpace = text.style.whiteSpace;
+      text.style.display = "inline-block";
+      text.style.whiteSpace = "nowrap";
+      const overflow = text.scrollWidth - clip.clientWidth;
+      text.style.display = previousDisplay;
+      text.style.whiteSpace = previousSpace;
+      marquee.classList.toggle("is-on", !reduced && overflow > 1);
     });
   }
 
@@ -1282,6 +1295,15 @@
     document.addEventListener("pointercancel", function () { if (page.drag) releaseDrag(); });
     document.addEventListener("dragover", onDragOver);
     document.addEventListener("drop", onDrop);
+    if (typeof matchMedia === "function") {
+      const media = matchMedia("(prefers-reduced-motion: reduce)");
+      const onMotion = () => {
+        const box = document.querySelector("[data-feed-window]");
+        if (box) fitFoldTitles(box);
+      };
+      if (media.addEventListener) media.addEventListener("change", onMotion);
+      else if (media.addListener) media.addListener(onMotion);
+    }
   }
 
   window.FeedsPage = { attach: attach, view: view, onAdd: onAdd };
