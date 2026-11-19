@@ -10,6 +10,7 @@ import { outputGains, reconnectDelay, MIC_CONSTRAINTS, normalizeVolumes } from "
 import { normalizeMode, transmitOriginal, playTranslatedVoice, noteShouldAutoplay } from "./call-mode.js";
 import { createVoiceMatch } from "./call-voice.js";
 import { lighterFor, cleanLexicon } from "./call-quality.js";
+import { pickBitrate, setAudioSession } from "./call-mobile.js";
 import { createLiveSession, MIC_WORKLET, OUTPUT_RATE, CHUNK_MS } from "./call-gemini.js";
 import { createDiarizer } from "./call-speakers.js";
 
@@ -45,6 +46,9 @@ function now() {
 
 /* One Gemini Live Translate socket. It is direct first and falls back to
    our Worker relay when Google cannot be reached from this network. */
+/* An AudioWorklet module is added once per audio context, even across calls. */
+const workletReady = new WeakSet();
+
 export function createPipe(env, opts) {
   const pipe = {
     id: opts.id,
@@ -64,6 +68,7 @@ export function createPipe(env, opts) {
   let idle = null;
   let partial = { original: "", translation: "" };
   let sentSince = false;
+  let connecting = false;
 
   function finishLine() {
     clearTimeout(idle);
@@ -133,6 +138,11 @@ export function createPipe(env, opts) {
     if (sc.turnComplete) finishLine();
   }
   async function connect() {
+    if (pipe.closed || connecting) return;
+    connecting = true;
+    try { await connectOnce(); } finally { connecting = false; }
+  }
+  async function connectOnce() {
     if (pipe.closed) return;
     let minted = null;
     try {
@@ -269,6 +279,13 @@ export function createPipe(env, opts) {
     setTimeout(connect, reconnectDelay(attempt));
   }
   pipe.open = connect;
+  /* The network came back or changed: do not wait out the back-off. */
+  pipe.nudge = () => {
+    if (pipe.closed || connecting) return;
+    if (ws && ws.readyState === 1 && pipe.ready) return;
+    attempt = 0;
+    connect();
+  };
   pipe.send = (pcm) => {
     if (!ws || ws.readyState !== 1 || !pipe.ready) return false;
     try {
@@ -305,6 +322,8 @@ export function createEngine(cfg) {
   const peer = { id: "", name: "", lang: "", pre: false, degraded: false, joined: false };
   const route = { via: "direct" };
   let ac = null;
+  let shared = false;
+  const taps = [];
   let master = null;
   let origOut = null;
   let transOut = null;
@@ -465,6 +484,8 @@ export function createEngine(cfg) {
       try { await pc.setRemoteDescription({ type: "answer", sdp: d.sdp }); } catch (err) { /* stale answer */ }
     } else if (d.kind === "ice") {
       try { await pc.addIceCandidate(d.candidate); } catch (err) { /* late candidate */ }
+    } else if (d.kind === "restart") {
+      if (call.role === "host") await offer(true);
     } else if (d.kind === "mode") {
       onPeerMode(d);
     } else if (d.kind === "chat") {
@@ -612,9 +633,9 @@ export function createEngine(cfg) {
   /* ---------- audio taps ---------- */
   async function tapNode(onFrame) {
     const url = URL.createObjectURL(new Blob([MIC_WORKLET], { type: "text/javascript" }));
-    if (!E._workletLoaded) {
+    if (!workletReady.has(ac)) {
       await ac.audioWorklet.addModule(url);
-      E._workletLoaded = true;
+      workletReady.add(ac);
     }
     URL.revokeObjectURL(url);
     const node = new AudioWorkletNode(ac, "call-mic", { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 1 });
@@ -623,6 +644,7 @@ export function createEngine(cfg) {
     mute.gain.value = 0;
     node.connect(mute);
     mute.connect(ac.destination);
+    taps.push(node, mute);
     return node;
   }
   function onRemoteFrame(pcm) {
@@ -675,7 +697,10 @@ export function createEngine(cfg) {
   E.start = async function start(info) {
     call = { id: info.id, ticket: info.ticket, role: info.role === "host" ? "host" : "guest" };
     ended = false;
-    ac = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: "interactive" });
+    shared = !!(cfg.audioContext && cfg.audioContext());
+    ac = shared ? cfg.audioContext() : new (window.AudioContext || window.webkitAudioContext)({ latencyHint: "interactive" });
+    setAudioSession(navigator, "play-and-record");
+    if (ac.state !== "running") ac.resume().catch(() => {});
     master = ac.createGain();
     master.connect(ac.destination);
     origOut = ac.createGain();
@@ -744,21 +769,70 @@ export function createEngine(cfg) {
       }
     });
     document.addEventListener("visibilitychange", onVisible);
-    ac.onstatechange = () => { if (ac && ac.state === "suspended" && !ended) ac.resume().catch(() => {}); };
+    /* iOS also reports "interrupted" (a phone call, Siri, the lock screen). */
+    ac.onstatechange = () => { if (ac && ac.state !== "running" && ac.state !== "closed" && !ended) ac.resume().catch(() => {}); };
+    ["pageshow", "focus"].forEach((name) => window.addEventListener(name, onVisible));
+    window.addEventListener("online", onNetwork);
+    try { if (navigator.connection && navigator.connection.addEventListener) navigator.connection.addEventListener("change", onNetwork); } catch (err) { /* no Network Information API */ }
+    every(2000, () => { if (ac && ac.state !== "running" && ac.state !== "closed" && document.visibilityState !== "hidden") ac.resume().catch(() => {}); });
+    every(4000, adaptLink);
     applyGains();
     await connectSignal();
     ensureRx();
     ensureTx();
   };
-  function onVisible() { if (ac && ac.state === "suspended") ac.resume().catch(() => {}); }
-  function applyBitrate() {
+  function onVisible() { if (ac && ac.state !== "running" && ac.state !== "closed") ac.resume().catch(() => {}); }
+  /* A switch from Wi-Fi to mobile data (or back) leaves the old paths dead. */
+  let netTimer = null;
+  function onNetwork() {
+    if (ended) return;
+    clearTimeout(netTimer);
+    netTimer = setTimeout(() => { if (!ended) E.nudge(); }, 400);
+  }
+  E.nudge = function nudge() {
+    if (ended || !call) return;
+    sigAttempt = 0;
+    if (!sig) connectSignal();
+    const st = pc ? pc.iceConnectionState : "";
+    if (pc && st !== "connected" && st !== "completed") {
+      emit("status", { code: "reconnecting" });
+      if (call.role === "host") offer(true); else signal({ kind: "restart" });
+    } else if (pc && call.role === "host") {
+      /* The addresses may have changed even though the old path still reads connected. */
+      offer(true);
+    }
+    [rx, tx].forEach((p) => { if (p && p.nudge) p.nudge(); });
+  };
+  let link = { level: 0, good: 0 };
+  let lastSent = 0;
+  let lastLost = 0;
+  async function adaptLink() {
+    if (!pc || ended) return;
+    let rtt = 0;
+    let loss = 0;
+    try {
+      const stats = await pc.getStats();
+      stats.forEach((row) => {
+        if (row.type === "remote-inbound-rtp" && row.kind === "audio") {
+          if (typeof row.roundTripTime === "number") rtt = row.roundTripTime;
+          if (typeof row.fractionLost === "number") loss = row.fractionLost;
+        }
+      });
+    } catch (err) { return; }
+    const next = pickBitrate(link, { loss: loss, rtt: rtt });
+    const changed = next.level !== link.level;
+    link = next;
+    if (changed) { applyBitrate(next.bitrate); emit("link", { level: next.level, bitrate: next.bitrate, loss: loss, rtt: rtt }); }
+  }
+  function applyBitrate(forced) {
     try {
       const sender = pc.getSenders().find((s) => s.track && s.track.kind === "audio");
       if (!sender || !sender.getParameters) return;
       const lighter = lighterFor(cfg.connection ? cfg.connection() : {});
       const params = sender.getParameters();
       if (!params.encodings || !params.encodings.length) params.encodings = [{}];
-      params.encodings[0].maxBitrate = lighter.lighter ? lighter.bitrate : 64000;
+      const base = lighter.lighter ? lighter.bitrate : 64000;
+      params.encodings[0].maxBitrate = forced ? Math.min(forced, base) : Math.min(base, link.level ? pickBitrate({ level: link.level, good: 0 }, { loss: 0, rtt: 0 }).bitrate : base);
       sender.setParameters(params).catch(() => {});
     } catch (err) { /* the default bitrate is fine */ }
   }
@@ -949,6 +1023,11 @@ export function createEngine(cfg) {
     timers.forEach(clearInterval);
     timers = [];
     document.removeEventListener("visibilitychange", onVisible);
+    ["pageshow", "focus"].forEach((name) => window.removeEventListener(name, onVisible));
+    window.removeEventListener("online", onNetwork);
+    try { if (navigator.connection && navigator.connection.removeEventListener) navigator.connection.removeEventListener("change", onNetwork); } catch (err) { /* nothing bound */ }
+    clearTimeout(netTimer);
+    setAudioSession(navigator, "auto");
     if (!silent && call) { try { await cfg.api("/v1/calls/" + call.id + "/end", { method: "POST", body: "{}" }); } catch (err) { /* the row expires */ } }
     [rx, tx].forEach((p) => { if (p) { p.finish(); p.close(); } });
     rx = null;
@@ -958,7 +1037,13 @@ export function createEngine(cfg) {
     try { if (pc) pc.close(); } catch (err) { /* closed */ }
     if (micStream && (ownMic || true)) micStream.getTracks().forEach((t) => t.stop());
     if (remoteEl) { remoteEl.srcObject = null; }
-    try { if (ac) await ac.close(); } catch (err) { /* closed */ }
+    if (ac && shared) {
+      /* The unlocked context outlives the call, so only this call's graph goes. */
+      ac.onstatechange = null;
+      [master, origOut, transOut, remoteBus, remoteSrc, origToSend, transToSend, micLevel].concat(taps).forEach((node) => { try { if (node) node.disconnect(); } catch (err) { /* gone */ } });
+    } else {
+      try { if (ac) await ac.close(); } catch (err) { /* closed */ }
+    }
     ac = null;
     pc = null;
     sig = null;

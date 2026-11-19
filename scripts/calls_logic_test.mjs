@@ -14,6 +14,7 @@ import { createDiarizer, overlappingPitches } from "../shared/call-speakers.js";
 import { liveSetup, rejectsClone } from "../shared/call-setup.js";
 import { createHistory, loadLocal, recordLocal, removeRows, restoreRows, swipeAction, toggleSet } from "../shared/call-history.js";
 import { createRaiseDetector, earSinkId, cheekLike, createUnlocker, EAR_VOLUME_CAP } from "../shared/call-ear.js";
+import { pickBitrate, createAudioUnlock, setAudioSession, createWakeFallback, NOSLEEP_MP4, BITRATES } from "../shared/call-mobile.js";
 import { createPipe } from "../shared/call-engine.js";
 import { relayHint } from "../worker/src/calls.js";
 import pagesRelay from "./pages_relay_worker.js";
@@ -403,6 +404,65 @@ assert.equal(langName("zz", "en"), "zz");
   assert.equal(await (await hit("/index.html")).text(), "asset");
   assert.equal((await hit("/v1/calls/live?t=abcdefgh1234")).status, 426);
   assert.equal((await hit("/v1/calls/live?t=%20bad", { headers: { Upgrade: "websocket" } })).status, 400);
+}
+
+
+/* Phone hardening: bitrate steps, the iOS audio unlock, the wake fallback. */
+{
+  let st = { level: 0, good: 0 };
+  st = pickBitrate(st, { loss: 0, rtt: 0.08 });
+  assert.equal(st.bitrate, 64000, "a clean link keeps full quality");
+  st = pickBitrate(st, { loss: 0.05, rtt: 0.2 });
+  assert.equal(st.bitrate, 24000, "5% loss drops at once");
+  st = pickBitrate(st, { loss: 0.12, rtt: 0.3 });
+  assert.equal(st.bitrate, BITRATES[3], "12% loss drops to the floor");
+  st = pickBitrate(st, { loss: 0, rtt: 0.1 });
+  st = pickBitrate(st, { loss: 0, rtt: 0.1 });
+  assert.equal(st.level, 3, "it does not climb back on two good samples");
+  st = pickBitrate(st, { loss: 0, rtt: 0.1 });
+  assert.equal(st.level, 2, "three good samples climb one step");
+  assert.equal(pickBitrate({ level: 0, good: 0 }, { loss: 0, rtt: 0.7 }).level, 2, "a very slow round trip counts as bad");
+  assert.equal(pickBitrate(null, null).bitrate, 64000);
+
+  let made = 0;
+  let resumed = 0;
+  class FakeCtx {
+    constructor() { made += 1; this.state = "suspended"; this.destination = {}; }
+    resume() { resumed += 1; this.state = "running"; return Promise.resolve(); }
+    createBuffer() { return {}; }
+    createBufferSource() { return { connect() {}, start() {} }; }
+  }
+  const unlock = createAudioUnlock({ AudioContext: FakeCtx });
+  assert.equal(unlock.get(), null, "nothing exists before the first tap");
+  const first = unlock.unlock();
+  assert.equal(first.state, "running");
+  assert.equal(unlock.unlock(), first, "later taps reuse the same context");
+  assert.equal(made, 1);
+  first.state = "closed";
+  assert.equal(unlock.get(), null, "a closed context is not handed out");
+  unlock.unlock();
+  assert.equal(made, 2, "a closed one is replaced on the next tap");
+  const listeners = [];
+  unlock.bind({ addEventListener: (name) => listeners.push(name) });
+  unlock.bind({ addEventListener: (name) => listeners.push(name) });
+  assert.deepEqual(listeners.sort(), ["click", "keydown", "pointerdown", "touchend"], "bound once");
+  assert.equal(createAudioUnlock({}).unlock(), null, "no Web Audio means no crash");
+
+  const nav = { audioSession: { type: "auto" } };
+  assert.equal(setAudioSession(nav, "play-and-record"), true);
+  assert.equal(nav.audioSession.type, "play-and-record");
+  assert.equal(setAudioSession({}, "auto"), false, "a browser without the API is left alone");
+
+  const body = [];
+  const doc = { body: { appendChild: (el) => body.push(el) }, createElement: () => ({ style: {}, setAttribute() {}, play: () => Promise.resolve(), pause() {}, removeAttribute() {}, load() {}, remove() { body.length = 0; } }) };
+  const wake = createWakeFallback(doc);
+  wake.on(); wake.on();
+  assert.equal(body.length, 1, "one hidden clip, however many times it is asked");
+  assert.ok(body[0].src.startsWith("data:video/mp4;base64,") && NOSLEEP_MP4.length < 4000, "tiny inline clip");
+  assert.equal(wake.active(), true);
+  wake.off();
+  assert.equal(wake.active(), false);
+  assert.equal(body.length, 0);
 }
 
 console.log("calls logic ok", JSON.stringify(report));

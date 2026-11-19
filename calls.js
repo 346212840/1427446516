@@ -10,6 +10,7 @@ import { createVoiceMatch, PREBUILT_VOICES, DEFAULT_VOICE } from "./shared/call-
 import { createHistory, recordLocal, swipeAction, toggleSet } from "./shared/call-history.js";
 import { createRaiseDetector, earSinkId, createUnlocker, EAR_VOLUME_CAP } from "./shared/call-ear.js";
 import { lighterFor, pickSink, cleanLexicon, lexiconHint, rememberLine } from "./shared/call-quality.js";
+import { createAudioUnlock, createWakeFallback } from "./shared/call-mobile.js";
 import { createLiveSession, MIC_WORKLET, OUTPUT_RATE, CHUNK_SAMPLES, proxiesAudio } from "./shared/call-gemini.js";
 import { createDiarizer } from "./shared/call-speakers.js";
 import { createEngine } from "./shared/call-engine.js";
@@ -1226,9 +1227,14 @@ async function bindSession(active) {
   const handlers = [["pause", () => setMuted(true)], ["play", () => setMuted(false)], ["stop", () => hangUp()], ["hangup", () => hangUp()], ["togglemicrophone", () => setMuted(!state.muted)]];
   handlers.forEach((row) => { try { ms.setActionHandler(row[0], row[1]); } catch (err) { /* this action is not supported here */ } });
 }
+/* iOS makes the audio context in a tap or it stays silent, so the first tap anywhere unlocks one the calls reuse. */
+const audioUnlock = createAudioUnlock(window);
+if (typeof document !== "undefined") audioUnlock.bind(document);
+const wakeFallback = createWakeFallback(typeof document !== "undefined" ? document : null);
 async function holdWake(on) {
   try {
     if (!on) {
+      wakeFallback.off();
       if (state.wake) await state.wake.release();
       state.wake = null;
       return;
@@ -1236,8 +1242,11 @@ async function holdWake(on) {
     if ((!state.wake || state.wake.released) && navigator.wakeLock) {
       state.wake = await navigator.wakeLock.request("screen");
       try { state.wake.addEventListener("release", () => { if (state.wake && state.wake.released) state.wake = null; }); } catch (err) { /* older browsers */ }
-    }
-  } catch (err) { /* a denied wake lock does not end the call */ }
+    } else if (!navigator.wakeLock) wakeFallback.on();
+  } catch (err) {
+    /* A denied wake lock does not end the call. A looping muted clip keeps the screen on instead. */
+    wakeFallback.on();
+  }
 }
 async function routeOutput() {
   try {
@@ -1413,13 +1422,17 @@ if (typeof document !== "undefined") {
 
 /* ---------- ringing ---------- */
 let ringCtx = null;
+let ringOwn = true;
 let ringTimer = null;
 function ringStart() {
   ringStop();
   try {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
-    ringCtx = new AC();
+    const reuse = audioUnlock.get();
+    ringOwn = !reuse;
+    ringCtx = reuse || new AC();
+    if (ringCtx.state !== "running") ringCtx.resume().catch(() => {});
     const beep = () => {
       if (!ringCtx) return;
       const osc = ringCtx.createOscillator();
@@ -1438,7 +1451,7 @@ function ringStart() {
 function ringStop() {
   clearInterval(ringTimer);
   ringTimer = null;
-  if (ringCtx) { try { ringCtx.close(); } catch (err) { /* closed */ } }
+  if (ringCtx && ringOwn) { try { ringCtx.close(); } catch (err) { /* closed */ } }
   ringCtx = null;
 }
 
@@ -1476,6 +1489,7 @@ function engineConfig(extra) {
     connection: () => navigator.connection || {},
     relayFirst: relayFirst,
     relayUrl: (tokenValue) => apiBase() + "/v1/calls/live?t=" + encodeURIComponent(tokenValue),
+    audioContext: () => audioUnlock.get(),
     relayUrls: (tokenValue) => relayHosts().map((host) => host.replace(/^http/i, "ws") + "/v1/calls/live?t=" + encodeURIComponent(tokenValue)),
     routeKnown: routeKnown,
     onRoute: rememberRoute,
