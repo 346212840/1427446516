@@ -1,4 +1,5 @@
-/* WebKit at iPhone 11 and iPad sizes. Placeholders only. */
+/* WebKit at iPhone 11 and iPad sizes. Placeholders only.
+   The browser libraries are installed with a time limit so a slow mirror can be retried. */
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
