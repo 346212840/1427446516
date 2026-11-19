@@ -565,10 +565,11 @@ async function main() {
   if (needs.has("pw") || needs.has("webkit")) await ensurePlaywright();
   if (needs.has("webkit")) {
     // Install Playwright's WebKit libraries, except the packages that spend
-    // the whole job on a slow mirror. gstreamer1.0-libav pulls the ffmpeg
-    // codec stack. The font packs are most of the remaining 95 MB. The iOS
-    // check reads layout and a computed font size; it does not play video
-    // and it does not need those fonts. Host validation stays on, so a
+    // the whole job on a slow Ubuntu mirror. The codec and plugin packs
+    // (plugins-bad, plugins-good, libav, x264) are most of the remaining
+    // download. The iOS check reads layout and a computed font size; it
+    // does not play video. The base GStreamer libraries stay, because
+    // WebKit's host check asks for those. Host validation stays on, so a
     // library that is still missing fails immediately.
     delete process.env.PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS;
     const apt = await runShell([
@@ -576,10 +577,10 @@ async function main() {
       "cd " + PW,
       "npx playwright install webkit",
       "line=$(npx playwright install-deps webkit --dry-run)",
-      "pkgs=$(printf '%s\\n' \"$line\" | sed -E 's/.*--no-install-recommends //; s/\"$//' | tr ' ' '\\n' | grep -vx 'gstreamer1.0-libav' | grep -Ev '^(fonts-|xfonts-)' | tr '\\n' ' ')",
+      "pkgs=$(printf '%s\\n' \"$line\" | sed -E 's/.*--no-install-recommends //; s/\"$//' | tr ' ' '\\n' | grep -Ev '^(fonts-|xfonts-|gstreamer1\\.0-plugins-bad|gstreamer1\\.0-plugins-good|gstreamer1\\.0-plugins-ugly|gstreamer1\\.0-libav|libgstreamer-plugins-bad|libgstreamer-plugins-good|libx264-|libx265-)' | tr '\\n' ' ')",
       "test -n \"${pkgs// /}\"",
-      "printf '%s\\n' \"$pkgs\" | tr ' ' '\\n' | grep -qx 'gstreamer1.0-libav' && exit 1",
-      "printf '%s\\n' \"$pkgs\" | tr ' ' '\\n' | grep -Eq '^(fonts-|xfonts-)' && exit 1",
+      "printf '%s\\n' \"$pkgs\" | tr ' ' '\\n' | grep -Eq '^(fonts-|xfonts-|gstreamer1\\.0-plugins-bad|gstreamer1\\.0-plugins-good|gstreamer1\\.0-libav|libgstreamer-plugins-bad|libx264-)' && exit 1",
+      "printf '%s\\n' \"$pkgs\" | tr ' ' '\\n' | grep -qx 'gstreamer1.0-plugins-base'",
       "echo \"webkit packages: $pkgs\"",
       "sudo DEBIAN_FRONTEND=noninteractive apt-get update -qq",
       "sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 install -y --no-install-recommends $pkgs"
