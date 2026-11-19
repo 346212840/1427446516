@@ -21198,6 +21198,7 @@ if (STATE.histClear) {
       }
       addPost(post);
     });
+    let livePending = false;
     if (identities.length) {
       const allPosts = (typeof posts === "function" ? posts() : null) || (STATE.data && STATE.data.posts) || [];
       identities.forEach((ident) => {
@@ -21219,6 +21220,15 @@ if (STATE.histClear) {
             addPost(lpMod ? lpMod.asOwn(p, account) : p);
           }
         });
+        /* The catalog is the last sync. A linked X account's newest posts
+           and replies are read live, the same way its own page does. */
+        if (idPlatform === "x" && idHandle) {
+          const live = ensureLiveUser("x", idHandle);
+          if (live && !live.settled && (live.loading || live.pageTask)) livePending = true;
+          ["posts", "replies", "media"].forEach((bucket) => {
+            ((live && live[bucket]) || []).forEach((p) => addPost(lpMod ? lpMod.asOwn(p, account) : p));
+          });
+        }
       });
     }
     ownApp.forEach((post) => {
@@ -21236,7 +21246,15 @@ if (STATE.histClear) {
     /* Optional platform filters: All, Posts, X, Instagram… The default is the mixed timeline. */
     const pills = lpMod ? lpMod.filterHtml(account, postList) : "";
     if (pills) shown = shown.filter((post) => lpMod.filterPost(post, account));
-    return { html: pills + shown.map((post) => card(post, "")).join("") + more, count: postList.length };
+    /* Loading belongs in the list, under the pills. An app-only filter does
+       not receive live X posts, so an empty Posts pill is just empty and the
+       pills stay so All is still one tap away. */
+    const wantsLive = livePending && (!lpMod || !lpMod.filterPost || lpMod.filterPost({ platform: "x", kind: "post" }, account));
+    const listHtml = (!shown.length && wantsLive)
+      ? `<div class="reply-empty">${tr("Loading…")}</div>`
+      : shown.map((post) => card(post, "")).join("") + more;
+    const count = postList.length ? postList.length : (!shown.length && wantsLive ? null : postList.length);
+    return { html: pills + listHtml, count: count };
   }
 
   function repostPostById(handle, id) {
