@@ -6732,5 +6732,6 @@ SI18n.addPack("en", {
   "Open the Safari menu, then Settings for This Website.": "Open the Safari menu, then Settings for This Website.",
   "Set Microphone to Allow.": "Set Microphone to Allow.",
   "Click the site settings icon left of the address bar.": "Click the site settings icon left of the address bar.",
-  "Open Microphone and choose Allow.": "Open Microphone and choose Allow."
+  "Open Microphone and choose Allow.": "Open Microphone and choose Allow.",
+  "Call details": "Call details"
 });

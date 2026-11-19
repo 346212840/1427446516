@@ -6734,5 +6734,6 @@ SI18n.addPack("ru", {
   "Open the Safari menu, then Settings for This Website.": "Откройте меню Safari, затем «Настройки для этого веб-сайта».",
   "Set Microphone to Allow.": "Установите для микрофона «Разрешить».",
   "Click the site settings icon left of the address bar.": "Нажмите значок настроек сайта слева от адресной строки.",
-  "Open Microphone and choose Allow.": "Откройте «Микрофон» и выберите «Разрешить»."
+  "Open Microphone and choose Allow.": "Откройте «Микрофон» и выберите «Разрешить».",
+  "Call details": "Сведения о звонке"
 });
