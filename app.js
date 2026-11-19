@@ -23374,6 +23374,15 @@ if (STATE.histClear) {
     });
     while (live.children.length > ordered.length) live.removeChild(live.lastChild);
   }
+  /* A background paint may rebuild the rails. The centre column is the page
+     the reader is using; an identical rebuild must not detach its controls. */
+  function keepMain(liveRoot, frag) {
+    const live = liveRoot.querySelector("main.center");
+    const fresh = frag.querySelector("main.center");
+    if (!live || !fresh || !fresh.parentNode || live.tagName !== fresh.tagName) return;
+    if (live.className !== fresh.className || live.innerHTML !== fresh.innerHTML) return;
+    fresh.replaceWith(live);
+  }
   function keepChrome(liveRoot, frag) {
     const route = parseRoute();
     const key = parkKey(route);
@@ -23475,6 +23484,15 @@ if (STATE.histClear) {
   function commitApp(html, background) {
     const app = document.getElementById("app");
     if (!app) return;
+    /* A background paint of the same page used to throw the column away and
+       build it again. A switch the reader is about to press was detached. */
+    if (background) {
+      const probe = document.createElement("div");
+      const sample = document.createElement("template");
+      sample.innerHTML = html;
+      probe.appendChild(sample.content);
+      if (probe.innerHTML === app.innerHTML) return;
+    }
     hscrollHolding = true;
     hscrollHoldGen = STATE.renderGen || 0;
     hscrollRemember(app);
@@ -23487,6 +23505,7 @@ if (STATE.histClear) {
     if (background) {
       reuseForYouCards(app, tpl.content, true);
       keepChrome(app, tpl.content);
+      keepMain(app, tpl.content);
     }
     while (app.firstChild) app.removeChild(app.firstChild);
     app.appendChild(tpl.content);

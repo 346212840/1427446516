@@ -53,7 +53,7 @@ export function repositoryIdFromRedirect(location) {
   const match = url.pathname.match(/^\/repositories\/(\d+)(\/.*)?$/);
   if (!match) return null;
   const suffix = match[2] && match[2] !== "/" ? match[2].replace(/\/$/, "") : "";
-  return { id: match[1], suffix };
+  return { id: match[1], suffix, search: url.search || "" };
 }
 
 function githubHeaders(env) {
@@ -86,10 +86,17 @@ async function nameForRepositoryId(env, id, fetcher) {
 }
 
 function idTarget(byId, path) {
-  if (byId.suffix) return "https://api.github.com/repositories/" + byId.id + byId.suffix;
   const extra = String(path || "");
-  const tail = !extra ? "" : (extra.charAt(0) === "/" ? extra : "/" + extra);
-  return "https://api.github.com/repositories/" + byId.id + tail;
+  const cut = extra.indexOf("?");
+  const pathOnly = cut >= 0 ? extra.slice(0, cut) : extra;
+  const pathQuery = cut >= 0 ? extra.slice(cut) : "";
+  let target;
+  if (byId.suffix) target = "https://api.github.com/repositories/" + byId.id + byId.suffix;
+  else {
+    const tail = !pathOnly ? "" : (pathOnly.charAt(0) === "/" ? pathOnly : "/" + pathOnly);
+    target = "https://api.github.com/repositories/" + byId.id + tail;
+  }
+  return target + (byId.search || pathQuery);
 }
 
 export async function resolveRepository(env, fetcher) {

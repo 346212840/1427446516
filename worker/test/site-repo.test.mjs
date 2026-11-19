@@ -54,7 +54,7 @@ test("a workflow call is one request, and a rename keeps the method and body", a
 });
 
 test("a numeric repository redirect is followed once and the new name is cached", async () => {
-  assert.deepEqual(repositoryIdFromRedirect("https://api.github.com/repositories/90796663"), { id: "90796663", suffix: "" });
+  assert.deepEqual(repositoryIdFromRedirect("https://api.github.com/repositories/90796663"), { id: "90796663", suffix: "", search: "" });
   assert.equal(repositoryIdFromRedirect("https://evil.example/repositories/90796663"), null);
   assert.equal(repositoryIdFromRedirect("http://api.github.com/repositories/90796663"), null);
   assert.equal(repoFromRedirect("https://api.github.com/repositories/90796663"), "");
@@ -147,6 +147,31 @@ test("a numeric rename redirect becomes the Pages directory", async () => {
     "https://api.github.com/repos/Example/OldNumeric",
     "https://api.github.com/repositories/42"
   ]);
+});
+
+test("a numeric redirect keeps the workflow query", async () => {
+  const seen = [];
+  const path = "/actions/workflows/discord-live.yml/runs?per_page=5";
+  const fetcher = async (url, init) => {
+    seen.push(init.method + " " + url);
+    if (url.startsWith("https://api.github.com/repos/Example/QueryRoot/")) {
+      return new Response(null, { status: 301, headers: { location: "https://api.github.com/repositories/88" } });
+    }
+    if (url.startsWith("https://api.github.com/repos/Example/QueryPath/")) {
+      return new Response(null, { status: 301, headers: { location: "https://api.github.com/repositories/89/actions/workflows/discord-live.yml/runs?per_page=5" } });
+    }
+    if (url === "https://api.github.com/repositories/88" || url === "https://api.github.com/repositories/89") {
+      const name = url.endsWith("/88") ? "Example/QueryRootNow" : "Example/QueryPathNow";
+      return new Response(JSON.stringify({ full_name: name }), { status: 200 });
+    }
+    return new Response(JSON.stringify({ workflow_runs: [] }), { status: 200 });
+  };
+  const root = await githubFetch({ GITHUB_REPOSITORY: "Example/QueryRoot" }, path, { method: "GET" }, fetcher);
+  const pathed = await githubFetch({ GITHUB_REPOSITORY: "Example/QueryPath" }, path, { method: "GET" }, fetcher);
+  assert.equal(root.status, 200);
+  assert.equal(pathed.status, 200);
+  assert.ok(seen.includes("GET https://api.github.com/repositories/88/actions/workflows/discord-live.yml/runs?per_page=5"));
+  assert.ok(seen.includes("GET https://api.github.com/repositories/89/actions/workflows/discord-live.yml/runs?per_page=5"));
 });
 
 test("a redirect off api.github.com is not followed", async () => {
