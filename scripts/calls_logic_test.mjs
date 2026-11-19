@@ -12,6 +12,7 @@ import { estimatePitch, matchVoice, resolveVoice, createVoiceMatch, voiceChanged
 import { langName } from "../shared/call-langs.js";
 import { createDiarizer, overlappingPitches } from "../shared/call-speakers.js";
 import { liveSetup, rejectsClone } from "../shared/call-setup.js";
+import { createRaiseDetector, earSinkId, cheekLike, createUnlocker, EAR_VOLUME_CAP } from "../shared/call-ear.js";
 import { lighterFor, pickSink, sinkChangeKeepsCall, cleanLexicon, rememberLine } from "../shared/call-quality.js";
 
 assert.equal(isCallLang("ca"), true, "Catalan is a Live Translate target");
@@ -228,5 +229,54 @@ assert.equal(langName("es", "es"), "Español");
 assert.equal(langName("sv", "ru"), "Шведский");
 assert.equal(langName("ca", "hi").length > 0, true);
 assert.equal(langName("zz", "en"), "zz");
+
+
+/* Ear mode: raise-to-ear detection, earpiece route, cheek-proof unlock */
+{
+  const feed = (det, rows) => rows.map(([t, b, g]) => det.feed({ t, beta: b, gamma: g })).filter(Boolean);
+  const raised = [];
+  for (let t = 0; t <= 1000; t += 50) raised.push([t, 50, 0]);
+  for (let t = 1050; t <= 1400; t += 50) raised.push([t, 50 + (t - 1000) / 400 * 40, 3]);
+  for (let t = 1450; t <= 2600; t += 50) raised.push([t, 92, 4]);
+  assert.deepEqual(feed(createRaiseDetector(), raised), ["ear"], "raising the phone upright to the ear locks once");
+  const mount = [];
+  for (let t = 0; t <= 6000; t += 50) mount.push([t, 90, 0]);
+  assert.deepEqual(feed(createRaiseDetector(), mount), [], "a phone sitting upright in a car mount never locks");
+  const swing = [];
+  for (let t = 0; t <= 1000; t += 50) swing.push([t, 50, 0]);
+  for (let t = 1050; t <= 2600; t += 50) swing.push([t, 90 + ((t / 50) % 2 ? 9 : -9), 0]);
+  assert.deepEqual(feed(createRaiseDetector(), swing), [], "a shaking phone does not count as raised and held");
+  const det = createRaiseDetector();
+  feed(det, raised);
+  const lower = [];
+  for (let t = 3000; t <= 4200; t += 50) lower.push([t, 20, 0]);
+  assert.deepEqual(feed(det, lower), ["away"], "lowering the phone ends an automatic ear mode");
+  assert.equal(EAR_VOLUME_CAP < 1 && EAR_VOLUME_CAP > 0.3, true);
+
+  const sinks = [{ kind: "audiooutput", label: "Speaker", deviceId: "s" }, { kind: "audiooutput", label: "Phone earpiece", deviceId: "e" }, { kind: "audiooutput", label: "Bluetooth headset", deviceId: "b" }];
+  assert.equal(earSinkId(sinks), "e");
+  assert.equal(earSinkId([sinks[0], sinks[2]]), "", "no earpiece listed means no route change");
+  assert.equal(cheekLike({ width: 70, height: 90 }), true);
+  assert.equal(cheekLike({ width: 20, height: 20 }), false);
+
+  const u = createUnlocker();
+  u.down(1, 100, 100, 0, { width: 20, height: 20 });
+  assert.equal(u.up(1, 100, 100, 80), "", "one tap does nothing");
+  u.down(1, 102, 101, 200, { width: 20, height: 20 });
+  assert.equal(u.up(1, 102, 101, 270), "unlock", "double tap unlocks");
+  u.down(2, 100, 100, 1000, { width: 90, height: 90 });
+  assert.equal(u.up(2, 100, 100, 1060), "");
+  u.down(2, 100, 100, 1150, { width: 90, height: 90 });
+  assert.equal(u.up(2, 100, 100, 1200), "", "a wide cheek contact never unlocks");
+  u.down(3, 100, 300, 2000, { width: 20, height: 20 });
+  u.down(4, 150, 300, 2010, { width: 20, height: 20 });
+  assert.equal(u.up(3, 100, 100, 2200), "", "two fingers at once are ignored");
+  u.up(4, 150, 300, 2210);
+  u.down(5, 100, 400, 3000, { width: 20, height: 20 });
+  u.move(5, 100, 250);
+  assert.equal(u.up(5, 100, 240, 3300), "unlock", "a swipe up unlocks");
+  u.down(6, 100, 400, 4000, { width: 20, height: 20 });
+  assert.equal(u.up(6, 100, 330, 4300), "", "a short drag is not a swipe");
+}
 
 console.log("calls logic ok", JSON.stringify(report));

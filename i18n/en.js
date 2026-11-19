@@ -6702,5 +6702,15 @@ SI18n.addPack("en", {
   "Your other device": "Your other device",
   "Caption size": "Caption size",
   "Large": "Large",
-  "Extra large": "Extra large"
+  "Extra large": "Extra large",
+  "Ear mode": "Ear mode",
+  "Ear mode now": "Ear mode now",
+  "Lock the screen when I raise the phone to my ear": "Lock the screen when I raise the phone to my ear",
+  "Choose audio output": "Choose audio output",
+  "Browsers cannot sense your ear, so this uses how the phone is held. Double-tap or swipe up to unlock.": "Browsers cannot sense your ear, so this uses how the phone is held. Double-tap or swipe up to unlock.",
+  "Swipe up or double-tap to unlock": "Swipe up or double-tap to unlock",
+  "Ear mode: screen locked": "Ear mode: screen locked",
+  "Sound is coming from the earpiece.": "Sound is coming from the earpiece.",
+  "This browser cannot switch to the earpiece, so the volume is lowered for your ear.": "This browser cannot switch to the earpiece, so the volume is lowered for your ear.",
+  "Audio output changed.": "Audio output changed."
 });

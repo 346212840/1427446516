@@ -7,6 +7,7 @@ import { guessLang, sameLang, PINNED_LANGS, CALL_LANGS, normalizeLang, detectLan
 import { normalizeVolumes, VOLUME_KEYS, VOLUME_DEFAULTS, MIC_CONSTRAINTS, OPUS_MAX_BITRATE } from "./shared/call-audio.js";
 import { normalizeMode, transmitOriginal, micOpen, noteRelease, noteShouldAutoplay, showOriginalSub, showTranslationSub, threadVisible, takeClauses, QUICK_PHRASES, guestFeature, NOTE_CANCEL_DX } from "./shared/call-mode.js";
 import { createVoiceMatch, PREBUILT_VOICES, DEFAULT_VOICE } from "./shared/call-voice.js";
+import { createRaiseDetector, earSinkId, createUnlocker, EAR_VOLUME_CAP } from "./shared/call-ear.js";
 import { lighterFor, pickSink, cleanLexicon, lexiconHint, rememberLine } from "./shared/call-quality.js";
 import { createLiveSession, MIC_WORKLET, OUTPUT_RATE, CHUNK_SAMPLES, proxiesAudio } from "./shared/call-gemini.js";
 import { createDiarizer } from "./shared/call-speakers.js";
@@ -142,6 +143,8 @@ const state = {
   startedAt: 0,
   whoLabel: "",
   capSize: "m",
+  ear: { on: false, auto: false, routed: false, note: "" },
+  earRaise: true,
   sink: ""
 };
 
@@ -152,6 +155,7 @@ function loadDevice() {
   state.voice = typeof saved.voice === "string" ? saved.voice : "";
   state.lang = typeof saved.lang === "string" ? saved.lang : "";
   state.hintSeen = saved.hintSeen === true;
+  state.earRaise = saved.earRaise !== false;
   state.capSize = CAP_SIZES.indexOf(saved.capSize) >= 0 ? saved.capSize : "m";
   state.speakerOn = saved.speakerOn !== false;
   state.mode = normalizeMode(saved.mode || {});
@@ -163,7 +167,7 @@ function loadDevice() {
   }
 }
 function saveDevice() {
-  writeJson(DEVICE_KEY, { volumes: state.volumes, lexicon: state.lexicon, voice: state.voice, lang: state.lang, hintSeen: state.hintSeen, speakerOn: state.speakerOn, mode: state.mode, capSize: state.capSize });
+  writeJson(DEVICE_KEY, { volumes: state.volumes, lexicon: state.lexicon, voice: state.voice, lang: state.lang, hintSeen: state.hintSeen, speakerOn: state.speakerOn, mode: state.mode, capSize: state.capSize, earRaise: state.earRaise });
   writeJson(GUEST_KEY, { name: state.name });
 }
 function nowMs() {
@@ -245,6 +249,7 @@ const HAND_PATH = "M21.5 16.9v2.6a2 2 0 0 1-2.2 2 18.7 18.7 0 0 1-8.1-2.9 18.4 1
 const ICONS = {
   phone: `<path d="${HAND_PATH}"/>`,
   hangup: `<g transform="rotate(135 12 12)"><path d="${HAND_PATH}"/></g>`,
+  ear: `<path d="${HAND_PATH}"/><path d="M14.5 6.2a3.3 3.3 0 0 1 3.3 3.3"/><path d="M14.5 2.6a6.9 6.9 0 0 1 6.9 6.9"/>`,
   mic: `<path d="M12 14.5a3.2 3.2 0 0 0 3.2-3.2V6.2a3.2 3.2 0 0 0-6.4 0v5.1a3.2 3.2 0 0 0 3.2 3.2z"/><path d="M6 11.3a6 6 0 0 0 12 0M12 17.3v3.2M8.8 20.5h6.4"/>`,
   micOff: `<path d="M12 14.5a3.2 3.2 0 0 0 3.2-3.2V6.2a3.2 3.2 0 0 0-6.4 0v5.1a3.2 3.2 0 0 0 3.2 3.2z"/><path d="M6 11.3a6 6 0 0 0 12 0M12 17.3v3.2M8.8 20.5h6.4"/><path d="M4 4l16 16"/>`,
   speaker: `<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>`,
@@ -418,6 +423,7 @@ function moreSheet() {
     <div class="calls-modes" role="group" aria-label="${esc(tr("Caption size"))}">
       ${CAP_SIZES.map((z) => `<button type="button" class="calls-pill${state.capSize === z ? " on" : ""}" data-act="call-capsize" data-value="${z}" aria-pressed="${state.capSize === z ? "true" : "false"}">${esc(z === "s" ? tr("Small") : z === "m" ? tr("Medium") : z === "l" ? tr("Large") : tr("Extra large"))}</button>`).join("")}
     </div>
+    ${earSupported() ? earSection() : ""}
     <div class="calls-modes">
       <button type="button" class="calls-pill${state.mode.translationOnly ? " on" : ""}" data-act="call-set" data-group="translationOnly" data-value="${state.mode.translationOnly ? "0" : "1"}" aria-pressed="${state.mode.translationOnly ? "true" : "false"}">${esc(tr("Others hear only the translation"))}</button>
       <button type="button" class="calls-pill${state.mode.original ? " on" : ""}" data-act="call-set" data-group="original" data-value="${state.mode.original ? "0" : "1"}" aria-pressed="${state.mode.original ? "true" : "false"}">${esc(tr("Hear their original voice, quietly"))}</button>
@@ -507,6 +513,7 @@ function controlBar() {
     ${cbtn("call-set", state.mode.send === "text" ? "text" : (state.mode.send === "note" ? "note" : "voice"), sendLabel(), { aria: tr("I send") + ": " + sendLabel(), data: { group: "send", value: nextSend() } })}
     ${cbtn("call-panel", "chat", tr("Chat"), { pressed: state.panel === "chat", data: { value: state.panel === "chat" ? "" : "chat" } })}
     ${cbtn("call-set", "translate", tr("Translation"), { pressed: hears, data: { group: "receive", value: hears ? "text" : "voice" } })}
+    ${earSupported() ? cbtn("call-ear", "ear", tr("Ear mode"), { pressed: state.ear.on }) : ""}
     ${cbtn("call-more", "more", tr("More"), { pressed: state.panel === "settings" })}
     ${cbtn("call-end", "hangup", tr("Leave"), { cls: "end", aria: tr("End call") })}
   </div>`;
@@ -829,11 +836,13 @@ function paint() {
   if (sheetNow) sheetNow.scrollTop = scroll;
   bindSession(state.phase === "active");
   holdWake(state.phase === "active");
+  if (state.phase === "active") startOrientation();
 }
 /* Cheap updates while a call runs: no full repaint, so typing keeps focus. */
 function live() {
   const el = host();
   if (!el || state.phase === "idle") return;
+  earTick();
   const subs = el.querySelector(".calls-subs");
   if (subs) subs.outerHTML = subtitleBlock();
   const thread = el.querySelector(".calls-thread");
@@ -867,12 +876,14 @@ async function bindSession(active) {
   if (!ms) return;
   try {
     if (!active) { ms.playbackState = "none"; return; }
-    ms.metadata = new window.MediaMetadata({ title: tr("Calls"), artist: state.peerName || tr("Guest") });
+    const icon = new URL(standalone() ? "icon-192.png" : "calls/icon-192.png", standalone() ? new URL("./", location.href) : document.baseURI).href;
+    ms.metadata = new window.MediaMetadata({ title: state.test ? tr("Test call") : tr("Calls"), artist: state.peerName || tr("Guest"), album: "ViktorychApp", artwork: [{ src: icon, sizes: "192x192", type: "image/png" }] });
     ms.playbackState = state.muted ? "paused" : "playing";
-    ms.setActionHandler("pause", () => { setMuted(true); });
-    ms.setActionHandler("play", () => { setMuted(false); });
-    ms.setActionHandler("stop", () => { hangUp(); });
+    if (ms.setMicrophoneActive) ms.setMicrophoneActive(!state.muted);
+    if (ms.setCameraActive) ms.setCameraActive(false);
   } catch (err) { /* the call continues without lock-screen controls */ }
+  const handlers = [["pause", () => setMuted(true)], ["play", () => setMuted(false)], ["stop", () => hangUp()], ["hangup", () => hangUp()], ["togglemicrophone", () => setMuted(!state.muted)]];
+  handlers.forEach((row) => { try { ms.setActionHandler(row[0], row[1]); } catch (err) { /* this action is not supported here */ } });
 }
 async function holdWake(on) {
   try {
@@ -881,7 +892,10 @@ async function holdWake(on) {
       state.wake = null;
       return;
     }
-    if (!state.wake && navigator.wakeLock) state.wake = await navigator.wakeLock.request("screen");
+    if ((!state.wake || state.wake.released) && navigator.wakeLock) {
+      state.wake = await navigator.wakeLock.request("screen");
+      try { state.wake.addEventListener("release", () => { if (state.wake && state.wake.released) state.wake = null; }); } catch (err) { /* older browsers */ }
+    }
   } catch (err) { /* a denied wake lock does not end the call */ }
 }
 async function routeOutput() {
@@ -892,6 +906,168 @@ async function routeOutput() {
     state.sink = id;
     if (state.engine && id) await state.engine.setSink(id);
   } catch (err) { /* keep the current speaker */ }
+}
+
+/* ---------- ear mode ---------- */
+let raise = null;
+let orientationBound = false;
+let earOverlay = null;
+const unlocker = createUnlocker();
+function earSupported() {
+  try {
+    if (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) return true;
+  } catch (err) { /* fall through */ }
+  return false;
+}
+function earSection() {
+  const raiseOn = state.earRaise;
+  const pick = navigator.mediaDevices && navigator.mediaDevices.selectAudioOutput ? `<button type="button" class="calls-pill" data-act="call-pick-output">${esc(tr("Choose audio output"))}</button>` : "";
+  return `<h3>${esc(tr("Ear mode"))}</h3>
+    <div class="calls-modes">
+      <button type="button" class="calls-pill${raiseOn ? " on" : ""}" data-act="call-ear-raise" aria-pressed="${raiseOn ? "true" : "false"}">${esc(tr("Lock the screen when I raise the phone to my ear"))}</button>
+      <button type="button" class="calls-pill" data-act="call-ear">${esc(tr("Ear mode now"))}</button>
+      ${pick}
+    </div>
+    <p class="calls-privacy">${esc(state.ear.note || tr("Browsers cannot sense your ear, so this uses how the phone is held. Double-tap or swipe up to unlock."))}</p>`;
+}
+function earOverlayHtml() {
+  const name = state.peerName || tr("Guest");
+  return `<div class="calls-ear-mid"><span class="calls-ear-ring">${ico("ear")}</span><b class="calls-ear-name">${esc(name)}</b><span class="calls-ear-time" data-eartime>${esc(state.startedAt ? clock(Date.now() - state.startedAt) : "")}</span><span class="calls-ear-sub" data-earsub>${esc(state.muted ? tr("Muted") : tr("Microphone on"))}</span></div>
+    <div class="calls-ear-hint"><span class="calls-ear-chev" aria-hidden="true"></span><span>${esc(tr("Swipe up or double-tap to unlock"))}</span></div>`;
+}
+function earVibrate(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (err) { /* no haptics */ } }
+async function routeEar(on) {
+  try {
+    const list = navigator.mediaDevices && navigator.mediaDevices.enumerateDevices ? await navigator.mediaDevices.enumerateDevices() : [];
+    if (on) {
+      const id = earSinkId(list) || "";
+      if (id && state.engine) { await state.engine.setSink(id); state.ear.routed = true; state.ear.note = tr("Sound is coming from the earpiece."); }
+      else { state.ear.routed = false; state.ear.note = tr("This browser cannot switch to the earpiece, so the volume is lowered for your ear."); }
+    } else {
+      state.ear.routed = false;
+      if (state.engine) await state.engine.setSink(pickSink(list) || "");
+    }
+  } catch (err) { state.ear.routed = false; }
+  if (state.engine) state.engine.refresh();
+}
+function lockPointer(kind, e) {
+  if (e.cancelable) e.preventDefault();
+  if (kind === "down") { try { earOverlay.setPointerCapture(e.pointerId); } catch (err) { /* no capture */ } unlocker.down(e.pointerId, e.clientX, e.clientY, e.timeStamp, e); }
+  else if (kind === "move") {
+    unlocker.move(e.pointerId, e.clientX, e.clientY);
+    const hint = earOverlay && earOverlay.querySelector(".calls-ear-hint");
+    if (hint && e.pressure !== 0) hint.style.transform = "translateY(" + Math.min(0, Math.round(e.clientY - (earOverlay._y0 || e.clientY))) + "px)";
+  } else if (kind === "up") {
+    const hint = earOverlay && earOverlay.querySelector(".calls-ear-hint");
+    if (hint) hint.style.transform = "";
+    if (unlocker.up(e.pointerId, e.clientX, e.clientY, e.timeStamp) === "unlock") exitEar(false);
+  } else unlocker.cancel(e.pointerId);
+}
+function enterEar(auto) {
+  if (state.ear.on || state.phase !== "active" || typeof document === "undefined") return;
+  if (!auto) requestOrientation();
+  state.ear.on = true;
+  state.ear.auto = !!auto;
+  unlocker.reset();
+  earOverlay = document.createElement("div");
+  earOverlay.className = "calls-ear";
+  earOverlay.setAttribute("role", "dialog");
+  earOverlay.setAttribute("aria-modal", "true");
+  earOverlay.setAttribute("aria-label", tr("Ear mode: screen locked"));
+  earOverlay.tabIndex = -1;
+  earOverlay.innerHTML = earOverlayHtml();
+  earOverlay.addEventListener("pointerdown", (e) => { earOverlay._y0 = e.clientY; lockPointer("down", e); });
+  earOverlay.addEventListener("pointermove", (e) => lockPointer("move", e));
+  earOverlay.addEventListener("pointerup", (e) => lockPointer("up", e));
+  earOverlay.addEventListener("pointercancel", (e) => lockPointer("cancel", e));
+  earOverlay.addEventListener("touchmove", (e) => { if (e.cancelable) e.preventDefault(); }, { passive: false });
+  earOverlay.addEventListener("contextmenu", (e) => e.preventDefault());
+  earOverlay.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " " || e.key === "Escape") { e.preventDefault(); exitEar(false); } });
+  document.body.appendChild(earOverlay);
+  try { earOverlay.focus({ preventScroll: true }); } catch (err) { /* focus is optional */ }
+  holdWake(true);
+  routeEar(true);
+  earVibrate(25);
+  if (raise) raise.markEar(true);
+  const btn = host() && host().querySelector('[data-act="call-ear"]');
+  if (btn) { btn.classList.add("on"); btn.setAttribute("aria-pressed", "true"); }
+}
+function exitEar(silent) {
+  if (!state.ear.on) return;
+  state.ear.on = false;
+  state.ear.auto = false;
+  state.ear.cooldownUntil = Date.now() + 4000;
+  unlocker.reset();
+  if (earOverlay && earOverlay.parentNode) earOverlay.parentNode.removeChild(earOverlay);
+  earOverlay = null;
+  if (raise) raise.markEar(false);
+  if (!silent) { earVibrate(15); routeEar(false); }
+  const btn = host() && host().querySelector('[data-act="call-ear"]');
+  if (btn) { btn.classList.remove("on"); btn.setAttribute("aria-pressed", "false"); }
+}
+function earTick() {
+  if (!earOverlay) return;
+  const t = earOverlay.querySelector("[data-eartime]");
+  if (t && state.startedAt) t.textContent = clock(Date.now() - state.startedAt);
+  const sub = earOverlay.querySelector("[data-earsub]");
+  if (sub) sub.textContent = state.muted ? tr("Muted") : tr("Microphone on");
+}
+function autoEarAllowed() {
+  if (state.phase !== "active" || state.ear.on) return false;
+  if (state.ear.cooldownUntil && Date.now() < state.ear.cooldownUntil) return false;
+  if (document.visibilityState === "hidden") return false;
+  if (state.mode.send !== "voice" || state.mode.receive === "text" || state.recording) return false;
+  const a = document.activeElement;
+  if (a && /^(input|textarea|select)$/i.test(a.tagName)) return false;
+  return state.panel !== "chat";
+}
+function onOrientation(e) {
+  if (!raise || !state.earRaise) return;
+  const verdict = raise.feed({ t: performance.now(), beta: e.beta, gamma: e.gamma });
+  if (verdict === "ear") {
+    if (autoEarAllowed()) enterEar(true);
+    else raise.markEar(false);
+  } else if (verdict === "away" && state.ear.on && state.ear.auto) exitEar(false);
+}
+async function requestOrientation() {
+  try {
+    const D = window.DeviceOrientationEvent;
+    if (D && typeof D.requestPermission === "function" && !state.orientOk) {
+      const res = await D.requestPermission();
+      state.orientOk = res === "granted";
+    } else state.orientOk = !!D;
+  } catch (err) { state.orientOk = false; }
+  if (state.orientOk) startOrientation();
+}
+function startOrientation() {
+  if (orientationBound || !state.earRaise || !earSupported() || state.phase !== "active") return;
+  const D = window.DeviceOrientationEvent;
+  if (!D) return;
+  if (typeof D.requestPermission === "function" && !state.orientOk) return;
+  raise = raise || createRaiseDetector();
+  raise.reset();
+  window.addEventListener("deviceorientation", onOrientation);
+  orientationBound = true;
+}
+function stopOrientation() {
+  if (orientationBound) window.removeEventListener("deviceorientation", onOrientation);
+  orientationBound = false;
+  if (raise) raise.reset();
+}
+function toggleEarRaise() {
+  state.earRaise = !state.earRaise;
+  saveDevice();
+  if (state.earRaise) requestOrientation(); else stopOrientation();
+  paint();
+}
+async function pickOutput() {
+  try {
+    const d = await navigator.mediaDevices.selectAudioOutput();
+    if (d && d.deviceId && state.engine) { await state.engine.setSink(d.deviceId); state.ear.routed = true; state.ear.note = tr("Audio output changed."); paint(); }
+  } catch (err) { /* the picker was dismissed */ }
+}
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && state.phase === "active") holdWake(true); });
 }
 
 /* ---------- ringing ---------- */
@@ -949,7 +1125,7 @@ function engineConfig(extra) {
     api: (path, init) => api(path, init),
     apiBase: apiBase,
     getMode: () => state.mode,
-    getVolumes: () => state.volumes,
+    getVolumes: () => (state.ear.on && !state.ear.routed ? Object.assign({}, state.volumes, { overall: state.volumes.overall * EAR_VOLUME_CAP }) : state.volumes),
     getLang: myLang,
     getName: () => state.name || tr("Guest"),
     getLexicon: () => state.lexicon,
@@ -1206,6 +1382,8 @@ async function teardown(silent) {
   state.meSpeaking = false;
   state.translating = false;
   clearInterval(state.statsTimer);
+  exitEar(true);
+  stopOrientation();
   if (partner) await partner.end(true).catch(() => {});
   if (engine) await engine.end(silent).catch(() => {});
   holdWake(false);
@@ -1478,6 +1656,9 @@ function onAct(act, el) {
   else if (act === "call-invite") startInvite();
   else if (act === "call-test") prepareTest();
   else if (act === "call-capsize") { if (CAP_SIZES.indexOf(el.dataset.value) >= 0) { state.capSize = el.dataset.value; saveDevice(); paint(); } }
+  else if (act === "call-ear") enterEar(false);
+  else if (act === "call-ear-raise") { toggleEarRaise(); }
+  else if (act === "call-pick-output") pickOutput();
   else if (act === "call-test-start") startTest();
   else if (act === "call-test-cancel") cancelTest();
   else if (act === "call-test-copy") {
@@ -1715,9 +1896,11 @@ function mount(route) {
     } else if (r.id) checkIncoming(r.id);
     else checkIncoming("");
   }
-  if (state.phase === "active") { bindSession(true); holdWake(true); routeOutput(); }
+  if (state.phase === "active") { bindSession(true); holdWake(true); routeOutput(); startOrientation(); }
 }
 function unmount() {
+  exitEar(true);
+  stopOrientation();
   holdWake(false);
   bindSession(false);
 }
