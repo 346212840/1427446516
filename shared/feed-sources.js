@@ -322,6 +322,21 @@ function metaRss(platform, handle) {
   ];
 }
 
+function instagramPlan(handle) {
+  const h = enc(handle);
+  const bridge = "InstagramBridge";
+  const query = "action=display&bridge=" + bridge + "&context=Username&u=" + h + "&format=Atom";
+  return [
+    { kind: "rss", url: "https://rsshub.app/instagram/user/" + h },
+    { kind: "rss", url: "https://rss-bridge.org/bridge01/?" + query },
+    { kind: "rss", url: "https://rss-bridge.ggc-project.de/?" + query },
+    { kind: "rss", url: "https://rsshub.pseudoyu.com/instagram/user/" + h },
+    { kind: "rss", url: "https://rsshub.rss.tips/instagram/user/" + h },
+    { kind: "ig-profile", url: "https://www.instagram.com/" + h + "/embed/" },
+    { kind: "ig-profile", url: "https://www.instagram.com/api/v1/users/web_profile_info/?username=" + h }
+  ];
+}
+
 function sourcePlan(spec) {
   if (!spec || !spec.ok) return [];
   const handle = spec.handle;
@@ -339,7 +354,7 @@ function sourcePlan(spec) {
     return metaRss("threads", handle);
   }
   if (platform === "instagram") {
-    return metaRss("instagram", handle);
+    return instagramPlan(handle);
   }
   if (platform === "youtube") {
     if (spec.channelId) return [{ kind: "youtube-rss", url: "https://www.youtube.com/feeds/videos.xml?channel_id=" + enc(spec.channelId) }];
