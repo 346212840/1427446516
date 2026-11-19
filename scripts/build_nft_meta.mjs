@@ -11,7 +11,7 @@ import vm from "node:vm";
 import { GIFTS } from "../shared/gift-catalog.js";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
-export const PAGES = "https://viktorychgroup.github.io/ViktorychApp1427446516";
+export const PAGES = "https://viktorychgroup.github.io/ViktorychApp";
 
 export function loadNftUi(extra) {
   const ctx = vm.createContext(Object.assign({ TextEncoder, crypto: globalThis.crypto }, extra || {}));

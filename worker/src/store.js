@@ -291,7 +291,7 @@ function returnBase(body, deps, env) {
     const url = new URL(raw);
     if (url.protocol === "https:" && deps.originAllowed && deps.originAllowed(env, url.origin)) return url.origin + url.pathname;
   } catch (err) { /* fall through */ }
-  return "https://viktorychgroup.github.io/ViktorychApp1427446516/";
+  return "https://viktorychgroup.github.io/ViktorychApp/";
 }
 
 export function catalogBody(env, sold, owned, emojis) {

@@ -8,7 +8,7 @@
    Needs the Worker secret TV_BUILD_TOKEN: a fine-grained token on the repo with
    Actions read and write and Contents read and write. */
 
-const REPO = "ViktorychGroup/ViktorychApp1427446516";
+const REPO = "ViktorychGroup/ViktorychApp";
 const WORKFLOW = "tv-custom.yml";
 export const TV_ICONS = ["default", "media", "browser", "player", "notes"];
 const BUILD_ID = /^([0-9a-z]{8})([0-9a-f]{12})([0-9a-f]{16})$/;
