@@ -59,8 +59,9 @@ function levelOf(samples) {
   return Math.sqrt(energy / data.length);
 }
 
-/* Keep a short tail after speech so the last word is not cut off.
-   Silence is not sent. */
+/* Keep a tail after speech: Live Translate finishes the last words about
+   a second after the speaker stops, and cuts them if audio stops at once.
+   Longer silence is not sent. */
 export function createVad() {
   let hang = 0;
   let sent = 0;
@@ -69,7 +70,7 @@ export function createVad() {
     gate(samples) {
       const speech = levelOf(samples) >= 0.02;
       const keep = speech || hang > 0;
-      if (speech) hang = 3;
+      if (speech) hang = 12;
       else if (hang > 0) hang -= 1;
       if (keep) sent += CHUNK_MS;
       else skipped += CHUNK_MS;

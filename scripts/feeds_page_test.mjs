@@ -469,6 +469,32 @@ async function runWindow(browser, origin, vp) {
     return { n: n, pin: true };
   }, null, { timeout: 5000 }).catch(() => null);
   if (!confirmed) fail(tag + ": the remove confirm stretched the window");
+  await page.evaluate(() => {
+    const cancel = document.querySelector("[data-feed-act='cancel-remove']");
+    if (cancel) cancel.click();
+    const open = document.querySelector('.feeds-row[data-id="rss:lane0"] .feeds-expand');
+    if (open && open.getAttribute("aria-expanded") === "true") open.click();
+  });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.evaluate(() => {
+    const button = document.querySelector("[data-feed-act='selecting']");
+    if (button) button.click();
+  });
+  await page.locator(".feeds-check input").first().waitFor({ timeout: 5000 }).catch(() => fail(tag + ": select mode did not add checkboxes"));
+  const scrolled = await page.evaluate(() => new Promise((resolve) => {
+    const box = document.querySelector("[data-feed-window]");
+    const top = box.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo(0, Math.max(0, top + box.offsetHeight - window.innerHeight + 8));
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      resolve({
+        n: document.querySelectorAll(".feeds-row").length,
+        first: !!document.querySelector('.feeds-row[data-id="rss:lane0"]'),
+        checks: document.querySelectorAll(".feeds-check input").length,
+        pins: document.querySelectorAll(".feeds-window-pin").length
+      });
+    }));
+  }));
+  if (!scrolled.checks || scrolled.n >= 70 || scrolled.first || scrolled.pins) fail(tag + ": select mode kept the rows that scrolled away " + JSON.stringify(scrolled));
   await context.close();
   console.log("feeds window ok " + vp.name);
 }

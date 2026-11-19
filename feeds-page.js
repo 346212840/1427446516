@@ -927,6 +927,16 @@
     return '.feeds-row[data-id="' + String(id || "").replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"]';
   }
 
+  /* A checkbox's value is "on" even when the value attribute is empty.
+     Compare the live control with what the page built, not with that attribute. */
+  function fieldEdited(field) {
+    if (!field) return false;
+    const type = String(field.type || "").toLowerCase();
+    if (type === "checkbox" || type === "radio") return !!field.checked !== !!field.defaultChecked;
+    if (field.tagName === "SELECT") return false;
+    return String(field.value || "") !== String(field.defaultValue || "");
+  }
+
   /* A half-written label lives on the input, not in the saved row. Detach
      those rows before the window HTML is replaced and put the same nodes back. */
   function liveInputRows(root) {
@@ -937,8 +947,8 @@
       if (!row.querySelectorAll) return;
       let hold = false;
       row.querySelectorAll("input, textarea, select").forEach((field) => {
-        if (field === active || (active && row.contains(active))) hold = true;
-        if ((field.tagName === "INPUT" || field.tagName === "TEXTAREA") && String(field.value || "") !== String(field.getAttribute("value") || "")) hold = true;
+        if (field === active && (field.tagName === "TEXTAREA" || (field.tagName === "INPUT" && field.type !== "checkbox" && field.type !== "radio"))) hold = true;
+        if (fieldEdited(field)) hold = true;
       });
       if (hold) live.push(row);
     });
