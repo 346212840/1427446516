@@ -4,7 +4,7 @@ const VERSION = "viktorych-a281-__SW_VERSION__";
 const BUILT = "__SW_BUILT__";
 const MIRROR_GITHUB = "__MIRROR_GITHUB__";
 const MIRROR_PAGES = "__MIRROR_PAGES__";
-// cache-bust: 2026-11-19T14:25:00.000Z-keep-column
+// cache-bust: 2026-11-19T15:15:00.000Z-calls-engine
 try { importScripts("./shorts-enabled.js"); } catch (err) { /* Shorts stays off when the switch file is missing */ }
 
 const ACCOUNTS_WALL = false;
@@ -1714,7 +1714,7 @@ const FEATURE_FILES = {
   stories: ["./stories.js", "./stories.css"],
   forYou: ["./shared/for-you.js"],
   xBroadcast: ["./shared/x-broadcast.js"],
-  calls: ["./calls.js", "./calls.css", "./shared/call-langs.js", "./shared/call-audio.js", "./shared/call-mode.js", "./shared/call-voice.js", "./shared/call-setup.js", "./shared/call-privacy.js", "./shared/call-quality.js", "./shared/call-gemini.js", "./shared/call-speakers.js", "./calls-speaker-worker.js"]
+  calls: ["./calls.js", "./calls.css", "./shared/call-langs.js", "./shared/call-audio.js", "./shared/call-mode.js", "./shared/call-voice.js", "./shared/call-setup.js", "./shared/call-privacy.js", "./shared/call-quality.js", "./shared/call-gemini.js", "./shared/call-engine.js", "./shared/call-speakers.js", "./calls-speaker-worker.js"]
 };
 async function offFeatureFiles() {
   try {
@@ -2200,6 +2200,8 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   if (url.protocol !== "http:" && url.protocol !== "https:") return;
   // The TV install page, the APK, and assetlinks go straight to the network.
+  // ViktorychCalls is its own app with its own worker. This worker never serves it.
+  if (url.origin === self.location.origin && /\/calls\/[^/]*$/.test(url.pathname)) return;
   if (url.origin === self.location.origin && (/\.apk$/i.test(url.pathname) || /\/tv\/(?:index\.html)?$/.test(url.pathname) || url.pathname.indexOf("/.well-known/") >= 0)) return;
   if (url.origin === self.location.origin && url.pathname.toLowerCase().endsWith("/version.json")) {
     event.respondWith((async () => {

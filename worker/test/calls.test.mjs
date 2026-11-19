@@ -53,7 +53,7 @@ async function signup(n, name, handle) {
 }
 
 test.before(async () => {
-  mf = new Miniflare(workerOptions({ GEMINI_API_KEY: "test-key" }));
+  mf = new Miniflare(workerOptions({ GEMINI_API_KEY: "test-key", CALLS_GEMINI_MOCK: "1", KEYS_ENC_KEY: "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=" }));
 });
 test.after(async () => {
   if (mf) await mf.dispose();
@@ -62,6 +62,7 @@ test.after(async () => {
 test("calls stay off until the owner turns them on, then privacy is enforced", async () => {
   const owner = await call("/v1/signup", { method: "POST", ip: "203.0.113.21", body: { displayName: "Owner", handle: "owner_test", claimCode: "claim-test" } });
   assert.equal(owner.status, 201, JSON.stringify(owner.body));
+  globalThis.__callsOwnerToken = owner.body.token;
   const ada = await signup(22, "Ada Example", "ada_example");
   const bea = await signup(23, "Bea Example", "bea_example");
   assert.equal((await call("/v1/calls/status")).status, 204);
@@ -96,10 +97,18 @@ test("calls stay off until the owner turns them on, then privacy is enforced", a
   assert.equal(created.body.video, false);
   assert.equal(created.body.call.peerId, bea.account.publicId);
 
+  /* The owner's key never pays for a call between two other people. */
+  const nokey = await call("/v1/calls/" + created.body.call.id + "/translate", { method: "POST", token: ada.token, body: { target: "sv", source: "en" } });
+  assert.equal(nokey.status, 200, JSON.stringify(nokey.body));
+  assert.equal(nokey.body.mode, "text");
+  assert.equal(nokey.body.reason, "nokey");
+  const fakeFlag = await call("/v1/calls/" + created.body.call.id + "/translate", { method: "POST", token: ada.token, body: { target: "sv", owner: true, useOwnerKey: true, source: "en" } });
+  assert.equal(fakeFlag.body.reason, "nokey", "a client flag cannot unlock the owner key");
+
   const minted = await call("/v1/calls/" + created.body.call.id + "/translate", {
     method: "POST",
     token: ada.token,
-    body: { target: "sv", source: "en", voice: "Leda", lexicon: [{ word: "Nova", say: "NO-vah" }] }
+    body: { target: "sv", source: "en", voice: "Leda", key: "k".repeat(30), lexicon: [{ word: "Nova", say: "NO-vah" }] }
   });
   assert.equal(minted.status, 200, JSON.stringify(minted.body));
   assert.equal(minted.body.mode, "token");
@@ -107,6 +116,7 @@ test("calls stay off until the owner turns them on, then privacy is enforced", a
   assert.ok(String(minted.body.url).includes("access_token="));
   assert.equal(String(minted.body.url).includes("key="), false);
   assert.equal(JSON.stringify(minted.body).includes("test-key"), false);
+  assert.equal(JSON.stringify(minted.body).includes("k".repeat(30)), false);
   assert.equal(minted.body.setup.generationConfig.translationConfig.targetLanguageCode, "sv");
   assert.ok(minted.body.setup.systemInstruction.parts[0].text.includes("Speaker language: en."));
   assert.ok(minted.body.setup.contextWindowCompression);
@@ -117,11 +127,139 @@ test("calls stay off until the owner turns them on, then privacy is enforced", a
   assert.equal(guest.status, 200, JSON.stringify(guest.body));
   assert.ok(guest.body.guestToken);
   assert.equal(guest.body.video, false);
-  const again = await call("/v1/calls/" + invite.body.call.id + "/speak", {
-    method: "POST",
-    guest: guest.body.guestToken,
-    body: { text: "Hold on", target: "es" }
-  });
-  assert.equal(again.status, 200);
-  assert.equal(again.body.video, false);
+  const noKeyGuest = await call("/v1/calls/" + invite.body.call.id + "/translate", { method: "POST", guest: guest.body.guestToken, body: { target: "es" } });
+  assert.equal(noKeyGuest.body.reason, "nokey", "a guest of a non-owner host needs a key");
+  const pastedGuest = await call("/v1/calls/" + invite.body.call.id + "/translate", { method: "POST", guest: guest.body.guestToken, body: { target: "es", key: "g".repeat(32) } });
+  assert.equal(pastedGuest.body.mode, "token");
+  assert.equal(pastedGuest.body.keySource, "own");
+
+  /* A saved host key covers the guest. It is stored encrypted and never returned. */
+  assert.equal((await call("/v1/calls/key", { method: "PUT", token: ada.token, body: { key: "short" } })).status, 400);
+  const saved = await call("/v1/calls/key", { method: "PUT", token: ada.token, body: { key: "h".repeat(32) } });
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  assert.equal(saved.body.saved, true);
+  assert.equal(JSON.stringify(saved.body).includes("h".repeat(32)), false);
+  const listed = await call("/v1/calls/key", { token: ada.token });
+  assert.equal(listed.body.saved, true);
+  assert.equal(JSON.stringify(listed.body).includes("h".repeat(32)), false);
+  const covered = await call("/v1/calls/" + invite.body.call.id + "/translate", { method: "POST", guest: guest.body.guestToken, body: { target: "es" } });
+  assert.equal(covered.body.mode, "token");
+  assert.equal(covered.body.keySource, "host");
+  const speakCovered = await call("/v1/calls/" + invite.body.call.id + "/speak", { method: "POST", guest: guest.body.guestToken, body: { text: "Hold on", target: "es" } });
+  assert.equal(speakCovered.status, 200);
+  assert.equal(speakCovered.body.video, false);
+  assert.notEqual(speakCovered.body.reason, "nokey");
+  /* Bea has no key and is not the host, so Ada's saved key covers her only as the host's guest. */
+  const calleeNoKey = await call("/v1/calls/" + created.body.call.id + "/translate", { method: "POST", token: bea.token, body: { target: "en" } });
+  assert.equal(calleeNoKey.body.keySource, "host");
+  await call("/v1/calls/key", { method: "DELETE", token: ada.token });
+  assert.equal((await call("/v1/calls/key", { token: ada.token })).body.saved, false);
+
+  /* The owner's key covers calls the owner is in: hosting, or answering. */
+  const ownerInvite = await call("/v1/calls", { method: "POST", token: owner.body.token, body: { invite: true } });
+  assert.equal(ownerInvite.status, 201, JSON.stringify(ownerInvite.body));
+  const ownerGuest = await call("/v1/calls/join/" + ownerInvite.body.invite, { method: "POST", body: { name: "Visitor" } });
+  const ownerMint = await call("/v1/calls/" + ownerInvite.body.call.id + "/translate", { method: "POST", guest: ownerGuest.body.guestToken, body: { target: "en" } });
+  assert.equal(ownerMint.body.mode, "token");
+  assert.equal(ownerMint.body.keySource, "owner");
+  const toOwner = await call("/v1/calls", { method: "POST", token: ada.token, body: { handle: "owner_test" } });
+  assert.equal(toOwner.status, 201, JSON.stringify(toOwner.body));
+  const ringing = await call("/v1/calls/" + toOwner.body.call.id + "/translate", { method: "POST", token: ada.token, body: { target: "en" } });
+  assert.equal(ringing.body.reason, "ringing", "the owner's key waits until the owner answers");
+  const answered = await call("/v1/calls/" + toOwner.body.call.id + "/answer", { method: "POST", token: owner.body.token });
+  assert.equal(answered.status, 200, JSON.stringify(answered.body));
+  const afterAnswer = await call("/v1/calls/" + toOwner.body.call.id + "/translate", { method: "POST", token: ada.token, body: { target: "en" } });
+  assert.equal(afterAnswer.body.keySource, "owner");
+  const peerKey = await call("/v1/calls/" + toOwner.body.call.id + "/translate", { method: "POST", token: owner.body.token, body: { target: "es" } });
+  assert.equal(peerKey.body.keySource, "owner");
+  assert.equal((await call("/v1/calls/live?t=" + "x".repeat(20))).status, 426, "the relay only speaks WebSocket");
+});
+
+test("a permanent call-me link follows the same rules and the owner-key rule", async () => {
+  const ownerToken = globalThis.__callsOwnerToken;
+  const cy = await signup(52, "Cy Example", "cy_example");
+  const di = await signup(53, "Di Example", "di_example");
+  await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls", off: false } });
+
+  assert.equal((await call("/v1/calls/link", { token: cy.token })).body.link, null);
+  const made = await call("/v1/calls/link", { method: "PUT", token: cy.token, body: {} });
+  assert.equal(made.status, 200, JSON.stringify(made.body));
+  const slug = made.body.link.slug;
+  assert.match(slug, /^[a-z0-9-]{10}$/);
+  assert.equal((await call("/v1/calls/link", { method: "PUT", token: cy.token, body: { slug: "Admin" } })).status, 400);
+  assert.equal((await call("/v1/calls/link", { method: "PUT", token: cy.token, body: { slug: "a--b" } })).status, 400);
+  assert.equal((await call("/v1/calls/link", { method: "PUT", token: di.token, body: { slug: "cy-line" } })).status, 200);
+  assert.equal((await call("/v1/calls/link", { method: "PUT", token: cy.token, body: { slug: "cy-line" } })).status, 409);
+  const custom = await call("/v1/calls/link", { method: "PUT", token: cy.token, body: { slug: "talk-to-cy" } });
+  assert.equal(custom.body.link.slug, "talk-to-cy");
+  assert.equal((await call("/v1/calls/link/" + slug)).status, 404, "the old slug stops working");
+
+  const info = await call("/v1/calls/link/talk-to-cy");
+  assert.equal(info.status, 200);
+  assert.equal(info.body.open, true);
+  assert.equal(info.body.name, "Cy Example");
+
+  /* privacy, quiet hours */
+  await call("/v1/calls/prefs", { method: "PUT", token: cy.token, body: { who: "nobody" } });
+  assert.equal((await call("/v1/calls/link/talk-to-cy")).body.open, false);
+  assert.equal((await call("/v1/calls/link/talk-to-cy/join", { method: "POST", ip: "198.51.100.5", body: { name: "Vi" } })).status, 403);
+  await call("/v1/calls/prefs", { method: "PUT", token: cy.token, body: { who: "everyone", guests: false } });
+  assert.equal((await call("/v1/calls/link/talk-to-cy/join", { method: "POST", ip: "198.51.100.5", body: { name: "Vi" } })).status, 403);
+  await call("/v1/calls/prefs", { method: "PUT", token: cy.token, body: { guests: true, dnd: true, dndStart: "00:00", dndEnd: "23:59", tz: 0 } });
+  assert.equal((await call("/v1/calls/link/talk-to-cy/join", { method: "POST", ip: "198.51.100.5", body: { name: "Vi" } })).status, 403);
+  await call("/v1/calls/prefs", { method: "PUT", token: cy.token, body: { dnd: false } });
+
+  /* a blocked account cannot use it */
+  await call("/v1/blocks", { method: "POST", token: cy.token, body: { accountId: di.account.publicId } });
+  assert.equal((await call("/v1/calls/link/talk-to-cy/join", { method: "POST", token: di.token, ip: "198.51.100.6", body: { name: "Di" } })).status, 403);
+  await call("/v1/blocks", { method: "DELETE", token: cy.token, body: { accountId: di.account.publicId } });
+
+  /* a guest rings the owner of the link, and needs a key until someone adds one */
+  const joined = await call("/v1/calls/link/talk-to-cy/join", { method: "POST", ip: "198.51.100.7", body: { name: "Vi" } });
+  assert.equal(joined.status, 200, JSON.stringify(joined.body));
+  assert.equal(joined.body.ringing, true);
+  assert.ok(joined.body.guestToken && joined.body.ticket);
+  const id = joined.body.call.id;
+  assert.equal((await call("/v1/calls/" + id + "/state", { guest: joined.body.guestToken })).body.state, "ringing");
+  const incoming = await call("/v1/calls/incoming", { token: cy.token });
+  assert.equal(incoming.body.calls.some((row) => row.id === id), true);
+  const early = await call("/v1/calls/" + id + "/translate", { method: "POST", guest: joined.body.guestToken, body: { target: "en", key: "k".repeat(30) } });
+  assert.equal(early.body.reason, "ringing");
+  const answered = await call("/v1/calls/" + id + "/answer", { method: "POST", token: cy.token });
+  assert.equal(answered.status, 200, JSON.stringify(answered.body));
+  assert.equal((await call("/v1/calls/" + id + "/answer", { method: "POST", token: di.token })).status === 200, false);
+  const nokey = await call("/v1/calls/" + id + "/translate", { method: "POST", guest: joined.body.guestToken, body: { target: "en" } });
+  assert.equal(nokey.body.reason, "nokey");
+  const hist = await call("/v1/calls/history", { token: cy.token });
+  const row = hist.body.calls.find((item) => item.id === id);
+  assert.equal(row.name, "Vi");
+  assert.equal(row.incoming, true);
+
+  /* the owner's own link uses the owner's key */
+  await call("/v1/calls/link", { method: "PUT", token: ownerToken, body: { slug: "call-the-owner" } });
+  const ownerJoin = await call("/v1/calls/link/call-the-owner/join", { method: "POST", ip: "198.51.100.8", body: { name: "Fan" } });
+  assert.equal(ownerJoin.status, 200, JSON.stringify(ownerJoin.body));
+  const waiting = await call("/v1/calls/" + ownerJoin.body.call.id + "/translate", { method: "POST", guest: ownerJoin.body.guestToken, body: { target: "en" } });
+  assert.equal(waiting.body.reason, "ringing");
+  await call("/v1/calls/" + ownerJoin.body.call.id + "/answer", { method: "POST", token: ownerToken });
+  const ownerMint = await call("/v1/calls/" + ownerJoin.body.call.id + "/translate", { method: "POST", guest: ownerJoin.body.guestToken, body: { target: "en" } });
+  assert.equal(ownerMint.body.keySource, "owner");
+
+  /* turning it off and regenerating */
+  await call("/v1/calls/link", { method: "PUT", token: cy.token, body: { enabled: false } });
+  assert.equal((await call("/v1/calls/link/talk-to-cy")).status, 404);
+  await call("/v1/calls/link", { method: "PUT", token: cy.token, body: { enabled: true } });
+  const regen = await call("/v1/calls/link/regenerate", { method: "POST", token: cy.token });
+  assert.notEqual(regen.body.link.slug, "talk-to-cy");
+  assert.equal((await call("/v1/calls/link/talk-to-cy")).status, 404);
+  assert.equal((await call("/v1/calls/link/" + regen.body.link.slug)).status, 200);
+  assert.equal((await call("/v1/calls/link", { method: "DELETE", token: cy.token })).body.link, null);
+
+  /* the join route is rate limited per address */
+  let limited = 0;
+  for (let i = 0; i < 14; i++) {
+    const res = await call("/v1/calls/link/call-the-owner/join", { method: "POST", ip: "198.51.100.99", body: { name: "Spam" } });
+    if (res.status === 429) limited += 1;
+  }
+  assert.ok(limited >= 1, "abuse is rate limited");
 });
