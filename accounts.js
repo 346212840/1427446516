@@ -3313,7 +3313,8 @@ var numberNote = form.passkey
     lastPull = Date.now();
     return api("/v1/sync", { token: session.token }).then(function (body) {
       var local = localSnapshot();
-      if (!body || body.status !== 200) return;
+      syncReady = true;
+      if (!body || body.status !== 200) return pushMissedEdit();
       rememberLocks(body);
       if (pullOnly) {
         // Another device changed something: take it in without pushing back,
@@ -3357,6 +3358,7 @@ var numberNote = form.passkey
   var lastPull = 0;
   var pullTimer = 0;
   var liveBound = false;
+  var syncReady = false;
   function pullSoon() {
     if (!readSession() || !hasApi() || pushing) return;
     clearTimeout(pullTimer);
@@ -3392,6 +3394,8 @@ var numberNote = form.passkey
   var pushAgain = false;
   function onLocalChange() {
     if (!readSession() || !hasApi()) return;
+    // The first paint must not upload before the account copy has been read.
+    if (!syncReady) { pushAgain = true; return; }
     if (pushing) { pushAgain = true; return; }
     clearTimeout(pushTimer);
     pushTimer = setTimeout(function () {
