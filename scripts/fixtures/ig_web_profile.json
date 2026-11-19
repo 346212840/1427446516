@@ -1,0 +1,42 @@
+{
+  "data": {
+    "user": {
+      "username": "orbitfox",
+      "full_name": "Orbit Fox",
+      "biography": "I build stuff",
+      "is_private": false,
+      "profile_pic_url": "https://scontent.cdninstagram.com/v/avatar.jpg",
+      "edge_owner_to_timeline_media": {
+        "edges": [
+          {
+            "node": {
+              "shortcode": "Abcd1234",
+              "__typename": "GraphSidecar",
+              "is_video": false,
+              "taken_at_timestamp": 1763600000,
+              "edge_media_to_caption": { "edges": [{ "node": { "text": "Building something new" } }] },
+              "edge_sidecar_to_children": {
+                "edges": [
+                  { "node": { "display_url": "https://scontent.cdninstagram.com/v/one.jpg", "is_video": false, "dimensions": { "width": 1080, "height": 1350 } } },
+                  { "node": { "display_url": "https://scontent.cdninstagram.com/v/two.jpg", "is_video": false, "dimensions": { "width": 1080, "height": 1080 } } }
+                ]
+              }
+            }
+          },
+          {
+            "node": {
+              "shortcode": "Clip5678",
+              "product_type": "clips",
+              "is_video": true,
+              "taken_at_timestamp": 1763500000,
+              "display_url": "https://scontent.cdninstagram.com/v/poster.jpg",
+              "video_url": "https://scontent.cdninstagram.com/v/clip.mp4",
+              "dimensions": { "width": 720, "height": 1280 },
+              "edge_media_to_caption": { "edges": [{ "node": { "text": "A short clip" } }] }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
