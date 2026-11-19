@@ -6705,5 +6705,6 @@ SI18n.addPack("es", {
   "Your other device": "Tu otro dispositivo",
   "Caption size": "Tamaño de subtítulos",
   "Large": "Grande",
-  "Extra large": "Muy grande"
+  "Extra large": "Muy grande",
+  "Call details": "Detalles de la llamada"
 });

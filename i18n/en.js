@@ -6702,5 +6702,6 @@ SI18n.addPack("en", {
   "Your other device": "Your other device",
   "Caption size": "Caption size",
   "Large": "Large",
-  "Extra large": "Extra large"
+  "Extra large": "Extra large",
+  "Call details": "Call details"
 });

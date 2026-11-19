@@ -6704,5 +6704,6 @@ SI18n.addPack("ru", {
   "Your other device": "Ваше другое устройство",
   "Caption size": "Размер субтитров",
   "Large": "Большой",
-  "Extra large": "Очень большой"
+  "Extra large": "Очень большой",
+  "Call details": "Сведения о звонке"
 });

@@ -6692,5 +6692,6 @@ SI18n.addPack("hi", {
   "Your other device": "आपका दूसरा डिवाइस",
   "Caption size": "कैप्शन का आकार",
   "Large": "बड़ा",
-  "Extra large": "बहुत बड़ा"
+  "Extra large": "बहुत बड़ा",
+  "Call details": "कॉल का विवरण"
 });
