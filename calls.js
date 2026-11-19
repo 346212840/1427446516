@@ -634,6 +634,28 @@ function incomingScreen() {
   return homeScreen({ toast: true });
 }
 
+/* People from Contacts, offered under the start-a-call box. Only for signed-in accounts; guests never see them. */
+function contactSuggestions(query) {
+  if (!signedIn()) return [];
+  let list = [];
+  try { list = JSON.parse(localStorage.getItem("viktorych_contacts_v3") || "[]"); } catch (err) { list = []; }
+  if (!Array.isArray(list)) return [];
+  const q = String(query || "").replace(/^@/, "").trim().toLowerCase();
+  const seen = {};
+  return list.filter((c) => c && c.handle && !c.trashedAt).map((c) => ({
+    handle: String(c.handle), star: !!c.favorite,
+    name: ((c.first || "") + " " + (c.last || "")).trim() || c.company || "@" + c.handle
+  })).filter((c) => {
+    if (seen[c.handle]) return false;
+    seen[c.handle] = true;
+    return !q || c.handle.toLowerCase().indexOf(q) >= 0 || c.name.toLowerCase().indexOf(q) >= 0;
+  }).sort((a, b) => Number(b.star) - Number(a.star) || a.name.localeCompare(b.name)).slice(0, 5);
+}
+function suggestionsHtml(query) {
+  const list = contactSuggestions(query);
+  if (!list.length) return "";
+  return `<div class="calls-sugg" role="listbox" aria-label="${esc(tr("Contacts"))}">${list.map((c) => `<button type="button" class="calls-sugg-row" role="option" data-act="call-sugg" data-handle="${esc(c.handle)}"><span class="calls-ava sm">${esc(initialOf(c.name))}</span><span class="calls-sugg-t"><b>${esc(c.name)}</b><small>@${esc(c.handle)}</small></span>${ico("phone")}</button>`).join("")}</div>`;
+}
 function historyRows(tab) {
   const all = state.history;
   const list = all.filter((row) => tab !== "missed" || row.missed);
@@ -750,6 +772,7 @@ function homeScreen(opts) {
   const start = signed ? `<section class="calls-hero">
       <h2>${esc(tr("Start a call"))}</h2>
       <form class="calls-start" data-act="call-start-form"><input name="handle" maxlength="31" placeholder="${esc(tr("Username to call"))}" aria-label="${esc(tr("Username to call"))}" autocomplete="off" autocapitalize="off"><button type="submit" class="calls-go">${ico("phone")}<span>${esc(tr("Call"))}</span></button></form>
+      <div data-sugg>${suggestionsHtml("")}</div>
       <div class="calls-hero-row">
         <button type="button" class="calls-big" data-act="call-invite">${ico("link")}<span>${esc(tr("Get call link"))}</span></button>
         <button type="button" class="calls-big ghost" data-act="call-test">${ico("test")}<span>${esc(tr("Test call"))}</span></button>
@@ -1966,7 +1989,7 @@ function onAct(act, el) {
   else if (act === "call-end") hangUp();
   else if (act === "call-repeat") repeatLast();
   else if (act === "call-phrase") onPhrase(el.dataset.text || "");
-  else if (act === "call-back") startDirect(el.dataset.handle || "");
+  else if (act === "call-back" || act === "call-sugg") startDirect(el.dataset.handle || "");
   else if (act === "call-open") { state.pendingTo = el.dataset.handle || ""; }
   else if (act === "call-invite") startInvite();
   else if (act === "call-test") prepareTest();
@@ -2075,6 +2098,10 @@ function onInput(event) {
     return;
   }
   if (target && target.dataset && target.dataset.act === "call-pwa-name") setInstallName(target.value);
+  if (target && target.name === "handle" && target.closest && target.closest(".calls-start")) {
+    const box = document.querySelector("[data-sugg]");
+    if (box) box.innerHTML = suggestionsHtml(target.value);
+  }
 }
 function onChange(event) {
   const target = event.target;
