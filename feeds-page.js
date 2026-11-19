@@ -676,14 +676,18 @@
     event.preventDefault();
     const kind = el.dataset.feedDrop;
     if (kind === "group") {
-      const groups = (page.doc.groups || []).map((group) => group.id);
       const from = page.drag.indexOf("group:") === 0 ? page.drag.slice(6) : "";
       const to = el.dataset.id || "";
       page.drag = "";
       if (!from || !to || from === to) return;
+      const groups = (page.doc.groups || []).map((group) => group.id);
       const ids = groups.filter((id) => id !== from);
       const at = ids.indexOf(to);
-      ids.splice(at < 0 ? ids.length : at, 0, from);
+      /* A platform section uses the same drop marker. It is not a group, so a
+         miss must leave the saved order alone instead of parking the group
+         at the end. */
+      if (at < 0) return;
+      ids.splice(at, 0, from);
       sendOrder(null, null, ids);
       return;
     }
@@ -827,15 +831,38 @@
     while (start < prefixes.length - 1 && prefixes[start + 1] <= from) start++;
     let end = start;
     while (end < prefixes.length - 1 && prefixes[end] < to) end++;
-    const keep = page.openId || page.menuId || page.confirmId || page.winFocus || "";
-    if (keep) {
-      const at = items.findIndex((item) => item.kind === "row" && item.row && item.row.id === keep);
-      if (at >= 0) {
-        if (at < start) start = at;
-        if (at >= end) end = at + 1;
-      }
-    }
     return { start: start, end: Math.max(end, start) };
+  }
+
+  /* Details, the menu, the remove confirm, and the row an arrow key is
+     moving to stay mounted on their own. Stretching the window to that
+     index would mount every account in between. */
+  function keptRowIds() {
+    const ids = [];
+    [page.openId, page.menuId, page.confirmId, page.winFocus].forEach((id) => {
+      if (id && ids.indexOf(id) < 0) ids.push(id);
+    });
+    return ids;
+  }
+
+  function extraIndexes(items, start, end) {
+    const extras = [];
+    keptRowIds().forEach((id) => {
+      const at = items.findIndex((item) => item.kind === "row" && item.row && item.row.id === id);
+      if (at < 0 || (at >= start && at < end)) return;
+      extras.push(at);
+    });
+    return extras;
+  }
+
+  function pinHtml(items, prefixes, extras) {
+    let html = "";
+    (extras || []).forEach((at) => {
+      const item = items[at];
+      if (!item || item.kind !== "row") return;
+      html += `<div class="feeds-window-pin" style="transform:translateY(${prefixes[at] || 0}px)">${rowHtml(item.row)}</div>`;
+    });
+    return html;
   }
 
   function headHtml(item) {
@@ -890,9 +917,61 @@
     let viewTop = currentViewTop();
     if (total > 0) viewTop = Math.min(viewTop, Math.max(0, total - viewH));
     const range = visibleRange(items, prefixes, viewTop, viewH);
-    page.win = { items: items, prefixes: prefixes, start: range.start, end: range.end };
+    const extras = extraIndexes(items, range.start, range.end);
+    page.win = { items: items, prefixes: prefixes, start: range.start, end: range.end, extras: extras };
     const offset = prefixes[range.start] || 0;
-    return `<div class="feeds-window" data-feed-window style="height:${total}px"><div class="feeds-finds">${findHtml(items, prefixes, range.start, range.end)}</div><div class="feeds-window-rows" style="transform:translateY(${offset}px)">${sliceHtml(items, range.start, range.end)}</div></div>`;
+    return `<div class="feeds-window" data-feed-window style="height:${total}px"><div class="feeds-finds">${findHtml(items, prefixes, range.start, range.end)}</div><div class="feeds-window-rows" style="transform:translateY(${offset}px)">${sliceHtml(items, range.start, range.end)}</div><div class="feeds-window-pins">${pinHtml(items, prefixes, extras)}</div></div>`;
+  }
+
+  function rowSelector(id) {
+    return '.feeds-row[data-id="' + String(id || "").replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"]';
+  }
+
+  /* A half-written label lives on the input, not in the saved row. Detach
+     those rows before the window HTML is replaced and put the same nodes back. */
+  function liveInputRows(root) {
+    const active = document.activeElement;
+    const live = [];
+    if (!root || !root.querySelectorAll) return { live: live, active: null, caret: null };
+    root.querySelectorAll(".feeds-row[data-id]").forEach((row) => {
+      if (!row.querySelectorAll) return;
+      let hold = false;
+      row.querySelectorAll("input, textarea, select").forEach((field) => {
+        if (field === active || (active && row.contains(active))) hold = true;
+        if ((field.tagName === "INPUT" || field.tagName === "TEXTAREA") && String(field.value || "") !== String(field.getAttribute("value") || "")) hold = true;
+      });
+      if (hold) live.push(row);
+    });
+    live.forEach((row) => { if (row.parentNode) row.parentNode.removeChild(row); });
+    const caret = active && live.some((row) => row.contains(active)) ? caretOf(active) : null;
+    return { live: live, active: caret ? active : null, caret: caret };
+  }
+
+  function restoreLiveRows(root, held) {
+    (held.live || []).forEach((row) => {
+      if (!root || row.isConnected) return;
+      const fresh = root.querySelector(rowSelector(row.getAttribute("data-id")));
+      if (fresh) fresh.replaceWith(row);
+    });
+  }
+
+  function parkLiveRows(pins, items, prefixes, held) {
+    if (!pins) return;
+    (held.live || []).forEach((row) => {
+      if (row.isConnected) return;
+      const id = row.getAttribute("data-id");
+      const at = items.findIndex((item) => item.kind === "row" && item.row && item.row.id === id);
+      if (at < 0) return;
+      const hold = document.createElement("div");
+      hold.className = "feeds-window-pin";
+      hold.style.transform = "translateY(" + (prefixes[at] || 0) + "px)";
+      hold.appendChild(row);
+      pins.appendChild(hold);
+    });
+    if (held.active && held.active.focus && (held.live || []).some((row) => row.contains(held.active))) {
+      try { held.active.focus({ preventScroll: true }); } catch (err) { held.active.focus(); }
+      restoreCaret(held.active, held.caret);
+    }
   }
 
   function syncWindow() {
@@ -903,19 +982,35 @@
     const top = box.getBoundingClientRect().top + y;
     const viewTop = Math.max(0, y - top);
     const range = visibleRange(win.items, win.prefixes, viewTop, window.innerHeight || 800);
-    if (range.start === win.start && range.end === win.end) return;
+    const extras = extraIndexes(win.items, range.start, range.end);
+    const sameExtras = (win.extras || []).join(",") === extras.join(",");
+    if (range.start === win.start && range.end === win.end && sameExtras) return;
     const active = document.activeElement;
     const mark = focusMark(active);
     const activeId = active && active.closest ? (active.closest(".feeds-row") || {}).getAttribute && active.closest(".feeds-row").getAttribute("data-id") : "";
     const which = active && active.classList ? (active.classList.contains("feeds-more") ? "more" : active.classList.contains("feeds-expand") ? "expand" : active.classList.contains("feeds-switch") ? "switch" : "") : "";
+    const held = liveInputRows(box);
     win.start = range.start;
     win.end = range.end;
+    win.extras = extras;
     const finds = box.querySelector(".feeds-finds");
     if (finds) finds.innerHTML = findHtml(win.items, win.prefixes, range.start, range.end);
     const rows = box.querySelector(".feeds-window-rows");
-    if (!rows) return;
-    rows.style.transform = "translateY(" + (win.prefixes[range.start] || 0) + "px)";
-    rows.innerHTML = sliceHtml(win.items, range.start, range.end);
+    if (rows) {
+      rows.style.transform = "translateY(" + (win.prefixes[range.start] || 0) + "px)";
+      rows.innerHTML = sliceHtml(win.items, range.start, range.end);
+      restoreLiveRows(rows, held);
+    }
+    let pins = box.querySelector(".feeds-window-pins");
+    if (!pins) {
+      pins = document.createElement("div");
+      pins.className = "feeds-window-pins";
+      box.appendChild(pins);
+    }
+    pins.innerHTML = pinHtml(win.items, win.prefixes, extras);
+    restoreLiveRows(pins, held);
+    parkLiveRows(pins, win.items, win.prefixes, held);
+    if ((held.live || []).some((row) => row.isConnected && row.contains(document.activeElement))) return;
     if (mark && (mark.tag === "INPUT" || mark.tag === "TEXTAREA" || mark.tag === "SELECT" || (active && active.closest && active.closest(".feeds-menu, .feeds-confirm")))) {
       restoreMark(mark);
       return;
@@ -957,12 +1052,18 @@
     if (menuField(event.target) || menuField(document.activeElement)) return;
     const target = event.target;
     if (!target || !target.closest) return;
+    /* Bound for the life of the page. Only the Feeds list that is on screen
+       moves. A request, ban, or pending row has no data-id and is not a step. */
+    const list = target.closest("[data-feed-window]");
+    if (!list || !page.win || !page.win.items) return;
     const row = target.closest(".feeds-row");
-    if (!row || !page.win || !page.win.items) return;
+    if (!row || !list.contains(row)) return;
     const id = row.getAttribute("data-id");
+    if (!id) return;
     const ids = [];
-    page.win.items.forEach((item) => { if (item.kind === "row" && item.row) ids.push(item.row.id); });
+    page.win.items.forEach((item) => { if (item.kind === "row" && item.row && item.row.id) ids.push(item.row.id); });
     const at = ids.indexOf(id);
+    if (at < 0) return;
     const next = ids[at + (event.key === "ArrowDown" ? 1 : -1)];
     if (!next) return;
     event.preventDefault();

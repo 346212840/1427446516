@@ -405,8 +405,193 @@ async function runWindow(browser, origin, vp) {
     return !!(el && el.closest && el.closest(".feeds-menu"));
   });
   if (!itemStays) fail(tag + ": ArrowDown left the open menu");
+  await page.locator(".feeds-more.on").click();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.locator('.feeds-row[data-id="rss:lane0"] .feeds-expand').click();
+  await page.waitForFunction(() => {
+    const row = document.querySelector('.feeds-row[data-id="rss:lane0"].is-open');
+    if (!row) return false;
+    const r = row.getBoundingClientRect();
+    return r.bottom > 0 && r.top < window.innerHeight;
+  }, null, { timeout: 5000 }).catch(() => fail(tag + ": details did not open"));
+  await page.evaluate(() => {
+    const box = document.querySelector("[data-feed-window]");
+    const top = box.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo(0, Math.max(0, top + box.offsetHeight - window.innerHeight + 8));
+  });
+  const heldOpen = await page.waitForFunction(() => {
+    const row = document.querySelector('.feeds-row[data-id="rss:lane0"]');
+    const n = document.querySelectorAll(".feeds-row").length;
+    if (!row || n >= 70 || !row.closest(".feeds-window-pin") || row.getBoundingClientRect().bottom >= 0) return false;
+    return { n: n, pin: true, off: true };
+  }, null, { timeout: 5000 }).catch(() => null);
+  const openPlace = heldOpen ? await heldOpen.jsonValue() : null;
+  if (!openPlace || !openPlace.pin || !openPlace.off) fail(tag + ": an open row stretched the window " + JSON.stringify(openPlace));
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.locator('.feeds-row[data-id="rss:lane0"] .feeds-more').click();
+  const label = page.locator("#feeds-label-rss\\:lane0");
+  await label.waitFor({ timeout: 5000 }).catch(() => fail(tag + ": the rename field did not open"));
+  await page.waitForFunction(() => {
+    const input = document.querySelector("#feeds-label-rss\\:lane0");
+    if (!input) return false;
+    const r = input.getBoundingClientRect();
+    return r.bottom > 0 && r.top < window.innerHeight;
+  }, null, { timeout: 5000 }).catch(() => fail(tag + ": the rename field is off screen"));
+  await label.fill("Half written");
+  await page.evaluate(() => {
+    const box = document.querySelector("[data-feed-window]");
+    const top = box.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo(0, Math.max(0, top + box.offsetHeight - window.innerHeight + 8));
+  });
+  const typed = await page.waitForFunction(() => {
+    const input = document.querySelector("#feeds-label-rss\\:lane0");
+    const n = document.querySelectorAll(".feeds-row").length;
+    if (!input || input.value !== "Half written" || n >= 70) return false;
+    return { value: input.value, n: n };
+  }, null, { timeout: 5000 }).catch(() => null);
+  if (!typed) fail(tag + ": scrolling cleared the rename");
+  await page.locator('[data-feed-act="ask-remove"]').click();
+  await page.waitForFunction(() => {
+    const box = document.querySelector(".feeds-confirm");
+    if (!box) return false;
+    const r = box.getBoundingClientRect();
+    return r.bottom > 0 && r.top < window.innerHeight;
+  }, null, { timeout: 5000 }).catch(() => fail(tag + ": remove confirm did not open"));
+  await page.evaluate(() => {
+    const box = document.querySelector("[data-feed-window]");
+    const top = box.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo(0, Math.max(0, top + box.offsetHeight - 40));
+  });
+  const confirmed = await page.waitForFunction(() => {
+    const box = document.querySelector(".feeds-confirm");
+    const n = document.querySelectorAll(".feeds-row").length;
+    if (!box || n >= 70 || !box.closest(".feeds-window-pin") || box.getBoundingClientRect().bottom >= 0) return false;
+    return { n: n, pin: true };
+  }, null, { timeout: 5000 }).catch(() => null);
+  if (!confirmed) fail(tag + ": the remove confirm stretched the window");
   await context.close();
   console.log("feeds window ok " + vp.name);
+}
+
+async function runDrop(browser, origin) {
+  const accounts = [
+    account("rss:loose1", "loose1", { platform: "rss", name: "Loose One", groupId: "" }),
+    account("rss:alpha1", "alpha1", { platform: "rss", name: "Alpha One", groupId: "galpha" }),
+    account("telegram:beta1", "beta1", { platform: "telegram", name: "Beta One", groupId: "gbeta" })
+  ];
+  const groups = [{ id: "galpha", name: "Alpha", order: 0 }, { id: "gbeta", name: "Beta", order: 1 }];
+  const reorders = [];
+  const context = await browser.newContext({ serviceWorkers: "block", viewport: { width: 1280, height: 800 } });
+  await context.route(/^https?:\/\/(?!127\.0\.0\.1)/, (route) => route.fulfill({ status: 200, body: "" }));
+  await context.route("**/v1/**", async (route) => {
+    const req = route.request();
+    const where = new URL(req.url()).pathname;
+    const reply = (body, status) => route.fulfill({ status: status || 200, contentType: "application/json", headers: { "cache-control": "no-store" }, body: JSON.stringify(body) });
+    let body = {};
+    try { body = JSON.parse(req.postData() || "{}"); } catch (err) { body = {}; }
+    if (where === "/v1/owner/feeds" && req.method() === "GET") return reply({ accounts: accounts, groups: groups, places: [] });
+    if (where === "/v1/owner/feeds/reorder" && req.method() === "POST") {
+      reorders.push(body);
+      return reply({ ok: true, accounts: accounts, groups: groups, places: [] });
+    }
+    return reply({ posts: [], ok: true });
+  });
+  const page = await context.newPage();
+  await page.addInitScript(() => {
+    localStorage.setItem("viktorychapp-lang-user-picked", "1");
+    localStorage.setItem("superintelapp-lang", "en");
+    localStorage.setItem("viktorychapp-welcome-v1", JSON.stringify({ step: 2, done: true }));
+    localStorage.setItem("viktorychapp-account-v1", JSON.stringify({ token: "local-test-token", account: { publicId: "100000000001", handle: "owner_test", displayName: "Owner Test", avatar: "", owner: true } }));
+    window.VIKTORYCH_ACCOUNTS = { api: location.origin, gate: true, tiktokAudience: "owner" };
+  });
+  await page.goto(origin + "/#/feeds", { waitUntil: "domcontentloaded" });
+  await page.locator('[data-feed-drag="group:galpha"]').waitFor({ timeout: 20000 }).catch(() => fail("drop: the group head did not paint"));
+  await page.locator('.feeds-section-head[data-id="platform:rss"]').waitFor({ timeout: 5000 }).catch(() => fail("drop: the platform head did not paint"));
+  await page.evaluate(() => {
+    const from = document.querySelector('[data-feed-drag="group:galpha"]');
+    const to = document.querySelector('.feeds-section-head[data-id="platform:rss"]');
+    from.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true }));
+    to.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true }));
+  });
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  if (reorders.length) fail("drop: a platform head saved the group at the end " + JSON.stringify(reorders));
+  await page.evaluate(() => {
+    const from = document.querySelector('[data-feed-drag="group:gbeta"]');
+    const to = document.querySelector('[data-feed-drag="group:galpha"]');
+    from.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true }));
+    to.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true }));
+  });
+  for (let i = 0; i < 20 && !reorders.length; i++) await new Promise((resolve) => setTimeout(resolve, 25));
+  if (!reorders.length || JSON.stringify(reorders[0].groups) !== JSON.stringify(["gbeta", "galpha"])) fail("drop: a group head did not reorder " + JSON.stringify(reorders));
+  await context.close();
+  console.log("feeds drop ok");
+}
+
+async function runKeys(browser, origin) {
+  const accounts = [];
+  for (let i = 0; i < 8; i++) accounts.push(account("rss:lane" + i, "lane" + i, { platform: "rss", name: "Lane " + i, order: i }));
+  const context = await browser.newContext({ serviceWorkers: "block", viewport: { width: 1280, height: 800 } });
+  await context.route(/^https?:\/\/(?!127\.0\.0\.1)/, (route) => route.fulfill({ status: 200, body: "" }));
+  await context.route("**/v1/**", async (route) => {
+    const req = route.request();
+    const where = new URL(req.url()).pathname;
+    const reply = (body) => route.fulfill({ status: 200, contentType: "application/json", headers: { "cache-control": "no-store" }, body: JSON.stringify(body) });
+    if (where === "/v1/owner/feeds" && req.method() === "GET") return reply({ accounts: accounts, groups: [], places: [] });
+    if (where.indexOf("/v1/owner/feed-requests") === 0) {
+      return reply({ requests: [{ id: "req_sample", input: "https://example.com/sample-feed", name: "Sample Feed", platform: "rss", handle: "samplefeed", state: "pending", count: 1, at: 1763500000000, people: [{ handle: "asker_one", name: "Asker One" }] }], lists: [], pending: 1, unseen: 0 });
+    }
+    return reply({ posts: [], ok: true });
+  });
+  const page = await context.newPage();
+  await page.addInitScript(() => {
+    localStorage.setItem("viktorychapp-lang-user-picked", "1");
+    localStorage.setItem("superintelapp-lang", "en");
+    localStorage.setItem("viktorychapp-welcome-v1", JSON.stringify({ step: 2, done: true }));
+    localStorage.setItem("viktorychapp-account-v1", JSON.stringify({ token: "local-test-token", account: { publicId: "100000000001", handle: "owner_test", displayName: "Owner Test", avatar: "", owner: true } }));
+    window.VIKTORYCH_ACCOUNTS = { api: location.origin, gate: true, tiktokAudience: "owner" };
+  });
+  await page.goto(origin + "/#/feeds", { waitUntil: "domcontentloaded" });
+  await page.locator(".feeds-row").first().waitFor({ timeout: 20000 }).catch(() => fail("keys: feeds did not paint"));
+  const bare = await page.evaluate(() => {
+    const host = document.querySelector(".feeds-window-rows");
+    const row = document.createElement("article");
+    row.className = "feeds-row";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "feeds-pill";
+    btn.textContent = "Allow";
+    row.appendChild(btn);
+    host.appendChild(row);
+    btn.focus();
+    const ev = new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true });
+    btn.dispatchEvent(ev);
+    return { prevented: ev.defaultPrevented, still: document.activeElement === btn };
+  });
+  if (bare.prevented || !bare.still) fail("keys: a row without data-id stole ArrowDown " + JSON.stringify(bare));
+  await page.goto(origin + "/#/settings/feed-requests", { waitUntil: "domcontentloaded" });
+  await page.locator(".fr-qrow").first().waitFor({ timeout: 20000 }).catch(() => fail("keys: source requests did not paint"));
+  const away = await page.evaluate(() => {
+    const org = document.querySelector(".feeds-org");
+    const row = document.createElement("article");
+    row.className = "feeds-row";
+    row.setAttribute("data-id", "rss:lane0");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = "Allow";
+    row.appendChild(btn);
+    org.appendChild(row);
+    btn.focus();
+    const ev = new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true });
+    btn.dispatchEvent(ev);
+    const real = document.querySelector(".fr-qrow button");
+    real.focus();
+    const ev2 = new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true });
+    real.dispatchEvent(ev2);
+    return { prevented: ev.defaultPrevented || ev2.defaultPrevented, still: document.activeElement === real, id: real.closest(".feeds-row").getAttribute("data-id") };
+  });
+  if (away.prevented || !away.still || away.id) fail("keys: arrow keys left the source requests page " + JSON.stringify(away));
+  await context.close();
+  console.log("feeds keys ok");
 }
 
 async function main() {
@@ -420,6 +605,8 @@ async function main() {
       await runLarge(browser, origin, vp);
       await runWindow(browser, origin, vp);
     }
+    await runDrop(browser, origin);
+    await runKeys(browser, origin);
   } finally {
     await browser.close();
     server.close();
