@@ -6501,5 +6501,19 @@ SI18n.addPack("es", {
   "Could not generate speech.": "No se pudo generar la voz.",
   "Port": "Puerto",
   "The audio converter is turned off right now.": "El conversor de audio está apagado ahora.",
-  "Turn audio into another format on this device. Voice notes, typed speech and music sit in one page.": "Convierte audio a otro formato en este dispositivo. Notas de voz, voz escrita y música están en una página."
+  "Turn audio into another format on this device. Voice notes, typed speech and music sit in one page.": "Convierte audio a otro formato en este dispositivo. Notas de voz, voz escrita y música están en una página.",
+  "Transcribing": "Transcribiendo",
+  "Converting": "Convirtiendo",
+  "Lossy": "Con pérdida",
+  "Drop audio here or pick files": "Suelta el audio aquí o elige archivos",
+  "Download all": "Descargar todo",
+  "Record": "Grabar",
+  "As me": "Como yo",
+  "Anyone else": "Cualquier otra persona",
+  "Invite to bot": "Invitar al bot",
+  "The voice bot is not configured yet.": "El bot de voz aún no está configurado.",
+  "Sending": "Enviando",
+  "Open in Telegram to forward": "Abrir en Telegram para reenviar",
+  "Hide sender name": "Ocultar el nombre de quien envía",
+  "Local voice (free)": "Voz local (gratis)"
 });

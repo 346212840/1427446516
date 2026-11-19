@@ -6500,5 +6500,19 @@ SI18n.addPack("ru", {
   "Could not generate speech.": "Не удалось создать речь.",
   "Port": "Порт",
   "The audio converter is turned off right now.": "Конвертер звука сейчас выключен.",
-  "Turn audio into another format on this device. Voice notes, typed speech and music sit in one page.": "Превращает звук в другой формат на этом устройстве. Голосовые, набранная речь и музыка на одной странице."
+  "Turn audio into another format on this device. Voice notes, typed speech and music sit in one page.": "Превращает звук в другой формат на этом устройстве. Голосовые, набранная речь и музыка на одной странице.",
+  "Transcribing": "Расшифровка",
+  "Converting": "Конвертация",
+  "Lossy": "С потерями",
+  "Drop audio here or pick files": "Перетащите звук сюда или выберите файлы",
+  "Download all": "Скачать всё",
+  "Record": "Запись",
+  "As me": "От моего имени",
+  "Anyone else": "Кто угодно ещё",
+  "Invite to bot": "Пригласить к боту",
+  "The voice bot is not configured yet.": "Голосовой бот ещё не настроен.",
+  "Sending": "Отправка",
+  "Open in Telegram to forward": "Открыть в Telegram, чтобы переслать",
+  "Hide sender name": "Скрыть имя отправителя",
+  "Local voice (free)": "Локальный голос (бесплатно)"
 });

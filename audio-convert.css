@@ -1,6 +1,14 @@
 /* On-device converter. Sits in the main column and follows the theme tokens. */
 .ac { padding: 0 16px 32px; }
 .ac-title { margin: 4px 0 12px; font-size: 20px; line-height: 24px; font-weight: 800; }
+.ac-drop { display: block; margin: 12px 0; padding: 28px 16px; border: 1px dashed rgb(47, 51, 54); border-radius: 16px; text-align: center; }
+.ac-drop input { display: block; margin: 0 auto 8px; }
+.ac-sheet { position: fixed; inset: 0; z-index: 40; background: rgba(0, 0, 0, .6); display: flex; align-items: flex-end; justify-content: center; }
+.ac-sheet-card { width: min(480px, 100%); max-height: 86vh; overflow: auto; background: #000; border: 1px solid rgb(47, 51, 54); border-radius: 16px 16px 0 0; padding: 16px; }
+@media (min-width: 700px) {
+  .ac-sheet { align-items: center; }
+  .ac-sheet-card { border-radius: 16px; }
+}
 .ac-pills a.ac-pill { text-decoration: none; }
 .ac-lead, .ac-note { margin: 0 0 12px; color: var(--muted); font-size: 14px; line-height: 19px; }
 .ac-note strong { color: var(--text); font-weight: 700; }

@@ -497,6 +497,9 @@ settings-registry.js|Friends master switch: turn Friends off entirely (no reques
 # Local AI setup: each reply language is shown in its own name.
 local-ai-ui.js|English
 local-ai-ui.js|Español
+# Format names listed next to Lossless and Lossy.
+audio-studio-files.js|WAV FLAC ALAC AIFF.
+audio-studio-files.js|MP3 AAC Opus Vorbis.
 # Model ids and product names shown as engine choices.
 audio-convert-whisper.js|Xenova/whisper-tiny
 flow-music.js|Lyria 3 Pro

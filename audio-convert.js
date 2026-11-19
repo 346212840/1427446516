@@ -105,8 +105,9 @@
     state.mode = current;
     var local = current === "type" && root.ViktorychLocalVoice ? root.ViktorychLocalVoice.html() : "";
     var music = current === "music" && root.ViktorychFlowMusic ? root.ViktorychFlowMusic.html() : "";
-    var convert = current === "convert" ? "<section class=\"ac-block\"><h3>" + esc(tr("Convert")) + "</h3><p class=\"ac-lead\">" + esc(tr("Files stay on this device until you choose to send one.")) + "</p></section>" : "";
-    var voice = current === "voice" ? "<section class=\"ac-block\"><h3>" + esc(tr("Voice Notes")) + "</h3><p class=\"ac-note\">" + esc(tr("Record or drop audio, then send it as a Telegram voice note.")) + "</p></section>" : "";
+    var files = root.ViktorychStudioFiles;
+    var convert = current === "convert" && files ? files.html("convert") : "";
+    var voice = current === "voice" && files ? files.html("voice") : "";
     var type = current === "type" ? fish + local : "";
     return "<div class=\"ac\"><h2 class=\"ac-title\">" + esc(studioName()) + "</h2>" + tabsHtml(current) + convert + voice + type + music + "</div>";
   }
@@ -208,8 +209,14 @@
       loadVoices();
     }
     if (state.mode === "music" && root.ViktorychFlowMusic) root.ViktorychFlowMusic.mount(el);
+    if ((state.mode === "convert" || state.mode === "voice") && root.ViktorychStudioFiles) root.ViktorychStudioFiles.mount(el);
   }
   function unmount() {}
+  function useLocalClip(blob) {
+    state.clip = { url: URL.createObjectURL(blob), name: "local-voice.wav", blob: blob };
+    state.note = "";
+    if (state.mode === "type") paint();
+  }
 
-  root.ViktorychConvert = { page: page, mount: mount, unmount: unmount, spec: spec, generate: generate };
+  root.ViktorychConvert = { page: page, mount: mount, unmount: unmount, spec: spec, generate: generate, useLocalClip: useLocalClip };
 })(typeof globalThis !== "undefined" ? globalThis : this);

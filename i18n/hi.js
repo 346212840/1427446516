@@ -6488,5 +6488,19 @@ SI18n.addPack("hi", {
   "Could not generate speech.": "आवाज़ नहीं बन सकी।",
   "Port": "पोर्ट",
   "The audio converter is turned off right now.": "ऑडियो कनवर्टर अभी बंद है।",
-  "Turn audio into another format on this device. Voice notes, typed speech and music sit in one page.": "इस डिवाइस पर ऑडियो को दूसरे फ़ॉर्मैट में बदलता है। वॉइस नोट, टाइप की आवाज़ और संगीत एक पेज पर हैं।"
+  "Turn audio into another format on this device. Voice notes, typed speech and music sit in one page.": "इस डिवाइस पर ऑडियो को दूसरे फ़ॉर्मैट में बदलता है। वॉइस नोट, टाइप की आवाज़ और संगीत एक पेज पर हैं।",
+  "Transcribing": "लिख रहे हैं",
+  "Converting": "बदल रहे हैं",
+  "Lossy": "गुणवत्ता घटेगी",
+  "Drop audio here or pick files": "ऑडियो यहाँ छोड़ें या फ़ाइलें चुनें",
+  "Download all": "सब डाउनलोड करें",
+  "Record": "रिकॉर्ड",
+  "As me": "मेरे रूप में",
+  "Anyone else": "कोई और",
+  "Invite to bot": "बॉट पर बुलाएँ",
+  "The voice bot is not configured yet.": "वॉइस बॉट अभी सेट नहीं है।",
+  "Sending": "भेजा जा रहा है",
+  "Open in Telegram to forward": "आगे भेजने के लिए Telegram खोलें",
+  "Hide sender name": "भेजने वाले का नाम छिपाएँ",
+  "Local voice (free)": "स्थानीय आवाज़ (मुफ़्त)"
 });
