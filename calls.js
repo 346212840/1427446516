@@ -29,9 +29,13 @@ function tr(key, vars) {
   const fn = window.t || (window.SI18n && window.SI18n.t);
   return fn ? fn(key, vars) : key;
 }
+/* English text for plural keys, for pages that do not load the English pack (the stand-alone page). */
+const PLURAL_EN = { callsSelected: ["{n} selected", "{n} selected"], callsRemoved: ["{n} call removed from your history", "{n} calls removed from your history"] };
 function trn(key, n) {
   const i = window.SI18n;
-  return i && i.tn ? i.tn(key, n) : String(n);
+  const out = i && i.tn ? i.tn(key, n) : "";
+  if (out && out.indexOf(key + ".") !== 0) return out;
+  return (PLURAL_EN[key] || [String(n), String(n)])[Number(n) === 1 ? 0 : 1].replace("{n}", String(n));
 }
 function esc(value) {
   return String(value == null ? "" : value).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
