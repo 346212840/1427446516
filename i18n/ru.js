@@ -6576,5 +6576,15 @@ SI18n.addPack("ru", {
   "Talk": "Говорить",
   "Speaker": "Динамик",
   "Answer": "Ответить",
-  "You can type instead of talking.": "Можно написать вместо разговора."
+  "You can type instead of talking.": "Можно написать вместо разговора.",
+  "Sign in on this device": "Войти на этом устройстве",
+  "App id": "Идентификатор приложения",
+  "App hash": "Хеш приложения",
+  "Login code": "Код входа",
+  "Two-factor password": "Пароль двухэтапной проверки",
+  "Create the app id on my.telegram.org. It stays on this device.": "Создайте идентификатор приложения на my.telegram.org. Он остаётся на этом устройстве.",
+  "Signed in on this device.": "Вход выполнен на этом устройстве.",
+  "Type a username or phone": "Введите имя пользователя или телефон",
+  "Could not sign in.": "Не удалось войти.",
+  "Save on this device": "Сохранить на этом устройстве"
 });

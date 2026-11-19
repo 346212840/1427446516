@@ -40,7 +40,8 @@
     var flood = account ? account.floodWait() : 0;
     var rows = chatRows();
     var me = account && account.on()
-      ? "<button type=\"button\" class=\"ac-btn\" data-vs=\"me\"" + (flood ? " disabled" : "") + ">" + esc(tr("As me")) + "</button>" +
+      ? "<div data-tg-box>" + account.markup() + "</div>" +
+        "<button type=\"button\" class=\"ac-btn\" data-vs=\"me\"" + (flood ? " disabled" : "") + ">" + esc(tr("As me")) + "</button>" +
         (flood ? "<p class=\"ac-note\">" + esc(tr("Retry")) + " " + Math.ceil(flood / 1000) + "</p>" : "")
       : "";
     return "<div class=\"ac-sheet\" data-voice-sheet><div class=\"ac-sheet-card\" role=\"dialog\" aria-label=\"" + esc(tr("Send")) + "\">" +
@@ -73,6 +74,8 @@
     var holder = document.createElement("div");
     holder.innerHTML = sheet();
     document.body.appendChild(holder.firstElementChild);
+    var tg = document.querySelector("[data-voice-sheet] [data-tg-box]");
+    if (tg && root.ViktorychTgAccount) root.ViktorychTgAccount.attach(tg);
   }
 
   function authHeaders() {
@@ -142,12 +145,15 @@
         }).catch(function () { setStatus(tr("Retry")); });
       }
       if (act === "me" && root.ViktorychTgAccount) {
+        var account = root.ViktorychTgAccount;
+        if (account.floodWait() > 0) { setStatus(tr("Retry")); return; }
+        if (!account.signedIn()) { setStatus(tr("Sign in on this device")); return; }
+        var peer = String(view.query || "").replace(/^@/, "").trim();
+        if (!peer) { setStatus(tr("Type a username or phone")); return; }
         setStatus(tr("Sending"));
-        root.ViktorychTgAccount.send(view.blob, view.transcript).then(function () {
+        account.send(view.blob, view.transcript, peer).then(function () {
           setStatus(tr("Delivered"));
-        }).catch(function (err) {
-          setStatus(err && err.code === "flood" ? tr("Retry") : tr("Retry"));
-        });
+        }).catch(function () { setStatus(tr("Retry")); });
       }
     });
     node.addEventListener("input", function (event) {
