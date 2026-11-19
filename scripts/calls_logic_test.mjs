@@ -17,6 +17,8 @@ import { createRaiseDetector, earSinkId, cheekLike, createUnlocker, EAR_VOLUME_C
 import { createPipe } from "../shared/call-engine.js";
 import { relayHint } from "../worker/src/calls.js";
 import pagesRelay from "./pages_relay_worker.js";
+import { readFileSync } from "node:fs";
+const pagesRelaySource = readFileSync(new URL("./pages_relay_worker.js", import.meta.url), "utf8");
 import { lighterFor, pickSink, sinkChangeKeepsCall, cleanLexicon, rememberLine } from "../shared/call-quality.js";
 
 assert.equal(isCallLang("ca"), true, "Catalan is a Live Translate target");
@@ -402,6 +404,7 @@ assert.equal(langName("zz", "en"), "zz");
   const hit = (path, init) => pagesRelay.fetch(new Request("https://viktorychapp.pages.dev" + path, init), { ASSETS: assets });
   assert.equal(await (await hit("/index.html")).text(), "asset");
   assert.equal((await hit("/v1/calls/live?t=abcdefgh1234")).status, 426);
+  assert.ok(pagesRelaySource.includes("arrayBuffer") && !/server\.send\(event\.data\)/.test(pagesRelaySource), "Blob frames are converted before they are sent on");
   assert.equal((await hit("/v1/calls/live?t=%20bad", { headers: { Upgrade: "websocket" } })).status, 400);
 }
 
