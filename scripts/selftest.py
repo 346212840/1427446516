@@ -1426,8 +1426,8 @@ def main() -> None:
     saved_repo = os.environ.pop("GITHUB_REPOSITORY", None)
     try:
         check(pages_base() == "" and raw_data() == "" and cdn_data() == "", "Pages URLs are empty until GITHUB_REPOSITORY is set")
-        os.environ["GITHUB_REPOSITORY"] = "ViktorychGroup/ViktorychApp"
-        check(pages_base() == "https://viktorychgroup.github.io/ViktorychApp/" and raw_data().endswith("/ViktorychApp/data/") and "ViktorychGroup/ViktorychApp@data/" in cdn_data(), "Pages, raw, and jsDelivr URLs follow the repository")
+        os.environ["GITHUB_REPOSITORY"] = "ViktorychGroup/ViktorychApp1427446516"
+        check(pages_base() == "https://viktorychgroup.github.io/ViktorychApp1427446516/" and raw_data().endswith("/ViktorychApp1427446516/data/") and "ViktorychGroup/ViktorychApp1427446516@data/" in cdn_data(), "Pages, raw, and jsDelivr URLs follow the repository")
         os.environ["GITHUB_REPOSITORY"] = "Example/Other"
         check(pages_base() == "https://example.github.io/Other/", "a renamed repository follows GITHUB_REPOSITORY")
     finally:
@@ -5207,7 +5207,7 @@ def gdrive_checks() -> None:
     check('cron: "17 9 * * *"' in workflow and "workflow_dispatch" in workflow and "timeout-minutes: 40" in workflow and "group: gdrive-backup" in workflow, "the Drive backup is daily, manual, and capped at 40 minutes")
     check("GDRIVE_RCLONE_TOKEN" in workflow and 'echo "$GDRIVE' not in workflow and "echo $GDRIVE" not in workflow and 'echo "${GDRIVE' not in workflow, "the Drive workflow uses the secret and does not print it")
     check("v1.75.2" in workflow and "v1.75.2" in doc and "drive.file" in doc and ".\\rclone.exe authorize \"drive\" $blob" in doc, "the token steps pin rclone and the drive.file authorize command")
-    check("https://github.com/ViktorychGroup/ViktorychApp/settings/secrets/actions/new" in doc and "GDRIVE_RCLONE_TOKEN" in doc and "service account" in doc.lower() and "account data" in doc.lower(), "the token steps name the GitHub secret page and refuse a service account")
+    check("https://github.com/ViktorychGroup/ViktorychApp1427446516/settings/secrets/actions/new" in doc and "GDRIVE_RCLONE_TOKEN" in doc and "service account" in doc.lower() and "account data" in doc.lower(), "the token steps name the GitHub secret page and refuse a service account")
     check("docs/gdrive-backup.md" in readme and "GDRIVE_RCLONE_TOKEN" in readme and "account data is not uploaded" in readme.lower(), "the readme points at the Drive backup and leaves account data out")
     env = os.environ.copy()
     env.pop("GDRIVE_RCLONE_TOKEN", None)
