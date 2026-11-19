@@ -6502,5 +6502,6 @@ SI18n.addPack("hi", {
   "Sending": "भेजा जा रहा है",
   "Open in Telegram to forward": "आगे भेजने के लिए Telegram खोलें",
   "Hide sender name": "भेजने वाले का नाम छिपाएँ",
-  "Local voice (free)": "स्थानीय आवाज़ (मुफ़्त)"
+  "Local voice (free)": "स्थानीय आवाज़ (मुफ़्त)",
+  "Could not convert this file.": "यह फ़ाइल नहीं बदली जा सकी।"
 });

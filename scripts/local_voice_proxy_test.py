@@ -57,6 +57,12 @@ def main() -> None:
         body = json.loads(res.read().decode())
         assert body["status"] == "ok"
         assert "local-test-token" not in json.dumps(dict(res.headers))
+    evil = Request(base + "/v1/health", method="OPTIONS", headers={"Origin": "https://viktorychapp.pages.dev.example"})
+    try:
+        urlopen(evil)
+        raise SystemExit("a lookalike origin was allowed")
+    except Exception as err:
+        assert getattr(err, "code", None) == 403, err
     print("local voice proxy ok")
 
 

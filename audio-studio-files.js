@@ -8,6 +8,8 @@
   var pending = {};
   var queue = [];
   var running = false;
+  var ready = false;
+  var current = null;
   var format = "flac";
   var flac = 8;
   var mp3 = "320";
@@ -30,16 +32,34 @@
     worker = new Worker(new URL("audio-convert-worker.js", root.location.href));
     worker.onmessage = function (event) {
       var msg = event.data || {};
+      if (msg.op === "ready") {
+        ready = true;
+        running = false;
+        kick();
+        return;
+      }
+      if (msg.op === "error" && msg.code === "busy" && current) {
+        queue.unshift(current);
+        current = null;
+        running = false;
+        kick();
+        return;
+      }
       var job = pending[msg.id];
-      running = false;
+      if (msg.op !== "progress") {
+        current = null;
+        running = false;
+      }
       if (job) {
-        if (msg.op === "progress") { job.ratio = msg.ratio || 0; running = true; }
+        if (msg.op === "progress") job.ratio = msg.ratio || 0;
         if (msg.op === "error") job.state = msg.code || "failed";
         if (msg.op === "done") {
+          if (job.url) URL.revokeObjectURL(job.url);
           job.ogg = new Uint8Array(msg.bytes);
           job.mime = msg.mime || "audio/ogg";
           job.ext = msg.ext || "bin";
           job.lossy = !!msg.lossy;
+          job.url = URL.createObjectURL(new Blob([job.ogg], { type: job.mime }));
           job.state = job.transcript ? "text" : "done";
         }
         if (msg.op === "pcm") {
@@ -55,11 +75,11 @@
   }
 
   function kick() {
-    if (running || !queue.length) return;
-    var next = queue.shift();
+    if (!ready || running || !queue.length) return;
+    current = queue.shift();
     running = true;
-    pending[next.id] = next.job;
-    engine().postMessage(next.msg);
+    pending[current.id] = current.job;
+    engine().postMessage(current.msg);
   }
   function transcribe(job, bytes) {
     if (!whisper) {
@@ -104,12 +124,13 @@
     var box = document.querySelector("[data-ac-jobs]");
     if (!box) return;
     box.innerHTML = jobs.map(function (job) {
-      var label = job.state === "done" || job.state === "text" ? tr("Delivered") : job.state === "transcribing" ? tr("Transcribing") : tr("Converting");
+      var failed = job.state === "failed" || job.state === "busy" || job.state === "no-audio" || job.state === "memory" || job.state === "load" || job.state === "file";
+      var label = failed ? tr("Could not convert this file.") : job.state === "done" || job.state === "text" ? tr("Delivered") : job.state === "transcribing" ? tr("Transcribing") : job.state === "queued" ? tr("Converting") : tr("Converting");
       var loss = job.lossy ? tr("Lossy") : tr("Lossless");
-      var audio = job.ogg ? "<audio controls src=\"" + URL.createObjectURL(new Blob([job.ogg], { type: job.mime || "application/octet-stream" })) + "\"></audio>" : "";
+      var audio = job.url ? "<audio controls src=\"" + job.url + "\"></audio>" : "";
       var text = job.voice ? "<textarea class=\"ac-box\" data-ac-transcript=\"" + esc(job.id) + "\">" + esc(job.transcript || "") + "</textarea><a class=\"ac-link\" href=\"https://vk.com/im\" target=\"_blank\" rel=\"noopener\">" + esc(tr("Open VK")) + "</a>" : "";
       var send = job.voice && job.ogg ? "<button type=\"button\" class=\"ac-btn primary\" data-ac-send=\"" + esc(job.id) + "\">" + esc(tr("Send")) + "</button>" : "";
-      var save = job.ogg && !job.voice ? "<a class=\"ac-link\" download=\"" + esc(job.name + "." + (job.ext || "bin")) + "\" href=\"" + URL.createObjectURL(new Blob([job.ogg], { type: job.mime || "application/octet-stream" })) + "\">" + esc(tr("Download")) + "</a>" : "";
+      var save = job.url && !job.voice ? "<a class=\"ac-link\" download=\"" + esc(job.name + "." + (job.ext || "bin")) + "\" href=\"" + job.url + "\">" + esc(tr("Download")) + "</a>" : "";
       return "<article class=\"ac-item\"><b>" + esc(job.name) + "</b><span class=\"ac-meta\">" + esc(label) + " " + esc(loss) + "</span>" + audio + text + send + save + "</article>";
     }).join("");
   }

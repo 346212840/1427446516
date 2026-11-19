@@ -6514,5 +6514,6 @@ SI18n.addPack("ru", {
   "Sending": "Отправка",
   "Open in Telegram to forward": "Открыть в Telegram, чтобы переслать",
   "Hide sender name": "Скрыть имя отправителя",
-  "Local voice (free)": "Локальный голос (бесплатно)"
+  "Local voice (free)": "Локальный голос (бесплатно)",
+  "Could not convert this file.": "Не удалось конвертировать этот файл."
 });

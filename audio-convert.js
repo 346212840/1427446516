@@ -125,9 +125,10 @@
 
   function generate(confirmed) {
     var now = spec();
-    if (!now.text || !now.voice) return;
+    if (state.busy || !now.text || !now.voice) return;
     state.busy = true;
     state.note = "";
+    paint();
     cache().read(now).then(function (hit) {
       if (hit) { useClip(hit.blob, hit.name || now.name, true); return; }
       if (cache().needsConfirm(now.text) && !confirmed) {

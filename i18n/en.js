@@ -6512,5 +6512,6 @@ SI18n.addPack("en", {
   "Sending": "Sending",
   "Open in Telegram to forward": "Open in Telegram to forward",
   "Hide sender name": "Hide sender name",
-  "Local voice (free)": "Local voice (free)"
+  "Local voice (free)": "Local voice (free)",
+  "Could not convert this file.": "Could not convert this file."
 });

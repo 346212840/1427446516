@@ -14,23 +14,23 @@ import os
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
-ALLOWED_ORIGIN_SUFFIXES = (
-    "://localhost",
-    "://127.0.0.1",
-    "://viktorychgroup.github.io",
-    "://viktorychapp.pages.dev",
-)
+ALLOWED_HOSTS = ("localhost", "127.0.0.1", "viktorychgroup.github.io", "viktorychapp.pages.dev")
 
 
 def origin_ok(origin: str) -> bool:
-    if not origin:
+    try:
+        parsed = urlparse(origin)
+    except ValueError:
         return False
-    for suffix in ALLOWED_ORIGIN_SUFFIXES:
-        if suffix in origin:
-            return True
-    return False
+    host = (parsed.hostname or "").lower()
+    if parsed.scheme not in ("http", "https") or not host:
+        return False
+    if host in ALLOWED_HOSTS:
+        return True
+    return host.endswith(".viktorychgroup.github.io") or host.endswith(".viktorychapp.pages.dev")
 
 
 class Proxy(BaseHTTPRequestHandler):

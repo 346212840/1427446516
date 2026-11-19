@@ -28,7 +28,7 @@
   function saveGate(next) {
     var cur = gate();
     cur.port = String((next && next.port) || cur.port || "8000").replace(/[^\d]/g, "").slice(0, 5) || "8000";
-    if (next && typeof next.token === "string") cur.token = next.token.slice(0, 200);
+    if (next && typeof next.token === "string" && next.token) cur.token = next.token.slice(0, 200);
     localStorage.setItem(GATE, JSON.stringify(cur));
   }
   function origin() {
@@ -70,7 +70,7 @@
     });
   }
 
-  var view = { up: false, prompt: "", lyrics: "", instrumental: false, model: "lyria", songs: [], note: "" };
+  var view = { up: false, prompt: "", lyrics: "", instrumental: false, model: "lyria", songs: [], note: "", songsLoaded: false };
 
   function libraryNote() {
     return tr("Songs made here are also created in your Flow Music account, so they show in the Flow Music website library. This page keeps a copy too.");
@@ -126,7 +126,13 @@
     }
     if (box.dataset.bound === "1") return;
     box.dataset.bound = "1";
-    listSongs().then(function (rows) { view.songs = rows || []; box.outerHTML = html(); mount(host); });
+    if (!view.songsLoaded) {
+      view.songsLoaded = true;
+      listSongs().then(function (rows) {
+        view.songs = rows || [];
+        repaint(host);
+      });
+    }
     box.addEventListener("click", function (event) {
       var node = event.target.closest("[data-flow]");
       if (!node) return;

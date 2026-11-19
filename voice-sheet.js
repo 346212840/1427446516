@@ -38,14 +38,7 @@
     if (!view.open) return "";
     var account = root.ViktorychTgAccount;
     var flood = account ? account.floodWait() : 0;
-    var rows = (view.chats || []).filter(function (chat) {
-      if (chat.unavailable) return false;
-      var q = view.query.toLowerCase();
-      if (!q) return true;
-      return (chat.name + " " + chat.username).toLowerCase().indexOf(q) >= 0;
-    }).map(function (chat) {
-      return "<button type=\"button\" class=\"ac-row\" data-vs=\"direct\" data-id=\"" + esc(chat.id) + "\"><b>" + esc(chat.name || chat.username || tr("Direct")) + "</b></button>";
-    }).join("");
+    var rows = chatRows();
     var me = account && account.on()
       ? "<button type=\"button\" class=\"ac-btn\" data-vs=\"me\"" + (flood ? " disabled" : "") + ">" + esc(tr("As me")) + "</button>" +
         (flood ? "<p class=\"ac-note\">" + esc(tr("Retry")) + " " + Math.ceil(flood / 1000) + "</p>" : "")
@@ -54,12 +47,23 @@
       "<h3>" + esc(tr("Send")) + "</h3>" +
       "<p class=\"ac-note\" data-vs-status>" + esc(view.status || "") + "</p>" +
       "<input class=\"ac-search\" data-vs=\"q\" placeholder=\"" + esc(tr("Direct")) + "\" value=\"" + esc(view.query) + "\">" +
-      rows +
+      "<div data-vs-list>" + rows + "</div>" +
       "<button type=\"button\" class=\"ac-btn\" data-vs=\"forward\">" + esc(tr("Anyone else")) + "</button>" +
       "<button type=\"button\" class=\"ac-btn\" data-vs=\"invite\">" + esc(tr("Invite to bot")) + "</button>" +
       me +
       "<button type=\"button\" class=\"ac-btn\" data-vs=\"close\">" + esc(tr("Cancel")) + "</button>" +
       "</div></div>";
+  }
+
+  function chatRows() {
+    return (view.chats || []).filter(function (chat) {
+      if (chat.unavailable) return false;
+      var q = view.query.toLowerCase();
+      if (!q) return true;
+      return (chat.name + " " + chat.username).toLowerCase().indexOf(q) >= 0;
+    }).map(function (chat) {
+      return "<button type=\"button\" class=\"ac-row\" data-vs=\"direct\" data-id=\"" + esc(chat.id) + "\"><b>" + esc(chat.name || chat.username || tr("Direct")) + "</b></button>";
+    }).join("");
   }
 
   function paint() {
@@ -149,6 +153,8 @@
     node.addEventListener("input", function (event) {
       if (event.target.getAttribute("data-vs") !== "q") return;
       view.query = event.target.value || "";
+      var list = node.querySelector("[data-vs-list]");
+      if (list) list.innerHTML = chatRows();
     });
   }
 

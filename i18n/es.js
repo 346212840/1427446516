@@ -6515,5 +6515,6 @@ SI18n.addPack("es", {
   "Sending": "Enviando",
   "Open in Telegram to forward": "Abrir en Telegram para reenviar",
   "Hide sender name": "Ocultar el nombre de quien envía",
-  "Local voice (free)": "Voz local (gratis)"
+  "Local voice (free)": "Voz local (gratis)",
+  "Could not convert this file.": "No se pudo convertir este archivo."
 });
