@@ -6736,5 +6736,6 @@ SI18n.addPack("es", {
   "Open the Safari menu, then Settings for This Website.": "Abre el menú de Safari y luego Ajustes de este sitio web.",
   "Set Microphone to Allow.": "Pon Micrófono en Permitir.",
   "Click the site settings icon left of the address bar.": "Haz clic en el icono de ajustes del sitio a la izquierda de la barra de direcciones.",
-  "Open Microphone and choose Allow.": "Abre Micrófono y elige Permitir."
+  "Open Microphone and choose Allow.": "Abre Micrófono y elige Permitir.",
+  "Call details": "Detalles de la llamada"
 });

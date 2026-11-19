@@ -148,6 +148,7 @@ const state = {
   micNote: "",
   ear: { on: false, auto: false, routed: false, note: "" },
   earRaise: true,
+  testInfo: false,
   sink: ""
 };
 
@@ -251,6 +252,7 @@ function slider(key, label) {
 const HAND_PATH = "M21.5 16.9v2.6a2 2 0 0 1-2.2 2 18.7 18.7 0 0 1-8.1-2.9 18.4 18.4 0 0 1-5.7-5.7A18.7 18.7 0 0 1 2.6 4.7a2 2 0 0 1 2-2.2h2.6a2 2 0 0 1 2 1.7c.1.9.3 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 10.1a16 16 0 0 0 5.8 5.8l1.3-1.3a2 2 0 0 1 2.1-.5c.9.4 1.8.6 2.7.7a2 2 0 0 1 1.5 2.1z";
 const ICONS = {
   phone: `<path d="${HAND_PATH}"/>`,
+  info: `<circle cx="12" cy="12" r="9"/><path d="M12 11v5.2M12 7.8h.01"/>`,
   hangup: `<g transform="rotate(135 12 12)"><path d="${HAND_PATH}"/></g>`,
   ear: `<path d="${HAND_PATH}"/><path d="M14.5 6.2a3.3 3.3 0 0 1 3.3 3.3"/><path d="M14.5 2.6a6.9 6.9 0 0 1 6.9 6.9"/>`,
   mic: `<path d="M12 14.5a3.2 3.2 0 0 0 3.2-3.2V6.2a3.2 3.2 0 0 0-6.4 0v5.1a3.2 3.2 0 0 0 3.2 3.2z"/><path d="M6 11.3a6 6 0 0 0 12 0M12 17.3v3.2M8.8 20.5h6.4"/>`,
@@ -320,6 +322,13 @@ function cbtn(act, icon, label, opt) {
   return `<button type="button" class="cb${o.cls ? " " + o.cls : ""}${o.pressed ? " on" : ""}" data-act="${act}"${data}${pressed} aria-label="${esc(o.aria || label)}" title="${esc(o.aria || label)}">${ico(icon)}<span class="cb-l">${esc(label)}</span></button>`;
 }
 
+/* A partial that repeats the newest finished line is the same turn: show the finished bubble only. */
+function partialIsFinal(p, now) {
+  const last = state.lines[state.lines.length - 1];
+  if (!last || !last.at || now - last.at > 6000) return false;
+  const same = (a, b) => { const x = String(a || "").trim().toLowerCase(); const y = String(b || "").trim().toLowerCase(); return !!x && !!y && (x === y || y.indexOf(x) === 0); };
+  return same(p.translation, last.translation) || same(p.original, last.original);
+}
 function whoColor(name, mine) {
   if (mine) return WHO_COLORS[0];
   let h = 0;
@@ -360,7 +369,7 @@ function subtitleBlock() {
   const now = Date.now();
   state.lines.filter((l) => !l.note && l.at && now - l.at < CAP_GONE_MS).slice(-(state.capSize === "xl" ? 2 : CAP_SHOW)).forEach((l) => rows.push(bubbleHtml(l, { cap: true })));
   const p = state.partial || {};
-  if (p.original || p.translation) {
+  if ((p.original || p.translation) && !partialIsFinal(p, now)) {
     const mine = !!state.test;
     const who = state.whoLabel || (mine ? tr("You") : (state.peerName || tr("Guest")));
     rows.push(bubbleHtml({ who, mine, original: p.original || "", translation: p.translation || "" }, { cap: true, live: true }));
@@ -592,7 +601,8 @@ function testStrip() {
   return `<div class="calls-teststrip" data-teststrip>
     <label class="calls-tl"><span>${esc(tr("Translate me into"))}</span><select data-act="call-test-lang">${langOptions(t.lang)}</select></label>
     <button type="button" class="calls-pill${t.hear ? " on" : ""}" data-act="call-test-hear" aria-pressed="${t.hear ? "true" : "false"}">${ico("speaker")}<span>${esc(tr("Hear it"))}</span></button>
-    <div class="calls-chips" data-testchips>${chipsHtml()}</div>
+    <button type="button" class="cb sm calls-info${state.testInfo ? " on" : ""}" data-act="call-test-info" aria-pressed="${state.testInfo ? "true" : "false"}" aria-label="${esc(tr("Call details"))}" title="${esc(tr("Call details"))}">${ico("info")}</button>
+    <div class="calls-chips" data-testchips${state.testInfo ? "" : " hidden"}>${chipsHtml()}</div>
     <p class="calls-privacy">${esc(tr("Speak and you hear your own words translated, with captions. Use headphones to avoid echo."))}</p>
   </div>`;
 }
@@ -1726,9 +1736,11 @@ async function startPartner(invite) {
     onEvent: (type, d) => {
       if (!state.test) return;
       if (type === "line") {
-        if (d.mine) state.test.lines.push({ who: tr("Test partner"), mine: true, original: d.original });
+        if (d.mine) state.test.lines.push({ who: tr("Test partner"), mine: false, original: d.original });
         else {
-          state.test.lines.push({ who: tr("You"), original: d.original, translation: d.translation });
+          state.test.lines.push({ who: tr("You"), mine: true, original: d.original, translation: d.translation });
+          state.partial = { original: "", translation: "" };
+          state.whoLabel = "";
           /* Typed text already has its own bubble: add the translation to it instead of a second one. */
           const typed = d.typed ? state.lines.slice().reverse().find((l) => l.mine && l.typed && !l.translation && l.original === d.original) : null;
           if (typed) { typed.translation = d.translation; typed.who = tr("You") + " → " + langName(state.test.lang); }
@@ -1859,6 +1871,7 @@ function onAct(act, el) {
     const chat = document.querySelector(".calls-compose input[name=text]");
     if (chat) chat.focus();
   }
+  else if (act === "call-test-info") { state.testInfo = !state.testInfo; paint(); }
   else if (act === "call-test-start") startTest();
   else if (act === "call-test-cancel") cancelTest();
   else if (act === "call-test-copy") {

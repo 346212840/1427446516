@@ -6723,5 +6723,6 @@ SI18n.addPack("hi", {
   "Open the Safari menu, then Settings for This Website.": "Safari मेनू खोलें, फिर इस वेबसाइट के लिए सेटिंग्स।",
   "Set Microphone to Allow.": "माइक्रोफ़ोन को अनुमति दें पर सेट करें।",
   "Click the site settings icon left of the address bar.": "एड्रेस बार के बाईं ओर साइट सेटिंग आइकन पर क्लिक करें।",
-  "Open Microphone and choose Allow.": "माइक्रोफ़ोन खोलें और अनुमति दें चुनें।"
+  "Open Microphone and choose Allow.": "माइक्रोफ़ोन खोलें और अनुमति दें चुनें।",
+  "Call details": "कॉल का विवरण"
 });

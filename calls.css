@@ -189,7 +189,8 @@
   .cb .cb-l { display: none; }
   .calls-controls .cb.end { flex: 1.3 1 0; }
   .calls-grid { grid-template-columns: 1fr; }
-  .calls-grid .calls-tile[data-tile="me"] { position: absolute; right: 16px; top: 8px; width: 104px; height: 132px; min-height: 0; z-index: 2; border-radius: 14px; }
+  .calls-grid { position: relative; }
+  .calls-grid .calls-tile[data-tile="me"] { position: absolute; right: 8px; top: 8px; width: 104px; height: 132px; min-height: 0; z-index: 2; border-radius: 14px; }
   .calls-grid .calls-tile[data-tile="me"] .calls-ava { width: 52px; height: 52px; font-size: 22px; }
   .calls-grid .calls-tile[data-tile="me"] .calls-wave, .calls-grid .calls-tile[data-tile="me"] .calls-tlang { display: none; }
   .calls-grid .calls-tile[data-tile="me"] .calls-tag { left: 6px; bottom: 6px; padding: 2px 6px; font-size: 11px; }
@@ -315,3 +316,7 @@
 .calls-mm-again { margin: 6px 0 0; color: var(--c-red); font-size: 14px; font-weight: 700; }
 .calls-mm-btns { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
 .calls-mm-btns button { width: 100%; }
+.calls-teststrip .calls-info { min-width: 36px; width: 36px; height: 36px; border-radius: 50%; padding: 0; }
+.calls-teststrip .calls-info .calls-ico { width: 20px; height: 20px; }
+.calls-teststrip .calls-info.on { background: var(--c-blue); color: #fff; }
+.calls-chips[hidden] { display: none; }
