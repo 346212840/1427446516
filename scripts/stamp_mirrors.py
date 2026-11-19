@@ -27,15 +27,23 @@ def stamp(site: Path, github: str) -> None:
     mirror = site / "shared" / "mirror.js"
     if mirror.is_file():
         raw = mirror.read_text(encoding="utf-8")
-        raw = raw.replace("https://viktorychgroup.github.io/ViktorychApp1427446516/", base)
+        raw = raw.replace("https://viktorychgroup.github.io/ViktorychApp/", base)
         mirror.write_text(raw, encoding="utf-8")
+    # Share links on pages.dev name the GitHub Pages copy. The source default
+    # is this repository's current site; a publish rewrites it from the
+    # repository name so a rename does not leave the old directory behind.
+    short = site / "shared" / "short-link.js"
+    if short.is_file():
+        raw = short.read_text(encoding="utf-8")
+        raw = raw.replace("https://viktorychgroup.github.io/ViktorychApp/", base)
+        short.write_text(raw, encoding="utf-8")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--site", required=True)
     args = parser.parse_args()
-    github = pages_base() or "https://viktorychgroup.github.io/ViktorychApp1427446516/"
+    github = pages_base() or "https://viktorychgroup.github.io/ViktorychApp/"
     stamp(Path(args.site), github)
     print("mirror origins stamped")
     return 0

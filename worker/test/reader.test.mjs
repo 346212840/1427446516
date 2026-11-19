@@ -280,7 +280,7 @@ test("reader code does not special-case one publisher", () => {
 });
 
 test("a public okdiario article, when the site answers", async (t) => {
-  const ua = "ViktorychAppReader/1.0 (+https://viktorychgroup.github.io/ViktorychApp1427446516; public reading view)";
+  const ua = "ViktorychAppReader/1.0 (+https://viktorychgroup.github.io/ViktorychApp; public reading view)";
   let found = "";
   try {
     const home = await fetch("https://okdiario.com/", { headers: { "user-agent": ua, accept: "text/html" }, signal: AbortSignal.timeout(8000) });

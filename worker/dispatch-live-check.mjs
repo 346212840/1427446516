@@ -7,7 +7,7 @@ import https from "node:https";
 import { Miniflare } from "miniflare";
 
 const OWNER = "mirathorn";
-const LIVE_PATH = "/repos/ViktorychGroup/ViktorychApp1427446516/actions/workflows/tiktok-live.yml/dispatches";
+const LIVE_PATH = "/repos/ViktorychGroup/ViktorychApp/actions/workflows/tiktok-live.yml/dispatches";
 
 function redact(text) {
   const value = String(process.env.WORKER_DISPATCH_TOKEN || "");

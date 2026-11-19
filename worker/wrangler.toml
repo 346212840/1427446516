@@ -13,7 +13,7 @@ workers_dev = true
 # npx wrangler secret put KEYS_ENC_KEY
 # GITHUB_DISPATCH_TOKEN is a Worker secret, not a var.
 # The repository Actions secret is WORKER_DISPATCH_TOKEN (fine-grained PAT,
-# repository ViktorychGroup/ViktorychApp1427446516, Actions: Read and write).
+# repository ViktorychGroup/ViktorychApp, Actions: Read and write).
 # GitHub rejects a secret name that starts with GITHUB_.
 # .github/workflows/worker-dispatch-secret.yml copies it:
 # npx wrangler secret put GITHUB_DISPATCH_TOKEN
