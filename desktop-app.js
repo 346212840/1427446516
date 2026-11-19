@@ -38,6 +38,8 @@ function wideDesktopOs(ua, width) {
 }
 function scaleDesktop(width, pointer) {
   pointer = pointer || {};
+  /* iPadOS uses a Mac user agent and a coarse pointer. It keeps phone scale. */
+  if (pointer.touchMac) return false;
   if (pointer.coarse && !(pointer.fine && pointer.hover) && !wideDesktopOs(pointer.ua, width)) return false;
   return desktopGate(width);
 }
@@ -327,11 +329,13 @@ if (typeof module !== "undefined" && module.exports) {
   function desktopEnough() {
     // innerWidth is the window's CSS width. Our page scale does not change it,
     // so multiplying by the scale would keep a narrow window looking wide.
+    var nav = root.navigator || {};
     return scaleDesktop(root.innerWidth, {
       coarse: mq("(pointer: coarse)"),
       fine: mq("(pointer: fine)"),
       hover: mq("(hover: hover)"),
-      ua: (root.navigator && root.navigator.userAgent) || ""
+      ua: nav.userAgent || "",
+      touchMac: nav.platform === "MacIntel" && nav.maxTouchPoints > 1
     });
   }
   function applyScale() {

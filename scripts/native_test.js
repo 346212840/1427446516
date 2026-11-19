@@ -52,6 +52,12 @@ const ANDROID = "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like
 assert.strictEqual(native.installHandset(WIN, { coarse: true, width: 1280 }), false);
 assert.strictEqual(native.installHandset(CROS, { coarse: true, width: 1280 }), false);
 assert.strictEqual(native.installHandset(MAC, { coarse: true, width: 1366 }), false);
+const IPAD = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15";
+assert.strictEqual(native.installHandset(IPAD, { coarse: true, width: 1194, touchMac: true }), true);
+assert.strictEqual(native.installKind(IPAD, { touchMac: true }), "ios-safari");
+const desk = require("../desktop-app.js");
+assert.strictEqual(desk.scaleDesktop(1194, { coarse: true, fine: false, hover: false, ua: IPAD, touchMac: true }), false);
+assert.strictEqual(desk.scaleDesktop(1366, { coarse: true, fine: false, hover: false, ua: MAC }), true);
 assert.strictEqual(native.installHandset(ANDROID, { coarse: true, width: 1280 }), true);
 assert.strictEqual(native.installHandset(WIN, { coarse: true, width: 390 }), true);
 assert.strictEqual(native.formFactor(HARMONY_PHONE, {}), "desktop");
