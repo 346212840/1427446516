@@ -587,6 +587,7 @@ async function main() {
       "printf '%s\\n' \"$pkgs\" | tr ' ' '\\n' | grep -Eq '^(fonts-|xfonts-)' && exit 1",
       "printf '%s\\n' \"$pkgs\" | tr ' ' '\\n' | grep -qx 'libgstreamer-plugins-bad1.0-0'",
       "echo \"webkit packages: $pkgs\"",
+      "echo 'Acquire::ForceIPv4 \"true\";' | sudo tee /etc/apt/apt.conf.d/99force-ipv4 >/dev/null",
       "for f in /etc/apt/sources.list /etc/apt/sources.list.d/*; do",
       "  [ -f \"$f\" ] || continue",
       "  sudo sed -i -E 's#https?://([A-Za-z0-9.-]+\\.)?archive\\.ubuntu\\.com/ubuntu#http://archive.ubuntu.com/ubuntu#g; s#https?://security\\.ubuntu\\.com/ubuntu#http://archive.ubuntu.com/ubuntu#g' \"$f\"",
