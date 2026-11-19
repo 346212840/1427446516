@@ -6704,5 +6704,15 @@ SI18n.addPack("ru", {
   "Your other device": "Ваше другое устройство",
   "Caption size": "Размер субтитров",
   "Large": "Большой",
-  "Extra large": "Очень большой"
+  "Extra large": "Очень большой",
+  "Ear mode": "Режим «у уха»",
+  "Ear mode now": "Включить режим «у уха»",
+  "Lock the screen when I raise the phone to my ear": "Блокировать экран, когда я подношу телефон к уху",
+  "Choose audio output": "Выбрать вывод звука",
+  "Browsers cannot sense your ear, so this uses how the phone is held. Double-tap or swipe up to unlock.": "Браузеры не чувствуют ухо, поэтому используется положение телефона. Дважды коснитесь или проведите вверх, чтобы разблокировать.",
+  "Swipe up or double-tap to unlock": "Проведите вверх или дважды коснитесь, чтобы разблокировать",
+  "Ear mode: screen locked": "Режим «у уха»: экран заблокирован",
+  "Sound is coming from the earpiece.": "Звук идёт через разговорный динамик.",
+  "This browser cannot switch to the earpiece, so the volume is lowered for your ear.": "Этот браузер не может переключиться на разговорный динамик, поэтому громкость снижена.",
+  "Audio output changed.": "Вывод звука изменён."
 });
