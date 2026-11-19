@@ -1,4 +1,4 @@
-/* Convert, voice notes, and Type to voice. Fish previews play the model's
+/* Audio Studio. Convert, voice notes, and Type to voice. Fish previews play the model's
    sample. Generate is the only Fish credit spend, and a repeat is local. */
 (function (root) {
   "use strict";
