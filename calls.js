@@ -246,7 +246,7 @@ function threadBlock() {
 
 function langOptions(current) {
   const pinned = PINNED_LANGS.map((code) => [code, langName(code)]);
-  const rest = CALL_LANGS.filter((row) => PINNED_LANGS.indexOf(row[0]) < 0).map((row) => [row[0], row[1]]);
+  const rest = CALL_LANGS.filter((row) => PINNED_LANGS.indexOf(row[0]) < 0).map((row) => [row[0], langName(row[0])]).sort((a, b) => a[1].localeCompare(b[1]));
   return pinned.concat(rest).map((row) => `<option value="${esc(row[0])}"${row[0] === current ? " selected" : ""}>${esc(row[1])}</option>`).join("");
 }
 

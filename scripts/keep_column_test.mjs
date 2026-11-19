@@ -139,6 +139,28 @@ async function main() {
     await phone.waitForSelector("#app .view-slot", { timeout: 20000 });
     await phone.waitForSelector("button.fab", { timeout: 20000 });
     await draftSurvives(phone, "handset", "column");
+    const empty = await phone.evaluate(() => {
+      const box = document.getElementById("compose-text");
+      if (!box) return { error: "compose is missing" };
+      box.focus();
+      box.value = "";
+      const old = document.getElementById("paint-mark");
+      if (old) old.remove();
+      const mark = document.createElement("span");
+      mark.id = "paint-mark";
+      mark.textContent = "again";
+      (document.querySelector("main.center") || box.parentElement).appendChild(mark);
+      window.ViktorychAccounts.requestRender("background");
+      const live = document.getElementById("compose-text");
+      return {
+        same: live === box,
+        focused: document.activeElement === live,
+        value: live ? live.value : "missing"
+      };
+    });
+    if (empty.error) fail("handset empty: " + empty.error);
+    if (!empty.same || !empty.focused || empty.value !== "") fail("background paint dropped a focused empty field " + JSON.stringify(empty));
+    console.log("keep column ok empty focus");
     if (phoneErrors.length) fail("handset: " + phoneErrors[0]);
     await handset.close();
   } finally {

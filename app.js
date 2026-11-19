@@ -23535,14 +23535,18 @@ if (STATE.histClear) {
 
   /* A background rebuild must not throw away a field the reader has started.
      The value lives on the node, not in the new HTML. */
-  function keepDirtyFields(host, frag) {
+  function keepDirtyFields(host, frag, focusedLive) {
     if (!host || !host.querySelectorAll || !frag.querySelector) return;
     host.querySelectorAll("textarea, input").forEach((live) => {
       if (!live.id) return;
       const sel = window.CSS && CSS.escape ? "#" + CSS.escape(live.id) : "#" + live.id;
       const fresh = frag.querySelector(sel);
       if (!fresh || fresh === live || fresh.tagName !== live.tagName) return;
-      if (String(live.value || "") === String(fresh.value || "")) return;
+      /* Parking the view blurs the field before this runs, so remember the
+         node that had the caret. An empty field matches the new markup, but
+         swapping it still drops the caret and dismisses the phone keyboard. */
+      const focused = live === focusedLive || document.activeElement === live;
+      if (!focused && String(live.value || "") === String(fresh.value || "")) return;
       fresh.replaceWith(live);
     });
   }
@@ -23552,7 +23556,7 @@ if (STATE.histClear) {
     if (slot && slot.justParked && slot.root) return slot.root;
     return document.getElementById("app");
   }
-  function commitApp(html, background) {
+  function commitApp(html, background, focusedLive) {
     const app = document.getElementById("app");
     if (!app) return;
     hscrollHolding = true;
@@ -23574,7 +23578,7 @@ if (STATE.histClear) {
     /* After chrome is kept. Doing this earlier moves a half-written nav
        field into the fresh header, and keepChrome then throws that header
        away. */
-    if (background) keepDirtyFields(host, tpl.content);
+    if (background) keepDirtyFields(host, tpl.content, focusedLive);
     const parked = parkKey(parseRoute());
     const slot = parked ? viewParks.get(parked) : null;
     if (slot) slot.justParked = false;
@@ -24564,8 +24568,9 @@ if (STATE.histClear) {
         if (!decision || !decision.commit) return;
         if (slot && slot.force) slot.force = false;
         const restoreAi = !!(document.activeElement && document.activeElement.closest && document.activeElement.closest('.mhead a.m-ai[href="#/ai"]'));
+        const focusedLive = document.activeElement;
         parkLiveView();
-        commitApp(html, !userPaintNow);
+        commitApp(html, !userPaintNow, focusedLive);
         if (key) {
           const prev = viewParks.get(key);
           if (prev && prev.root) prev.root.remove();
