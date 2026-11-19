@@ -396,8 +396,15 @@ async function runWindow(browser, origin, vp) {
   if (!inputStays) fail(tag + ": ArrowDown left the menu field");
   await page.locator(".feeds-menu select").first().focus();
   await page.keyboard.press("ArrowDown");
-  const selectStays = await page.evaluate(() => document.activeElement && document.activeElement.tagName === "SELECT");
+  const selectStays = await page.evaluate(() => document.activeElement && document.activeElement.tagName === "SELECT" && document.activeElement.closest(".feeds-menu"));
   if (!selectStays) fail(tag + ": ArrowDown left the menu list");
+  await page.locator(".feeds-menu [role='menuitem']").first().focus();
+  await page.keyboard.press("ArrowDown");
+  const itemStays = await page.evaluate(() => {
+    const el = document.activeElement;
+    return !!(el && el.closest && el.closest(".feeds-menu"));
+  });
+  if (!itemStays) fail(tag + ": ArrowDown left the open menu");
   await context.close();
   console.log("feeds window ok " + vp.name);
 }

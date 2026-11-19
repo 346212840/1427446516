@@ -104,16 +104,38 @@
     }).then((res) => res.json().then((data) => ({ ok: res.ok, status: res.status, body: data })).catch(() => ({ ok: res.ok, status: res.status, body: null })));
   }
 
+  function focusMark(el) {
+    if (!el || el === document.body || el === document.documentElement || !el.closest) return null;
+    if (!el.closest(".feeds-org")) return null;
+    const row = el.closest(".feeds-row");
+    return {
+      id: el.id || "",
+      row: row ? row.getAttribute("data-id") || "" : "",
+      act: (el.dataset && el.dataset.feedAct) || "",
+      tag: el.tagName || ""
+    };
+  }
+
+  function restoreMark(mark) {
+    if (!mark) return null;
+    let next = mark.id ? document.getElementById(mark.id) : null;
+    if (!next && mark.row) {
+      const row = document.querySelector('.feeds-row[data-id="' + String(mark.row).replace(/"/g, "") + '"]');
+      if (row && mark.act) next = row.querySelector('[data-feed-act="' + mark.act + '"]');
+      if (row && !next && mark.tag) next = row.querySelector(mark.tag);
+    }
+    if (!next || !next.focus) return null;
+    try { next.focus({ preventScroll: true }); } catch (err) { next.focus(); }
+    return next;
+  }
+
   function paint() {
     const active = document.activeElement;
-    const id = active && active.id;
-    const keep = id ? caretOf(active) : null;
+    const mark = focusMark(active);
+    const keep = mark && mark.id ? caretOf(active) : null;
     if (hooks && hooks.render) hooks.render();
-    if (!id) return;
-    const next = document.getElementById(id);
-    if (!next || !next.focus) return;
-    next.focus();
-    restoreCaret(next, keep);
+    const next = restoreMark(mark);
+    if (next && mark.id) restoreCaret(next, keep);
   }
 
   function caretOf(el) {
@@ -728,7 +750,7 @@
     }
     items.push(`<button type="button" role="menuitem" class="is-danger" data-feed-act="ask-remove" data-id="${esc(id)}">${esc(tr("Remove"))}</button>`);
     const edit = owner ? `<label class="feeds-label">${esc(tr("Account label"))}<span class="feeds-inline"><input id="feeds-label-${esc(id)}" value="${esc(row.label || "")}" maxlength="80"><button type="button" class="feeds-pill" data-feed-act="label" data-id="${esc(id)}">${esc(tr("Rename"))}</button></span></label>
-      <label class="feeds-move">${esc(tr("Move to group"))}<select data-feed-act="move-select" data-id="${esc(id)}">${groupOptions}</select></label>` : "";
+      <label class="feeds-move">${esc(tr("Move to group"))}<select id="feeds-move-${esc(id)}" data-feed-act="move-select" data-id="${esc(id)}">${groupOptions}</select></label>` : "";
     return `<div class="feeds-menu" role="menu" aria-label="${esc(tr("More actions"))}"><div class="feeds-menu-items">${items.join("")}</div>${edit}${tabBits && owner ? `<div class="feeds-tabs"><span>${esc(tr("Show in tabs"))}</span>${tabBits}</div>` : ""}</div>`;
   }
 
@@ -883,6 +905,7 @@
     const range = visibleRange(win.items, win.prefixes, viewTop, window.innerHeight || 800);
     if (range.start === win.start && range.end === win.end) return;
     const active = document.activeElement;
+    const mark = focusMark(active);
     const activeId = active && active.closest ? (active.closest(".feeds-row") || {}).getAttribute && active.closest(".feeds-row").getAttribute("data-id") : "";
     const which = active && active.classList ? (active.classList.contains("feeds-more") ? "more" : active.classList.contains("feeds-expand") ? "expand" : active.classList.contains("feeds-switch") ? "switch" : "") : "";
     win.start = range.start;
@@ -893,9 +916,15 @@
     if (!rows) return;
     rows.style.transform = "translateY(" + (win.prefixes[range.start] || 0) + "px)";
     rows.innerHTML = sliceHtml(win.items, range.start, range.end);
+    if (mark && (mark.tag === "INPUT" || mark.tag === "TEXTAREA" || mark.tag === "SELECT" || (active && active.closest && active.closest(".feeds-menu, .feeds-confirm")))) {
+      restoreMark(mark);
+      return;
+    }
     if (activeId && which) {
       const next = box.querySelector('.feeds-row[data-id="' + String(activeId).replace(/"/g, "") + '"] .' + (which === "more" ? "feeds-more" : which === "expand" ? "feeds-expand" : "feeds-switch"));
-      if (next && next.focus) next.focus();
+      if (next && next.focus) {
+        try { next.focus({ preventScroll: true }); } catch (err) { next.focus(); }
+      }
     }
   }
 
@@ -916,13 +945,18 @@
     page.winFocus = "";
   }
 
+  function menuField(el) {
+    if (!el || !el.closest) return false;
+    const tag = el.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable) return true;
+    return !!el.closest(".feeds-menu, .feeds-more-panel, .feeds-confirm, [role='menu']");
+  }
+
   function onFeedKey(event) {
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    if (menuField(event.target) || menuField(document.activeElement)) return;
     const target = event.target;
     if (!target || !target.closest) return;
-    const tag = target.tagName;
-    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable) return;
-    if (target.closest(".feeds-menu, .feeds-more-panel, .feeds-confirm")) return;
     const row = target.closest(".feeds-row");
     if (!row || !page.win || !page.win.items) return;
     const id = row.getAttribute("data-id");
