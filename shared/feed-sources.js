@@ -327,9 +327,9 @@ function instagramPlan(handle) {
   const bridge = "InstagramBridge";
   const query = "action=display&bridge=" + bridge + "&context=Username&u=" + h + "&format=Atom";
   return [
+    { kind: "rss", url: "https://rsshub.app/instagram/user/" + h },
     { kind: "rss", url: "https://rss-bridge.org/bridge01/?" + query },
     { kind: "rss", url: "https://rss-bridge.ggc-project.de/?" + query },
-    { kind: "rss", url: "https://rsshub.app/instagram/user/" + h },
     { kind: "rss", url: "https://rsshub.pseudoyu.com/instagram/user/" + h },
     { kind: "rss", url: "https://rsshub.rss.tips/instagram/user/" + h },
     { kind: "ig-profile", url: "https://www.instagram.com/" + h + "/embed/" },
