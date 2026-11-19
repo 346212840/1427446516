@@ -1,4 +1,5 @@
-/* Calls. Audio and text only. The column stays dark like the rest of the app. */
+/* Calls. Audio and text only. The column stays dark like the rest of the app.
+   The main row is mute, speaker, hang up, and talk or type. */
 .calls-page { color: #e7e9ea; padding: 0 0 24px; }
 .calls-bar { display: flex; align-items: center; gap: 12px; min-height: 53px; padding: 0 16px; position: sticky; top: 0; background: rgba(0,0,0,.85); backdrop-filter: blur(12px); }
 .calls-bar h1 { font-size: 20px; font-weight: 700; margin: 0; }
