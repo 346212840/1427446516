@@ -2356,6 +2356,7 @@ SI18n.addPack("es", {
   "Last fetch": "Última lectura",
   "Last updated": "Última actualización",
   "Search feeds": "Buscar canales",
+  "Details": "Detalles",
   "All platforms": "Todas las plataformas",
   "All groups": "Todos los grupos",
   "All statuses": "Todos los estados",
