@@ -13861,7 +13861,7 @@ const here = parseRoute();
         now: Date.now(),
         afterSignup: reason === "signup",
         prompt: reason !== "signup" && !!STATE.installPrompt,
-        ios: /iphone|ipad|ipod/i.test(navigator.userAgent || "")
+        ios: /iphone|ipad|ipod/i.test(navigator.userAgent || "") || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
       });
     }
     return reason === "signup" && choice.mode !== "never";
@@ -19248,9 +19248,10 @@ const here = parseRoute();
       fine = !!(window.matchMedia && matchMedia("(pointer: fine)").matches);
       hover = !!(window.matchMedia && matchMedia("(hover: hover)").matches);
     } catch (err) { coarse = false; }
+    const touchMac = typeof navigator !== "undefined" && navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
     const mobile = window.ViktorychNative && window.ViktorychNative.installHandset
-      ? window.ViktorychNative.installHandset(text, { coarse: coarse, fine: fine, hover: hover, width: window.innerWidth || 0 })
-      : /android|mobile/i.test(text);
+      ? window.ViktorychNative.installHandset(text, { coarse: coarse, fine: fine, hover: hover, width: window.innerWidth || 0, touchMac: touchMac })
+      : /android|mobile/i.test(text) || touchMac;
     if (/firefox\/|fxios/i.test(text)) return mobile ? "firefox-android" : "firefox";
     if (/edg\/|edga\//i.test(text)) return mobile ? "chrome-android" : "edge";
     if (/chrome|chromium/i.test(text)) return mobile ? "chrome-android" : "chrome";
