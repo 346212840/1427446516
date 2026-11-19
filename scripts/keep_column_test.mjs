@@ -66,6 +66,10 @@ async function main() {
       if (!document.querySelector("#app .view-slot")) return { error: "home is not parked" };
       box.focus();
       box.value = "still writing";
+      const mark = document.createElement("span");
+      mark.id = "paint-mark";
+      mark.textContent = "changed";
+      box.parentElement.appendChild(mark);
       window.ViktorychAccounts.requestRender("background");
       const live = document.getElementById("compose-text");
       return {

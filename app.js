@@ -23533,6 +23533,19 @@ if (STATE.histClear) {
     STATE.forYouCardHtml = next;
   }
 
+  /* A background rebuild must not throw away a field the reader has started.
+     The value lives on the node, not in the new HTML. */
+  function keepDirtyFields(host, frag) {
+    if (!host || !host.querySelectorAll || !frag.querySelector) return;
+    host.querySelectorAll("textarea, input").forEach((live) => {
+      if (!live.id) return;
+      const sel = window.CSS && CSS.escape ? "#" + CSS.escape(live.id) : "#" + live.id;
+      const fresh = frag.querySelector(sel);
+      if (!fresh || fresh === live || fresh.tagName !== live.tagName) return;
+      if (String(live.value || "") === String(fresh.value || "")) return;
+      fresh.replaceWith(live);
+    });
+  }
   function livePaintHost() {
     const key = parkKey(parseRoute());
     const slot = key ? viewParks.get(key) : null;
@@ -23554,6 +23567,7 @@ if (STATE.histClear) {
        and, when the column text matches, the centre column itself. */
     const keptMain = !!(background && keepMain(host, tpl.content));
     if (!keptMain) hscrollReuse(host, tpl.content);
+    if (background) keepDirtyFields(host, tpl.content);
     if (background) {
       reuseForYouCards(host, tpl.content, true);
       keepChrome(host, tpl.content);
