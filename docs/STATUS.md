@@ -1,6 +1,6 @@
 # Status snapshot
 
-Written 2026-11-17 (UTC). Main is `216c8891` until this change lands. Latest D1 migration is `0131_shorts_on.sql`. Telegram expiry is a column added at runtime, not a new migration. This is a snapshot: check `gh pr list` and `git log origin/main` before acting on it. Update this file at the end of every PR.
+Written 2026-11-19 (UTC). The public site is `https://viktorychgroup.github.io/ViktorychApp1427446516/` and `https://viktorychapp.pages.dev/`. Latest D1 migration is `0131_shorts_on.sql`. Telegram expiry is a column added at runtime, not a new migration. This is a snapshot: check `gh pr list` and `git log origin/main` before acting on it. Update this file at the end of every PR.
 
 ## How to work on this repo
 

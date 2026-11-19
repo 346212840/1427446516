@@ -72,7 +72,7 @@ Write-Output "Copied the secret to the clipboard. It was not printed."
 
 9. Paste it into GitHub. On the same Windows PC, open this page in the browser:
 
-https://github.com/ViktorychGroup/ViktorychApp/settings/secrets/actions/new
+https://github.com/ViktorychGroup/ViktorychApp1427446516/settings/secrets/actions/new
 
 Name:
 

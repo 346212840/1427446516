@@ -11,7 +11,7 @@
   "use strict";
   var SHORT_HOST = "viktorychapp.pages.dev";
   var SHORT_ORIGIN = "https://" + SHORT_HOST;
-  var GITHUB_BASE = "https://viktorychgroup.github.io/ViktorychApp/";
+  var GITHUB_BASE = "https://viktorychgroup.github.io/ViktorychApp1427446516/";
   var PAIR_KEY = "viktorychapp-tvpair-intake-v1";
   var PAIR_TTL_MS = 10 * 60 * 1000;
   // Same alphabet as the Worker: no 0/O, 1/I/L.

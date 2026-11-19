@@ -10,7 +10,7 @@ ViktorychApp is an X.com clone shipped as a PWA. It mixes its own accounts and p
 
 | Piece | Where | Notes |
 | --- | --- | --- |
-| Front end (static PWA) | repo root (`index.html`, `app.js`, `*.js`, `*.css`, `i18n/`, `shared/`, `vendor/`) | Served by GitHub Pages (`https://viktorychgroup.github.io/ViktorychApp/`) and mirrored to Cloudflare Pages (`viktorychapp.pages.dev`). No build step for code; `scripts/assemble_site.py` assembles `_site`. |
+| Front end (static PWA) | repo root (`index.html`, `app.js`, `*.js`, `*.css`, `i18n/`, `shared/`, `vendor/`) | Served by GitHub Pages (`https://viktorychgroup.github.io/ViktorychApp1427446516/`) and mirrored to Cloudflare Pages (`viktorychapp.pages.dev`). No build step for code; `scripts/assemble_site.py` assembles `_site`. |
 | Service worker | `sw.js` | Line 7 is the cache stamp: `// cache-bust: <ISO time>-<label>`. See section 5. |
 | Live version marker | `version.json` (written by `scripts/write_version.py` in `publish-app.yml`) | Published only after the `verify-live` job passes. Installed apps use it to update. |
 | Accounts / API Worker | `worker/` (`viktorych-accounts`, `worker/src/index.js`, `worker/wrangler.toml`) | Cloudflare Worker with D1 (SQL, migrations in `worker/migrations/NNNN_name.sql`, numbers unique, latest is in `docs/STATUS.md`) and R2 (media/objects). Cron every minute plus an hourly watchdog (`worker/src/watchdog.js`). |
@@ -52,7 +52,7 @@ Then the tests for what you touched: `python3 scripts/selftest.py` for scripts, 
 3. Push early, open the PR with `gh pr create`. Never post PR comments; put updates in the PR description or new commits.
 4. Wait for CI. If a check fails, read the log (`gh run view <id> --log-failed`), fix the cause, push. A known flake may be re-run once with `gh run rerun <id> --failed`. Never leave a red PR or a failed Action abandoned.
 5. Merge only when the PR is `CLEAN` and every check is success or skipped: `gh pr merge <n> --squash --match-head-commit <head sha>`. Exactly one merge in flight; if another agent or person is mid-merge, wait.
-6. Verify live after the merge (skill `/verify-live`): the Accounts and Publish app runs for the new main commit succeed, `https://viktorychgroup.github.io/ViktorychApp/version.json` shows main's commit, and `https://viktorych-accounts.viktorych-accounts.workers.dev/v1/watchdog` returns HTTP 200. Only then merge the next PR.
+6. Verify live after the merge (skill `/verify-live`): the Accounts and Publish app runs for the new main commit succeed, `https://viktorychgroup.github.io/ViktorychApp1427446516/version.json` shows main's commit, and `https://viktorych-accounts.viktorych-accounts.workers.dev/v1/watchdog` returns HTTP 200. Only then merge the next PR.
 7. If main's own smoke check is red, fix main first with a tiny PR at the top of the queue.
 8. Merge order: small fixes, then features, then large or risky work. Dependabot PRs, anything touching `.github/workflows/` or dependencies, payments, data deletion and migrations that collide go to the owner.
 

@@ -257,7 +257,7 @@ def selftest() -> None:
     doc = build_doc("abcdef1234567890", "2026-10-27T00:00:00Z", notes)
     assert doc["sha"] == "abcdef1234567890" and doc["short"] == "abcdef1"
     assert doc["name"] == "ViktorychApp" and doc["changelog"] == notes
-    assert pages_version_url("ViktorychGroup/ViktorychApp").endswith("/ViktorychApp/version.json")
+    assert pages_version_url("ViktorychGroup/ViktorychApp1427446516").endswith("/ViktorychApp1427446516/version.json")
     assert pages_version_url("octocat/octocat.github.io") == "https://octocat.github.io/version.json"
     assert build_doc("not-a-sha", "t", [])["sha"] == ""
     assert built_stamp("2026-10-27T00:00:00Z", "2020-01-01T00:00:00Z") == "2026-10-27T00:00:00Z"
