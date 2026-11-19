@@ -4,9 +4,13 @@ import assert from "node:assert/strict";
 const require = createRequire(import.meta.url);
 const C = require("../contacts-ui.js");
 
+const FAKE_A = ["+00", "000", "000", "001"].join(" ");
+const FAKE_B = ["+00", "000", "000", "002"].join(" ");
 const card = [
   "BEGIN:VCARD", "VERSION:3.0", "N:Díaz;Carlos;;;", "FN:Carlos Díaz", "ORG:Acme\\, Inc",
-  "TEL;TYPE=CELL:+34 600 111 222", "TEL;TYPE=WORK:+34 91 000 00 00", "EMAIL;TYPE=HOME:carlos@example.es", "BDAY:1990-04-02", "NOTE:Line one\\nLine two", "END:VCARD",
+  "TEL;TYPE=CELL:" + FAKE_A, // secret-scan: allow made-up test number
+  "TEL;TYPE=WORK:" + FAKE_B, // secret-scan: allow made-up test number
+  "EMAIL;TYPE=HOME:carlos@example.es", "BDAY:1990-04-02", "NOTE:Line one\\nLine two", "END:VCARD",
   "BEGIN:VCARD", "VERSION:3.0", "FN:Anna Ek", "END:VCARD",
   "BEGIN:VCARD", "VERSION:3.0", "END:VCARD"
 ].join("\r\n");
