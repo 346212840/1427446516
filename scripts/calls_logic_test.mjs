@@ -14,7 +14,7 @@ import { createDiarizer, overlappingPitches } from "../shared/call-speakers.js";
 import { liveSetup, rejectsClone } from "../shared/call-setup.js";
 import { createHistory, loadLocal, recordLocal, removeRows, restoreRows, swipeAction, toggleSet } from "../shared/call-history.js";
 import { createRaiseDetector, earSinkId, cheekLike, createUnlocker, EAR_VOLUME_CAP } from "../shared/call-ear.js";
-import { pickBitrate, createAudioUnlock, setAudioSession, createWakeFallback, NOSLEEP_MP4, BITRATES } from "../shared/call-mobile.js";
+import { createPlayoutLead, LEAD_MIN, LEAD_MAX, pickBitrate, createAudioUnlock, setAudioSession, createWakeFallback, NOSLEEP_MP4, BITRATES } from "../shared/call-mobile.js";
 import { createPipe } from "../shared/call-engine.js";
 import { relayHint } from "../worker/src/calls.js";
 import pagesRelay from "./pages_relay_worker.js";
@@ -466,3 +466,28 @@ assert.equal(langName("zz", "en"), "zz");
 }
 
 console.log("calls logic ok", JSON.stringify(report));
+
+/* Adaptive playout lead: quick on a good link, wider after gaps, narrower again when calm. */
+{
+  const lead = createPlayoutLead();
+  let slot = lead.plan(1, 0, 0.2);
+  assert.ok(Math.abs(slot.start - 1.06) < 1e-9, "the first chunk plays after the minimum lead");
+  let next = slot.next;
+  slot = lead.plan(1.05, next, 0.2);
+  assert.equal(slot.start, next, "a chunk that arrives in time follows the last one without a gap");
+  next = slot.next;
+  slot = lead.plan(next + 0.1, next, 0.2);
+  assert.ok(slot.start - (next + 0.1) > 0.13, "a gap inside a phrase widens the lead");
+  assert.equal(lead.stats().gaps, 1);
+  for (let i = 0; i < 20; i++) { const t = slot.next - 0.05; next = slot.next; slot = lead.plan(next - 0.1, next, 0.2); }
+  for (let i = 0; i < 10; i++) { const s0 = lead.plan(100 + i, 100 + i + 0.5, 0.2); if (!s0) throw new Error("dropped"); lead.plan(100 + i, 100 + i + 0.5, 2.5); }
+  assert.ok(lead.stats().lead >= LEAD_MIN && lead.stats().lead <= LEAD_MAX, "the lead stays inside its bounds");
+  const stale = lead.plan(10, 11.5, 0.2);
+  assert.equal(stale, null, "audio more than 0.9 s behind real time is dropped");
+  const poor = createPlayoutLead();
+  poor.floor(3);
+  assert.ok(poor.plan(5, 0, 0.1).start - 5 >= 0.24, "a poor link starts with a wider lead");
+  const wide = createPlayoutLead();
+  for (let i = 0; i < 20; i++) wide.plan(i, i - 0.1, 0.1);
+  assert.equal(wide.stats().lead, LEAD_MAX, "repeated gaps stop at the maximum lead");
+}

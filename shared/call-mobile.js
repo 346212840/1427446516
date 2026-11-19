@@ -23,6 +23,41 @@ export function pickBitrate(prev, sample) {
   return { level: level, good: good, bitrate: BITRATES[level] };
 }
 
+/* How far ahead of "now" a translated chunk is scheduled. A short lead keeps
+   the first sound quick on a good link. When chunks arrive late (the audio ran
+   dry in the middle of a phrase) the lead grows, so mobile data with 300 ms of
+   round trip and a few percent loss plays smoothly. After 20 s without a gap
+   it shrinks again. floor() takes the link level from pickBitrate. */
+export const LEAD_MIN = 0.06;
+export const LEAD_MAX = 0.5;
+const LEAD_FLOOR = [0.06, 0.1, 0.16, 0.24];
+export function createPlayoutLead() {
+  let lead = LEAD_MIN;
+  let floor = LEAD_MIN;
+  let calm = 0;
+  let gaps = 0;
+  return {
+    /* t = audio clock now, nextAt = where the previous chunk ends (0 before the first). */
+    plan(t, nextAt, dur) {
+      if (nextAt - t > 0.9) return null;
+      let start = nextAt;
+      if (nextAt > 0 && nextAt <= t && t - nextAt < 0.6) {
+        gaps += 1;
+        calm = 0;
+        lead = Math.min(LEAD_MAX, Math.max(lead, floor) + 0.08);
+      } else if (nextAt > 0 && nextAt > t) {
+        calm += dur;
+        if (calm >= 20) { calm = 0; lead = Math.max(floor, lead - 0.04); }
+      }
+      if (nextAt < t + 0.02) start = t + Math.max(lead, floor);
+      return { start: start, next: start + dur };
+    },
+    floor(level) { floor = LEAD_FLOOR[Math.max(0, Math.min(3, level | 0))]; if (lead < floor) lead = floor; },
+    reset() { calm = 0; },
+    stats() { return { lead: lead, floor: floor, gaps: gaps }; }
+  };
+}
+
 /* The audio context is created and resumed inside a tap, because iOS keeps a
    context made later (after a fetch) suspended. The call engine reuses it. */
 export function createAudioUnlock(win) {

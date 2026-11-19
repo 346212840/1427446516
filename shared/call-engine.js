@@ -10,7 +10,7 @@ import { outputGains, reconnectDelay, MIC_CONSTRAINTS, normalizeVolumes } from "
 import { normalizeMode, transmitOriginal, playTranslatedVoice, noteShouldAutoplay } from "./call-mode.js";
 import { createVoiceMatch } from "./call-voice.js";
 import { lighterFor, cleanLexicon } from "./call-quality.js";
-import { pickBitrate, setAudioSession } from "./call-mobile.js";
+import { pickBitrate, setAudioSession, createPlayoutLead } from "./call-mobile.js";
 import { createLiveSession, MIC_WORKLET, OUTPUT_RATE, CHUNK_MS } from "./call-gemini.js";
 import { createDiarizer } from "./call-speakers.js";
 
@@ -60,7 +60,8 @@ export function createPipe(env, opts) {
     handle: "",
     openedAt: 0,
     via: "",
-    bytes: 0
+    bytes: 0,
+    lead: createPlayoutLead()
   };
   let ws = null;
   let nextAt = 0;
@@ -100,11 +101,12 @@ export function createPipe(env, opts) {
     src.buffer = buffer;
     src.connect(pipe.out);
     const t = ac.currentTime;
-    /* The model streams at real time, so a pile-up is stale audio. */
-    if (nextAt - t > 0.9) return;
-    if (nextAt < t + 0.02) nextAt = t + 0.06;
-    src.start(nextAt);
-    nextAt += buffer.duration;
+    /* The model streams at real time, so a pile-up is stale audio. The lead
+       grows when the audio runs dry mid-phrase and shrinks on a calm link. */
+    const slot = pipe.lead.plan(t, nextAt, buffer.duration);
+    if (!slot) return;
+    src.start(slot.start);
+    nextAt = slot.next;
     pipe.bytes += bytes.byteLength;
     opts.onOut(pipe, level, nextAt - t);
   }
@@ -563,6 +565,8 @@ export function createEngine(cfg) {
   function makePipe(isTx, target, voice, out) {
     const cb = pipeCallbacks(isTx);
     const p = createPipe(env, Object.assign({ id: (isTx ? "tx" : "rx") + Date.now(), target: target, voice: voice, out: out }, cb));
+    p.lead.floor(link.level);
+    livePipes.add(p);
     return p;
   }
   function onPipeState(p, state, isTx) {
@@ -804,6 +808,7 @@ export function createEngine(cfg) {
     [rx, tx].forEach((p) => { if (p && p.nudge) p.nudge(); });
   };
   let link = { level: 0, good: 0 };
+  const livePipes = new Set();
   let lastSent = 0;
   let lastLost = 0;
   async function adaptLink() {
@@ -822,6 +827,7 @@ export function createEngine(cfg) {
     const next = pickBitrate(link, { loss: loss, rtt: rtt });
     const changed = next.level !== link.level;
     link = next;
+    livePipes.forEach((p) => { if (p.closed) livePipes.delete(p); else p.lead.floor(next.level); });
     if (changed) { applyBitrate(next.bitrate); emit("link", { level: next.level, bitrate: next.bitrate, loss: loss, rtt: rtt }); }
   }
   function applyBitrate(forced) {
