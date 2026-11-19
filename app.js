@@ -1450,7 +1450,7 @@
       { id: "media", name: tr("Media"), items: ["music", "shorts", "tv", "games", "audiostudio"] },
       { id: "library", name: tr("Library"), items: ["history", "communities", "subscriptions", "vault", "packages"] }
     ],
-    order: ["home", "explore", "notifications", "messages", "feeds", "lists", "folder:media", "folder:library", "settings"],
+    order: ["home", "explore", "notifications", "messages", "calls", "contacts", "feeds", "lists", "folder:media", "folder:library", "settings"],
     hidden: []
   };
 
@@ -1468,8 +1468,10 @@
   const ALL_NAV_IDS = [
     "home", "explore", "notifications", "messages", "inbox-servers", "inbox-discord", "inbox-mail", "inbox-sms", "online", "feeds", "lists",
     "history", "music", "shorts", "games", "tv", "communities", "audiostudio",
-    "subscriptions", "vault", "packages", "settings"
+    "subscriptions", "vault", "packages", "calls", "contacts", "settings"
   ];
+  /* Calls and Contacts joined the sidebar later. A saved layout that has never seen them gets them right under Inbox. */
+  const NEAR_INBOX_NAV_IDS = INBOX_NAV_IDS.concat(["calls", "contacts"]);
 
   function cleanNavCustom(custom) {
     if (!custom || typeof custom !== "object") {
@@ -1503,9 +1505,9 @@
     ALL_NAV_IDS.forEach((id) => {
       if (!accounted.has(id) && !hidden.includes(id)) {
         // Inbox sections that get their own page sit right under Inbox.
-        if (INBOX_NAV_IDS.includes(id) && order.includes("messages")) {
+        if (NEAR_INBOX_NAV_IDS.includes(id) && order.includes("messages")) {
           let at = order.indexOf("messages") + 1;
-          while (at < order.length && INBOX_NAV_IDS.includes(order[at])) at += 1;
+          while (at < order.length && NEAR_INBOX_NAV_IDS.includes(order[at])) at += 1;
           order.splice(at, 0, id);
           return;
         }
@@ -11830,7 +11832,7 @@ const here = parseRoute();
     "home", "explore", "tv", "communities", "notifications", "messages",
     "inbox-servers", "inbox-discord", "inbox-mail", "inbox-sms", "online",
     "feeds", "lists", "history", "music", "shorts", "games",
-    "subscriptions", "vault", "packages", "storage", "settings"
+    "subscriptions", "vault", "packages", "calls", "storage", "settings"
   ];
   const BOTTOM_NAV_DEFAULT_ON = ["home", "explore", "tv", "communities", "notifications", "messages"];
 
@@ -20357,8 +20359,8 @@ const here = parseRoute();
   }
 
   const DRAWER_LOCKED = ["home", "settings", "logout", "customize"];
-  const DRAWER_PRIMARY = ["home", "explore", "notifications", "profile", "online", "premium", "communities", "bookmarks", "points", "lists", "spaces", "golive", "requests", "studio", "localai", "settings", "help", "logout", "customize"];
-  const DRAWER_EXTRA = ["contacts", "calls", "tv", "messages", "feeds", "history", "shorts", "subscriptions", "vault", "packages", "storage", "games", "music", "audiostudio"];
+  const DRAWER_PRIMARY = ["home", "explore", "notifications", "calls", "contacts", "profile", "online", "premium", "communities", "bookmarks", "points", "lists", "spaces", "golive", "requests", "studio", "localai", "settings", "help", "logout", "customize"];
+  const DRAWER_EXTRA = ["tv", "messages", "feeds", "history", "shorts", "subscriptions", "vault", "packages", "storage", "games", "music", "audiostudio"];
   const DRAWER_IDS = DRAWER_PRIMARY.concat(DRAWER_EXTRA);
   const DRAWER_NAV = {
     home: "home",
@@ -20368,6 +20370,8 @@ const here = parseRoute();
     lists: "lists",
     studio: "feeds",
     messages: "messages",
+    calls: "calls",
+    contacts: "contacts",
     feeds: "feeds",
     history: "history",
     music: "music",
@@ -20383,7 +20387,7 @@ const here = parseRoute();
   };
 
   function defaultDrawerMenu() {
-    return { sections: [], order: DRAWER_PRIMARY.concat(DRAWER_EXTRA).filter((id) => id !== "settings" && id !== "logout"), hidden: [], popup: ["settings", "logout"], at: 0 };
+    return { sections: [], order: DRAWER_PRIMARY.concat(DRAWER_EXTRA).filter((id) => id !== "settings" && id !== "logout"), hidden: [], popup: ["settings", "logout"], at: 0, v: 2 };
   }
 
   function cleanDrawerMenu(raw) {
@@ -20452,7 +20456,16 @@ const here = parseRoute();
       if (DRAWER_IDS.indexOf(id) < 0 || DRAWER_LOCKED.indexOf(id) >= 0 || hidden.indexOf(id) >= 0) return;
       hidden.push(id);
     });
-    return { sections: sections, order: order, hidden: hidden, popup: popup, at: Number(raw.at) || 0 };
+    /* Menus saved before v2 carry Calls and Contacts at the very end, where they ended up behind More. Bring them up under Notifications once. */
+    if (!(Number(raw.v) >= 2)) {
+      const lift = ["calls", "contacts"].filter((id) => order.indexOf(id) >= 0);
+      lift.forEach((id) => order.splice(order.indexOf(id), 1));
+      let at = order.indexOf("notifications") + 1;
+      if (!at) at = order.indexOf("explore") + 1;
+      if (!at) at = Math.min(1, order.length);
+      lift.forEach((id, i) => order.splice(at + i, 0, id));
+    }
+    return { sections: sections, order: order, hidden: hidden, popup: popup, at: Number(raw.at) || 0, v: 2 };
   }
 
   function getDrawerMenu() {

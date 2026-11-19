@@ -111,3 +111,20 @@ test("sensitive settings are sealed in D1 and device-only keys keep the account 
   assert.equal(stale.status, 409);
   assert.deepEqual(stale.body.payload.mutedWords, ["spoilerword"], "a conflict reply is opened too");
 });
+
+test("the synced menu keeps Calls and Contacts where the person put them, and an old bottom bar keeps Calls off", async () => {
+  const me = await signup(73, "Menu User", "menu_user");
+  const put = await call("/v1/sync", { method: "PUT", token: me.token, body: { payload: {
+    drawerMenu: { v: 2, order: ["home", "explore", "notifications", "calls", "contacts", "tv"], hidden: ["contacts"], sections: [], popup: ["settings", "logout"], at: 5 },
+    bottomNavCustom: true,
+    bottomNav: { order: ["home", "explore", "tv", "communities", "notifications", "messages"], hidden: ["lists"] }
+  }, baseUpdatedAt: 0, device: "phone1" } });
+  assert.equal(put.status, 200, JSON.stringify(put.body));
+  const menu = put.body.payload.drawerMenu;
+  assert.deepEqual(menu.order.slice(0, 5), ["home", "explore", "notifications", "calls", "contacts"]);
+  assert.deepEqual(menu.hidden, ["contacts"]);
+  assert.equal(menu.v, 2, "the version stamp survives so the client does not move Calls again");
+  const bar = put.body.payload.bottomNav;
+  assert.ok(bar.order.includes("calls"));
+  assert.ok(bar.hidden.includes("calls"), "a bar saved before Calls existed does not grow a Calls tab by itself");
+});

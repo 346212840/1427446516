@@ -1481,11 +1481,11 @@ async function handleProfilePatch(request, env) {
   return json(200, { account: await presentAccount(env, request, next, true) });
 }
 
-const BOTTOM_NAV_SYNC_IDS = ["home", "explore", "tv", "communities", "notifications", "messages", "online", "feeds", "lists", "history", "music", "shorts", "games", "subscriptions", "vault", "storage", "settings"];
+const BOTTOM_NAV_SYNC_IDS = ["home", "explore", "tv", "communities", "notifications", "messages", "online", "feeds", "lists", "history", "music", "shorts", "games", "subscriptions", "vault", "calls", "storage", "settings"];
 
 function cleanDrawerMenuSync(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-  const ids = ["home", "explore", "notifications", "profile", "online", "premium", "communities", "bookmarks", "points", "lists", "spaces", "golive", "requests", "studio", "tv", "messages", "feeds", "history", "shorts", "subscriptions", "vault", "storage", "games", "music", "settings", "help", "logout", "customize"];
+  const ids = ["home", "explore", "notifications", "profile", "online", "premium", "communities", "bookmarks", "points", "lists", "spaces", "golive", "requests", "studio", "tv", "messages", "feeds", "history", "shorts", "subscriptions", "vault", "storage", "games", "music", "settings", "help", "logout", "customize", "contacts", "calls", "packages", "audiostudio", "localai"];
   const locked = { home: true, settings: true, logout: true, customize: true };
   const order = [];
   const seen = {};
@@ -1524,7 +1524,7 @@ function cleanDrawerMenuSync(raw) {
     if (ids.indexOf(text) < 0 || text === "home" || text === "customize" || popup.indexOf(text) >= 0) return;
     popup.push(text);
   });
-  return { order: order, hidden: hidden, sections: sections, popup: popup, at: Number(raw.at) || 0 };
+  return { order: order, hidden: hidden, sections: sections, popup: popup, at: Number(raw.at) || 0, v: Number(raw.v) >= 2 ? 2 : 0 };
 }
 
 function cleanBottomNavSync(raw) {
@@ -1541,6 +1541,8 @@ function cleanBottomNavSync(raw) {
   (Array.isArray(raw.hidden) ? raw.hidden : []).forEach((id) => {
     if (id !== "home" && BOTTOM_NAV_SYNC_IDS.indexOf(id) >= 0) hiddenSet.add(id);
   });
+  /* A bar saved before Calls existed keeps it off the bar until the person adds it. */
+  if (Array.isArray(raw.order) && raw.order.indexOf("calls") < 0) hiddenSet.add("calls");
   if (order.indexOf("home") < 0) order.unshift("home");
   let visible = order.filter((id) => !hiddenSet.has(id));
   visible.filter((id) => id !== "home").slice(5).forEach((id) => hiddenSet.add(id));
