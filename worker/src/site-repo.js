@@ -64,3 +64,23 @@ export function githubApi(repo, path) {
   const suffix = String(path || "");
   return "https://api.github.com/repos/" + repo + (suffix.charAt(0) === "/" ? suffix : "/" + suffix);
 }
+
+/* One API call. A rename answers that call with a redirect, and the same
+   method and body are sent once to the new name. */
+export async function githubFetch(env, path, init, fetcher) {
+  const f = fetcher || fetch;
+  const key = configuredRepository(env);
+  const repo = cache.has(key) ? cache.get(key) : key;
+  const opts = Object.assign({}, init || {}, { redirect: "manual" });
+  const res = await f(githubApi(repo, path), opts);
+  const status = res && res.status;
+  const location = res && res.headers && res.headers.get && res.headers.get("location");
+  if ((status === 301 || status === 302 || status === 307 || status === 308) && location) {
+    const next = repoFromRedirect(location);
+    if (next && next !== repo) {
+      cache.set(key, next);
+      return f(githubApi(next, path), opts);
+    }
+  }
+  return res;
+}

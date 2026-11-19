@@ -146,6 +146,10 @@ const PAGE_STEPS = [
     weight: 40, needs: ["built", "pw149"],
     paths: [file("x_video_play.mjs"), /^app\.js$/]
   }),
+  step("app-base", "node scripts/app_base_test.mjs", {
+    needs: ["pw", "browser"],
+    paths: [file("app_base_test.mjs"), /^shared\/app-base\.js$/, /^shared\/repo-name\.js$/]
+  }),
   step("signup-sizes", "SIGNUP_PART=sizes node scripts/signup_flow_test.mjs", {
     weight: 200, needs: ["pw", "browser", "worker"], timing: true,
     paths: [file("signup_flow_test.mjs"), /^accounts\.js$/, /^worker\/src\//, ...APP]
@@ -289,7 +293,6 @@ const NAV_STEPS = [
   step("notif-sounds", "node scripts/notif_sounds_test.mjs", { needs: ["pw", "browser"], paths: [file("notif_sounds_test.mjs"), /^notif-sounds\.js$/, ...APP] }),
   step("menu-pages", "node scripts/menu_pages_test.mjs", { weight: 40, needs: ["pw", "browser"], paths: [file("menu_pages_test.mjs"), ...APP] }),
   step("x-card-fit", "node scripts/x_card_fit_test.mjs", { needs: ["pw", "browser"], paths: [file("x_card_fit_test.mjs"), /^video-embed\.js$/, ...APP] }),
-  step("app-base", "node scripts/app_base_test.mjs", { needs: ["pw", "browser"], paths: [file("app_base_test.mjs"), /^shared\/app-base\.js$/] }),
   step("about-layout", "node scripts/about_layout_test.mjs", { needs: ["pw"], paths: [file("about_layout_test.mjs")] }),
   step("points-layout", "node scripts/points_layout_test.mjs", { needs: ["pw"], paths: [file("points_layout_test.mjs")] }),
   step("stories-layout", "node scripts/stories_layout_test.mjs", { needs: ["pw"], paths: [file("stories_layout_test.mjs")] }),
@@ -326,9 +329,9 @@ const REQUIRED_PAGE = [
   "assemble-site", "smoke-site", "smoke-mirror", "sw-update", "notifications", "scrollbar-hidden", "profile", "profile-tab-scroll",
   "home-tabs", "tab-member", "reply-lookup", "home-watch-rearm", "pill-fit", "drawer", "sidebar", "privacy", "yt-embed", "x-video",
   "signup-flows",
-  "device", "translate", "ondevice-ai", "dock", "for-you", "compose-ai", "compose-page", "ios", "live",
+  "device", "translate", "ondevice-ai", "dock", "for-you", "compose-ai", "compose-page", "ios", "live", "shorts-page",
   "community-home", "communities-hub", "own-post", "author-card-race", "post-page", "music-dock", "video-fallback", "ig-media", "source-assign",
-  "device-guard", "usernames", "display-names", "settings-assistant", "nostr-settings", "games-mobile",
+  "device-guard", "usernames", "owner-user-settings", "display-names", "settings-assistant", "nostr-settings", "games-mobile",
   "live-translate", "friend-p2p", "friend-refresh", "communities-instant", "routes-instant", "profile-by-name", "people-search", "emoji-text", "post-menu", "show-more-scroll", "action-speed", "reply-pending", "tab-sync",
   "communities-rows", "friend-privacy", "foryou-communities", "foryou-chunks", "author-marks", "foryou-off", "title-privacy", "desktop-squares",
   "storage-recordings", "storage-page", "app-scale", "image-copy", "app-base"
