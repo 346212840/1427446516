@@ -691,6 +691,23 @@ async function runDrop(browser, origin) {
   for (let i = 0; i < 30 && reorders.length === beforePointer; i++) await new Promise((resolve) => setTimeout(resolve, 25));
   const pointed = reorders[reorders.length - 1] || {};
   if (JSON.stringify(pointed.groups) !== JSON.stringify(["gbeta", "galpha"])) fail("drop: a pointer drag on the group title did not reorder " + JSON.stringify(reorders));
+  const beforeLinger = reorders.length;
+  await page.evaluate(() => {
+    const from = document.querySelector('[data-feed-drag="group:gbeta"]');
+    const outside = document.querySelector("#feeds-q");
+    from.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true }));
+    document.dispatchEvent(new PointerEvent("pointercancel", { bubbles: true, cancelable: true }));
+    outside.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true }));
+  });
+  await new Promise((resolve) => setTimeout(resolve, 1100));
+  await page.evaluate(() => {
+    const to = document.querySelector('.feeds-section-head[data-id="galpha"]');
+    to.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true }));
+    document.dispatchEvent(new DragEvent("dragend", { bubbles: true, cancelable: true }));
+  });
+  for (let i = 0; i < 20 && reorders.length === beforeLinger; i++) await new Promise((resolve) => setTimeout(resolve, 25));
+  const lingered = reorders[reorders.length - 1] || {};
+  if (JSON.stringify(lingered.groups) !== JSON.stringify(["gbeta", "galpha"])) fail("drop: hovering outside the list cancelled the drag " + JSON.stringify(reorders));
   if (!(await page.locator('.feeds-row[data-id="telegram:beta1"]').count())) fail("drop: dragging the group title folded it");
   await page.emulateMedia({ reducedMotion: "reduce" });
   const reducedHead = await page.waitForFunction(() => {

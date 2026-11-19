@@ -721,9 +721,12 @@
   }
 
   function onDragOver(event) {
-    const el = event.target && event.target.closest && event.target.closest("[data-feed-drop]");
-    if (!el || !page.drag) return;
+    if (!page.drag) return;
+    /* Any dragover means the gesture is still live, including over the
+       filters and the rest of the page. Only a real drop target accepts it. */
     noteDragContinues();
+    const el = event.target && event.target.closest && event.target.closest("[data-feed-drop]");
+    if (!el) return;
     event.preventDefault();
   }
 
