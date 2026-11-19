@@ -6564,5 +6564,15 @@ SI18n.addPack("hi", {
   "Talk": "बात करें",
   "Speaker": "स्पीकर",
   "Answer": "उत्तर दें",
-  "You can type instead of talking.": "बोलने के बजाय लिख सकते हैं।"
+  "You can type instead of talking.": "बोलने के बजाय लिख सकते हैं।",
+  "Sign in on this device": "इस डिवाइस पर साइन इन करें",
+  "App id": "ऐप आईडी",
+  "App hash": "ऐप हैश",
+  "Login code": "लॉगिन कोड",
+  "Two-factor password": "दो-चरण पासवर्ड",
+  "Create the app id on my.telegram.org. It stays on this device.": "ऐप आईडी my.telegram.org पर बनाएँ। वह इसी डिवाइस पर रहती है।",
+  "Signed in on this device.": "इस डिवाइस पर साइन इन हो गया।",
+  "Type a username or phone": "उपयोगकर्ता नाम या फ़ोन लिखें",
+  "Could not sign in.": "साइन इन नहीं हो सका।",
+  "Save on this device": "इस डिवाइस पर सहेजें"
 });

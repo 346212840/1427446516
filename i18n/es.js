@@ -6577,5 +6577,15 @@ SI18n.addPack("es", {
   "Talk": "Hablar",
   "Speaker": "Altavoz",
   "Answer": "Contestar",
-  "You can type instead of talking.": "Puedes escribir en vez de hablar."
+  "You can type instead of talking.": "Puedes escribir en vez de hablar.",
+  "Sign in on this device": "Inicia sesión en este dispositivo",
+  "App id": "Id de la app",
+  "App hash": "Hash de la app",
+  "Login code": "Código de acceso",
+  "Two-factor password": "Contraseña de dos pasos",
+  "Create the app id on my.telegram.org. It stays on this device.": "Crea el id de la app en my.telegram.org. Se queda en este dispositivo.",
+  "Signed in on this device.": "Sesión iniciada en este dispositivo.",
+  "Type a username or phone": "Escribe un usuario o un teléfono",
+  "Could not sign in.": "No se pudo iniciar sesión.",
+  "Save on this device": "Guardar en este dispositivo"
 });

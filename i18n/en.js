@@ -6574,5 +6574,15 @@ SI18n.addPack("en", {
   "Talk": "Talk",
   "Speaker": "Speaker",
   "Answer": "Answer",
-  "You can type instead of talking.": "You can type instead of talking."
+  "You can type instead of talking.": "You can type instead of talking.",
+  "Sign in on this device": "Sign in on this device",
+  "App id": "App id",
+  "App hash": "App hash",
+  "Login code": "Login code",
+  "Two-factor password": "Two-factor password",
+  "Create the app id on my.telegram.org. It stays on this device.": "Create the app id on my.telegram.org. It stays on this device.",
+  "Signed in on this device.": "Signed in on this device.",
+  "Type a username or phone": "Type a username or phone",
+  "Could not sign in.": "Could not sign in.",
+  "Save on this device": "Save on this device"
 });

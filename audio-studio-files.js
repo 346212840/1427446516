@@ -155,10 +155,13 @@
   }
 
   function voiceHtml() {
+    var account = root.ViktorychTgAccount;
+    var gate = account && account.on() ? "<div data-tg-box></div>" : "";
     return "<section class=\"ac-block\" data-ac-voice><h3>" + esc(tr("Voice Notes")) + "</h3>" +
       "<p class=\"ac-note\">" + esc(tr("Record or drop audio, then send it as a Telegram voice note.")) + "</p>" +
       "<div class=\"ac-row\"><button type=\"button\" class=\"ac-btn primary\" data-ac-rec>" + esc(tr("Record")) + "</button>" +
       "<label class=\"ac-btn\"><input data-ac-voice-file type=\"file\" accept=\"audio/*,video/*\">" + esc(tr("Drop audio here or pick files")) + "</label></div>" +
+      gate +
       "<div data-ac-jobs></div>" +
       "<p class=\"ac-note\">" + esc(tr("VK gets an audio file, not a voice message.")) + "</p>" +
       "</section>";
@@ -236,6 +239,8 @@
       }
     });
     paintJobs();
+    var tg = box.querySelector("[data-tg-box]");
+    if (tg && root.ViktorychTgAccount) root.ViktorychTgAccount.attach(tg);
   }
 
   root.ViktorychStudioFiles = { html: html, mount: mount, jobs: function () { return jobs; } };
