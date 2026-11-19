@@ -256,6 +256,9 @@ const PAGE_STEPS = [
   }),
   step("app-scale", "node scripts/app_scale_test.mjs", { needs: ["pw", "browser"], paths: [file("app_scale_test.mjs"), /^desktop-app\.js$/, /^app\.js$/, /^mention-suggest\.js$/] }),
   step("image-copy", "node scripts/image_copy_test.mjs", { needs: ["pw", "browser"], paths: [file("image_copy_test.mjs"), /^image-copy\.js$/] }),
+  step("calls-logic", "node scripts/calls_logic_test.mjs", {
+    paths: [file("calls_logic_test.mjs"), /^shared\/call-/, /^calls\.js$/, /^worker\/src\/calls\.js$/]
+  }),
   step("audio-studio", "node scripts/audio_convert_plan_test.mjs && node scripts/audio_studio_test.mjs && python3 scripts/local_voice_route_test.py && python3 scripts/local_voice_proxy_test.py", {
     weight: 50, needs: ["pw", "browser"],
     paths: [/^audio-convert/, /^audio-studio-files\.js$/, /^voice-sheet\.js$/, /^telegram-account\.js$/, /^local-voice/, /^flow-music\.js$/, /^fish-cache\.js$/, file("audio_studio_test.mjs"), file("audio_convert_plan_test.mjs"), file("local_voice_route_test.py"), file("local_voice_proxy_test.py"), ...APP]
@@ -299,7 +302,7 @@ const NAV_STEPS = [
 ];
 
 const SHARDS = {
-  checks: ["action-bar", "assemble-self", "r2-catalog", "catalog-migrate", "handle-guard", "i18n", "telegram-stories", "stories", "device", "translate", "ondevice-ai", "dock", "for-you", "storage-recordings", "app-scale", "image-copy"],
+  checks: ["action-bar", "assemble-self", "r2-catalog", "catalog-migrate", "handle-guard", "i18n", "telegram-stories", "stories", "device", "translate", "ondevice-ai", "dock", "for-you", "storage-recordings", "app-scale", "image-copy", "calls-logic"],
   site: ["about-layout", "points-layout", "stories-layout", "assemble-site", "smoke-site", "smoke-mirror", "yt-embed", "x-video", "ios", "live", "shorts-page"],
   "ui-fast": ["notifications", "scrollbar-hidden", "pill-fit", "sidebar", "privacy", "title-privacy", "desktop-squares", "storage-page", "audio-studio"],
   sw: ["sw-update"],
@@ -333,7 +336,7 @@ const REQUIRED_PAGE = [
   "device-guard", "usernames", "display-names", "settings-assistant", "nostr-settings", "games-mobile",
   "live-translate", "friend-p2p", "friend-refresh", "communities-instant", "routes-instant", "profile-by-name", "people-search", "emoji-text", "post-menu", "show-more-scroll", "action-speed", "reply-pending", "tab-sync",
   "communities-rows", "friend-privacy", "foryou-communities", "foryou-chunks", "author-marks", "foryou-off", "title-privacy", "desktop-squares",
-  "storage-recordings", "storage-page", "app-scale", "image-copy", "shorts-page", "owner-user-settings", "audio-studio"
+  "storage-recordings", "storage-page", "app-scale", "image-copy", "shorts-page", "owner-user-settings", "audio-studio", "calls-logic"
 ];
 
 export function stepsFor(suite) {

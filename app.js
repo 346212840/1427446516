@@ -2229,7 +2229,7 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
   function friendsOffNow() {
     return !!(window.ViktorychFriendsPref && window.ViktorychFriendsPref.isOff());
   }
-  const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "pills", "nostr", "regone_leaderboard", "regone_online", "regone_rooms", "regone_profile_stats", "nzlay_forum", "nzlay_forum_post", "nzlay_forum_regone", "nft", "bitchat", "feed_requests", "friends_off", "local_ai", "local_ai_setup", "ext_nicknames", "merged_profiles", "owner_inspector", "live_frame_grab", "app_repair", "auto_update", "swipe_tabs", "compact_header", "status_bar", "zoom_lock", "app_scale", "image_copy", "update_notice", "foryou_off", "status_icons", "side_panel", "ai_people", "gguf_models", "instant_limits", "ai_tools", "site_permissions", "notif_sounds", "owner_user_settings", "tiktok_auto_record", "ai_device_setup", "x_broadcast", "ai_auto_model", "article_reader", "storage_recordings", "home_live", "audio_convert", "telegram_account_send", "fish_audio", "local_voice"];
+const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "pills", "nostr", "regone_leaderboard", "regone_online", "regone_rooms", "regone_profile_stats", "nzlay_forum", "nzlay_forum_post", "nzlay_forum_regone", "nft", "bitchat", "feed_requests", "friends_off", "local_ai", "local_ai_setup", "ext_nicknames", "merged_profiles", "owner_inspector", "live_frame_grab", "app_repair", "auto_update", "swipe_tabs", "compact_header", "status_bar", "zoom_lock", "app_scale", "image_copy", "update_notice", "foryou_off", "status_icons", "side_panel", "ai_people", "gguf_models", "instant_limits", "ai_tools", "site_permissions", "notif_sounds", "owner_user_settings", "tiktok_auto_record", "ai_device_setup", "x_broadcast", "ai_auto_model", "article_reader", "storage_recordings", "home_live", "audio_convert", "telegram_account_send", "fish_audio", "local_voice", "calls"];
   function serverOffList() {
     try {
       const list = JSON.parse(localStorage.getItem(SERVER_OFF_KEY) || "[]");
@@ -2357,7 +2357,8 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
       audio_convert: [tr(AUDIO_STUDIO_NAME), tr("Turn audio into another format on this device. Voice notes, typed speech and music sit in one page.")],
       telegram_account_send: [tr("Send as my Telegram account"), tr("Off until you turn it on. Sign-in stays in this browser. The session is never sent to our server.")],
       fish_audio: [tr("Type to voice"), tr("Fish Audio speech for the owner. Off until you turn it on. The API key stays on the server. Previews use the free sample.")],
-      local_voice: [tr("Local voice (free)"), tr("On a desktop, Qwen3-TTS speaks English, Spanish and Russian. OmniVoice speaks Swedish and Catalan. Nothing is uploaded.")]
+      local_voice: [tr("Local voice (free)"), tr("On a desktop, Qwen3-TTS speaks English, Spanish and Russian. OmniVoice speaks Swedish and Catalan. Nothing is uploaded.")],
+      calls: [tr("Calls"), tr("Voice and text calls with live translation. Off until you turn it on. No camera.")]
     };
     const rows = SERVER_FEATURES.map((name) => {
       const on = !off.includes(name);
@@ -11111,6 +11112,8 @@ const here = parseRoute();
       return { name: "drive", section: "files", trash: false, folder: "", view: "", album: "", query };
     }
     if (parts[0] === "contacts") return { name: "contacts", sub: parts[1] || "", query };
+    if (parts[0] === "calls") return { name: "calls", id: parts[1] || "", query };
+    if (parts[0] === "call" && parts[1]) return { name: "callguest", token: parts[1], query };
     if (parts[0] === "vault") return { name: "vault", tab: parts[1] || "my", query };
     if (parts[0] === "packages") return { name: "packages", tab: parts[1] || "active", query };
     if (parts[0] === "communitynotes") return { name: "communitynotes", tab: parts[1] || "", query };
@@ -11328,6 +11331,8 @@ const here = parseRoute();
         return { id: "audiostudio", href: "#/studio", icon: "convert", label: tr(AUDIO_STUDIO_NAME), active: (r) => r.name === "studio", visible: () => !serverOffList().includes("audio_convert") };
       case "contacts":
         return { id: "contacts", href: "#/contacts", icon: "phone", label: tr("Contacts"), active: (r) => r.name === "contacts", visible: () => featureOn("contacts") };
+      case "calls":
+        return { id: "calls", href: "#/calls", icon: "phone", label: tr("Calls"), active: (r) => r.name === "calls" || r.name === "callguest", visible: () => !!(window.ViktorychServerFeature && window.ViktorychServerFeature("calls")) };
       case "shorts":
         return { id: "shorts", href: "#/shorts", icon: "shorts", label: tr("Shorts"), active: (r) => r.name === "shorts", visible: () => shortsEnabled() && !!(window.ViktorychShorts && window.ViktorychShorts.visible()) };
       case "games":
@@ -12257,6 +12262,7 @@ const here = parseRoute();
       } catch (err) { /* storage blocked */ }
     });
     if (serverOffList().includes("x_broadcast")) off.push("xBroadcast");
+    if (serverOffList().includes("calls")) off.push("calls");
     // The service worker reads this list so its shell download skips off features too.
     const body = JSON.stringify(off);
     if (body === featureOffSent || !window.caches) return;
@@ -19353,6 +19359,7 @@ const here = parseRoute();
       else if (section === "data") key = tr("Data usage");
       else if (section === "notifications") key = tr("Notifications");
       else if (section === "privacy") key = tr("Privacy and safety");
+      else if (section === "calls") key = tr("Calls");
       else if (section === "muted") key = tr("Muted & blocked");
       else if (section === "usernames") key = tr("Usernames");
       else if (section === "locked-follows") key = tr("Locked follows");
@@ -20161,6 +20168,11 @@ const here = parseRoute();
       return settingsHead(title, route.sub ? "#/settings/friendship" : "#/settings/friends") + `<div class="set-block">${window.ViktorychFriendPrivacy ? window.ViktorychFriendPrivacy.pageHtml(route.sub || "") : ""}</div>`;
     }
     if (section === "permissions" && sitePermsOn()) return settingsHead(tr("Site permissions"), "#/settings") + window.ViktorychSitePerms.pageHtml();
+    if (section === "calls") {
+      ensureLazy("calls");
+      const body = window.ViktorychCalls && window.ViktorychCalls.settingsHtml ? window.ViktorychCalls.settingsHtml() : "";
+      return settingsHead(tr("Calls"), "#/settings/privacy") + `<div class="set-block">${body}</div>`;
+    }
     if (section === "muted") return settingsHead(tr("Muted & blocked"), "#/settings/privacy") + `<div class="set-block">${mutedSettingsHtml()}</div>`;
     if (section === "privacy") {
       const acct = window.ViktorychAccounts && window.ViktorychAccounts.account && window.ViktorychAccounts.account();
@@ -20201,6 +20213,7 @@ const here = parseRoute();
 
         <h2>${esc(tr("Mute and block"))}</h2>
         <div class="set-list">${settingsRow("#/settings/muted", tr("Muted & blocked"), tr("Muted words, blocked accounts, posts, comments and sources."))}</div>
+        ${window.ViktorychServerFeature && window.ViktorychServerFeature("calls") ? `<div class="set-list">${settingsRow("#/settings/calls", tr("Calls"), tr("Who can call, guest links, and call choices."))}</div>` : ""}
 
         <h2>${esc(tr("Local data shredder"))}</h2>
         <p class="phandle">${esc(tr("Immediately purges all stored accounts, history, bookmarks, and cached files from this device."))}</p>
@@ -20320,7 +20333,7 @@ const here = parseRoute();
 
   const DRAWER_LOCKED = ["home", "settings", "logout", "customize"];
   const DRAWER_PRIMARY = ["home", "explore", "notifications", "profile", "online", "premium", "communities", "bookmarks", "points", "lists", "spaces", "golive", "requests", "studio", "localai", "settings", "help", "logout", "customize"];
-  const DRAWER_EXTRA = ["contacts", "tv", "messages", "feeds", "history", "shorts", "subscriptions", "vault", "packages", "storage", "games", "music", "audiostudio"];
+  const DRAWER_EXTRA = ["contacts", "calls", "tv", "messages", "feeds", "history", "shorts", "subscriptions", "vault", "packages", "storage", "games", "music", "audiostudio"];
   const DRAWER_IDS = DRAWER_PRIMARY.concat(DRAWER_EXTRA);
   const DRAWER_NAV = {
     home: "home",
@@ -22706,6 +22719,12 @@ if (STATE.histClear) {
       ensureLazy("contacts");
       return lazySkeleton(tr("Contacts"));
     }
+    if (route.name === "calls" || route.name === "callguest") {
+      if (window.ViktorychServerFeature && !window.ViktorychServerFeature("calls")) return pageHead(tr("Calls")) + emptyBlock(tr("Calls"), tr("Calls is turned off right now."));
+      if (window.ViktorychCalls) return window.ViktorychCalls.page(route);
+      ensureLazy("calls");
+      return lazySkeleton(tr("Calls"));
+    }
     if (route.name === "shorts") {
       if (!shortsEnabled()) return "";
       if (window.ViktorychShorts && window.ViktorychShorts.visible()) return window.ViktorychShorts.page(route);
@@ -24482,6 +24501,10 @@ if (STATE.histClear) {
         if (route.name === "contacts") window.ViktorychContacts.mount(route);
         else if (window.ViktorychContacts.unmount) window.ViktorychContacts.unmount();
       }
+      if (window.ViktorychCalls) {
+        if (route.name === "calls" || route.name === "callguest") window.ViktorychCalls.mount(route);
+        else if (window.ViktorychCalls.unmount) window.ViktorychCalls.unmount();
+      }
       if (window.ViktorychShorts) {
         if (shortsEnabled() && route.name === "shorts") window.ViktorychShorts.mount(route);
         else window.ViktorychShorts.unmount();
@@ -24794,6 +24817,25 @@ if (route.name === "music" && window.SIntelMusic && window.SIntelMusic.titleFor)
   function onAct(el) {
     const act = el.dataset.act;
     if (act === "stop") return;
+    if (act === "call-open") {
+      const handle = el.dataset.handle || "";
+      ensureLazy("calls");
+      const go = () => {
+        if (window.ViktorychCalls && window.ViktorychCalls.onAct) window.ViktorychCalls.onAct("call-open", el);
+        location.hash = "#/calls?to=" + encodeURIComponent(handle);
+      };
+      if (window.ViktorychCalls) go();
+      else window.addEventListener("vklazy", function once(ev) {
+        if (!ev.detail || ev.detail.name !== "calls") return;
+        window.removeEventListener("vklazy", once);
+        go();
+      });
+      return;
+    }
+    if (act && act.indexOf("call-") === 0 && window.ViktorychCalls && window.ViktorychCalls.onAct) {
+      window.ViktorychCalls.onAct(act, el);
+      return;
+    }
     if (act && act.indexOf("xc-") === 0 && window.ViktorychXCompose && window.ViktorychXCompose.onAct) {
       window.ViktorychXCompose.onAct(act, el);
       return;
@@ -32861,6 +32903,7 @@ if (data.historyPause) STATE.settings.historyPause = cleanHistoryPause(data.hist
       return;
     }
     if (msg.op === "event" && msg.topic === "notifications" && msg.data) applyHubEvent(msg.data);
+    if (msg.op === "event" && msg.topic === "calls") ensureLazy("calls");
     if (msg.op === "event" && msg.topic === "games" && msg.data && window.ViktorychGameSocial) window.ViktorychGameSocial.onChannel(msg.data);
     if (msg.op === "event" && msg.topic === "sync" && msg.data && msg.data.lists && window.SourceLists && window.SourceLists.notify) window.SourceLists.notify(msg.data);
     if (msg.op === "event" && msg.topic === "posts") {

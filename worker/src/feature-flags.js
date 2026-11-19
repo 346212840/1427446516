@@ -140,7 +140,10 @@ export const FEATURES = {
   // is FISH_AUDIO_API_KEY. Listing voices does not spend credits.
   fish_audio: { paths: ["/v1/owner/fish"], defaultOff: true },
   // Desktop OpenAudio on the owner's PC. No server route. Off hides the section.
-  local_voice: { paths: [] }
+  local_voice: { paths: [] },
+  /* Live translation calls. Off until the owner turns it on. Needs
+     GEMINI_API_KEY. No camera. */
+  calls: { paths: ["/v1/calls"], defaultOff: true }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 
