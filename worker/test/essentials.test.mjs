@@ -131,11 +131,14 @@ test("sign-up guard rejects a missing proof, a honeypot, and a fast answer", asy
   const fast = await challenge();
   const fastPow = await solve(fast);
   const db = await mf.getD1Database("DB");
-  await db.prepare("UPDATE signup_challenges SET created_at = ? WHERE id = ?").bind(Date.now(), fast.id).run();
+  /* The wait is the challenge's stored time, not how long this request
+     takes. A slow runner used to cross the minimum wait before the worker
+     read the clock, so a too-fast sign-up came back created. */
+  await db.prepare("UPDATE signup_challenges SET created_at = ? WHERE id = ?").bind(Date.now() + 60000, fast.id).run();
   const tooFast = await call("/v1/signup", { method: "POST", body: { displayName: "Reader", handle: "readerfast", pow: fastPow, fax: "" } });
   assert.equal(tooFast.status, 400);
   assert.equal(tooFast.body.error, "too_fast");
-  await new Promise((resolve) => setTimeout(resolve, 900));
+  await db.prepare("UPDATE signup_challenges SET created_at = ? WHERE id = ?").bind(Date.now() - 30000, fast.id).run();
   const created = await call("/v1/signup", { method: "POST", body: { displayName: "Reader", handle: "readerfast", pow: fastPow, fax: "" } });
   assert.equal(created.status, 201);
   assert.equal(Array.isArray(created.body.recoveryCodes) && created.body.recoveryCodes.length === 10, true);

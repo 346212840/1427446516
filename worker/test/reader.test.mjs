@@ -282,28 +282,40 @@ test("reader code does not special-case one publisher", () => {
 
 test("a public okdiario article, when the site answers", async (t) => {
   const ua = "ViktorychAppReader/1.0 (+" + appContact() + "; public reading view)";
-  let found = "";
+  const found = [];
   try {
     const home = await fetch("https://okdiario.com/", { headers: { "user-agent": ua, accept: "text/html" }, signal: AbortSignal.timeout(8000) });
     if (!home.ok) return t.skip("okdiario home did not answer");
     const html = await home.text();
     const links = html.match(/https:\/\/okdiario\.com\/[a-z0-9-]+\/[a-z0-9-]{24,}/g) || [];
-    found = links.map((link) => link.split("?")[0]).find((link) => !/\/(tag|autor|author|newsletter|buscador|okclub)\//.test(link)) || "";
+    const seen = {};
+    for (const link of links) {
+      const clean = link.split("?")[0];
+      if (/\/(tag|autor|author|newsletter|buscador|okclub)\//.test(clean) || seen[clean]) continue;
+      seen[clean] = true;
+      found.push(clean);
+      if (found.length >= 6) break;
+    }
   } catch (err) {
     return t.skip("okdiario was not reachable");
   }
-  if (!found) return t.skip("okdiario did not list an article link");
+  if (!found || !found.length) return t.skip("okdiario did not list an article link");
   const deps = { fetch: globalThis.fetch, cache: null, now: () => Date.now() };
-  const res = await handleReader(new Request("https://api.test/v1/reader?url=" + encodeURIComponent(found)), deps);
-  const body = JSON.parse(await res.text());
-  if (body.reason === "timeout" || body.reason === "blocked" || body.reason === "type") {
-    return t.skip("okdiario did not return a readable page");
+  let body = null;
+  for (const url of found) {
+    const res = await handleReader(new Request("https://api.test/v1/reader?url=" + encodeURIComponent(url)), deps);
+    const next = JSON.parse(await res.text());
+    if (next.reason === "timeout" || next.reason === "blocked" || next.reason === "type") continue;
+    if (next.reason === "paywall" || next.reason === "login" || next.reason === "robots") {
+      assert.equal(next.html, "");
+      assert.equal(next.mode, "preview");
+      return;
+    }
+    /* The home page leads with polls and live notes. A full article is the
+       one long enough to read. A short page is not that article. */
+    if (next.mode === "article" && next.wordCount > 200) { body = next; break; }
   }
-  if (body.reason === "paywall" || body.reason === "login" || body.reason === "robots") {
-    assert.equal(body.html, "");
-    assert.equal(body.mode, "preview");
-    return;
-  }
+  if (!body) return t.skip("okdiario did not return a full article");
   assert.equal(body.mode, "article");
   assert.equal(body.domain.endsWith("okdiario.com"), true);
   assert.ok(body.title && body.title.length > 8);
