@@ -18,6 +18,7 @@ import {
   storageReadiness
 } from "./shared/storage-contract.js";
 import { decryptBytes } from "./shared/storage-age.js";
+import { expiryHint } from "./shared/telegram-expiry.js";
 import { classifyMp4, likelyMime } from "./shared/storage-mp4.js";
 
 const AGE_SRC = "vendor/age-0.3.1.min.js";
@@ -27,6 +28,8 @@ let identity = "";
 let manifest = null;
 let catalog = null;
 let fetched = false;
+let telegramExpired = false;
+let expiresAt = 0;
 let sources = new Map();
 let legacyCipher = null;
 let legacyName = "recording.age";
@@ -36,8 +39,8 @@ let agePromise = null;
 let shownIndex = -1;
 const slots = { init: null, media: null };
 
-function tr(key) {
-  return window.t ? window.t(key) : key;
+function tr(key, vars) {
+  return window.t ? window.t(key, vars) : key;
 }
 function esc(value) {
   return String(value == null ? "" : value).replace(/[&<>"']/g, function (ch) {
@@ -130,6 +133,7 @@ function errorText() {
   if (errorCode === "codec") return tr("This format cannot play in this browser. Nothing is re-encoded.");
   if (errorCode === "manifest" || errorCode === "catalog") return tr("Could not read that catalog.");
   if (errorCode === "not_configured") return tr("Retrieval is not configured.");
+  if (errorCode === "expired") return tr("Expired from Telegram backup");
   return "";
 }
 function noteText() {
@@ -145,11 +149,22 @@ function providerView() {
   if (!catalog) return { state: "absent", label: tr("Not connected"), note: "" };
   const rows = [];
   catalog.packages.forEach(function (item) { item.rows.forEach(function (row) { rows.push(row); }); });
+  if (telegramExpired) {
+    const local = rows.length > 0 && rows.every(function (row) { return !row.uploaded || sources.has(row.objectName); });
+    const when = expiresAt ? expiryDate(expiresAt) : "";
+    const note = when ? tr("Expired from Telegram backup. Kept until {date}.", { date: when }) : tr("The catalog stays. Nothing was deleted.");
+    if (local) return { state: "local", label: tr("On this device"), note: note };
+    return { state: "expired", label: tr("Expired from Telegram backup"), note: note };
+  }
   if (!rows.length || rows.some(function (row) { return !row.uploaded; })) {
     return { state: "not_uploaded", label: tr("Not uploaded"), note: tr("This catalog is not uploaded. Nothing was fetched.") };
   }
   if (fetched) return { state: "retrieved", label: tr("Ciphertext in this tab"), note: "" };
   return { state: "not_uploaded", label: tr("Not uploaded"), note: tr("This catalog is not uploaded. Nothing was fetched.") };
+}
+function expiryDate(ms) {
+  try { return new Date(ms).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }); }
+  catch (err) { return ""; }
 }
 function readyRow(name, state, label, value) {
   return '<div class="rec-row" data-ready="' + esc(name) + '" data-ready-state="' + esc(state) + '"><b>' + esc(label) + '</b><span>' + esc(value) + "</span></div>";
@@ -592,6 +607,11 @@ export async function fetchAgeObject(objectName, sha, size) {
     if (timer) clearTimeout(timer);
   }
   if (res.status === 503) return { error: "not_configured" };
+  if (res.status === 410) {
+    let body = null;
+    try { body = await res.json(); } catch (err) { body = null; }
+    return { error: "expired", expiresAt: body && Number(body.expiresAt) || 0 };
+  }
   if (res.status === 404) {
     let code = "not_found";
     try {
@@ -631,6 +651,8 @@ export async function openCatalog(bytes) {
     return parsed;
   }
   catalog = parsed.catalog;
+  telegramExpired = false;
+  expiresAt = 0;
   const pending = [];
   catalog.packages.forEach(function (item) {
     item.rows.forEach(function (row) { if (row.uploaded) pending.push(row); });
@@ -640,13 +662,28 @@ export async function openCatalog(bytes) {
     paint();
     return { catalog: catalog, fetched: false };
   }
+  let stopRemote = false;
   for (let i = 0; i < pending.length; i++) {
+    if (sources.has(pending[i].objectName)) continue;
+    if (stopRemote) continue;
     const got = await fetchAgeObject(pending[i].objectName, pending[i].sha256, pending[i].size);
+    if (got.error === "expired") {
+      telegramExpired = true;
+      expiresAt = got.expiresAt || expiresAt;
+      stopRemote = true;
+      continue;
+    }
     if (!got.bytes) {
       errorCode = got.error || "unavailable";
       paint();
       return { error: errorCode };
     }
+  }
+  if (telegramExpired && !sources.has("manifest.age")) {
+    errorCode = "expired";
+    fetched = false;
+    paint();
+    return { catalog: catalog, fetched: false, error: "expired" };
   }
   fetched = true;
   const opened = await openPackage({ keep: true });

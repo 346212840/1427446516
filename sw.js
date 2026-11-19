@@ -256,6 +256,7 @@ const SHELL_FILES = [
   "./weather.js",
   "./weather.css",
   "./shared/drive-crypto.js",
+  "./shared/telegram-expiry.js",
   "./shared/drive-photos.js",
   "./shared/mirror.js",
   "./video-embed.js",
