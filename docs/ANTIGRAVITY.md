@@ -24,7 +24,7 @@ Older Antigravity "workflows" (`.agents/workflows/*.md`) stopped working on 2026
 
 1. Install Git and the GitHub CLI (`gh`) if you do not have them: [git-scm.com](https://git-scm.com/downloads) and [cli.github.com](https://cli.github.com/).
 2. In a terminal run `gh auth login`, choose GitHub.com, HTTPS, and sign in with the browser. This keeps your GitHub login in your system keychain, not in the repository.
-3. Clone: `gh repo clone ViktorychGroup/ViktorychApp1427446516` (the TV app is inside it, in `android-tv/`).
+3. Clone: `gh repo clone ViktorychGroup/ViktorychApp` (the TV app is inside it, in `android-tv/`).
 4. Inside the folder run once: `sh scripts/install_git_hooks.sh` (blocks commits that contain secrets).
 5. Set your commit email to your GitHub noreply address so your email is not published: `git config user.email "<id>+<username>@users.noreply.github.com"` (GitHub → Settings → Emails shows it).
 
@@ -42,7 +42,7 @@ Set these yourself, outside the repository. Never put them in a file inside the 
 
 | Name | Needed for | How |
 | --- | --- | --- |
-| GitHub login (`gh auth login`, or a `GH_TOKEN` environment variable) | Pushing branches, opening and merging PRs, reading Actions | `gh auth login` is enough. If you prefer a token: a fine-grained token for the ViktorychGroup/ViktorychApp1427446516 repository with Contents, Pull requests and Actions set to Read and write, Workflows read-only. |
+| GitHub login (`gh auth login`, or a `GH_TOKEN` environment variable) | Pushing branches, opening and merging PRs, reading Actions | `gh auth login` is enough. If you prefer a token: a fine-grained token for the ViktorychGroup/ViktorychApp repository with Contents, Pull requests and Actions set to Read and write, Workflows read-only. |
 | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | Optional: running `npx wrangler` against the live Worker (reading logs, `wrangler secret put`). Normal deploys run in GitHub Actions and need nothing locally. | Cloudflare → My Profile → API Tokens. Set as environment variables in your own terminal only. |
 | `RENDER_API_KEY` | Optional: checking the Render backup from the terminal | Render → Account settings → API keys. |
 

@@ -9,7 +9,7 @@ import { oembedPlayer, parseMeta, safeTarget } from "../../shared/unfurl-meta.js
 export const UNFURL_TTL_S = 30 * 24 * 3600;
 export const UNFURL_FAIL_TTL_S = 24 * 3600;
 const MAX_BYTES = 512 * 1024;
-const BOT_UA = "Mozilla/5.0 (compatible; Twitterbot/1.0; +https://viktorychgroup.github.io/ViktorychApp1427446516)";
+const BOT_UA = "Mozilla/5.0 (compatible; Twitterbot/1.0; +https://viktorychgroup.github.io/ViktorychApp)";
 
 function reply(status, body, maxAge) {
   return new Response(JSON.stringify(body), {

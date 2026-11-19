@@ -3503,7 +3503,7 @@ def selftest() -> int:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     for name in ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHANNEL_ID", "TELEGRAM_API_ID", "TELEGRAM_API_HASH"):
         check(name in doc and name in workflow, name + " is named in the docs and the workflow")
-    check("https://github.com/ViktorychGroup/ViktorychApp1427446516/settings/secrets/actions/new" in doc, "the docs name the GitHub secret page")
+    check("https://github.com/ViktorychGroup/ViktorychApp/settings/secrets/actions/new" in doc, "the docs name the GitHub secret page")
     check("@BotFather" in doc and "/newbot" in doc and "https://my.telegram.org" in doc, "the docs include the bot and api_id steps")
     check("wrangler secret put TELEGRAM_BOT_TOKEN" in doc, "the docs include the Worker secret command")
     secret_workflow = (ROOT / ".github" / "workflows" / "telegram-worker-secret.yml").read_text(encoding="utf-8")

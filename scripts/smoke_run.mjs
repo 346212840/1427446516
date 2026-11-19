@@ -564,12 +564,13 @@ async function main() {
   const needs = new Set(steps.flatMap((item) => item.needs));
   if (needs.has("pw") || needs.has("webkit")) await ensurePlaywright();
   if (needs.has("webkit")) {
-    // Install Playwright's WebKit libraries, except the packages that spend
-    // the whole job on a slow mirror. gstreamer1.0-libav pulls the ffmpeg
-    // codec stack. The font packs are most of the remaining 95 MB. The iOS
-    // check reads layout and a computed font size; it does not play video
-    // and it does not need those fonts. Host validation stays on, so a
-    // library that is still missing fails immediately.
+    // Install Playwright's WebKit libraries. Font packs and the ffmpeg
+    // plugin are left out: the iOS check reads layout and a computed font
+    // size, and a finished run already passed without that plugin. The
+    // bad-plugin library stays, because WebKit refuses to launch without
+    // it. The regional EC2 mirror has stalled for minutes on one package,
+    // so apt uses the main Ubuntu archive instead. Host validation stays
+    // on, so a library that is still missing fails immediately.
     delete process.env.PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS;
     const apt = await runShell([
       "set -euo pipefail",
@@ -580,7 +581,10 @@ async function main() {
       "test -n \"${pkgs// /}\"",
       "printf '%s\\n' \"$pkgs\" | tr ' ' '\\n' | grep -qx 'gstreamer1.0-libav' && exit 1",
       "printf '%s\\n' \"$pkgs\" | tr ' ' '\\n' | grep -Eq '^(fonts-|xfonts-)' && exit 1",
+      "printf '%s\\n' \"$pkgs\" | tr ' ' '\\n' | grep -qx 'libgstreamer-plugins-bad1.0-0'",
       "echo \"webkit packages: $pkgs\"",
+      "if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then sudo sed -i 's|http://[a-z0-9.-]*archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources; fi",
+      "sudo sed -i 's|http://[a-z0-9.-]*archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list || true",
       "sudo DEBIAN_FRONTEND=noninteractive apt-get update -qq",
       "sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 install -y --no-install-recommends $pkgs"
     ].join("\n"), process.env);
