@@ -28,7 +28,7 @@ const PAGE = `<!doctype html><html><head><meta charset="utf-8"></head><body><div
       if (p === "/v1/p2p/signal") { window.__relay(me, o.body.to, JSON.stringify(o.body.signal)); return Promise.resolve({ status: 200 }); }
       if (p === "/v1/messages") {
         if (!navigator.onLine) return Promise.reject(new Error("offline"));
-        if (o.body && o.body.text === "keep this") return Promise.resolve({ status: 403 });
+        if (o.body && (o.body.text === "keep this" || o.body.text === "live no")) return Promise.resolve({ status: 403 });
         window.__server.push(o.body);
         const id = (o.body && o.body.mid) || ("dm-" + o.body.text.length);
         if (window.__relayDm) window.__relayDm(me, o.body.id, o.body.text, id);
@@ -263,6 +263,12 @@ async function main() {
       server: window.__server.map((row) => row.text)
     }));
     if (kept.box.join("|") !== "keep this" || kept.server.indexOf("keep this") >= 0 || /Sent /.test(kept.toast)) fail("a refused message was dropped from the outbox " + JSON.stringify(kept));
+    const live = await pa.evaluate((b) => window.ViktorychFriendP2P.send(b, "live no"), B);
+    const liveState = await pa.evaluate((b) => ({
+      box: window.ViktorychFriendP2P.outbox().map((row) => row.text),
+      copies: window.ViktorychFriendP2P.thread(b).filter((row) => row.text === "live no").length
+    }), B);
+    if (live.via !== "refused" || liveState.box.indexOf("live no") < 0 || liveState.copies !== 1) fail("a live refusal was lost or duplicated " + JSON.stringify({ via: live.via, state: liveState }));
     await pa.evaluate(() => window.ViktorychFriendP2P.setEnabled(true));
 
     /* A link that keeps answering stays up. A friend who stops sending is

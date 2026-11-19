@@ -4,7 +4,7 @@ const VERSION = "viktorych-a281-__SW_VERSION__";
 const BUILT = "__SW_BUILT__";
 const MIRROR_GITHUB = "__MIRROR_GITHUB__";
 const MIRROR_PAGES = "__MIRROR_PAGES__";
-// cache-bust: 2026-11-20T00:20:00.000Z-calls-mobile-hardening
+// cache-bust: 2026-11-20T00:30:00.000Z-calls-mobile-hardening
 try { importScripts("./shorts-enabled.js"); } catch (err) { /* Shorts stays off when the switch file is missing */ }
 
 const ACCOUNTS_WALL = false;
@@ -1714,7 +1714,7 @@ const FEATURE_FILES = {
   stories: ["./stories.js", "./stories.css"],
   forYou: ["./shared/for-you.js"],
   xBroadcast: ["./shared/x-broadcast.js"],
-  calls: ["./calls.js", "./calls.css", "./shared/call-langs.js", "./shared/call-audio.js", "./shared/call-mode.js", "./shared/call-voice.js", "./shared/call-setup.js", "./shared/call-privacy.js", "./shared/call-quality.js", "./shared/call-mobile.js", "./shared/call-ear.js", "./shared/call-history.js", "./shared/call-gemini.js", "./shared/call-engine.js", "./shared/call-speakers.js", "./calls-speaker-worker.js"]
+  calls: ["./calls.js", "./calls.css", "./shared/call-langs.js", "./shared/call-audio.js", "./shared/call-mode.js", "./shared/call-voice.js", "./shared/call-setup.js", "./shared/call-privacy.js", "./shared/call-quality.js", "./shared/call-ear.js", "./shared/call-history.js", "./shared/call-gemini.js", "./shared/call-engine.js", "./shared/call-speakers.js", "./calls-speaker-worker.js"]
 };
 async function offFeatureFiles() {
   try {
