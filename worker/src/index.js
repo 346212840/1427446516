@@ -14,6 +14,8 @@ import { expiredBody, telegramFileGone } from "../../shared/telegram-expiry.js";
 import { ensureTelegramExpiryColumns, freshExpired, markTelegramExpired } from "./telegram-expiry.js";
 import { handleDrive, DRIVE_SCHEMA } from "./drive.js";
 import { handleVsrRoute } from "./vsr-retrieve.js";
+import { handleTelegramVoice } from "./telegram-voice.js";
+import { handleFish } from "./fish-audio.js";
 import { handleCommunityRoute, COMMUNITY_SCHEMA } from "./communities.js";
 import { handleFederationRoute, FEDERATION_SCHEMA, isPublicFederationRoute } from "./federation.js";
 import { usageReport } from "./usage.js";
@@ -6164,6 +6166,12 @@ async function route(request, env, ctx) {
   }
   if (path === "/v1/health" && request.method === "GET") {
     return json(200, { ok: true, ready: !!env.ACCOUNT_PEPPER, data: !!env.DATA, turnstile: !!env.TURNSTILE_SECRET, telegram: !!env.TELEGRAM_BOT_TOKEN });
+  }
+  if (path === "/v1/owner/fish" || path.startsWith("/v1/owner/fish/")) {
+    return handleFish(request, env, path, { json, readJson, requireOwner, rateHit, limited });
+  }
+  if (path === "/tg/voice" || path === "/tg/voice-hook" || path === "/v1/owner/telegram-voice" || path.startsWith("/v1/owner/telegram-voice/")) {
+    return handleTelegramVoice(request, env, path, { json, readJson, requireOwner, rateHit, limited });
   }
   if (path.startsWith("/tg/vsr/") && (request.method === "GET" || request.method === "HEAD")) {
     return handleVsrRoute(request, env, path, { json, sessionAccount, rateHit, limited });

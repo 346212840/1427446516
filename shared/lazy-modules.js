@@ -23,6 +23,7 @@
     /* Music loads when its page opens, or when a song is already queued, so
        the mini player comes back after a reload. It is not on the first load. */
     music: { classic: true, scripts: ["ytm.js", "music.js", "music.css"] },
+    audio_convert: { classic: true, scripts: ["audio-convert-plan.js", "fish-cache.js", "local-voice-route.js", "local-voice.js", "flow-music.js", "audio-convert.js", "audio-convert.css"] },
     /* Loaded with the page only when that screen is open. Idle time fetches
        the rest one by one so the first visit stays small. */
     discord: { classic: true, scripts: ["discord-ui.js", "discord-picks.js", "discord-local.js", "discord-key-helper.js", "discord-ui.css", "discord-local.css", "discord-key-helper.css"] },
