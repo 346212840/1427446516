@@ -178,7 +178,7 @@ test("only the owner manages settings; locks hold through member syncs", async (
   assert.deepEqual(pulled.body.locks, { appearance: "dim", lang: "en" });
 
   // Lock enforcement: a member write (even with a far-future stamp or as a device-only key) can't change a locked value.
-  const push = await call("/v1/sync", { method: "PUT", token: member.token, body: { payload: { appearance: "default", lang: "ru", autoplay: "never", localKeys: ["appearance"], prefsAt: { appearance: Date.now() + 10 ** 9 } } } });
+  const push = await call("/v1/sync", { method: "PUT", token: member.token, body: { payload: { appearance: "default", lang: "ru", autoplay: "never", localKeys: ["appearance"], prefsAt: { appearance: Date.now() + 10 ** 9 } }, baseUpdatedAt: pulled.body.updatedAt } });
   assert.equal(push.status, 200, JSON.stringify(push.body));
   assert.equal(push.body.payload.appearance, "dim");
   assert.equal(push.body.payload.lang, "en");
@@ -194,7 +194,8 @@ test("only the owner manages settings; locks hold through member syncs", async (
   // Unlock: the member can change it again.
   const unlock = await call(route, { method: "PUT", token: owner.token, body: { locks: { appearance: false } } });
   assert.deepEqual(unlock.body.locks, { lang: "en" });
-  const free = await call("/v1/sync", { method: "PUT", token: member.token, body: { payload: { appearance: "default", prefsAt: { appearance: Date.now() } } } });
+  const freeBase = await call("/v1/sync", { token: member.token });
+  const free = await call("/v1/sync", { method: "PUT", token: member.token, body: { payload: { appearance: "default", prefsAt: { appearance: Date.now() } }, baseUpdatedAt: freeBase.body.updatedAt } });
   assert.equal(free.body.payload.appearance, "default");
 
   const noted = await call(route, { method: "PUT", token: owner.token, body: { locks: { haptics: true }, notes: { haptics: "Keep this on" } } });
@@ -215,14 +216,16 @@ test("only the owner manages settings; locks hold through member syncs", async (
   assert.equal(applied.status, 200, JSON.stringify(applied.body));
   const copied = await call("/v1/sync", { token: other.token });
   assert.equal(copied.body.locks.notify, false);
-  const pushed = await call("/v1/sync", { method: "PUT", token: member.token, body: { payload: { lang: "hi", appearance: "default" } } });
+  const pushedBase = await call("/v1/sync", { token: member.token });
+  const pushed = await call("/v1/sync", { method: "PUT", token: member.token, body: { payload: { lang: "hi", appearance: "default" }, baseUpdatedAt: pushedBase.body.updatedAt } });
   assert.equal(pushed.status, 200);
   assert.equal(pushed.body.payload.lang, "en");
   assert.ok(pushed.body.rejected.includes("lang"));
 
   const zoomed = await call(route, { method: "PUT", token: owner.token, body: { values: { pageZoom: true }, locks: { pageZoom: true } } });
   assert.equal(zoomed.status, 200, JSON.stringify(zoomed.body));
-  const denyZoom = await call("/v1/sync", { method: "PUT", token: member.token, body: { payload: { pageZoom: false, appearance: "default" } } });
+  const zoomBase = await call("/v1/sync", { token: member.token });
+  const denyZoom = await call("/v1/sync", { method: "PUT", token: member.token, body: { payload: { pageZoom: false, appearance: "default" }, baseUpdatedAt: zoomBase.body.updatedAt } });
   assert.equal(denyZoom.status, 200, JSON.stringify(denyZoom.body));
   assert.equal(denyZoom.body.payload.pageZoom, true);
   assert.ok(denyZoom.body.rejected.includes("pageZoom"));
@@ -253,7 +256,8 @@ test("only the owner manages settings; locks hold through member syncs", async (
   const off = await call("/v1/owner/features", { method: "POST", token: owner.token, body: { name: "owner_user_settings", off: true } });
   assert.equal(off.status, 200, JSON.stringify(off.body));
   assert.notEqual((await call(route, { token: owner.token })).status, 200);
-  const freed = await call("/v1/sync", { method: "PUT", token: member.token, body: { payload: { lang: "ru" } } });
+  const freedBase = await call("/v1/sync", { token: member.token });
+  const freed = await call("/v1/sync", { method: "PUT", token: member.token, body: { payload: { lang: "ru" }, baseUpdatedAt: freedBase.body.updatedAt } });
   assert.equal(freed.body.payload.lang, "ru");
   assert.equal(freed.body.locks, undefined);
 });

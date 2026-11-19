@@ -746,7 +746,7 @@ test("sync history keeps the newest 300 and a clear", async () => {
     method: "PUT",
     ip: "203.0.113.161",
     token: created.body.token,
-    body: { payload: { follows: ["x:hist"], history: items, historyCut: { video: 0, article: 0 } }, baseUpdatedAt: 0 }
+    body: { payload: { follows: ["x:hist"], history: items, historyCut: { video: 0, article: 0 }, feedTabs: [{ id: "cedar", name: "Cedar", members: ["instagram:orbitfox"], memberAdds: { "instagram:orbitfox": 5 }, updatedAt: 5, pos: 0, posAt: 5 }] }, baseUpdatedAt: 0 }
   });
   assert.equal(saved.status, 200);
   assert.equal(saved.body.payload.history.length, 300);
@@ -759,15 +759,27 @@ test("sync history keeps the newest 300 and a clear", async () => {
     method: "PUT",
     ip: "203.0.113.162",
     token: created.body.token,
-    body: { payload: { follows: ["x:hist"] }, baseUpdatedAt: 0 }
+    body: { payload: { follows: ["x:hist"], feedTabs: saved.body.payload.feedTabs }, baseUpdatedAt: saved.body.updatedAt }
   });
   assert.equal(kept.status, 200);
   assert.equal(kept.body.payload.history.length, 300);
+  const blind = await call("/v1/sync", {
+    method: "PUT",
+    ip: "203.0.113.164",
+    token: created.body.token,
+    body: { payload: { follows: ["x:hist"], feedTabs: [] }, baseUpdatedAt: 0 }
+  });
+  assert.equal(blind.status, 409);
+  assert.equal(blind.body.payload.history.length, 300);
+  const still = await call("/v1/sync", { ip: "203.0.113.165", token: created.body.token });
+  assert.equal(still.body.payload.history.length, 300);
+  assert.equal(still.body.payload.feedTabs[0].id, "cedar");
+  assert.deepEqual(still.body.payload.feedTabs[0].members, ["instagram:orbitfox"]);
   const cleared = await call("/v1/sync", {
     method: "PUT",
     ip: "203.0.113.163",
     token: created.body.token,
-    body: { payload: { follows: ["x:hist"], history: items, historyCut: { video: 9000, article: 0 } }, baseUpdatedAt: 0 }
+    body: { payload: { follows: ["x:hist"], history: items, historyCut: { video: 9000, article: 0 } }, baseUpdatedAt: kept.body.updatedAt }
   });
   assert.equal(cleared.status, 200);
   assert.equal(cleared.body.payload.history.some((row) => row.kind === "video"), false);
