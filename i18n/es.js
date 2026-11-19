@@ -6706,5 +6706,15 @@ SI18n.addPack("es", {
   "Your other device": "Tu otro dispositivo",
   "Caption size": "Tamaño de subtítulos",
   "Large": "Grande",
-  "Extra large": "Muy grande"
+  "Extra large": "Muy grande",
+  "Ear mode": "Modo oído",
+  "Ear mode now": "Modo oído ahora",
+  "Lock the screen when I raise the phone to my ear": "Bloquear la pantalla al acercar el teléfono a la oreja",
+  "Choose audio output": "Elegir salida de audio",
+  "Browsers cannot sense your ear, so this uses how the phone is held. Double-tap or swipe up to unlock.": "Los navegadores no detectan tu oreja, así que se usa la posición del teléfono. Toca dos veces o desliza hacia arriba para desbloquear.",
+  "Swipe up or double-tap to unlock": "Desliza hacia arriba o toca dos veces para desbloquear",
+  "Ear mode: screen locked": "Modo oído: pantalla bloqueada",
+  "Sound is coming from the earpiece.": "El sonido sale por el auricular.",
+  "This browser cannot switch to the earpiece, so the volume is lowered for your ear.": "Este navegador no puede cambiar al auricular, así que se baja el volumen para tu oído.",
+  "Audio output changed.": "Salida de audio cambiada."
 });

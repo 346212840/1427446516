@@ -6693,5 +6693,15 @@ SI18n.addPack("hi", {
   "Your other device": "आपका दूसरा डिवाइस",
   "Caption size": "कैप्शन का आकार",
   "Large": "बड़ा",
-  "Extra large": "बहुत बड़ा"
+  "Extra large": "बहुत बड़ा",
+  "Ear mode": "कान मोड",
+  "Ear mode now": "अभी कान मोड चालू करें",
+  "Lock the screen when I raise the phone to my ear": "फ़ोन कान के पास ले जाने पर स्क्रीन लॉक करें",
+  "Choose audio output": "ऑडियो आउटपुट चुनें",
+  "Browsers cannot sense your ear, so this uses how the phone is held. Double-tap or swipe up to unlock.": "ब्राउज़र आपका कान नहीं पहचान सकते, इसलिए फ़ोन की स्थिति देखी जाती है। अनलॉक करने के लिए दो बार टैप करें या ऊपर स्वाइप करें।",
+  "Swipe up or double-tap to unlock": "अनलॉक करने के लिए ऊपर स्वाइप करें या दो बार टैप करें",
+  "Ear mode: screen locked": "कान मोड: स्क्रीन लॉक है",
+  "Sound is coming from the earpiece.": "आवाज़ इयरपीस से आ रही है।",
+  "This browser cannot switch to the earpiece, so the volume is lowered for your ear.": "यह ब्राउज़र इयरपीस पर नहीं जा सकता, इसलिए आवाज़ कम की गई है।",
+  "Audio output changed.": "ऑडियो आउटपुट बदल गया।"
 });
