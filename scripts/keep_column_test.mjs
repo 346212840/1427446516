@@ -100,6 +100,26 @@ async function main() {
     await deskPage.waitForSelector("#compose-text", { timeout: 20000 });
     await deskPage.waitForSelector("#app .view-slot", { timeout: 20000 });
     await draftSurvives(deskPage, "desktop", "column");
+    await deskPage.waitForSelector("[data-act='rename-nav-folder'][data-folder-id='media']", { timeout: 20000 });
+    await deskPage.evaluate(() => document.querySelector("[data-act='rename-nav-folder'][data-folder-id='media']").click());
+    await deskPage.waitForSelector("#nav-folder-rename-input", { timeout: 20000 });
+    const folder = await deskPage.evaluate(() => {
+      const input = document.getElementById("nav-folder-rename-input");
+      if (!input || !input.closest("header.nav, nav")) return { error: "the rename field is not in the nav" };
+      input.focus();
+      input.value = "Half named";
+      window.ViktorychAccounts.requestRender("background");
+      const live = document.getElementById("nav-folder-rename-input");
+      return {
+        same: live === input,
+        connected: !!(live && live.isConnected),
+        value: live ? live.value : ""
+      };
+    });
+    if (folder.error) fail("nav folder: " + folder.error);
+    if (!folder.same || !folder.connected) fail("background paint dropped the folder rename " + JSON.stringify(folder));
+    if (folder.value !== "Half named") fail("background paint cleared the folder name " + JSON.stringify(folder));
+    console.log("keep column ok nav folder");
     if (deskErrors.length) fail("desktop: " + deskErrors[0]);
     await desktop.close();
 

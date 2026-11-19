@@ -23567,11 +23567,14 @@ if (STATE.histClear) {
        and, when the column text matches, the centre column itself. */
     const keptMain = !!(background && keepMain(host, tpl.content));
     if (!keptMain) hscrollReuse(host, tpl.content);
-    if (background) keepDirtyFields(host, tpl.content);
     if (background) {
       reuseForYouCards(host, tpl.content, true);
       keepChrome(host, tpl.content);
     }
+    /* After chrome is kept. Doing this earlier moves a half-written nav
+       field into the fresh header, and keepChrome then throws that header
+       away. */
+    if (background) keepDirtyFields(host, tpl.content);
     const parked = parkKey(parseRoute());
     const slot = parked ? viewParks.get(parked) : null;
     if (slot) slot.justParked = false;
