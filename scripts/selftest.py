@@ -672,6 +672,9 @@ def main() -> None:
     ig_urls = meta_feed_urls("instagram")
     check(ig_urls[0].startswith("{rsshubBase}/instagram/user/") and any("rss-bridge.org" in url and "InstagramBridge" in url for url in ig_urls) and any("localhost:8080" in url for url in ig_urls), "Instagram tries local bridges before the public mirrors")
     check(any("rss-bridge.ggc-project.de" in url for url in ig_urls) and any("web_profile_info" in url for url in ig_urls) and any("/embed/" in url for url in ig_urls), "Instagram tries a second public bridge and the public profile pages")
+    from update_feeds import refresh_meta_urls
+    saved = {"feeds": [{"id": "instagram:orbitfox", "platform": "instagram", "handle": "orbitfox", "adapter": "rsshub_instagram", "source_urls": ["{rsshubBase}/instagram/user/{handle}"]}]}
+    check(refresh_meta_urls(saved) == 1 and any("rss-bridge.ggc-project.de" in url for url in saved["feeds"][0]["source_urls"]) and any("/embed/" in url for url in saved["feeds"][0]["source_urls"]), "an older Instagram feed picks up the later public sources")
     from ig_public import parse_profile_embed, parse_web_profile
     public_feed = {"id": "instagram:orbitfox", "platform": "instagram", "handle": "orbitfox"}
     public_doc = parse_web_profile((FIX / "ig_web_profile.json").read_text(encoding="utf-8"), public_feed)
