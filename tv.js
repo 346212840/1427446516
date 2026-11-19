@@ -135,7 +135,7 @@
   var SHORT_URL = "viktorychapp.pages.dev/tv";
   // Inside the app the download leaves the WebView for the system browser,
   // so the update link points at the release asset on github.com.
-  var RELEASE_APK = "https://github.com/ViktorychGroup/ViktorychApp/releases/latest/download/ViktorychTV.apk";
+  var RELEASE_APK = "https://viktorychapp.pages.dev/tv/ViktorychTV.apk";
 
   function checkUpdate() {
     var b = boot();

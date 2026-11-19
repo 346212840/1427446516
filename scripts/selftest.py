@@ -1426,8 +1426,8 @@ def main() -> None:
     saved_repo = os.environ.pop("GITHUB_REPOSITORY", None)
     try:
         check(pages_base() == "" and raw_data() == "" and cdn_data() == "", "Pages URLs are empty until GITHUB_REPOSITORY is set")
-        os.environ["GITHUB_REPOSITORY"] = "ViktorychGroup/ViktorychApp"
-        check(pages_base() == "https://viktorychgroup.github.io/ViktorychApp/" and raw_data().endswith("/ViktorychApp/data/") and "ViktorychGroup/ViktorychApp@data/" in cdn_data(), "Pages, raw, and jsDelivr URLs follow the repository")
+        os.environ["GITHUB_REPOSITORY"] = "Example/Widget"
+        check(pages_base() == "https://example.github.io/Widget/" and raw_data().endswith("/Widget/data/") and "Example/Widget@data/" in cdn_data(), "Pages, raw, and jsDelivr URLs follow the repository")
         os.environ["GITHUB_REPOSITORY"] = "Example/Other"
         check(pages_base() == "https://example.github.io/Other/", "a renamed repository follows GITHUB_REPOSITORY")
     finally:

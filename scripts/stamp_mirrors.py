@@ -31,7 +31,6 @@ def stamp(site: Path, github: str, repo: str) -> None:
             continue
         raw = target.read_text(encoding="utf-8")
         raw = raw.replace("__GITHUB_PAGES__", base)
-        raw = raw.replace("https://viktorychgroup.github.io/ViktorychApp/", base)
         if repo:
             raw = raw.replace("__GITHUB_REPO__", repo)
         target.write_text(raw, encoding="utf-8")
@@ -41,7 +40,10 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--site", required=True)
     args = parser.parse_args()
-    github = pages_base() or "https://viktorychgroup.github.io/ViktorychApp/"
+    github = pages_base()
+    if not github:
+        print("mirror origins left as placeholders; GITHUB_REPOSITORY is unset")
+        return 0
     stamp(Path(args.site), github, repository())
     print("mirror origins stamped")
     return 0

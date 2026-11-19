@@ -54,9 +54,9 @@ async function gunzip(bytes) {
 }
 
 test("mirror paths stay on the app and ignore other hosts", () => {
-  assert.equal(mirror.appRoot("https://viktorychgroup.github.io", "/ViktorychApp/index.html", "viktorychgroup.github.io"), "https://viktorychgroup.github.io/ViktorychApp/");
+  assert.equal(mirror.appRoot("https://viktorychgroup.github.io", "/Example/index.html", "viktorychgroup.github.io"), "https://viktorychgroup.github.io/Example/");
   assert.equal(mirror.appRoot("https://viktorychapp.pages.dev", "/index.html", "viktorychapp.pages.dev"), "https://viktorychapp.pages.dev/");
-  assert.equal(mirror.relativeTo("https://viktorychgroup.github.io/ViktorychApp/", "https://viktorychgroup.github.io/ViktorychApp/app.js?v=1"), "app.js?v=1");
+  assert.equal(mirror.relativeTo("https://viktorychgroup.github.io/Example/", "https://viktorychgroup.github.io/Example/app.js?v=1"), "app.js?v=1");
   assert.equal(mirror.rewrite("https://viktorychapp.pages.dev/", "shared/mirror.js"), "https://viktorychapp.pages.dev/shared/mirror.js");
   assert.equal(mirror.rewrite("https://viktorychapp.pages.dev/", "../app.js"), "");
   assert.equal(mirror.failoverStatus(0), true);

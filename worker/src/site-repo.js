@@ -17,6 +17,14 @@ export function pagesBase(repo) {
   return "https://" + parts[0].toLowerCase() + ".github.io/" + parts[1] + "/";
 }
 
+export function pagesBaseFor(env) {
+  return pagesBase(configuredRepository(env));
+}
+
+export function appContact(env) {
+  return pagesBaseFor(env).replace(/\/$/, "");
+}
+
 export function repoFromRedirect(location) {
   const match = String(location || "").match(/\/repos\/([^/?#]+)\/([^/?#]+)/);
   if (!match) return "";

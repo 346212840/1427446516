@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { configuredRepository } from "../src/site-repo.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -89,7 +90,7 @@ function atMinute(minute) {
   return Date.UTC(2026, 0, 15, 12, minute, 30);
 }
 
-const DISCORD_BUSY_CHECK = "/repos/ViktorychGroup/ViktorychApp/actions/workflows/discord-live.yml/runs";
+const DISCORD_BUSY_CHECK = "/repos/" + configuredRepository({}) + "/actions/workflows/discord-live.yml/runs";
 
 async function cronWhilePaused(worker, minute) {
   const uploads = count("tiktok-live-upload.yml");

@@ -63,6 +63,7 @@ const PAGE_STEPS = [
   step("handle-guard", "python3 scripts/handle_guard.py --selftest", {
     paths: [/^scripts\/handle_guard\.py$/, /^scripts\//, /^docs\//, /\.md$/]
   }),
+  step("repo-path", "python3 scripts/repo_path_guard.py", { paths: [/^scripts\/repo_path_guard\.py$/, /^worker\/src\//, /^shared\//, /^app\.js$/, /^tv\.js$/] }),
   step("i18n", "python3 scripts/check_i18n.py", { paths: [/^i18n\//, /^scripts\/check_i18n\.py$/, /^scripts\/i18n_allow\.txt$/] }),
   step("about-layout", "node scripts/about_layout_test.mjs", {
     weight: 20, needs: ["pw"],
@@ -296,7 +297,7 @@ const NAV_STEPS = [
 ];
 
 const SHARDS = {
-  checks: ["action-bar", "assemble-self", "r2-catalog", "catalog-migrate", "handle-guard", "i18n", "telegram-stories", "stories", "device", "translate", "ondevice-ai", "dock", "for-you", "storage-recordings", "app-scale", "image-copy"],
+  checks: ["action-bar", "assemble-self", "r2-catalog", "catalog-migrate", "handle-guard", "repo-path", "i18n", "telegram-stories", "stories", "device", "translate", "ondevice-ai", "dock", "for-you", "storage-recordings", "app-scale", "image-copy"],
   site: ["about-layout", "points-layout", "stories-layout", "assemble-site", "smoke-site", "smoke-mirror", "yt-embed", "x-video", "ios", "live", "shorts-page", "app-base"],
   "ui-fast": ["notifications", "scrollbar-hidden", "pill-fit", "sidebar", "privacy", "title-privacy", "desktop-squares", "storage-page"],
   sw: ["sw-update"],
@@ -320,7 +321,7 @@ const NAV_SHARDS = {
 };
 
 const REQUIRED_PAGE = [
-  "action-bar", "assemble-self", "r2-catalog", "catalog-migrate", "handle-guard", "i18n",
+  "action-bar", "assemble-self", "r2-catalog", "catalog-migrate", "handle-guard", "repo-path", "i18n",
   "about-layout", "points-layout", "telegram-stories", "stories", "stories-layout",
   "assemble-site", "smoke-site", "smoke-mirror", "sw-update", "notifications", "scrollbar-hidden", "profile", "profile-tab-scroll",
   "home-tabs", "tab-member", "reply-lookup", "home-watch-rearm", "pill-fit", "drawer", "sidebar", "privacy", "yt-embed", "x-video",
@@ -565,23 +566,25 @@ async function main() {
   const needs = new Set(steps.flatMap((item) => item.needs));
   if (needs.has("pw") || needs.has("webkit")) await ensurePlaywright();
   if (needs.has("webkit")) {
-    // Install Playwright's WebKit packages, except gstreamer1.0-libav.
-    // That one package pulls the ffmpeg codec stack and can spend the whole
-    // 15 minute job downloading it. The iOS check does not play video.
-    // Host validation stays on, so a library that is still missing fails
-    // immediately instead of leaving MiniBrowser running until the job dies.
+    // Install Playwright's WebKit libraries, except the packages that spend
+    // the whole job on a slow mirror. gstreamer1.0-libav pulls the ffmpeg
+    // codec stack. The font packs are most of the remaining 95 MB. The iOS
+    // check reads layout and a computed font size; it does not play video
+    // and it does not need those fonts. Host validation stays on, so a
+    // library that is still missing fails immediately.
     delete process.env.PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS;
     const apt = await runShell([
       "set -euo pipefail",
       "cd " + PW,
       "npx playwright install webkit",
       "line=$(npx playwright install-deps webkit --dry-run)",
-      "pkgs=$(printf '%s\\n' \"$line\" | sed -E 's/.*--no-install-recommends //; s/\"$//' | tr ' ' '\\n' | grep -vx 'gstreamer1.0-libav' | tr '\\n' ' ')",
+      "pkgs=$(printf '%s\\n' \"$line\" | sed -E 's/.*--no-install-recommends //; s/\"$//' | tr ' ' '\\n' | grep -vx 'gstreamer1.0-libav' | grep -Ev '^(fonts-|xfonts-)' | tr '\\n' ' ')",
       "test -n \"${pkgs// /}\"",
       "printf '%s\\n' \"$pkgs\" | tr ' ' '\\n' | grep -qx 'gstreamer1.0-libav' && exit 1",
+      "printf '%s\\n' \"$pkgs\" | tr ' ' '\\n' | grep -Eq '^(fonts-|xfonts-)' && exit 1",
       "echo \"webkit packages: $pkgs\"",
       "sudo DEBIAN_FRONTEND=noninteractive apt-get update -qq",
-      "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $pkgs"
+      "sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 install -y --no-install-recommends $pkgs"
     ].join("\n"), process.env);
     if (apt !== 0) throw new Error("webkit libraries failed to install");
   }

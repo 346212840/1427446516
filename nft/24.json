@@ -1,8 +1,8 @@
 {
   "name": "Viktorych gift: Friendly ghost",
   "description": "A collectible copy of a gift from ViktorychApp, made by the person who received it. Original art made for ViktorychApp. A collectible only: not an investment, with no cash value, buy-back or payout from ViktorychApp.",
-  "image": "https://viktorychgroup.github.io/ViktorychApp/icons/gifts/ghost.webp",
-  "external_url": "https://viktorychgroup.github.io/ViktorychApp/",
+  "image": "https://viktorychapp.pages.dev/icons/gifts/ghost.webp",
+  "external_url": "https://viktorychapp.pages.dev/",
   "attributes": [
     {
       "trait_type": "Art",
