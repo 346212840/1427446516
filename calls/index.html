@@ -5,7 +5,8 @@
 <base href="../">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ViktorychCalls</title>
-<meta name="theme-color" content="#000000">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 <meta name="robots" content="noindex">
 <meta name="description" content="Voice and text calls with live translation. No account needed to join.">
 <link rel="manifest" href="calls/manifest.webmanifest" id="calls-manifest">
@@ -18,10 +19,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <link rel="stylesheet" href="calls.css">
 <style>
-html, body { margin: 0; background: #000; color: #e7e9ea; font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; min-height: 100%; }
-main { max-width: 640px; margin: 0 auto; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
-a { color: #1d9bf0; }
-button { font: inherit; }
+:root { color-scheme: dark light; --bg: #000; --text: #e7e9ea; --muted: #71767b; --line: #2f3336; --card: #16181c; --search: #202327; --blue: #1d9bf0; --green: #00ba7c; --red: #f4212e; --hover: rgba(231,233,234,.1); --fill: #eff3f4; --on-fill: #0f1419; }
+@media (prefers-color-scheme: light) { :root { --bg: #fff; --text: #0f1419; --muted: #536471; --line: #eff3f4; --card: #f7f9f9; --search: #eff3f4; --hover: rgba(15,20,25,.1); --fill: #0f1419; --on-fill: #fff; } }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.35 TwitterChirp, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; min-height: 100%; }
+main { margin: 0 auto; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
 </style>
 </head>
 <body>
