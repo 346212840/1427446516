@@ -1171,6 +1171,11 @@ a:not(:has(> :not(.ava-none))):has(> .ava-none),
 .media.m1 > .tile.has-ratio.is-clamped > img,
 .media.m1 > .tile.has-ratio.is-clamped.vplay video,
 .media.m1 > .tile.has-ratio.is-clamped.vplay .vposter { object-fit: cover; }
+.media.m1 > .tile.has-ratio.vplay[data-xvideo="1"] video,
+.media.m1 > .tile.has-ratio.is-clamped.vplay[data-xvideo="1"] video {
+  object-fit: contain;
+  max-width: 100%;
+}
 @media (max-width: 699px) {
   .media.m1 > .tile.has-ratio { max-height: 177.78cqi; }
 }
@@ -1286,6 +1291,8 @@ a:not(:has(> :not(.ava-none))):has(> .ava-none),
 #viewer iframe.x-embed-frame {
   z-index: 5;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   height: 100%;
   border: 0;
   background: #000;

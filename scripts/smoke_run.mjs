@@ -63,6 +63,7 @@ const PAGE_STEPS = [
   step("handle-guard", "python3 scripts/handle_guard.py --selftest", {
     paths: [/^scripts\/handle_guard\.py$/, /^scripts\//, /^docs\//, /\.md$/]
   }),
+  step("repo-path", "python3 scripts/repo_path_guard.py", { paths: [/^scripts\/repo_path_guard\.py$/, /^worker\/src\//, /^shared\//, /^app\.js$/, /^tv\.js$/] }),
   step("i18n", "python3 scripts/check_i18n.py", { paths: [/^i18n\//, /^scripts\/check_i18n\.py$/, /^scripts\/i18n_allow\.txt$/] }),
   step("about-layout", "node scripts/about_layout_test.mjs", {
     weight: 20, needs: ["pw"],
@@ -145,6 +146,10 @@ const PAGE_STEPS = [
     weight: 40, needs: ["built", "pw149"],
     paths: [file("x_video_play.mjs"), /^app\.js$/]
   }),
+  step("app-base", "node scripts/app_base_test.mjs", {
+    needs: ["pw", "browser"],
+    paths: [file("app_base_test.mjs"), /^shared\/app-base\.js$/, /^shared\/repo-name\.js$/]
+  }),
   step("signup-sizes", "SIGNUP_PART=sizes node scripts/signup_flow_test.mjs", {
     weight: 200, needs: ["pw", "browser", "worker"], timing: true,
     paths: [file("signup_flow_test.mjs"), /^accounts\.js$/, /^worker\/src\//, ...APP]
@@ -202,6 +207,10 @@ const PAGE_STEPS = [
     needs: ["pw", "browser"],
     paths: [file("show_more_scroll_test.mjs"), /^app\.js$/]
   }),
+  step("keep-column", "node scripts/keep_column_test.mjs", {
+    needs: ["pw", "browser"],
+    paths: [file("keep_column_test.mjs"), /^app\.js$/]
+  }),
   step("action-speed", "node scripts/action_speed_test.mjs", {
     needs: ["pw", "browser"],
     paths: [file("action_speed_test.mjs"), file("action_speed_bench.mjs"), /^app\.js$/, /^accounts\.js$/]
@@ -255,7 +264,14 @@ const PAGE_STEPS = [
     paths: [file("storage_page_test.mjs"), /^storage-recordings\.js$/, /^drive\.(js|css)$/, /^shared\/storage-/, ...APP]
   }),
   step("app-scale", "node scripts/app_scale_test.mjs", { needs: ["pw", "browser"], paths: [file("app_scale_test.mjs"), /^desktop-app\.js$/, /^app\.js$/, /^mention-suggest\.js$/] }),
-  step("image-copy", "node scripts/image_copy_test.mjs", { needs: ["pw", "browser"], paths: [file("image_copy_test.mjs"), /^image-copy\.js$/] })
+  step("image-copy", "node scripts/image_copy_test.mjs", { needs: ["pw", "browser"], paths: [file("image_copy_test.mjs"), /^image-copy\.js$/] }),
+  step("calls-logic", "node scripts/calls_logic_test.mjs", {
+    paths: [file("calls_logic_test.mjs"), /^shared\/call-/, /^calls\.js$/, /^worker\/src\/calls\.js$/]
+  }),
+  step("audio-studio", "node scripts/telegram_account_test.mjs && node scripts/audio_convert_plan_test.mjs && node scripts/audio_studio_test.mjs && python3 scripts/local_voice_route_test.py && python3 scripts/local_voice_proxy_test.py", {
+    weight: 50, needs: ["pw", "browser"],
+    paths: [/^audio-convert/, /^audio-studio-files\.js$/, /^voice-sheet\.js$/, /^telegram-account\.js$/, /^local-voice/, /^flow-music\.js$/, /^fish-cache\.js$/, file("telegram_account_test.mjs"), file("audio_studio_test.mjs"), file("audio_convert_plan_test.mjs"), file("local_voice_route_test.py"), file("local_voice_proxy_test.py"), ...APP]
+  })
 ];
 
 const NAV_STEPS = [
@@ -287,6 +303,7 @@ const NAV_STEPS = [
   step("profile-layout", "node scripts/profile_layout_test.mjs", { needs: ["pw", "browser"], paths: [file("profile_layout_test.mjs"), ...APP] }),
   step("notif-sounds", "node scripts/notif_sounds_test.mjs", { needs: ["pw", "browser"], paths: [file("notif_sounds_test.mjs"), /^notif-sounds\.js$/, ...APP] }),
   step("menu-pages", "node scripts/menu_pages_test.mjs", { weight: 40, needs: ["pw", "browser"], paths: [file("menu_pages_test.mjs"), ...APP] }),
+  step("x-card-fit", "node scripts/x_card_fit_test.mjs", { needs: ["pw", "browser"], paths: [file("x_card_fit_test.mjs"), /^video-embed\.js$/, ...APP] }),
   step("about-layout", "node scripts/about_layout_test.mjs", { needs: ["pw"], paths: [file("about_layout_test.mjs")] }),
   step("points-layout", "node scripts/points_layout_test.mjs", { needs: ["pw"], paths: [file("points_layout_test.mjs")] }),
   step("stories-layout", "node scripts/stories_layout_test.mjs", { needs: ["pw"], paths: [file("stories_layout_test.mjs")] }),
@@ -294,13 +311,13 @@ const NAV_STEPS = [
 ];
 
 const SHARDS = {
-  checks: ["action-bar", "assemble-self", "r2-catalog", "catalog-migrate", "handle-guard", "i18n", "telegram-stories", "stories", "device", "translate", "ondevice-ai", "dock", "for-you", "storage-recordings", "app-scale", "image-copy"],
-  site: ["about-layout", "points-layout", "stories-layout", "assemble-site", "smoke-site", "smoke-mirror", "yt-embed", "x-video", "ios", "live", "shorts-page"],
-  "ui-fast": ["notifications", "scrollbar-hidden", "pill-fit", "sidebar", "privacy", "title-privacy", "desktop-squares", "storage-page"],
+  checks: ["action-bar", "assemble-self", "r2-catalog", "catalog-migrate", "handle-guard", "repo-path", "i18n", "telegram-stories", "stories", "device", "translate", "ondevice-ai", "dock", "for-you", "storage-recordings", "app-scale", "image-copy", "calls-logic"],
+  site: ["about-layout", "points-layout", "stories-layout", "assemble-site", "smoke-site", "smoke-mirror", "yt-embed", "x-video", "ios", "live", "shorts-page", "app-base"],
+  "ui-fast": ["notifications", "scrollbar-hidden", "pill-fit", "sidebar", "privacy", "title-privacy", "desktop-squares", "storage-page", "audio-studio"],
   sw: ["sw-update"],
   "ui-profile": ["profile", "profile-tab-scroll"],
   "ui-drawer": ["drawer"],
-  home: ["home-tabs", "tab-member", "reply-lookup", "foryou-chunks", "foryou-off", "home-watch-rearm"],
+  home: ["home-tabs", "tab-member", "reply-lookup", "foryou-chunks", "foryou-off", "home-watch-rearm", "keep-column"],
   "compose-core": ["compose-ai", "compose-page"],
   "compose-a": ["community-home", "communities-hub", "own-post", "author-card-race", "author-marks", "post-page"],
   "compose-b": ["music-dock", "video-fallback", "ig-media", "source-assign", "device-guard", "usernames", "owner-user-settings"],
@@ -318,17 +335,17 @@ const NAV_SHARDS = {
 };
 
 const REQUIRED_PAGE = [
-  "action-bar", "assemble-self", "r2-catalog", "catalog-migrate", "handle-guard", "i18n",
+  "action-bar", "assemble-self", "r2-catalog", "catalog-migrate", "handle-guard", "repo-path", "i18n",
   "about-layout", "points-layout", "telegram-stories", "stories", "stories-layout",
   "assemble-site", "smoke-site", "smoke-mirror", "sw-update", "notifications", "scrollbar-hidden", "profile", "profile-tab-scroll",
-  "home-tabs", "tab-member", "reply-lookup", "home-watch-rearm", "pill-fit", "drawer", "sidebar", "privacy", "yt-embed", "x-video",
+  "home-tabs", "tab-member", "reply-lookup", "home-watch-rearm", "keep-column", "pill-fit", "drawer", "sidebar", "privacy", "yt-embed", "x-video",
   "signup-flows",
-  "device", "translate", "ondevice-ai", "dock", "for-you", "compose-ai", "compose-page", "ios", "live",
+  "device", "translate", "ondevice-ai", "dock", "for-you", "compose-ai", "compose-page", "ios", "live", "shorts-page",
   "community-home", "communities-hub", "own-post", "author-card-race", "post-page", "music-dock", "video-fallback", "ig-media", "source-assign",
-  "device-guard", "usernames", "display-names", "settings-assistant", "nostr-settings", "games-mobile",
+  "device-guard", "usernames", "owner-user-settings", "display-names", "settings-assistant", "nostr-settings", "games-mobile",
   "live-translate", "friend-p2p", "friend-refresh", "communities-instant", "routes-instant", "profile-by-name", "people-search", "emoji-text", "post-menu", "show-more-scroll", "action-speed", "reply-pending", "tab-sync",
   "communities-rows", "friend-privacy", "foryou-communities", "foryou-chunks", "author-marks", "foryou-off", "title-privacy", "desktop-squares",
-  "storage-recordings", "storage-page", "app-scale", "image-copy"
+  "storage-recordings", "storage-page", "app-scale", "image-copy", "app-base", "audio-studio", "calls-logic"
 ];
 
 export function stepsFor(suite) {
@@ -563,23 +580,32 @@ async function main() {
   const needs = new Set(steps.flatMap((item) => item.needs));
   if (needs.has("pw") || needs.has("webkit")) await ensurePlaywright();
   if (needs.has("webkit")) {
-    // Install Playwright's WebKit packages, except gstreamer1.0-libav.
-    // That one package pulls the ffmpeg codec stack and can spend the whole
-    // 15 minute job downloading it. The iOS check does not play video.
-    // Host validation stays on, so a library that is still missing fails
-    // immediately instead of leaving MiniBrowser running until the job dies.
+    // Install Playwright's WebKit libraries. Font packs and the ffmpeg
+    // plugin are left out: the iOS check reads layout and a computed font
+    // size, and a finished run already passed without that plugin. The
+    // bad-plugin library stays, because WebKit refuses to launch without
+    // it. The regional EC2 mirror has stalled for minutes on one package,
+    // so apt uses the main Ubuntu archive instead. Host validation stays
+    // on, so a library that is still missing fails immediately.
     delete process.env.PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS;
     const apt = await runShell([
       "set -euo pipefail",
       "cd " + PW,
       "npx playwright install webkit",
       "line=$(npx playwright install-deps webkit --dry-run)",
-      "pkgs=$(printf '%s\\n' \"$line\" | sed -E 's/.*--no-install-recommends //; s/\"$//' | tr ' ' '\\n' | grep -vx 'gstreamer1.0-libav' | tr '\\n' ' ')",
+      "pkgs=$(printf '%s\\n' \"$line\" | sed -E 's/.*--no-install-recommends //; s/\"$//' | tr ' ' '\\n' | grep -vx 'gstreamer1.0-libav' | grep -Ev '^(fonts-|xfonts-)' | tr '\\n' ' ')",
       "test -n \"${pkgs// /}\"",
       "printf '%s\\n' \"$pkgs\" | tr ' ' '\\n' | grep -qx 'gstreamer1.0-libav' && exit 1",
+      "printf '%s\\n' \"$pkgs\" | tr ' ' '\\n' | grep -Eq '^(fonts-|xfonts-)' && exit 1",
+      "printf '%s\\n' \"$pkgs\" | tr ' ' '\\n' | grep -qx 'libgstreamer-plugins-bad1.0-0'",
       "echo \"webkit packages: $pkgs\"",
+      "echo 'Acquire::ForceIPv4 \"true\";' | sudo tee /etc/apt/apt.conf.d/99force-ipv4 >/dev/null",
+      "for f in /etc/apt/sources.list /etc/apt/sources.list.d/*; do",
+      "  [ -f \"$f\" ] || continue",
+      "  sudo sed -i -E 's#https?://([A-Za-z0-9.-]+\\.)?archive\\.ubuntu\\.com/ubuntu#http://archive.ubuntu.com/ubuntu#g; s#https?://security\\.ubuntu\\.com/ubuntu#http://archive.ubuntu.com/ubuntu#g' \"$f\"",
+      "done",
       "sudo DEBIAN_FRONTEND=noninteractive apt-get update -qq",
-      "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $pkgs"
+      "sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=6 -o Acquire::http::Timeout=20 install -y --no-install-recommends $pkgs"
     ].join("\n"), process.env);
     if (apt !== 0) throw new Error("webkit libraries failed to install");
   }

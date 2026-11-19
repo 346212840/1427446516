@@ -6,11 +6,12 @@
 
 import { extractArticle } from "../../shared/reader-extract.js";
 import { addressesArePublic, readerTarget, robotsAllows } from "../../shared/reader-safe.js";
+import { appContact } from "./site-repo.js";
 
 export const READER_TTL_S = 10 * 60;
 const MAX_BYTES = 1500000;
 const MAX_ROBOTS = 256 * 1024;
-const UA = "ViktorychAppReader/1.0 (+https://viktorychgroup.github.io/ViktorychApp; public reading view)";
+const UA = "ViktorychAppReader/1.0 (+" + appContact() + "; public reading view)";
 const UA_TOKEN = "ViktorychAppReader";
 const DOH = "https://cloudflare-dns.com/dns-query";
 

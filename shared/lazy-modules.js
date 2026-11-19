@@ -19,10 +19,12 @@
     inboxmail: { classic: true, scripts: ["inbox-mail.js", "inbox-sms.css", "inbox-mail.css"] },
     owner_inspector: { classic: true, scripts: ["owner-inspector.js", "owner-inspector.css"] },
     contacts: { classic: true, scripts: ["contacts-ui.js", "contacts.css"] },
+    calls: { classic: false, scripts: ["calls.js", "calls.css"] },
     localai: { classic: true, scripts: ["settings-registry.js", "local-ai.js", "local-ai-actions.js", "local-ai-tools.js", "local-ai-memory.js", "local-ai-chat.js", "local-ai-runner.js", "local-ai-device-setup.js", "local-ai-ui.js", "local-ai.css"] },
     /* Music loads when its page opens, or when a song is already queued, so
        the mini player comes back after a reload. It is not on the first load. */
     music: { classic: true, scripts: ["ytm.js", "music.js", "music.css"] },
+    audio_convert: { classic: true, scripts: ["audio-convert-plan.js", "fish-cache.js", "local-voice-route.js", "local-voice.js", "flow-music.js", "telegram-account.js", "voice-sheet.js", "audio-studio-files.js", "audio-convert.js", "audio-convert.css"] },
     /* Loaded with the page only when that screen is open. Idle time fetches
        the rest one by one so the first visit stays small. */
     discord: { classic: true, scripts: ["discord-ui.js", "discord-picks.js", "discord-local.js", "discord-key-helper.js", "discord-ui.css", "discord-local.css", "discord-key-helper.css"] },

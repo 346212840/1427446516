@@ -3313,7 +3313,8 @@ var numberNote = form.passkey
     lastPull = Date.now();
     return api("/v1/sync", { token: session.token }).then(function (body) {
       var local = localSnapshot();
-      if (!body || body.status !== 200) return;
+      syncReady = true;
+      if (!body || body.status !== 200) return pushMissedEdit();
       rememberLocks(body);
       if (pullOnly) {
         // Another device changed something: take it in without pushing back,
@@ -3357,6 +3358,7 @@ var numberNote = form.passkey
   var lastPull = 0;
   var pullTimer = 0;
   var liveBound = false;
+  var syncReady = false;
   function pullSoon() {
     if (!readSession() || !hasApi() || pushing) return;
     clearTimeout(pullTimer);
@@ -3392,6 +3394,8 @@ var numberNote = form.passkey
   var pushAgain = false;
   function onLocalChange() {
     if (!readSession() || !hasApi()) return;
+    // The first paint must not upload before the account copy has been read.
+    if (!syncReady) { pushAgain = true; return; }
     if (pushing) { pushAgain = true; return; }
     clearTimeout(pushTimer);
     pushTimer = setTimeout(function () {
@@ -5762,6 +5766,7 @@ function signupPayload() {
     if (banner.indexOf("<img") >= 0) banner = banner.replace("<img", '<img data-acct="open-gallery" data-kind="banner"');
     var edit = mine ? '<button class="follow" type="button" data-acct="edit">' + esc(tr("Edit profile")) + "</button>" : "";
     var giftBtn = !mine ? '<button class="outline" type="button" data-gift="open" data-handle="' + esc(account.handle || "") + '">' + esc(tr("Send a gift")) + "</button>" : "";
+    var callBtn = (!mine && account.canCall && window.ViktorychServerFeature && window.ViktorychServerFeature("calls")) ? '<button class="outline" type="button" data-act="call-open" data-handle="' + esc(account.handle || "") + '">' + esc(tr("Call")) + "</button>" : "";
     var birthdayBanner = window.ProfileGifts && window.ProfileGifts.banner ? window.ProfileGifts.banner(account) : "";
     var followBtn = !mine && ref && window.ViktorychAccounts.followButton ? (window.ViktorychAccounts.followButton(ref, true) || "") : "";
     var friendBtn = !mine && ref ? friendButtonHtml(account) : "";
@@ -5812,7 +5817,7 @@ function signupPayload() {
       count: count === "" ? "" : tn("posts", Number(count), { count: count })
     }, banner) : banner;
     top = birthdayBanner + top;
-    return top + '<div class="pinfo"><div class="pava-row">' + photo + '<div class="pactions">' + edit + giftBtn + followBtn + friendBtn + seenLine + '</div></div><h1 class="pname">' + nameRowHtml(account, !mine) + (nk && nk.button && !mine ? nk.button("app", account.handle || "", originalName) : "") + '</h1><div class="phandle">@' + esc(account.handle) + '</div>' + mutualLine + (account.bio ? '<div class="pbio">' + (window.ViktorychEmoji ? window.ViktorychEmoji.text(account.bio) : esc(account.bio)) + "</div>" : "") + (account.location ? '<div class="acct-loc">' + esc(account.location) + "</div>" : "") + (siteHref(account.website) ? '<div class="acct-loc"><a href="' + esc(siteHref(account.website)) + '" target="_blank" rel="noopener noreferrer">' + esc(account.website) + "</a></div>" : "") + linkedIdentitiesHtml(account) + (account.profileLess ? '<div class="private-badge" style="margin:4px 0 8px">' + esc(tr("Profile-less (not visible to others)")) + '</div>' : "") + accountCountsHtml(account) + "</div>" + tabs + body + galleryHtml(account);
+    return top + '<div class="pinfo"><div class="pava-row">' + photo + '<div class="pactions">' + edit + giftBtn + callBtn + followBtn + friendBtn + seenLine + '</div></div><h1 class="pname">' + nameRowHtml(account, !mine) + (nk && nk.button && !mine ? nk.button("app", account.handle || "", originalName) : "") + '</h1><div class="phandle">@' + esc(account.handle) + '</div>' + mutualLine + (account.bio ? '<div class="pbio">' + (window.ViktorychEmoji ? window.ViktorychEmoji.text(account.bio) : esc(account.bio)) + "</div>" : "") + (account.location ? '<div class="acct-loc">' + esc(account.location) + "</div>" : "") + (siteHref(account.website) ? '<div class="acct-loc"><a href="' + esc(siteHref(account.website)) + '" target="_blank" rel="noopener noreferrer">' + esc(account.website) + "</a></div>" : "") + linkedIdentitiesHtml(account) + (account.profileLess ? '<div class="private-badge" style="margin:4px 0 8px">' + esc(tr("Profile-less (not visible to others)")) + '</div>' : "") + accountCountsHtml(account) + "</div>" + tabs + body + galleryHtml(account);
   }
   function appProfileRoute(route) {
     var platform = String((route && route.platform) || "x");

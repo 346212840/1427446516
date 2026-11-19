@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://viktorychgroup.github.io/ViktorychApp/docs/post.schema.json",
+  "$id": "https://viktorychapp.pages.dev/docs/post.schema.json",
   "title": "Canonical post",
   "description": "One post from any source, after scripts/normalize.py. See docs/POST-SCHEMA.md. Extra keys are allowed; the keys below are checked.",
   "type": "object",

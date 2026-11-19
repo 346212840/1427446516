@@ -129,7 +129,21 @@ export const FEATURES = {
   // Encrypted recordings on the Storage page. The owner route returns
   // ciphertext only. The age identity stays in the tab. Off hides Storage
   // recordings and this route.
-  storage_recordings: { paths: ["/tg/vsr"] }
+  storage_recordings: { paths: ["/tg/vsr"] },
+  // On-device audio converter and owner voice-note sends. The bot token
+  // stays on the server. Off closes the send routes.
+  audio_convert: { paths: ["/tg/voice", "/tg/voice-hook", "/v1/owner/telegram-voice"] },
+  // Optional sign-in as the owner's own Telegram account, in the browser.
+  // Off until the owner turns it on. No server routes and no session storage.
+  telegram_account_send: { paths: [], defaultOff: true },
+  // Fish Audio type-to-voice. Off until the owner turns it on. The API key
+  // is FISH_AUDIO_API_KEY. Listing voices does not spend credits.
+  fish_audio: { paths: ["/v1/owner/fish"], defaultOff: true },
+  // Desktop OpenAudio on the owner's PC. No server route. Off hides the section.
+  local_voice: { paths: [] },
+  /* Live translation calls. Off until the owner turns it on. Needs
+     GEMINI_API_KEY. No camera. */
+  calls: { paths: ["/v1/calls"], defaultOff: true }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 

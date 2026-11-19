@@ -1,6 +1,10 @@
 # Status snapshot
 
-Written 2026-11-05 (UTC). Main is `63d6cd70`. Latest D1 migration is `0131_shorts_on.sql`. This is a snapshot: check `gh pr list` and `git log origin/main` before acting on it. Update this file at the end of every PR.
+Written 2026-11-19 (UTC). The Pages directory is the repository name, read from the address on github.io and from `GITHUB_REPOSITORY` when the site is published. The Cloudflare mirror stays `https://viktorychapp.pages.dev/`. Latest D1 migration is `0133_calls.sql`. Telegram expiry is a column added at runtime, not a new migration. This is a snapshot: check `gh pr list` and `git log origin/main` before acting on it. Update this file at the end of every PR.
+
+## Calls
+
+Voice and text calls (`calls`, off until the owner turns it on) are in `#/calls`. The key is the Worker secret `GEMINI_API_KEY`. Details: `docs/CALLS.md`. No camera. Catalan and Swedish are supported targets. Privacy, blocks, and quiet hours are enforced on the server. Guests join from a link with no account. The call screen is mute, speaker, hang up, and talk or type. The rest is under More.
 
 ## How to work on this repo
 
@@ -20,9 +24,11 @@ Any person or agent can take over from this section. Rules for shipping, checks 
 
 **Hard rules.** No usernames, handles, display names or account identifiers in the public repository, pull requests, commits or logs. Never weaken the handle guard. Secrets live only in GitHub Actions secrets and Cloudflare Worker secrets. Do not edit `.github/` without the owner's approval; put a ready patch in `docs/owner-patches/` instead. No force-push and no history rewrite without asking. No paid APIs. Do not bypass a block, a guard or a failed check.
 
+**Instagram timelines.** An empty bridge answer does not hide the next source. After RSSHub and `rss-bridge.org`, the sync tries `rss-bridge.ggc-project.de`, then the public profile embed and the public profile JSON. No cookie is sent. A login wall is a failed source. The last posts stay when every source is empty. The shared catalog keeps a few of each feed's newest posts, including a feed whose posts have no trusted time, so a busy timeline cannot push that feed out of the 300. Each sync also refreshes the saved Instagram and Threads source list, so a feed added earlier still tries the later public bridges.
+
 **Thread lookup.** A reply loaded for one account is not returned to another account, or after sign-out, by share, bookmarks, history, or the media viewer. A reply that arrives after the account changed is dropped. Test: `scripts/reply_lookup_test.mjs`.
 
-**Custom tabs.** Home tabs, their order, and the accounts in them are part of the signed-in account. A drag saves one order for every tab in it, and the newer drag wins that whole order. An add or a removal sticks unless a later add or removal says otherwise. A tab keeps every account it is allowed to hold, including accounts saved before membership had its own times. A deleted tab stays deleted; a later edit does not bring it back. Another account never receives them. The open page applies a sync without waiting for a reload. Tests: `scripts/device_sync_test.js`, `scripts/tab_sync_test.mjs`.
+**Custom tabs.** Home tabs, their order, and the accounts in them are part of the signed-in account. A drag saves one order for every tab in it, and the newer drag wins that whole order. An add or a removal sticks unless a later add or removal says otherwise. A tab keeps every account it is allowed to hold, including accounts saved before membership had its own times. A deleted tab stays deleted; a later edit does not bring it back. Another account never receives them. A device that has not read the account copy cannot replace it: the server answers 409 and the device merges. The open page applies a sync without waiting for a reload. Tests: `scripts/device_sync_test.js`, `scripts/tab_sync_test.mjs`, `worker/test/accounts.test.mjs`.
 
 **Show more.** Opening the rest of a post keeps that post where it was on the screen, including after a late resize. Show less does the same when the control is below the screen and after a pointer click or a phone tap once it has been scrolled into view. Test: `scripts/show_more_scroll_test.mjs`.
 
@@ -50,7 +56,7 @@ The sidebar row stays the cloud icon and reads Storage. `#/drive` still opens `#
 
 An age identity (age-encryption 0.3.1) stays in the tab. It is not stored or sent. Playback is only a vsr-playback-2 package: `manifest.age` is decrypted first, `manifest.json` is ignored, and version 1 byte-chunk catalogs are refused. Seeking decrypts the init segment and the fragment for that time, then the player appends the init segment and that fragment. The codec is read from the file. Only H.264, with AAC-LC when the file has it, is offered to the browser. A single age file can be downloaded and is not played. No provider is connected from this page. Tests: `scripts/storage_recordings_test.mjs`, `scripts/storage_page_test.mjs`.
 
-The same `#/storage` page browses files in the app's own layout: a folder list on a wide screen, a scrolling folder row on a phone, a breadcrumb path, search, and list or grid. List columns sort by name, size, or modified time. Modified time is the item's saved update time. Recordings, the player, and the provider row stay on this page. A provider that is not connected stays not connected, and there is no sign-in for another company's drive. A sealed catalog that is not uploaded is not fetched. A missing token fails closed. Nothing is uploaded or recorded from this page.
+The same `#/storage` page browses files in the app's own layout: a folder list on a wide screen, a scrolling folder row on a phone, a breadcrumb path, search, and list or grid. List columns sort by name, size, or modified time. Modified time is the item's saved update time. Recordings, the player, and the provider row stay on this page. A provider that is not connected stays not connected, and there is no sign-in for another company's drive. A sealed catalog that is not uploaded is not fetched. A missing token fails closed. Nothing is uploaded or recorded from this page. When Telegram says a backup file is gone, the row stays and the page says Expired from Telegram backup. A saved copy is used first. The same file is not asked from Telegram again. A file within 30 days of one year shows that date.
 
 ## Article reader
 

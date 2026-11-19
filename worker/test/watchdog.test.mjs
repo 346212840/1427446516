@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { planWorkflows, planVersion, tokenDaysLeft, usageProblems, shouldPause, runWatchdog, publicSummary, WATCH_KEY, withSyncVerdict, syncDispatchBlock, syncRefreshPlan, rereadSyncAlarm, keepSyncFresh, SYNC_DEBOUNCE_MS } from "../src/watchdog.js";
+import { pagesBase, REPO } from "../src/site-repo.js";
 import { STATUS_PAUSED, applyPaused } from "../src/status-paused.js";
+
+const PAGES = pagesBase(REPO);
 
 const H = 36e5;
 
@@ -102,10 +105,10 @@ test("a full run re-enables, redeploys, and opens an issue only when Actions sto
     if (url.includes("/actions/runs?")) return reply(200, { workflow_runs: [] });
     if (url.includes("sync.yml/runs")) return reply(200, { workflow_runs: [{ updated_at: new Date(now - 30 * H).toISOString() }] });
     if (url.endsWith("/commits/main")) return reply(200, { sha: "newsha", commit: { committer: { date: new Date(now - 5 * H).toISOString() } } });
-    if (url.includes("github.io/ViktorychApp/version.json")) return reply(200, { sha: "oldsha" });
+    if (url.startsWith(PAGES + "version.json")) return reply(200, { sha: "oldsha" });
     if (url.endsWith("/dispatches")) return reply(204, "");
     if (url.endsWith("/issues") && method === "POST") return reply(201, { number: 77 });
-    if (url === "https://viktorychgroup.github.io/ViktorychApp/") return reply(200, "<title>ViktorychApp</title>");
+    if (url === PAGES) return reply(200, "<title>ViktorychApp</title>");
     if (url.includes("pages.dev")) return reply(200, "{}");
     return reply(404, "{}");
   };

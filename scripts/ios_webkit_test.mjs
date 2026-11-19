@@ -1,4 +1,5 @@
-/* WebKit at iPhone 11 and iPad sizes. Placeholders only. */
+/* WebKit at iPhone 11 and iPad sizes. Placeholders only.
+   Package downloads use IPv4 and the main archive. */
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
