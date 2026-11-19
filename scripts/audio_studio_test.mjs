@@ -1,4 +1,5 @@
-/* Audio Studio tabs on a desktop and a phone. No account and no microphone. */
+/* Audio Studio tabs on a desktop and a phone. No account and no microphone.
+   The page must stay up if the local music list is empty. */
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
