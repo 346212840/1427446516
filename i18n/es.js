@@ -6665,5 +6665,10 @@ SI18n.addPack("es", {
   "Your name": "Tu nombre",
   "Your quiet hours, blocks and who-can-call settings still apply. Turning the link off or making a new one stops the old link at once.": "Tus horas de silencio, bloqueos y ajustes de quién puede llamar siguen vigentes. Desactivar el enlace o crear uno nuevo detiene el anterior al instante.",
   "{n} s": "{n} s",
-  "{n} s of 32": "{n} s de 32"
+  "{n} s of 32": "{n} s de 32",
+  "Call someone with their link": "Llamar con su enlace",
+  "Link or name": "Enlace o nombre",
+  "Sign in on the app": "Iniciar sesión en la app",
+  "That is not a call link or name.": "Eso no es un enlace ni un nombre de llamada.",
+  "A link or a name is all you need. No account.": "Basta un enlace o un nombre. Sin cuenta."
 });

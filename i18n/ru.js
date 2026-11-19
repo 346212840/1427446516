@@ -6664,5 +6664,10 @@ SI18n.addPack("ru", {
   "Your name": "Ваше имя",
   "Your quiet hours, blocks and who-can-call settings still apply. Turning the link off or making a new one stops the old link at once.": "Тихие часы, блокировки и настройки «кто может звонить» продолжают действовать. Отключение ссылки или новая ссылка сразу останавливают старую.",
   "{n} s": "{n} с",
-  "{n} s of 32": "{n} с из 32"
+  "{n} s of 32": "{n} с из 32",
+  "Call someone with their link": "Позвонить по ссылке",
+  "Link or name": "Ссылка или имя",
+  "Sign in on the app": "Войти в приложение",
+  "That is not a call link or name.": "Это не ссылка и не имя для звонка.",
+  "A link or a name is all you need. No account.": "Нужна только ссылка или имя. Без аккаунта."
 });
