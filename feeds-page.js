@@ -702,16 +702,25 @@
       if (kind === "group") {
         const from = page.drag.indexOf("group:") === 0 ? page.drag.slice(6) : "";
         const to = el.dataset.id || "";
-        if (!from || !to || from === to) return;
-        const groups = (page.doc.groups || []).map((group) => group.id);
-        const ids = groups.filter((id) => id !== from);
-        const at = ids.indexOf(to);
-        /* A platform section uses the same drop marker. It is not a group, so a
-           miss must leave the saved order alone instead of parking the group
-           at the end. */
-        if (at < 0) return;
-        ids.splice(at, 0, from);
-        sendOrder(null, null, ids);
+        if (from) {
+          if (!to || from === to) return;
+          const groups = (page.doc.groups || []).map((group) => group.id);
+          const ids = groups.filter((id) => id !== from);
+          const at = ids.indexOf(to);
+          /* A platform section uses the same drop marker. It is not a group, so a
+             miss must leave the saved order alone instead of parking the group
+             at the end. */
+          if (at < 0) return;
+          ids.splice(at, 0, from);
+          sendOrder(null, null, ids);
+          return;
+        }
+        /* A folded group mounts no rows, so its head is the only place a feed
+           can land. A platform section is not a group and stays a no-op. */
+        if (!el.hasAttribute("data-feed-drag")) return;
+        const groupId = el.dataset.group || "";
+        if (!groupId || groupId.indexOf("platform:") === 0) return;
+        dropOn("", groupId);
         return;
       }
       const groupId = el.dataset.group != null ? el.dataset.group : "";

@@ -309,6 +309,12 @@ async function runLarge(browser, origin, vp) {
     const row = document.querySelector(".feeds-row.is-open");
     return row && row.querySelector(".feeds-status");
   }, null, { timeout: 5000 }).catch(() => fail(tag + ": expand shows the details"));
+  const openStatus = await page.evaluate(() => {
+    const span = document.querySelector(".feeds-row.is-open .feeds-status > span");
+    if (!span) return { missing: true };
+    return { pos: getComputedStyle(span).position, w: span.getBoundingClientRect().width };
+  });
+  if (openStatus.missing || openStatus.pos === "absolute" || openStatus.w < 20) fail(tag + ": open details hide the status " + JSON.stringify(openStatus));
   await page.keyboard.press("Escape");
   const more = page.locator(".feeds-row .feeds-more").first();
   await more.focus();
@@ -366,6 +372,24 @@ async function runWindow(browser, origin, vp) {
     return el && el.classList.contains("feeds-fold") ? el.getAttribute("data-id") : "";
   });
   if (!foldFocus || foldFocus !== foldId) fail(tag + ": the fold control lost keyboard focus");
+  const sharedRows = await page.evaluate(() => {
+    const closed = document.querySelector(".feeds-window .feeds-row:not(.is-open) .feeds-status > span");
+    const probe = document.createElement("article");
+    probe.className = "feeds-row";
+    probe.innerHTML = '<span class="feeds-copy"><span class="feeds-name">List Name</span><span class="feeds-sub">@list_name</span><span class="feeds-status is-ok"><i class="feeds-dot"></i><span>Posts: 12</span></span></span>';
+    document.body.appendChild(probe);
+    const copy = getComputedStyle(probe.querySelector(".feeds-copy")).flexDirection;
+    const span = probe.querySelector(".feeds-status > span");
+    const shown = getComputedStyle(span).position !== "absolute" && span.getBoundingClientRect().width > 40;
+    probe.remove();
+    return {
+      clipped: !!(closed && getComputedStyle(closed).position === "absolute"),
+      copy: copy,
+      shown: shown
+    };
+  });
+  if (!sharedRows.clipped) fail(tag + ": a closed feed row no longer keeps its status off the row");
+  if (sharedRows.copy !== "column" || !sharedRows.shown) fail(tag + ": a shared feed row hides its name or status " + JSON.stringify(sharedRows));
   const dragged = await page.evaluate(() => new Promise((resolve) => {
     const row = document.querySelector('.feeds-row[data-id="rss:lane0"]');
     row.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true }));
@@ -640,6 +664,26 @@ async function runDrop(browser, origin) {
   });
   for (let i = 0; i < 20 && !reorders.length; i++) await new Promise((resolve) => setTimeout(resolve, 25));
   if (!reorders.length || JSON.stringify(reorders[0].groups) !== JSON.stringify(["gbeta", "galpha"])) fail("drop: a group head did not reorder " + JSON.stringify(reorders));
+  const beforeFeed = reorders.length;
+  await page.evaluate(() => {
+    const from = document.querySelector('[data-feed-drag="rss:loose1"]');
+    const to = document.querySelector('.feeds-section-head[data-id="platform:rss"]');
+    from.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true }));
+    to.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true }));
+  });
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  if (reorders.length !== beforeFeed) fail("drop: a platform head accepted a feed " + JSON.stringify(reorders));
+  await page.locator('.feeds-fold[data-id="gbeta"]').click();
+  await page.waitForFunction(() => !document.querySelector('.feeds-row[data-id="telegram:beta1"]'), null, { timeout: 5000 }).catch(() => fail("drop: the group did not fold"));
+  await page.evaluate(() => {
+    const from = document.querySelector('[data-feed-drag="rss:loose1"]');
+    const to = document.querySelector('.feeds-section-head[data-id="gbeta"]');
+    from.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true }));
+    to.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true }));
+  });
+  for (let i = 0; i < 20 && reorders.length === beforeFeed; i++) await new Promise((resolve) => setTimeout(resolve, 25));
+  const moved = reorders[reorders.length - 1] || {};
+  if (moved.groupId !== "gbeta" || JSON.stringify(moved.ids) !== JSON.stringify(["telegram:beta1", "rss:loose1"])) fail("drop: a folded group head did not take the feed " + JSON.stringify(reorders));
   await context.close();
   console.log("feeds drop ok");
 }
