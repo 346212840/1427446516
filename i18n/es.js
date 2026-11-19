@@ -6702,5 +6702,8 @@ SI18n.addPack("es", {
   "Start test call": "Iniciar llamada de prueba",
   "No second device? A simulated partner joins by itself and you hear your own words translated.": "¿Sin segundo dispositivo? Un interlocutor simulado se une solo y oyes tus propias palabras traducidas.",
   "Waiting for your other device…": "Esperando tu otro dispositivo…",
-  "Your other device": "Tu otro dispositivo"
+  "Your other device": "Tu otro dispositivo",
+  "Caption size": "Tamaño de subtítulos",
+  "Large": "Grande",
+  "Extra large": "Muy grande"
 });

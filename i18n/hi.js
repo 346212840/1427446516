@@ -6689,5 +6689,8 @@ SI18n.addPack("hi", {
   "Start test call": "टेस्ट कॉल शुरू करें",
   "No second device? A simulated partner joins by itself and you hear your own words translated.": "दूसरा डिवाइस नहीं है? एक नकली साथी अपने आप जुड़ता है और आप अपने शब्द अनुवाद में सुनते हैं।",
   "Waiting for your other device…": "आपके दूसरे डिवाइस का इंतज़ार…",
-  "Your other device": "आपका दूसरा डिवाइस"
+  "Your other device": "आपका दूसरा डिवाइस",
+  "Caption size": "कैप्शन का आकार",
+  "Large": "बड़ा",
+  "Extra large": "बहुत बड़ा"
 });

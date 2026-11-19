@@ -6699,5 +6699,8 @@ SI18n.addPack("en", {
   "Start test call": "Start test call",
   "No second device? A simulated partner joins by itself and you hear your own words translated.": "No second device? A simulated partner joins by itself and you hear your own words translated.",
   "Waiting for your other device…": "Waiting for your other device…",
-  "Your other device": "Your other device"
+  "Your other device": "Your other device",
+  "Caption size": "Caption size",
+  "Large": "Large",
+  "Extra large": "Extra large"
 });
