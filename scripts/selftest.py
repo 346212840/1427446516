@@ -5175,6 +5175,11 @@ def feed_order_checks() -> None:
     ranked = dedupe_posts([earlier, future, later, missing, repost, duplicate, mirror])
     check([post["id"] for post in ranked] == ["r", "abcdefghijk", "b", "a", "z", "m"], "mixed sources, reposts, and mirrors keep one row in UTC order")
     check(next(post for post in ranked if post["id"] == "abcdefghijk")["date"] == "2026-10-21T17:00:00+00:00", "dedupe keeps the earlier real publish time")
+    loud = [{"id": f"loud{i}", "platform": "x", "feedId": "x:loud", "date": f"2026-11-19T{i:02d}:00:00Z"} for i in range(10, 0, -1)]
+    quiet = [{"id": f"quiet{i}", "platform": "instagram", "feedId": "instagram:quiet", "date": "", "url": f"https://www.instagram.com/p/quiet{i}/"} for i in range(1, 5)]
+    fitted = dedupe_posts(loud + quiet, cap=10)
+    quiet_ids = [post["id"] for post in fitted if post["feedId"] == "instagram:quiet"]
+    check(quiet_ids == ["quiet1", "quiet2", "quiet3"] and len(fitted) == 10, "a feed with no trusted time still keeps its newest posts in the catalog")
     import r2_catalog
 
     class _Path:

@@ -1266,15 +1266,87 @@ def carry_reply_info(kept: dict, other: dict) -> bool:
     return changed
 
 
+# A busy timeline can fill the shared catalog before a quieter feed is reached.
+# Each feed keeps this many of its own newest posts, including posts that have
+# no trusted time (those sort last and would otherwise all be cut).
+FEED_FLOOR = 3
+
+
+def _post_identity(post: dict) -> tuple:
+    key_id = canonical_status_id(post) or str(post.get("id") or "")
+    if not key_id:
+        key_id = str(post.get("url") or "").strip()
+        if key_id:
+            post["id"] = key_id
+            if not post.get("statusId"):
+                post["statusId"] = key_id
+    return ((post.get("platform") or ""), key_id)
+
+
+def _fit_catalog(order, cap: int, origin: dict) -> list:
+    """Newest posts, with a few from every feed that would otherwise vanish."""
+    if cap <= 0:
+        return []
+    if len(order) <= cap:
+        return list(order)
+    kept = list(order[:cap])
+    chosen = {id(post) for post in kept}
+    by_feed = {}
+    for post in order:
+        by_feed.setdefault(str(post.get("feedId") or ""), []).append(post)
+    added = []
+    for feed_id, rows in by_feed.items():
+        if not feed_id:
+            continue
+        # A trusted time wins. Posts with no time stay in the order the feed
+        # returned them, which is newest first.
+        rows = sorted(rows, key=lambda post: (0, -order_ms(post)) if order_ms(post) else (1, origin.get(id(post), 0)))
+        have = sum(1 for post in rows if id(post) in chosen)
+        for post in rows:
+            if have >= FEED_FLOOR:
+                break
+            if id(post) in chosen:
+                continue
+            added.append(post)
+            chosen.add(id(post))
+            have += 1
+    if not added:
+        return kept
+    counts = {}
+    for post in kept:
+        key = str(post.get("feedId") or "")
+        counts[key] = counts.get(key, 0) + 1
+    for post in added:
+        key = str(post.get("feedId") or "")
+        counts[key] = counts.get(key, 0) + 1
+    drop = set()
+    extra = len(kept) + len(added) - cap
+    for post in reversed(kept):
+        if extra <= 0:
+            break
+        key = str(post.get("feedId") or "")
+        if counts.get(key, 0) <= FEED_FLOOR:
+            continue
+        drop.add(id(post))
+        counts[key] -= 1
+        extra -= 1
+    kept = [post for post in kept if id(post) not in drop]
+    kept.extend(added)
+    return kept[:cap] if len(kept) > cap else kept
+
+
 def dedupe_posts(posts, cap: int = 300):
     """One row per canonical id. The earliest trusted publish time stays."""
+    origin = {}
+    for index, post in enumerate(posts or []):
+        if isinstance(post, dict):
+            origin.setdefault(id(post), index)
     ranked = sorted(posts, key=feed_sort_key)
     seen = {}
     order = []
     for post in ranked:
         _normalize_meta_post(post)
-        key_id = canonical_status_id(post) or str(post.get("id") or "")
-        key = ((post.get("platform") or ""), key_id)
+        key = _post_identity(post)
         if not key[1]:
             continue
         kept = seen.get(key)
@@ -1289,7 +1361,7 @@ def dedupe_posts(posts, cap: int = 300):
         merged = earlier_iso(kept.get("date") or "", post.get("date") or "")
         if merged:
             kept["date"] = merged
-    return order[:cap]
+    return _fit_catalog(order, cap, origin)
 
 
 def load_document(path: Path) -> dict:
