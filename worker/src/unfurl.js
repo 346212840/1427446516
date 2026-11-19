@@ -5,11 +5,12 @@
    cached for a day so a dead link costs one fetch a day. No KV writes. */
 
 import { oembedPlayer, parseMeta, safeTarget } from "../../shared/unfurl-meta.js";
+import { appContact } from "./site-repo.js";
 
 export const UNFURL_TTL_S = 30 * 24 * 3600;
 export const UNFURL_FAIL_TTL_S = 24 * 3600;
 const MAX_BYTES = 512 * 1024;
-const BOT_UA = "Mozilla/5.0 (compatible; Twitterbot/1.0; +https://viktorychgroup.github.io/ViktorychApp)";
+const BOT_UA = "Mozilla/5.0 (compatible; Twitterbot/1.0; +" + appContact() + ")";
 
 function reply(status, body, maxAge) {
   return new Response(JSON.stringify(body), {

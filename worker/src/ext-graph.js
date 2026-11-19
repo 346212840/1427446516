@@ -13,6 +13,8 @@
    fetches are capped per isolate per minute to stay gentle with the free
    mirrors and the shared YouTube quota. */
 
+import { appContact } from "./site-repo.js";
+
 export const GRAPH_TTL_S = 10 * 60;
 export const GRAPH_MISS_TTL_S = 2 * 60;
 const YT_TTL_S = 30 * 60;
@@ -193,7 +195,7 @@ async function handleX(url, env, deps) {
     const target = base + "/" + encodeURIComponent(handle) + "/" + tab + (cursor ? "?cursor=" + encodeURIComponent(cursor) : "");
     let page = null;
     try {
-      const res = await timed(deps, target, { headers: { accept: "text/html", "user-agent": "ViktorychApp/1.0 (+https://viktorychgroup.github.io/ViktorychApp)" }, redirect: "follow" });
+      const res = await timed(deps, target, { headers: { accept: "text/html", "user-agent": "ViktorychApp/1.0 (+" + appContact() + ")" }, redirect: "follow" });
       if (res.ok) page = parseNitterList(await readCapped(res));
       else if (res.status === 404) {
         const out = reply(200, { items: [], cursor: "", missing: true, source: "nitter" }, GRAPH_MISS_TTL_S);

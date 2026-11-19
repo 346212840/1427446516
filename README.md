@@ -30,7 +30,7 @@ The file is not part of `feeds.json`. Pages serves it, and the data branch store
 python3 -m http.server 8080
 ```
 
-Open `http://127.0.0.1:8080/`. Hash routes keep the back button working on GitHub Pages. The manifest `id`, `scope`, and `start_url` are relative (`./`), so the installable app is the directory that serves it. On GitHub Pages that directory is the repository name, currently `/ViktorychApp/`. More and the mobile menu include Install app. `sw.js` is registered as `sw.js` with no extra scope, caches the shell, refreshes `feeds.json` and archive shards in the background, and keeps bookmarked images for offline reading. Notifications stay off until that setting is tapped.
+Open `http://127.0.0.1:8080/`. Hash routes keep the back button working on GitHub Pages. The manifest `id`, `scope`, and `start_url` are relative (`./`), so the installable app is the directory that serves it. On GitHub Pages that directory is the repository name, currently `/ViktorychApp1427446516/`. GitHub does not redirect the previous `/ViktorychApp/` path. Open the new address once. Sign-in stays, because storage is shared by the whole `viktorychgroup.github.io` host. A home-screen icon that still opens the old path has to be added again from the new address. `viktorychapp.pages.dev` is unchanged. More and the mobile menu include Install app. `sw.js` is registered as `sw.js` with no extra scope, caches the shell, refreshes `feeds.json` and archive shards in the background, and keeps bookmarked images for offline reading. Notifications stay off until that setting is tapped.
 
 | Route | Page |
 | --- | --- |

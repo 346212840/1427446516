@@ -112,7 +112,7 @@ Oracle Cloud Infrastructure (OCI) provides a permanent **Always Free Tier** (not
 ### Quick Docker Run on Oracle Cloud
 SSH into your free ARM instance and run:
 ```sh
-git clone https://github.com/ViktorychGroup/ViktorychApp.git
+git clone https://github.com/ViktorychGroup/ViktorychApp1427446516.git
 cd ViktorychApp
 
 docker build -t viktorych-backup -f docker/telegram-backup/Dockerfile .

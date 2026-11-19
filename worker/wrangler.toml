@@ -13,7 +13,7 @@ workers_dev = true
 # npx wrangler secret put KEYS_ENC_KEY
 # GITHUB_DISPATCH_TOKEN is a Worker secret, not a var.
 # The repository Actions secret is WORKER_DISPATCH_TOKEN (fine-grained PAT,
-# repository ViktorychGroup/ViktorychApp, Actions: Read and write).
+# repository ViktorychGroup/ViktorychApp1427446516, Actions: Read and write).
 # GitHub rejects a secret name that starts with GITHUB_.
 # .github/workflows/worker-dispatch-secret.yml copies it:
 # npx wrangler secret put GITHUB_DISPATCH_TOKEN
@@ -44,6 +44,8 @@ workers_dev = true
 # which of those stay visible while Shorts is locked. Both are secrets.
 [vars]
 ALLOWED_ORIGINS = "https://viktorychgroup.github.io,https://viktorychapp.pages.dev"
+# GitHub API calls use this when the isolate has no GITHUB_REPOSITORY.
+GITHUB_REPOSITORY = "ViktorychGroup/ViktorychApp1427446516"
 PBKDF2_ITERATIONS = "30000"
 # Hashes made before rounds were recorded used 8000; they upgrade on sign-in.
 PBKDF2_LEGACY_ITERATIONS = "8000"

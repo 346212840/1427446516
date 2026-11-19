@@ -912,7 +912,7 @@ async function firstRun(page) {
         home: /No posts yet/.test(text),
         missing: /load posts/.test(text),
         follow: /Find accounts to follow/.test(text),
-        happening: /ViktorychApp/.test(text)
+        happening: /ViktorychApp1427446516/.test(text)
       };
     });
     notes.push("timeline did not open " + JSON.stringify(state));

@@ -29,7 +29,8 @@ def iconRes = customIcon == "default" ? "ic_launcher" : "ic_" + customIcon
 def bannerRes = customIcon == "default" ? "banner" : "banner_" + customIcon
 def startQuery = "?tv=1&src=tvapp&tvapp=" + appVersion + (isCustom ? "&tvcustom=1" : "") + "#/home"
 def startUrl = "https://" + host + "/" + startQuery
-def fallbackUrl = "https://" + fallbackHost + "/ViktorychApp/" + startQuery
+def pagesProject = "ViktorychApp1427446516"
+def fallbackUrl = "https://" + fallbackHost + "/" + pagesProject + "/" + startQuery
 
 android {
     namespace "app.viktorych.tv"

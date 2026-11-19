@@ -4,7 +4,19 @@
 (function (root) {
   var PAGES_HOST = "viktorychapp.pages.dev";
   var PAGES = "https://" + PAGES_HOST + "/";
-  var GITHUB = "https://viktorychgroup.github.io/ViktorychApp/";
+  var REPO = "ViktorychGroup/ViktorychApp1427446516";
+  function githubPagesBase() {
+    try {
+      var loc = typeof location !== "undefined" ? location : null;
+      if (loc && /\.github\.io$/i.test(String(loc.hostname || ""))) {
+        var derived = appRoot(loc.origin, loc.pathname, loc.hostname);
+        if (derived && derived !== String(loc.origin || "") + "/") return derived;
+      }
+    } catch (err) { /* the constant below is the deployed project path */ }
+    var parts = REPO.split("/");
+    return "https://" + parts[0].toLowerCase() + ".github.io/" + parts[1] + "/";
+  }
+  var GITHUB = githubPagesBase();
 
   function normalizeBase(value) {
     var text = String(value || "").trim();

@@ -8,7 +8,7 @@
    Needs the Worker secret TV_BUILD_TOKEN: a fine-grained token on the repo with
    Actions read and write and Contents read and write. */
 
-const REPO = "ViktorychGroup/ViktorychApp";
+import { repository } from "./site-repo.js";
 const WORKFLOW = "tv-custom.yml";
 export const TV_ICONS = ["default", "media", "browser", "player", "notes"];
 const BUILD_ID = /^([0-9a-z]{8})([0-9a-f]{12})([0-9a-f]{16})$/;
@@ -37,7 +37,7 @@ function gh(env, path, init) {
     "X-GitHub-Api-Version": "2022-11-28",
     "User-Agent": "viktorych-accounts"
   }, init.headers || {});
-  return fetch("https://api.github.com/repos/" + REPO + path, Object.assign({}, init, { headers }));
+  return fetch("https://api.github.com/repos/" + repository(env) + path, Object.assign({}, init, { headers }));
 }
 
 function hex(buf) {

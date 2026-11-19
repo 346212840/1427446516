@@ -1977,6 +1977,20 @@
       if (document.visibilityState !== "hidden" && claimCheck(Date.now())) checkRemote();
     }, CHECK_MS);
     if (!("serviceWorker" in navigator)) return;
+    // The old project path cannot redirect. Drop its service worker on this
+    // origin so a later visit does not keep serving that shell. Sign-in stays
+    // in localStorage, which is shared by every path on this host.
+    if (navigator.serviceWorker.getRegistrations) {
+      navigator.serviceWorker.getRegistrations().then(function (regs) {
+        var here = String(location.pathname || "/");
+        (regs || []).forEach(function (reg) {
+          var path = "";
+          try { path = new URL(reg.scope).pathname; } catch (err) { return; }
+          if (!path || here.indexOf(path) === 0) return;
+          if (path === "/ViktorychApp/" || path.indexOf("/ViktorychApp/") === 0) reg.unregister();
+        });
+      }).catch(function () {});
+    }
     if (navigator.serviceWorker.controller) sawController = true;
     window.addEventListener("storage", function (event) {
       if (event.key !== APPLY_LOCK_KEY || !event.newValue) return;

@@ -9,6 +9,7 @@ import { canSeeAudience } from "./audience.js";
 import { emitNotification } from "./notifications.js";
 import { balanceOf, newId, accountByHandle, prefsOf, cleanMessage, giftById, tallyBadges, spendStatements, GIFTS_PER_RECIPIENT_DAY, guardFailure, birthdayGiftAllowed } from "./points.js";
 import { paymentProvider, paymentsInfo, verifyStripe, PROVIDERS } from "./payments.js";
+import { pagesBase } from "./site-repo.js";
 
 export const STORE_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS store_orders (
@@ -291,7 +292,7 @@ function returnBase(body, deps, env) {
     const url = new URL(raw);
     if (url.protocol === "https:" && deps.originAllowed && deps.originAllowed(env, url.origin)) return url.origin + url.pathname;
   } catch (err) { /* fall through */ }
-  return "https://viktorychgroup.github.io/ViktorychApp/";
+  return pagesBase(env);
 }
 
 export function catalogBody(env, sold, owned, emojis) {

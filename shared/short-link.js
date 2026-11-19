@@ -11,7 +11,21 @@
   "use strict";
   var SHORT_HOST = "viktorychapp.pages.dev";
   var SHORT_ORIGIN = "https://" + SHORT_HOST;
-  var GITHUB_BASE = "https://viktorychgroup.github.io/ViktorychApp/";
+  var REPO = "ViktorychGroup/ViktorychApp1427446516";
+  function githubBase() {
+    try {
+      var loc = root.location;
+      if (loc && /\.github\.io$/i.test(String(loc.hostname || ""))) {
+        var path = String(loc.pathname || "/");
+        if (/\/index\.html$/i.test(path)) path = path.slice(0, -"index.html".length);
+        var parts = path.split("/").filter(Boolean);
+        if (parts[0] && parts[0] !== "s" && parts[0] !== "u") return String(loc.origin || "") + "/" + parts[0] + "/";
+      }
+    } catch (err) { /* the constant is the deployed project path */ }
+    var repo = REPO.split("/");
+    return "https://" + repo[0].toLowerCase() + ".github.io/" + repo[1] + "/";
+  }
+  var GITHUB_BASE = githubBase();
   var PAIR_KEY = "viktorychapp-tvpair-intake-v1";
   var PAIR_TTL_MS = 10 * 60 * 1000;
   // Same alphabet as the Worker: no 0/O, 1/I/L.

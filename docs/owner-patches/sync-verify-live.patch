@@ -12,4 +12,4 @@ index 4224bf6..4d3d739 100644
 +        continue-on-error: ${{ github.event.inputs.source == 'watchdog-force' }}
          env:
            PAGE_URL: ${{ needs.deploy.outputs.page_url }}
-         run: node scripts/smoke_page.mjs --url "${PAGE_URL:-https://viktorychgroup.github.io/ViktorychApp/}" --retry 18
+         run: node scripts/smoke_page.mjs --url "${PAGE_URL:-https://viktorychgroup.github.io/ViktorychApp1427446516/}" --retry 18

@@ -12,6 +12,15 @@ from __future__ import annotations
 
 import os
 
+# Used when a file has to name the live project and Actions has not set
+# GITHUB_REPOSITORY. pages_base() stays empty without that variable.
+DEFAULT_REPO = "ViktorychGroup/ViktorychApp1427446516"
+
+
+def default_pages() -> str:
+    owner_name, repo_name = DEFAULT_REPO.split("/", 1)
+    return f"https://{owner_name.lower()}.github.io/{repo_name}/"
+
 
 def repository() -> str:
     full = (os.environ.get("GITHUB_REPOSITORY") or "").strip()

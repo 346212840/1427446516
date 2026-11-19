@@ -46,7 +46,7 @@ function workerOptions(mode) {
       const url = new URL(request.url);
       if (url.hostname === "nzlay.com" && url.pathname === "/pages/top100") {
         outbound.top++;
-        assert.match(request.headers.get("user-agent") || "", /ViktorychApp/);
+        assert.match(request.headers.get("user-agent") || "", /ViktorychApp1427446516/);
         if (mode === "broken") return new Response("<html><body>maintenance</body></html>", { headers: { "content-type": "text/html" } });
         return new Response(TOP_HTML, { headers: { "content-type": "text/html" } });
       }

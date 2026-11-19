@@ -56,7 +56,7 @@ so new site versions reach the app without reinstalling.
 
 Direct file links:
 - https://viktorychapp.pages.dev/tv/ViktorychTV.apk
-- https://github.com/ViktorychGroup/ViktorychApp/releases/latest/download/ViktorychTV.apk
+- https://github.com/ViktorychGroup/ViktorychApp1427446516/releases/latest/download/ViktorychTV.apk
 
 The install card is hidden inside the app. In Chrome it is also hidden when the app is already installed
 (`getInstalledRelatedApps`).
@@ -156,8 +156,8 @@ The repo's automation cannot add workflow files, so the owner does these steps:
 2. Add two repository secrets on the build box (nothing is printed):
 
    ```sh
-   base64 -w0 /workspace/secrets/viktorychtv.jks | gh secret set TV_KEYSTORE_B64 -R ViktorychGroup/ViktorychApp
-   gh secret set TV_KEYSTORE_PASS -R ViktorychGroup/ViktorychApp < /workspace/secrets/viktorychtv.pass
+   base64 -w0 /workspace/secrets/viktorychtv.jks | gh secret set TV_KEYSTORE_B64 -R ViktorychGroup/ViktorychApp1427446516
+   gh secret set TV_KEYSTORE_PASS -R ViktorychGroup/ViktorychApp1427446516 < /workspace/secrets/viktorychtv.pass
    ```
 
 3. Create a fine-grained GitHub token for this repo only, with **Actions: Read and write** and
@@ -280,7 +280,7 @@ the next app cannot update the old one. Its SHA-256 fingerprint is public and is
 ## Why viktorychapp.pages.dev
 
 Android checks `assetlinks.json` at the root of the domain. The GitHub Pages site lives under
-`/ViktorychApp/`, so its root cannot hold the file. The Cloudflare Pages copy is at the root of
+`/ViktorychApp1427446516/`, so its root cannot hold the file. The Cloudflare Pages copy is at the root of
 `viktorychapp.pages.dev`, which is why the app, the short link and the domain check use it.
 
 ## Build setup

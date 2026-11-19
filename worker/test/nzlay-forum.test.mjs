@@ -142,7 +142,7 @@ test("the forum feed and a thread come from cached public reads", async () => {
   assert.equal(t.starter.author.name, "SynthMod");
   assert.equal(t.starter.media[0].url, "https://i.imgur.example/full-size.png");
   assert.equal(t.url, "https://nzlay.com/forums/topic/9/synthetic-welcome");
-  assert.ok(seen.every((r) => /ViktorychApp/.test(r.ua) && r.method === "GET" && !r.cookie), "polite, anonymous reads");
+  assert.ok(seen.every((r) => /ViktorychApp1427446516/.test(r.ua) && r.method === "GET" && !r.cookie), "polite, anonymous reads");
   assert.ok(seen.length <= 50, "within the free subrequest budget");
   const before = seen.length;
   await call("/v1/nzlay/forum");

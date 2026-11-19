@@ -114,10 +114,10 @@ To give TVs a short address, create the org Pages site once. It is free and stay
    ```html
    <!doctype html><meta charset="utf-8"><title>Viktorych</title>
    <meta name="description" content="Viktorych: open the app.">
-   <link rel="canonical" href="https://viktorychgroup.github.io/ViktorychApp/">
-   <meta http-equiv="refresh" content="0; url=/ViktorychApp/">
-   <script>location.replace("/ViktorychApp/" + location.search + location.hash);</script>
-   <a href="/ViktorychApp/">Open Viktorych</a>
+   <link rel="canonical" href="https://viktorychgroup.github.io/ViktorychApp1427446516/">
+   <meta http-equiv="refresh" content="0; url=/ViktorychApp1427446516/">
+   <script>location.replace("/ViktorychApp1427446516/" + location.search + location.hash);</script>
+   <a href="/ViktorychApp1427446516/">Open Viktorych</a>
    ```
 3. Settings > Pages: Source "Deploy from a branch", branch `main`, folder `/ (root)`. Save.
 4. After a minute, `https://viktorychgroup.github.io/` opens the app. TV mode still turns on by itself on TV browsers.

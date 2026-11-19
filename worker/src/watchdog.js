@@ -23,12 +23,10 @@ import { ownerKeyAlerts } from "./owner-keys.js";
 import { RENDER_BACKUP, quietHours, renderHours } from "./render-warm.js";
 import { tiktokSaveProblems } from "./tiktok-save-health.js";
 import { applyPaused } from "./status-paused.js";
+import { githubApi, pagesBase, PAGES_MIRROR } from "./site-repo.js";
 
 export const WATCH_KEY = "owner/watchdog.json";
-export const REPO = "ViktorychGroup/ViktorychApp";
-const API = "https://api.github.com/repos/" + REPO;
-const PAGES = "https://viktorychgroup.github.io/ViktorychApp/";
-const MIRROR = "https://viktorychapp.pages.dev/";
+const MIRROR = PAGES_MIRROR;
 const HOUR = 36e5;
 const DAY = 24 * HOUR;
 
@@ -54,7 +52,7 @@ let guardAt = 0;
 function gh(env, path, init, fetcher) {
   const token = String(env.GITHUB_DISPATCH_TOKEN || "").trim();
   const opts = init || {};
-    return fetcher(path.startsWith("http") ? path : API + path, {
+    return fetcher(path.startsWith("http") ? path : githubApi(env, path), {
     method: opts.method || "GET",
     cache: "no-store",
     headers: {
@@ -343,7 +341,7 @@ export async function runWatchdog(env, now, fetcher) {
       const mainAt = Date.parse(cbody && cbody.commit && cbody.commit.committer && cbody.commit.committer.date || "") || at;
       let liveSha = "";
       try {
-        const vres = await timed(f, PAGES + "version.json?watchdog=" + at, 20000);
+        const vres = await timed(f, pagesBase(env) + "version.json?watchdog=" + at, 20000);
         const vbody = vres.ok ? await safeJson(vres) : null;
         liveSha = vbody && vbody.sha || "";
       } catch (err) { liveSha = ""; }
@@ -370,7 +368,7 @@ export async function runWatchdog(env, now, fetcher) {
 
   // 4. The three front doors.
   try {
-    const res = await timed(f, PAGES, 20000);
+    const res = await timed(f, pagesBase(env), 20000);
     const text = res.ok ? await res.text() : "";
     if (!res.ok || text.indexOf("ViktorychApp") < 0) add(problems, "pages_down", "down", "GitHub Pages did not serve the app (HTTP " + res.status + ").");
   } catch (err) {
