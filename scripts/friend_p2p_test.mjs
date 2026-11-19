@@ -28,6 +28,7 @@ const PAGE = `<!doctype html><html><head><meta charset="utf-8"></head><body><div
       if (p === "/v1/p2p/signal") { window.__relay(me, o.body.to, JSON.stringify(o.body.signal)); return Promise.resolve({ status: 200 }); }
       if (p === "/v1/messages") {
         if (!navigator.onLine) return Promise.reject(new Error("offline"));
+        if (o.body && o.body.text === "keep this") return Promise.resolve({ status: 403 });
         window.__server.push(o.body);
         const id = (o.body && o.body.mid) || ("dm-" + o.body.text.length);
         if (window.__relayDm) window.__relayDm(me, o.body.id, o.body.text, id);
@@ -248,6 +249,21 @@ async function main() {
     if (queued.via !== "outbox" || (await pa.evaluate(() => window.ViktorychFriendP2P.outbox().length)) !== 1) fail("offline messages are not kept");
     await ctxA.setOffline(false);
     await pa.waitForFunction(() => window.ViktorychFriendP2P.outbox().length === 0 && window.__server.some((m) => m.text === "later"), null, { timeout: 15000 });
+    await pa.evaluate(() => window.ViktorychFriendP2P.setEnabled(false));
+    await ctxA.setOffline(true);
+    const refused = await pa.evaluate((b) => window.ViktorychFriendP2P.send(b, "keep this"), B);
+    if (refused.via !== "outbox") fail("a message written offline was not queued");
+    await pa.evaluate(() => { document.getElementById("toast").textContent = ""; });
+    await ctxA.setOffline(false);
+    await pa.evaluate(() => window.ViktorychFriendP2P.flush());
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    const kept = await pa.evaluate(() => ({
+      box: window.ViktorychFriendP2P.outbox().map((row) => row.text),
+      toast: document.getElementById("toast").textContent,
+      server: window.__server.map((row) => row.text)
+    }));
+    if (kept.box.join("|") !== "keep this" || kept.server.indexOf("keep this") >= 0 || /Sent /.test(kept.toast)) fail("a refused message was dropped from the outbox " + JSON.stringify(kept));
+    await pa.evaluate(() => window.ViktorychFriendP2P.setEnabled(true));
 
     /* A link that keeps answering stays up. A friend who stops sending is
        dropped by the heartbeat, without waiting for the browser to notice. */
