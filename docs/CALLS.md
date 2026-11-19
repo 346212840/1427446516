@@ -4,13 +4,17 @@ Voice and text calls between accounts, and a guest who opens an invite link. The
 
 The switch is `calls`. It starts off. Turn it on in Settings, Server features, after the key is set.
 
-The key stays on the Worker. From `worker/`:
+Whose Gemini key a call uses is decided on the server from the call itself, never from anything the browser says.
 
-```
-npx wrangler secret put GEMINI_API_KEY --name viktorych-accounts
-```
+- The owner key (`GEMINI_API_KEY`, a Worker secret) is used only when the owner is a verified part of the call: the owner placed it, a guest used the owner's call-me link or invite, the owner answered a call, or it is the owner's own test. Until the owner answers, nothing is minted.
+- Every other call uses a free Gemini key from the person who needs it. They get a short prompt with a link to https://aistudio.google.com/apikey and a paste field. A signed-in person can save it. It is stored encrypted with `KEYS_ENC_KEY`, slot `call-key:<id>`, and only a mask is ever shown back. A guest's pasted key stays in their browser and rides only the token request. If the host has a saved key, it covers a guest.
+- A short-lived token is minted from that person's key, so it is never seen by the other side. If nobody has a key the call screen says so, and text-only is not blocked.
 
-Use a free Gemini API key from Google AI Studio with billing off. The browser receives a short-lived token and opens Gemini itself. Call audio is not sent through the Worker.
+Use a free Gemini API key from Google AI Studio with billing off. The browser receives a short-lived token and opens Gemini itself, unless Google cannot be reached (below).
+
+Call-me links: each account can have one permanent link with an optional custom slug (3 to 30 letters, numbers, single dashes), or an invite that expires in 1 hour or 24 hours. A link can be switched off, replaced, or deleted at any time. It follows the same checks as a call from a profile: who may call, quiet hours, guests, blocks. The link is rate limited by address and by slug.
+
+Reaching Gemini when it is blocked: the page tries Google directly for 3.5 seconds, then goes through the Worker (`GET /v1/calls/live`, a WebSocket pass-through), and remembers the route that worked. Voices go over WebRTC with STUN, then TURN. Optional Worker secrets `CF_TURN_KEY_ID` and `CF_TURN_API_TOKEN` turn on Cloudflare Realtime TURN (free allowance). A public TLS 443 relay is the last resort and can be turned off with `CALLS_PUBLIC_TURN=off`. Limits: the Worker route carries call audio through the Worker and uses its request budget.
 
 On the free plan, Google may use call audio to improve its products. The call screen says so in More.
 
@@ -26,7 +30,7 @@ Translated speech uses a Gemini prebuilt voice chosen from the speaker's pitch. 
 
 People sharing one microphone are labeled Speaker A, B, and C from an on-device voice sketch that runs beside the audio. Each keeps their own language and matched voice. If two of them talk at once, that mix is not sent as one translation. Gemini Live Translate cannot separate overlapping voices. The next person is a new turn. A few milliseconds already handed to the model cannot be pulled back. Names can be renamed on this device.
 
-Guests use the same call tools. Their choices stay in the browser. They do not need an account. One tap joins. If the host turns guest links off, the link stops working.
+Guests use the same call tools on the stand-alone page at `/calls/`, which has no app around it. Their choices stay in the browser. They do not need an account. One tap joins. If the host turns guest links off, the link stops working.
 
 A missed call can be called back in one tap. A guest keeps a return link. Repeat plays the last translated line. Hold on, Repeat, and Call back are short phrases. A word list in More is sent with the translation setup.
 
