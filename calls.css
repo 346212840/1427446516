@@ -1,7 +1,7 @@
 /* Calls. A Teams-style calling layout in the X look: a call list on the left,
    a stage of tiles with captions, a floating control bar, and side panels. The
    colours come from the app theme (dark and light) with X values as fallback. */
-.calls-page {
+.calls-page, .calls-mm-wrap {
   --c-bg: var(--bg, #000);
   --c-text: var(--text, #e7e9ea);
   --c-muted: var(--muted, #71767b);
@@ -20,8 +20,8 @@
   line-height: 1.35;
   box-sizing: border-box;
 }
-.calls-page *, .calls-page *::before, .calls-page *::after { box-sizing: inherit; }
-.calls-page button { font: inherit; color: inherit; cursor: pointer; }
+.calls-page *, .calls-page *::before, .calls-page *::after, .calls-mm-wrap *, .calls-mm-wrap *::before, .calls-mm-wrap *::after { box-sizing: inherit; }
+.calls-page button, .calls-mm-wrap button { font: inherit; color: inherit; cursor: pointer; }
 .calls-page button:disabled { opacity: 0.4; cursor: not-allowed; }
 .calls-page a { color: var(--c-blue); }
 .calls-ico { width: 22px; height: 22px; flex: none; }
@@ -29,7 +29,7 @@
 .calls-logo { display: inline-grid; place-items: center; width: 32px; height: 32px; }
 .calls-logo .calls-ico { width: 24px; height: 24px; }
 :focus-visible { outline-offset: 2px; }
-.calls-page :focus-visible { outline: 2px solid var(--c-blue); }
+.calls-page :focus-visible, .calls-mm-wrap :focus-visible { outline: 2px solid var(--c-blue); }
 
 /* ---- shared controls ---- */
 .calls-go, .calls-big, .calls-pill, .calls-quick button, .calls-talk, .calls-review button, .calls-invite button, .calls-lex button {
@@ -294,3 +294,24 @@
 .calls-ear-chev { width: 12px; height: 12px; border-left: 2px solid currentColor; border-top: 2px solid currentColor; transform: rotate(45deg); animation: calls-ear-bob 1.8s ease-in-out infinite; }
 @keyframes calls-ear-bob { 0%, 100% { transform: translateY(2px) rotate(45deg); opacity: 0.4; } 50% { transform: translateY(-3px) rotate(45deg); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .calls-ear-chev { animation: none; } }
+
+/* ---- no microphone: never a blocker ---- */
+.calls-micnote { margin: 8px 0 0; padding: 8px 12px; border: 1px solid var(--c-line); border-radius: 12px; background: var(--c-card); color: var(--c-muted); font-size: 14px; }
+.calls-link { background: none; border: 0; padding: 0; color: var(--c-blue); font: inherit; font-weight: 700; cursor: pointer; text-decoration: underline; }
+.calls-nomic { position: fixed; left: 50%; bottom: 150px; transform: translateX(-50%); z-index: 212; display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--c-line); background: var(--c-card); color: var(--c-text); font-size: 14px; font-weight: 700; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35); }
+.calls-nomic .calls-ico { width: 18px; height: 18px; }
+
+/* ---- Allow microphone popup ---- */
+.calls-mm-wrap { position: fixed; inset: 0; z-index: 600; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(91, 112, 131, 0.4); }
+.calls-mm { position: relative; width: min(420px, 100%); max-height: 100%; overflow: auto; padding: 24px; border-radius: 20px; background: var(--c-bg); color: var(--c-text); border: 1px solid var(--c-line); box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5); }
+.calls-mm h2 { margin: 12px 0 6px; font-size: 22px; font-weight: 800; }
+.calls-mm-p { margin: 0 0 8px; color: var(--c-muted); font-size: 15px; line-height: 1.4; }
+.calls-mm-x { position: absolute; top: 10px; right: 10px; width: 36px; height: 36px; border-radius: 50%; border: 0; background: transparent; color: var(--c-text); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.calls-mm-x:hover { background: var(--c-hover); }
+.calls-mm-x .calls-ico { width: 20px; height: 20px; }
+.calls-mm-art svg { display: block; width: 100%; max-width: 280px; margin: 8px auto 0; height: auto; }
+.calls-mm-steps { margin: 8px 0 4px; padding-left: 22px; font-size: 15px; line-height: 1.5; }
+.calls-mm-steps li { margin: 4px 0; }
+.calls-mm-again { margin: 6px 0 0; color: var(--c-red); font-size: 14px; font-weight: 700; }
+.calls-mm-btns { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+.calls-mm-btns button { width: 100%; }

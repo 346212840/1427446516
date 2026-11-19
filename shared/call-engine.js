@@ -613,7 +613,14 @@ export function createEngine(cfg) {
     transToSend = ac.createGain();
     origToSend.connect(sendDest);
     transToSend.connect(sendDest);
-    micStream = cfg.getMic ? await cfg.getMic() : await navigator.mediaDevices.getUserMedia({ audio: MIC_CONSTRAINTS, video: false });
+    /* No microphone, or permission denied: the call still starts and typed text still works. */
+    try {
+      micStream = cfg.getMic ? await cfg.getMic() : await navigator.mediaDevices.getUserMedia({ audio: MIC_CONSTRAINTS, video: false });
+    } catch (err) {
+      micStream = null;
+      const denied = err && (err.name === "NotAllowedError" || err.name === "SecurityError");
+      emit("nomic", { reason: denied ? "denied" : "none" });
+    }
     ownMic = !cfg.getMic;
     if (micStream) {
       const micSrc = ac.createMediaStreamSource(micStream);
@@ -681,6 +688,21 @@ export function createEngine(cfg) {
   }
   E.prewarm = function prewarm() { ensureRx(); };
 
+  /* The mic was allowed after the call started: wire it in without touching the peer connection. */
+  E.attachMic = async function attachMic(stream) {
+    if (micStream || !ac || !stream) return false;
+    micStream = stream;
+    ownMic = true;
+    const micSrc = ac.createMediaStreamSource(stream);
+    micLevel = ac.createGain();
+    micSrc.connect(micLevel);
+    micLevel.connect(origToSend);
+    const tapMic = await tapNode(onOwnFrame);
+    micLevel.connect(tapMic);
+    stream.getAudioTracks().forEach((track) => { track.enabled = !muted; });
+    applyGains();
+    return true;
+  };
   E.setMuted = (on) => {
     muted = !!on;
     if (micStream) micStream.getAudioTracks().forEach((t) => { t.enabled = !muted; });
