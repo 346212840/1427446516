@@ -15,6 +15,11 @@ import { createDiarizer } from "./call-speakers.js";
 
 const IDLE_LINE_MS = 1500;
 const DIRECT_WAIT_MS = 3500;
+const RACE_AFTER_DIRECT_MS = 900;
+const RACE_AFTER_RELAY_MS = 1500;
+const RACE_AFTER_KNOWN_MS = 2500;
+const RELAY_HOST_WAIT_MS = 4500;
+const RELAY_HOST_STAGGER_MS = 1600;
 const ROTATE_MS = 8 * 60 * 1000;
 const NOTE_CHUNK = 16384;
 
@@ -40,7 +45,7 @@ function now() {
 
 /* One Gemini Live Translate socket. It is direct first and falls back to
    our Worker relay when Google cannot be reached from this network. */
-function createPipe(env, opts) {
+export function createPipe(env, opts) {
   const pipe = {
     id: opts.id,
     target: opts.target,
@@ -140,19 +145,85 @@ function createPipe(env, opts) {
       opts.onState(pipe, why === "quota" || why === "nokey" || why === "badkey" ? why : "text");
       return;
     }
-    const routes = env.relayFirst() ? ["relay", "direct"] : ["direct", "relay"];
-    for (let i = 0; i < routes.length; i++) {
-      if (pipe.closed) return;
-      const ok = await open(routes[i], minted);
-      if (ok) { env.noteRoute(routes[i]); return; }
-    }
+    const hinted = minted.prefer === "relay";
+    const order = hinted || env.relayFirst() ? ["relay", "direct"] : ["direct", "relay"];
+    const known = hinted || env.relayFirst() || env.routeKnown();
+    const won = await race(order, minted, known);
+    if (won) return;
     scheduleRetry();
   }
-  function open(route, minted) {
+  /* The first route starts at once. If it is slow the second starts beside
+     it with a fresh token (tokens are single use), and the first socket to
+     finish setup wins. The loser is closed. */
+  function race(order, first, known) {
+    return new Promise((resolve) => {
+      const group = { winner: null, sockets: [] };
+      let settled = false;
+      let started = 0;
+      let failed = 0;
+      let timer = null;
+      const settle = (ok) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        group.sockets.forEach((sock) => { if (sock !== group.winner) { try { sock.close(); } catch (err) { /* closed */ } } });
+        resolve(ok);
+      };
+      const run = async (route, minted) => {
+        const ok = route === "relay" ? await openRelay(minted, group) : await open(route, minted, group, minted.url);
+        if (settled) return;
+        if (ok) { env.noteRoute(route); settle(true); return; }
+        failed += 1;
+        if (pipe.closed) { settle(false); return; }
+        if (started < 2) second(); else if (failed >= started) settle(false);
+      };
+      const second = async () => {
+        if (started >= 2 || settled || pipe.closed) return;
+        started = 2;
+        clearTimeout(timer);
+        let again = null;
+        try { again = await opts.token({ target: pipe.target, voice: pipe.voice, resume: pipe.handle, source: opts.source }); } catch (err) { again = null; }
+        if (settled || pipe.closed) return;
+        if (!again || again.mode !== "token" || !again.url) again = first;
+        run(order[1], again);
+      };
+      started = 1;
+      run(order[0], first);
+      timer = setTimeout(second, order[0] === "relay" ? (known ? RACE_AFTER_KNOWN_MS : RACE_AFTER_RELAY_MS) : (known ? RACE_AFTER_KNOWN_MS : RACE_AFTER_DIRECT_MS));
+    });
+  }
+  /* Several relay hosts: the next one starts beside a slow one, so a blocked
+     hostname costs under two seconds instead of its whole timeout. */
+  function openRelay(minted, group) {
+    const urls = env.relayUrls ? env.relayUrls(minted.token) : [env.relayUrl ? env.relayUrl(minted.token) : ""];
+    const list = urls.filter(Boolean);
+    return new Promise((resolve) => {
+      let next = 0;
+      let pending = 0;
+      let done = false;
+      let timer = null;
+      const launch = () => {
+        clearTimeout(timer);
+        if (done || group.winner || pipe.closed || next >= list.length) return;
+        const url = list[next++];
+        pending += 1;
+        open("relay", minted, group, url, list.length > 1 ? RELAY_HOST_WAIT_MS : 6000).then((ok) => {
+          pending -= 1;
+          if (done) return;
+          if (ok) { done = true; clearTimeout(timer); resolve(true); return; }
+          if (next < list.length) launch();
+          else if (!pending) { done = true; resolve(false); }
+        });
+        if (next < list.length) timer = setTimeout(launch, RELAY_HOST_STAGGER_MS);
+      };
+      if (!list.length) { resolve(false); return; }
+      launch();
+    });
+  }
+  function open(route, minted, group, url, wait) {
     return new Promise((resolve) => {
       let socket = null;
       let done = false;
-      const url = route === "relay" && env.relayUrl ? env.relayUrl(minted.token) : minted.url;
       if (!url) { resolve(false); return; }
       const finish = (ok) => {
         if (done) return;
@@ -161,14 +232,17 @@ function createPipe(env, opts) {
         if (!ok && socket) { try { socket.close(); } catch (err) { /* closed */ } }
         resolve(ok);
       };
-      const timer = setTimeout(() => finish(false), route === "direct" ? DIRECT_WAIT_MS : 6000);
+      const timer = setTimeout(() => finish(false), wait || (route === "direct" ? DIRECT_WAIT_MS : 6000));
       try { socket = new WebSocket(url); } catch (err) { finish(false); return; }
+      group.sockets.push(socket);
       socket.onopen = () => { try { socket.send(JSON.stringify({ setup: minted.setup })); } catch (err) { finish(false); } };
       socket.onmessage = (event) => {
         const read = typeof event.data === "string" ? Promise.resolve(event.data) : (event.data && event.data.text ? event.data.text() : Promise.resolve(""));
         read.then((text) => {
           if (!done) {
             if (text.indexOf("setupComplete") >= 0) {
+              if (group.winner || pipe.closed) { finish(false); return; }
+              group.winner = socket;
               ws = socket;
               pipe.via = route;
               finish(true);
@@ -276,6 +350,8 @@ export function createEngine(cfg) {
     get ac() { return ac; },
     relayFirst: () => !!(cfg.relayFirst && cfg.relayFirst()),
     relayUrl: (token) => (cfg.relayUrl ? cfg.relayUrl(token) : ""),
+    relayUrls: (token) => (cfg.relayUrls ? cfg.relayUrls(token) : [cfg.relayUrl ? cfg.relayUrl(token) : ""]),
+    routeKnown: () => !!(cfg.routeKnown && cfg.routeKnown()),
     noteRoute: (via) => { route.via = via; if (cfg.onRoute) cfg.onRoute(via); emit("route", { via: via }); }
   };
   function every(ms, fn) { const id = setInterval(fn, ms); timers.push(id); return id; }

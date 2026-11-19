@@ -137,13 +137,18 @@ def prepare(site: Path, out: Path, max_files: int = MAX_FILES, max_bytes: int = 
         shutil.rmtree(out)
     out.mkdir(parents=True)
     required = bundle_required(site)
-    kept, dropped = choose(collect(site), max(1, max_files - 2), max_bytes, required)
+    kept, dropped = choose(collect(site), max(1, max_files - 4), max_bytes, required)
     for rel in kept:
         src = site / rel
         dest = out / rel
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dest)
     (out / "_headers").write_text(headers_text(), encoding="utf-8")
+    # The Calls relay: a second hostname for the Gemini socket. Only this path runs code.
+    relay = Path(__file__).resolve().parent / "pages_relay_worker.js"
+    if relay.is_file():
+        shutil.copy2(relay, out / "_worker.js")
+        (out / "_routes.json").write_text('{"version":1,"include":["/v1/calls/live"],"exclude":[]}\n', encoding="utf-8")
     note = out / "MIRROR_EXCLUDED.txt"
     lines = ["# Files left off the Cloudflare Pages upload.", "# The other origin still serves them."]
     lines.extend(sorted(dropped))
@@ -170,7 +175,10 @@ def selftest() -> int:
         dropped = prepare(site, root / "out", max_files=8, max_bytes=MAX_BYTES)
         out = root / "out"
         names = [path.relative_to(out).as_posix() for path in out.rglob("*") if path.is_file()]
-        upload = [name for name in names if name not in {"_headers", "MIRROR_EXCLUDED.txt"}]
+        upload = [name for name in names if name not in {"_headers", "MIRROR_EXCLUDED.txt", "_worker.js", "_routes.json"}]
+        if "_worker.js" not in names or '"/v1/calls/live"' not in (out / "_routes.json").read_text(encoding="utf-8"):
+            print("relay worker missing from the upload")
+            return 1
         if len(upload) > 8:
             print("too many files", len(upload))
             return 1

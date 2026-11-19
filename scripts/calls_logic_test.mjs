@@ -14,6 +14,9 @@ import { createDiarizer, overlappingPitches } from "../shared/call-speakers.js";
 import { liveSetup, rejectsClone } from "../shared/call-setup.js";
 import { createHistory, loadLocal, recordLocal, removeRows, restoreRows, swipeAction, toggleSet } from "../shared/call-history.js";
 import { createRaiseDetector, earSinkId, cheekLike, createUnlocker, EAR_VOLUME_CAP } from "../shared/call-ear.js";
+import { createPipe } from "../shared/call-engine.js";
+import { relayHint } from "../worker/src/calls.js";
+import pagesRelay from "./pages_relay_worker.js";
 import { lighterFor, pickSink, sinkChangeKeepsCall, cleanLexicon, rememberLine } from "../shared/call-quality.js";
 
 assert.equal(isCallLang("ca"), true, "Catalan is a Live Translate target");
@@ -325,6 +328,81 @@ assert.equal(langName("zz", "en"), "zz");
   assert.deepEqual([...toggleSet(new Set(["a"]), "a")], []);
   assert.deepEqual(removeRows([{ id: 1 }, { id: 2 }], [2]).kept, [{ id: 1 }]);
   assert.equal(restoreRows([{ id: 1, createdAt: 1 }], [{ id: 2, createdAt: 2 }])[0].id, 2);
+}
+
+
+/* Route race: relay first for a blocked network, a second route that starts
+   beside a slow first one, and the loser is closed. */
+{
+  assert.deepEqual(relayHint({ cf: { country: "RU" } }), { country: "RU", prefer: "relay" });
+  assert.deepEqual(relayHint({ cf: { country: "SE" } }), { country: "SE" });
+  assert.deepEqual(relayHint({ headers: new Headers({ "CF-IPCountry": "by" }) }), { country: "BY", prefer: "relay" });
+  assert.deepEqual(relayHint({ headers: new Headers() }), {});
+
+  const sockets = [];
+  const plan = {};
+  class FakeSocket {
+    constructor(url) {
+      this.url = url; this.closed = false; sockets.push(this);
+      const how = Object.keys(plan).find((key) => url.indexOf(key) >= 0);
+      this.how = how ? plan[how] : "ok";
+      setTimeout(() => { if (this.how === "dead") { this.onclose && this.onclose(); } else if (this.how !== "hang" && !this.closed) this.onopen && this.onopen(); }, this.how === "dead" ? 5 : 0);
+    }
+    send() { if (this.how === "ok" || this.how === "slow") setTimeout(() => { if (!this.closed && this.onmessage) this.onmessage({ data: '{"setupComplete":{}}' }); }, this.how === "slow" ? 1800 : 10); }
+    close() { this.closed = true; }
+  }
+  globalThis.WebSocket = FakeSocket;
+  let minted = 0;
+  const run = async (hostPlan, order, flags) => {
+    sockets.length = 0;
+    Object.keys(plan).forEach((key) => delete plan[key]);
+    Object.assign(plan, hostPlan);
+    const seen = [];
+    const env = {
+      relayFirst: () => !!(flags && flags.relay), routeKnown: () => false, noteRoute: (via) => seen.push(via),
+      relayUrl: (t) => "wss://main.test/live?t=" + t,
+      relayUrls: (t) => ["wss://main.test/live?t=" + t, "wss://mirror.test/live?t=" + t]
+    };
+    const states = [];
+    const pipe = createPipe(env, {
+      id: "t", target: "en", out: null, source: "",
+      token: async () => { minted += 1; return { mode: "token", token: "tok" + minted + "_abcdefgh", url: "wss://google.test/ws?t=" + minted, setup: {}, prefer: flags && flags.prefer }; },
+      onState: (p, st) => states.push(st), onLine() {}, onPartial() {}, onOut() {}, onGoAway() {}
+    });
+    const t0 = Date.now();
+    pipe.open();
+    for (let i = 0; i < 80 && !pipe.via && !states.includes("failed"); i++) await new Promise((r) => setTimeout(r, 100));
+    return { via: pipe.via, ms: Date.now() - t0, seen, minted, sockets: sockets.slice(), pipe };
+  };
+  let r = await run({ "google.test": "ok" }, 0, {});
+  assert.equal(r.via, "direct");
+  assert.equal(r.sockets.length, 1, "a fast direct route never starts the relay");
+  r.pipe.close();
+  r = await run({ "google.test": "dead" }, 0, {});
+  assert.equal(r.via, "relay", "a dead direct route falls to the relay at once");
+  assert.ok(r.ms < 800, "the fallback does not wait for the full timeout: " + r.ms);
+  r.pipe.close();
+  r = await run({ "google.test": "slow", "main.test": "ok" }, 0, {});
+  assert.equal(r.via, "relay", "a slow direct route loses to the relay that starts beside it");
+  assert.ok(r.sockets.filter((sock) => sock.url.indexOf("google") >= 0).every((sock) => sock.closed), "the slow loser is closed");
+  r.pipe.close();
+  r = await run({ "main.test": "dead", "mirror.test": "ok" }, 0, { prefer: "relay" });
+  assert.equal(r.via, "relay");
+  assert.ok(r.sockets[0].url.indexOf("main.test") >= 0 && r.sockets[1].url.indexOf("mirror.test") >= 0, "a blocked main host falls to the mirror host");
+  assert.ok(!r.sockets.some((sock) => sock.url.indexOf("google") >= 0), "a hinted caller never opens a Google socket when the relay works");
+  r.pipe.close();
+  r = await run({ "main.test": "hang", "mirror.test": "ok" }, 0, { prefer: "relay" });
+  assert.equal(r.via, "relay");
+  assert.ok(r.ms > 1400 && r.ms < 2600, "a hung main host hands over to the mirror after about 1.6 s: " + r.ms);
+  assert.ok(r.sockets.filter((sock) => sock.url.indexOf("main.test") >= 0).every((sock) => sock.closed), "the hung socket is closed");
+  r.pipe.close();
+  delete globalThis.WebSocket;
+
+  const assets = { fetch: async () => new Response("asset") };
+  const hit = (path, init) => pagesRelay.fetch(new Request("https://viktorychapp.pages.dev" + path, init), { ASSETS: assets });
+  assert.equal(await (await hit("/index.html")).text(), "asset");
+  assert.equal((await hit("/v1/calls/live?t=abcdefgh1234")).status, 426);
+  assert.equal((await hit("/v1/calls/live?t=%20bad", { headers: { Upgrade: "websocket" } })).status, 400);
 }
 
 console.log("calls logic ok", JSON.stringify(report));
