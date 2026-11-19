@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { configuredRepository, githubFetch, pagesBase, repoFromRedirect, resolveRepository } from "../src/site-repo.js";
+import { configuredRepository, githubFetch, pagesBase, repoFromRedirect, repositoryIdFromRedirect, resolveRepository } from "../src/site-repo.js";
 
 test("the configured name is the current repository", () => {
   assert.equal(configuredRepository({}), "ViktorychGroup/ViktorychApp");
@@ -51,4 +51,113 @@ test("a workflow call is one request, and a rename keeps the method and body", a
     "POST https://api.github.com/repos/Example/Live/actions/workflows/sync.yml/dispatches",
     "POST https://api.github.com/repos/Example/Live/actions/workflows/sync.yml/dispatches"
   ]);
+});
+
+test("a numeric repository redirect is followed once and the new name is cached", async () => {
+  assert.deepEqual(repositoryIdFromRedirect("https://api.github.com/repositories/90796663"), { id: "90796663", suffix: "" });
+  assert.equal(repositoryIdFromRedirect("https://evil.example/repositories/90796663"), null);
+  assert.equal(repositoryIdFromRedirect("http://api.github.com/repositories/90796663"), null);
+  assert.equal(repoFromRedirect("https://api.github.com/repositories/90796663"), "");
+
+  const seen = [];
+  const body = JSON.stringify({ ref: "main" });
+  const fetcher = async (url, init) => {
+    seen.push(init.method + " " + url);
+    if (url === "https://api.github.com/repos/Example/Numbered/actions/workflows/sync.yml/dispatches") {
+      return new Response(null, { status: 301, headers: { location: "https://api.github.com/repositories/90796663" } });
+    }
+    if (url === "https://api.github.com/repositories/90796663/actions/workflows/sync.yml/dispatches") {
+      assert.equal(init.method, "POST");
+      assert.equal(init.body, body);
+      return new Response(null, { status: 204 });
+    }
+    if (url === "https://api.github.com/repositories/90796663" && init.method === "GET") {
+      return new Response(JSON.stringify({ full_name: "Example/AfterNumber" }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    if (url === "https://api.github.com/repos/Example/AfterNumber/actions/workflows/sync.yml/dispatches") {
+      assert.equal(init.method, "POST");
+      assert.equal(init.body, body);
+      return new Response(null, { status: 204 });
+    }
+    throw new Error("unexpected " + init.method + " " + url);
+  };
+  const init = { method: "POST", body };
+  const env = { GITHUB_REPOSITORY: "Example/Numbered" };
+  const first = await githubFetch(env, "/actions/workflows/sync.yml/dispatches", init, fetcher);
+  const second = await githubFetch(env, "/actions/workflows/sync.yml/dispatches", init, fetcher);
+  assert.equal(first.status, 204);
+  assert.equal(second.status, 204);
+  assert.deepEqual(seen, [
+    "POST https://api.github.com/repos/Example/Numbered/actions/workflows/sync.yml/dispatches",
+    "POST https://api.github.com/repositories/90796663/actions/workflows/sync.yml/dispatches",
+    "GET https://api.github.com/repositories/90796663",
+    "POST https://api.github.com/repos/Example/AfterNumber/actions/workflows/sync.yml/dispatches"
+  ]);
+});
+
+test("a numeric Location that already names the path is used as given", async () => {
+  const seen = [];
+  const fetcher = async (url, init) => {
+    seen.push(init.method + " " + url);
+    if (String(url).includes("/repos/Example/Pathed/")) {
+      return new Response(null, {
+        status: 301,
+        headers: { location: "https://api.github.com/repositories/55/actions/workflows/sync.yml/dispatches" }
+      });
+    }
+    if (url === "https://api.github.com/repositories/55/actions/workflows/sync.yml/dispatches") {
+      assert.equal(init.body, "{\"ref\":\"main\"}");
+      return new Response(null, { status: 204 });
+    }
+    if (url === "https://api.github.com/repositories/55") {
+      return new Response(JSON.stringify({ full_name: "Example/PathedNow" }), { status: 200 });
+    }
+    throw new Error("unexpected " + url);
+  };
+  const res = await githubFetch({ GITHUB_REPOSITORY: "Example/Pathed" }, "/actions/workflows/sync.yml/dispatches", {
+    method: "POST",
+    body: JSON.stringify({ ref: "main" })
+  }, fetcher);
+  assert.equal(res.status, 204);
+  assert.deepEqual(seen.slice(0, 3), [
+    "POST https://api.github.com/repos/Example/Pathed/actions/workflows/sync.yml/dispatches",
+    "POST https://api.github.com/repositories/55/actions/workflows/sync.yml/dispatches",
+    "GET https://api.github.com/repositories/55"
+  ]);
+});
+
+test("a numeric rename redirect becomes the Pages directory", async () => {
+  const seen = [];
+  const fetcher = async (url) => {
+    seen.push(url);
+    if (url === "https://api.github.com/repos/Example/OldNumeric") {
+      return new Response(null, { status: 301, headers: { location: "https://api.github.com/repositories/42" } });
+    }
+    if (url === "https://api.github.com/repositories/42") {
+      return new Response(JSON.stringify({ full_name: "Example/After" }), { status: 200 });
+    }
+    throw new Error(url);
+  };
+  const env = { GITHUB_REPOSITORY: "Example/OldNumeric" };
+  const name = await resolveRepository(env, fetcher);
+  assert.equal(name, "Example/After");
+  assert.equal(pagesBase(name), "https://example.github.io/After/");
+  assert.equal(await resolveRepository(env, fetcher), "Example/After");
+  assert.deepEqual(seen, [
+    "https://api.github.com/repos/Example/OldNumeric",
+    "https://api.github.com/repositories/42"
+  ]);
+});
+
+test("a redirect off api.github.com is not followed", async () => {
+  const seen = [];
+  const res = await githubFetch({ GITHUB_REPOSITORY: "Example/Offhost" }, "/actions/workflows/sync.yml/dispatches", {
+    method: "POST",
+    body: "{}"
+  }, async (url, init) => {
+    seen.push(init.method + " " + url);
+    return new Response(null, { status: 301, headers: { location: "https://evil.example/repositories/1/actions/workflows/sync.yml/dispatches" } });
+  });
+  assert.equal(res.status, 301);
+  assert.deepEqual(seen, ["POST https://api.github.com/repos/Example/Offhost/actions/workflows/sync.yml/dispatches"]);
 });
