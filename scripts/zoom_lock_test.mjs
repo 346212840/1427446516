@@ -80,11 +80,17 @@ const LOCKED = "maximum-scale=1, user-scalable=no";
 async function open(browser, origin, hash, { settings, off } = {}) {
   const ctx = await browser.newContext({ serviceWorkers: "block", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await ctx.addInitScript(([s, o]) => {
-    if (sessionStorage.getItem("zl-seeded")) return;
-    sessionStorage.setItem("zl-seeded", "1");
-    localStorage.setItem("viktorychapp-welcome-v1", JSON.stringify({ step: 2, done: true }));
-    if (s) localStorage.setItem("viktorychapp-settings-v1", JSON.stringify(s));
-    if (o) localStorage.setItem("viktorychapp-server-off", JSON.stringify(o));
+    /* The seed also runs in frames. A frame with no storage throws
+       SecurityError on sessionStorage, which the page records as a crash. */
+    try {
+      if (sessionStorage.getItem("zl-seeded")) return;
+      sessionStorage.setItem("zl-seeded", "1");
+    } catch (err) { return; }
+    try {
+      localStorage.setItem("viktorychapp-welcome-v1", JSON.stringify({ step: 2, done: true }));
+      if (s) localStorage.setItem("viktorychapp-settings-v1", JSON.stringify(s));
+      if (o) localStorage.setItem("viktorychapp-server-off", JSON.stringify(o));
+    } catch (err) { /* this frame is not the app page */ }
   }, [settings || null, off || null]);
   const page = await ctx.newPage();
   page.errors = [];
