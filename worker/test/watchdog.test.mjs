@@ -102,10 +102,10 @@ test("a full run re-enables, redeploys, and opens an issue only when Actions sto
     if (url.includes("/actions/runs?")) return reply(200, { workflow_runs: [] });
     if (url.includes("sync.yml/runs")) return reply(200, { workflow_runs: [{ updated_at: new Date(now - 30 * H).toISOString() }] });
     if (url.endsWith("/commits/main")) return reply(200, { sha: "newsha", commit: { committer: { date: new Date(now - 5 * H).toISOString() } } });
-    if (url.includes("github.io/ViktorychApp1427446516/version.json")) return reply(200, { sha: "oldsha" });
+    if (url.includes("github.io/ViktorychApp/version.json")) return reply(200, { sha: "oldsha" });
     if (url.endsWith("/dispatches")) return reply(204, "");
     if (url.endsWith("/issues") && method === "POST") return reply(201, { number: 77 });
-    if (url === "https://viktorychgroup.github.io/ViktorychApp1427446516/") return reply(200, "<title>ViktorychApp</title>");
+    if (url === "https://viktorychgroup.github.io/ViktorychApp/") return reply(200, "<title>ViktorychApp</title>");
     if (url.includes("pages.dev")) return reply(200, "{}");
     return reply(404, "{}");
   };

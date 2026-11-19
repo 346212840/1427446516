@@ -1,6 +1,6 @@
 # Status snapshot
 
-Written 2026-11-19 (UTC). The public site is `https://viktorychgroup.github.io/ViktorychApp1427446516/` and `https://viktorychapp.pages.dev/`. Latest D1 migration is `0131_shorts_on.sql`. Telegram expiry is a column added at runtime, not a new migration. This is a snapshot: check `gh pr list` and `git log origin/main` before acting on it. Update this file at the end of every PR.
+Written 2026-11-19 (UTC). The public site is `https://viktorychgroup.github.io/ViktorychApp/` and `https://viktorychapp.pages.dev/`. Latest D1 migration is `0131_shorts_on.sql`. Telegram expiry is a column added at runtime, not a new migration. This is a snapshot: check `gh pr list` and `git log origin/main` before acting on it. Update this file at the end of every PR.
 
 ## How to work on this repo
 
@@ -19,6 +19,8 @@ Any person or agent can take over from this section. Rules for shipping, checks 
 **Verify live.** After a merge, the published `version.json` shows main's commit, and the accounts watchdog returns HTTP 200. App-code pushes run **Publish app** directly; scheduled/manual **Sync feeds** refreshes feeds and calls the same reusable publisher in parallel. If a deploy fails on a transient Cloudflare API error (for example error 10013), the owner re-runs the failed jobs, Accounts first and then Publish app. Agent tokens cannot re-run Actions.
 
 **Hard rules.** No usernames, handles, display names or account identifiers in the public repository, pull requests, commits or logs. Never weaken the handle guard. Secrets live only in GitHub Actions secrets and Cloudflare Worker secrets. Do not edit `.github/` without the owner's approval; put a ready patch in `docs/owner-patches/` instead. No force-push and no history rewrite without asking. No paid APIs. Do not bypass a block, a guard or a failed check.
+
+**Instagram timelines.** An empty bridge answer does not hide the next source. After RSSHub and `rss-bridge.org`, the sync tries `rss-bridge.ggc-project.de`, then the public profile embed and the public profile JSON. No cookie is sent. A login wall is a failed source. The last posts stay when every source is empty.
 
 **Thread lookup.** A reply loaded for one account is not returned to another account, or after sign-out, by share, bookmarks, history, or the media viewer. A reply that arrives after the account changed is dropped. Test: `scripts/reply_lookup_test.mjs`.
 

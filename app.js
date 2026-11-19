@@ -523,7 +523,7 @@
     }
     const pagesHost = "viktorychapp.pages.dev";
     if (host === pagesHost || (host.length > pagesHost.length + 1 && host.slice(-(pagesHost.length + 1)) === "." + pagesHost)) {
-      return "ViktorychGroup/ViktorychApp1427446516";
+      return "ViktorychGroup/ViktorychApp";
     }
     return "";
   }

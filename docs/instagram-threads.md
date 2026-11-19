@@ -11,7 +11,10 @@ The half-hour sync then reads the private catalog and tries these sources in ord
 1. Local RSSHub, `{rsshubBase}/instagram/user/{handle}` or `{rsshubBase}/threads/{handle}`. Sync starts this container.
 2. The public RSSHub mirrors `rsshub.app`, `rsshub.pseudoyu.com`, and `rsshub.rss.tips`.
 3. Local RSS-Bridge on port 8080 (`InstagramBridge` or `ThreadsBridge`, Atom).
-4. The public RSS-Bridge at `rss-bridge.org`.
+4. The public RSS-Bridge at `rss-bridge.org`, then `rss-bridge.ggc-project.de` for Instagram.
+5. For Instagram only, after those are empty: the public profile embed `https://www.instagram.com/{handle}/embed/`, then `https://www.instagram.com/api/v1/users/web_profile_info/?username={handle}`. No cookie is sent. A login wall or a checkpoint is a failed source, not a list of posts.
+
+An answer with no posts does not stop the list. The next source is tried. A 304 keeps the saved copy. When every source is empty, the last posts stay.
 
 RSS and Atom are both accepted. The post id is the shortcode in the permalink. A numeric media id and the full post URL are the same post, so they do not both appear. A caption that the bridge repeated, or a play-icon title, is stored once.
 
@@ -35,7 +38,7 @@ The extract job and the backup loop mirror those files onto Telegram and R2. Vid
 ## Limits
 
 - There is no official free timeline API. A logged-out profile page is a shell, so the sync does not scrape it.
-- RSSHub and RSS-Bridge are unofficial bridges. They rate-limit, and Instagram often answers them with a login redirect. Several mirrors are tried. When all of them fail, the last good posts stay and the Feeds page shows the error.
+- RSSHub and RSS-Bridge are unofficial bridges. They rate-limit, and Instagram often answers them with a login redirect. Several mirrors are tried, including a second public RSS-Bridge. An empty answer does not hide the next mirror. When all of them fail, the public profile embed and the public profile JSON are tried once, with no cookie. A login wall is not stored. The last good posts stay and the Feeds page shows the error.
 - Embed and oEmbed describe one post that is already known. They do not list a profile.
 - Comments for these two platforms are fetched during sync only while the post is under 7 days old.
 - Stories are separate and stay off unless `IG_SESSION` is set. A session from GitHub Actions is often checkpointed. Leave it unset to keep stories off. See the stories section in the README.

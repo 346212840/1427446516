@@ -718,7 +718,7 @@ def selftest() -> int:
         incident = "9dadf5a86bee9210f61e8762cfbf92b78a450109"
         previous = "3f7439cbfa4302837073d7a876d1faf1f51125c7"
         os.environ["GITHUB_SHA"] = incident
-        os.environ["GITHUB_REPOSITORY"] = "ViktorychGroup/ViktorychApp1427446516"
+        os.environ["GITHUB_REPOSITORY"] = "ViktorychGroup/ViktorychApp"
         blocked = {"n": 0}
         agents = []
 

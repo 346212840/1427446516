@@ -4,7 +4,7 @@
 (function (root) {
   var PAGES_HOST = "viktorychapp.pages.dev";
   var PAGES = "https://" + PAGES_HOST + "/";
-  var GITHUB = "https://viktorychgroup.github.io/ViktorychApp1427446516/";
+  var GITHUB = "https://viktorychgroup.github.io/ViktorychApp/";
 
   function normalizeBase(value) {
     var text = String(value || "").trim();

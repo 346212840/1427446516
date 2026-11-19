@@ -201,7 +201,7 @@ export async function readCarrier(env, carrierId, number, fetcher) {
     return doc.notFound ? { notFound: true } : (fromDhl(doc) || { notFound: true });
   }
   if (api === "bring") {
-    const doc = await getJson(f, "https://api.bring.com/tracking/api/v2/tracking.json?q=" + n, { headers: { "X-Mybring-API-Uid": String(env.BRING_API_UID), "X-Mybring-API-Key": String(env.BRING_API_KEY), "X-Bring-Client-URL": "https://viktorychgroup.github.io/ViktorychApp1427446516/", accept: "application/json" } });
+    const doc = await getJson(f, "https://api.bring.com/tracking/api/v2/tracking.json?q=" + n, { headers: { "X-Mybring-API-Uid": String(env.BRING_API_UID), "X-Mybring-API-Key": String(env.BRING_API_KEY), "X-Bring-Client-URL": "https://viktorychgroup.github.io/ViktorychApp/", accept: "application/json" } });
     return doc.notFound ? { notFound: true } : (fromBring(doc) || { notFound: true });
   }
   if (api === "ups") {

@@ -671,6 +671,43 @@ def main() -> None:
     from meta_sources import feed_urls as meta_feed_urls
     ig_urls = meta_feed_urls("instagram")
     check(ig_urls[0].startswith("{rsshubBase}/instagram/user/") and any("rss-bridge.org" in url and "InstagramBridge" in url for url in ig_urls) and any("localhost:8080" in url for url in ig_urls), "Instagram tries local bridges before the public mirrors")
+    check(any("rss-bridge.ggc-project.de" in url for url in ig_urls) and any("web_profile_info" in url for url in ig_urls) and any("/embed/" in url for url in ig_urls), "Instagram tries a second public bridge and the public profile pages")
+    from ig_public import parse_profile_embed, parse_web_profile
+    public_feed = {"id": "instagram:orbitfox", "platform": "instagram", "handle": "orbitfox"}
+    public_doc = parse_web_profile((FIX / "ig_web_profile.json").read_text(encoding="utf-8"), public_feed)
+    check(len(public_doc["posts"]) == 2 and public_doc["posts"][0]["id"] == "Abcd1234" and len(public_doc["posts"][0]["media"]) == 2 and public_doc["posts"][0]["text"] == "Building something new", "the public profile JSON keeps the caption and both slides")
+    check(public_doc["posts"][1]["url"].endswith("/reel/Clip5678/") and public_doc["posts"][1]["media"][0]["type"] == "video" and public_doc["posts"][1]["media"][0]["url"].endswith("clip.mp4"), "a public clip keeps its video file")
+    try:
+        parse_web_profile('{"require_login":true,"message":"login_required"}', public_feed)
+        login_blocked = False
+    except Exception:
+        login_blocked = True
+    check(login_blocked, "a login wall is not stored as posts")
+    packed = json.dumps({"context": {"graphql_media": [{"shortcode_media": {"shortcode": "Abcd1234", "display_url": "https://scontent.cdninstagram.com/v/one.jpg", "edge_media_to_caption": {"edges": [{"node": {"text": "From the embed"}}]}}}]}}).replace('"', '\\"')
+    embed_doc = parse_profile_embed('<html><script>"contextJSON":"' + packed + '"}]],["NavigationMetrics"</script></html>', public_feed)
+    check(embed_doc["posts"][0]["id"] == "Abcd1234" and embed_doc["posts"][0]["text"] == "From the embed", "the public profile embed keeps the shortcode")
+    import update_feeds as update_feeds_mod
+    empty_calls = []
+    def fake_fetch_one(url, adapter_name, feed, errors, attempts=2):
+        empty_calls.append(url)
+        if "empty.example" in url:
+            return "empty", {"posts": [], "profiles": []}
+        if "good.example" in url:
+            return "good", {"posts": [{"id": "Abcd1234"}], "profiles": []}
+        return None, None
+    original_fetch_one = update_feeds_mod._fetch_one
+    update_feeds_mod._fetch_one = fake_fetch_one
+    try:
+        _payload, found_url, _adapter, found = update_feeds_mod._fetch_sources(
+            ["https://empty.example/feed", "https://good.example/feed"],
+            "rsshub_instagram",
+            {"handle": "orbitfox"},
+            {},
+            [],
+        )
+    finally:
+        update_feeds_mod._fetch_one = original_fetch_one
+    check(found_url == "https://good.example/feed" and found["posts"][0]["id"] == "Abcd1234" and len(empty_calls) == 2, "an empty Instagram response does not hide the next source")
 
     gen = parse_generic((FIX / "generic_sample.xml").read_text(encoding="utf-8"), {"id": "rss:example", "platform": "rss", "handle": "example"})
     post = gen["posts"][0]
@@ -1426,8 +1463,8 @@ def main() -> None:
     saved_repo = os.environ.pop("GITHUB_REPOSITORY", None)
     try:
         check(pages_base() == "" and raw_data() == "" and cdn_data() == "", "Pages URLs are empty until GITHUB_REPOSITORY is set")
-        os.environ["GITHUB_REPOSITORY"] = "ViktorychGroup/ViktorychApp1427446516"
-        check(pages_base() == "https://viktorychgroup.github.io/ViktorychApp1427446516/" and raw_data().endswith("/ViktorychApp1427446516/data/") and "ViktorychGroup/ViktorychApp1427446516@data/" in cdn_data(), "Pages, raw, and jsDelivr URLs follow the repository")
+        os.environ["GITHUB_REPOSITORY"] = "ViktorychGroup/ViktorychApp"
+        check(pages_base() == "https://viktorychgroup.github.io/ViktorychApp/" and raw_data().endswith("/ViktorychApp/data/") and "ViktorychGroup/ViktorychApp@data/" in cdn_data(), "Pages, raw, and jsDelivr URLs follow the repository")
         os.environ["GITHUB_REPOSITORY"] = "Example/Other"
         check(pages_base() == "https://example.github.io/Other/", "a renamed repository follows GITHUB_REPOSITORY")
     finally:
@@ -5207,7 +5244,7 @@ def gdrive_checks() -> None:
     check('cron: "17 9 * * *"' in workflow and "workflow_dispatch" in workflow and "timeout-minutes: 40" in workflow and "group: gdrive-backup" in workflow, "the Drive backup is daily, manual, and capped at 40 minutes")
     check("GDRIVE_RCLONE_TOKEN" in workflow and 'echo "$GDRIVE' not in workflow and "echo $GDRIVE" not in workflow and 'echo "${GDRIVE' not in workflow, "the Drive workflow uses the secret and does not print it")
     check("v1.75.2" in workflow and "v1.75.2" in doc and "drive.file" in doc and ".\\rclone.exe authorize \"drive\" $blob" in doc, "the token steps pin rclone and the drive.file authorize command")
-    check("https://github.com/ViktorychGroup/ViktorychApp1427446516/settings/secrets/actions/new" in doc and "GDRIVE_RCLONE_TOKEN" in doc and "service account" in doc.lower() and "account data" in doc.lower(), "the token steps name the GitHub secret page and refuse a service account")
+    check("https://github.com/ViktorychGroup/ViktorychApp/settings/secrets/actions/new" in doc and "GDRIVE_RCLONE_TOKEN" in doc and "service account" in doc.lower() and "account data" in doc.lower(), "the token steps name the GitHub secret page and refuse a service account")
     check("docs/gdrive-backup.md" in readme and "GDRIVE_RCLONE_TOKEN" in readme and "account data is not uploaded" in readme.lower(), "the readme points at the Drive backup and leaves account data out")
     env = os.environ.copy()
     env.pop("GDRIVE_RCLONE_TOKEN", None)
