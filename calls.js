@@ -121,6 +121,13 @@ const state = {
   partner: null,
   test: null,
   more: false,
+  panel: "",
+  panelAnim: false,
+  tab: "recent",
+  micCheck: null,
+  testPrep: null,
+  testPoll: 0,
+  qrLoading: false,
   speakerOn: true,
   hintSeen: false,
   muted: false,
@@ -226,10 +233,83 @@ function slider(key, label) {
   return `<label class="calls-vol"><span>${esc(label)}</span><input type="range" min="0" max="100" value="${value}" data-vol="${esc(key)}" aria-label="${esc(label)}"></label>`;
 }
 
+/* ---------- Teams-style layout pieces (X look) ---------- */
+const HAND_PATH = "M21.5 16.9v2.6a2 2 0 0 1-2.2 2 18.7 18.7 0 0 1-8.1-2.9 18.4 18.4 0 0 1-5.7-5.7A18.7 18.7 0 0 1 2.6 4.7a2 2 0 0 1 2-2.2h2.6a2 2 0 0 1 2 1.7c.1.9.3 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 10.1a16 16 0 0 0 5.8 5.8l1.3-1.3a2 2 0 0 1 2.1-.5c.9.4 1.8.6 2.7.7a2 2 0 0 1 1.5 2.1z";
+const ICONS = {
+  phone: `<path d="${HAND_PATH}"/>`,
+  hangup: `<g transform="rotate(135 12 12)"><path d="${HAND_PATH}"/></g>`,
+  mic: `<path d="M12 14.5a3.2 3.2 0 0 0 3.2-3.2V6.2a3.2 3.2 0 0 0-6.4 0v5.1a3.2 3.2 0 0 0 3.2 3.2z"/><path d="M6 11.3a6 6 0 0 0 12 0M12 17.3v3.2M8.8 20.5h6.4"/>`,
+  micOff: `<path d="M12 14.5a3.2 3.2 0 0 0 3.2-3.2V6.2a3.2 3.2 0 0 0-6.4 0v5.1a3.2 3.2 0 0 0 3.2 3.2z"/><path d="M6 11.3a6 6 0 0 0 12 0M12 17.3v3.2M8.8 20.5h6.4"/><path d="M4 4l16 16"/>`,
+  speaker: `<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>`,
+  speakerOff: `<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l4.5 5M20.5 9.5 16 14.5"/>`,
+  captions: `<rect x="3" y="5.5" width="18" height="13" rx="3"/><path d="M10.3 10.3a2 2 0 1 0 0 3.4M16.3 10.3a2 2 0 1 0 0 3.4"/>`,
+  voice: `<path d="M4 12h1.5M8 8v8M12 5v14M16 8v8M20 12h-1.5"/>`,
+  text: `<rect x="3" y="6.5" width="18" height="11" rx="2.5"/><path d="M7 10.5h.01M10.3 10.5h.01M13.7 10.5h.01M17 10.5h.01M8 14h8"/>`,
+  note: `<circle cx="12" cy="12" r="9"/><path d="M12 14.2a2.4 2.4 0 0 0 2.4-2.4V9.4a2.4 2.4 0 0 0-4.8 0v2.4a2.4 2.4 0 0 0 2.4 2.4zM8.5 12a3.5 3.5 0 0 0 7 0"/>`,
+  chat: `<path d="M4 5.5h16a1 1 0 0 1 1 1V16a1 1 0 0 1-1 1H9.5L5 20.5V17H4a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1z"/><path d="M8 10h8M8 13h5"/>`,
+  translate: `<path d="M3.5 6h9M8 4v2M5.5 6c.7 3 2.8 5.4 5.5 6.8M11 6c-.7 3-3 5.7-6 7"/><path d="M12.5 20l4-9 4 9M13.9 17h5.2"/>`,
+  more: `<circle cx="5.5" cy="12" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><circle cx="18.5" cy="12" r="1.4" fill="currentColor"/>`,
+  link: `<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>`,
+  calendar: `<rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/>`,
+  close: `<path d="M6 6l12 12M18 6 6 18"/>`,
+  back: `<path d="M19 12H5M11 6l-6 6 6 6"/>`,
+  incoming: `<path d="M7 7l10 10M17 8v9H8"/>`,
+  outgoing: `<path d="M17 17 7 7M8 7h9v9"/>`,
+  settings: `<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>`,
+  user: `<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c.6-3.9 3.6-6.3 7.5-6.3s6.9 2.4 7.5 6.3z"/>`,
+  test: `<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 18l-5-9V3"/><path d="M7.5 15h9"/>`
+};
+function ico(name, cls) {
+  return `<svg class="calls-ico${cls ? " " + cls : ""}" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ""}</g></svg>`;
+}
+function initialOf(name) {
+  return String(name || "?").trim().slice(0, 1).toUpperCase() || "?";
+}
+function clock(ms) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return m + ":" + (s < 10 ? "0" : "") + s;
+}
+function when(ms) {
+  if (!ms) return "";
+  try {
+    return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(ms));
+  } catch (err) { return ""; }
+}
+function peerLang() {
+  try {
+    if (state.test && state.test.lang) return state.test.lang;
+    const st = state.engine && state.engine.stats && state.engine.stats();
+    return (st && st.peer && st.peer.lang) || "";
+  } catch (err) { return ""; }
+}
+function langBadge(code) {
+  return code ? `<span class="calls-lang" title="${esc(langName(code))}">${esc(String(code).split("-")[0].toUpperCase())}</span>` : "";
+}
+function waveBars() {
+  return `<span class="calls-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>`;
+}
+function tile(kind, name, lang, speaking, extra) {
+  return `<div class="calls-tile" data-tile="${kind}" data-speaking="${speaking ? "1" : "0"}">
+    <div class="calls-ava${kind === "me" ? " me" : ""}">${esc(initialOf(name))}</div>
+    ${waveBars()}
+    <div class="calls-tag"><span class="calls-tname">${esc(name)}</span>${extra || ""}</div>
+    <div class="calls-tlang">${langBadge(lang)}</div>
+  </div>`;
+}
+function cbtn(act, icon, label, opt) {
+  const o = opt || {};
+  const pressed = o.pressed == null ? "" : ` aria-pressed="${o.pressed ? "true" : "false"}"`;
+  const data = o.data ? Object.keys(o.data).map((k) => ` data-${k}="${esc(o.data[k])}"`).join("") : "";
+  return `<button type="button" class="cb${o.cls ? " " + o.cls : ""}${o.pressed ? " on" : ""}" data-act="${act}"${data}${pressed} aria-label="${esc(o.aria || label)}" title="${esc(o.aria || label)}">${ico(icon)}<span class="cb-l">${esc(label)}</span></button>`;
+}
+
 function subtitleBlock() {
   const who = state.whoLabel ? `<p class="calls-who">${esc(state.whoLabel)}</p>` : "";
-  const original = showOriginalSub(state.mode) ? (state.partial.original || "") : "";
-  const translation = showTranslationSub(state.mode) ? (state.partial.translation || "") : "";
+  const shown = state.test ? Object.assign({}, state.mode, { subtitles: "both" }) : state.mode;
+  const original = showOriginalSub(shown) ? (state.partial.original || "") : "";
+  const translation = showTranslationSub(shown) ? (state.partial.translation || "") : "";
   if (!original && !translation && !who) return `<div class="calls-subs" aria-live="polite"></div>`;
   return `<div class="calls-subs" aria-live="polite">${who}${original ? `<p class="calls-sub orig">${esc(original)}</p>` : ""}${translation ? `<p class="calls-sub trn">${esc(translation)}</p>` : ""}</div>`;
 }
@@ -240,7 +320,6 @@ function bubble(line) {
   return `<article class="calls-bubble${mine}"><b>${esc(line.who || "")}</b>${line.original ? `<p>${esc(line.original)}</p>` : ""}${line.translation && line.translation !== line.original ? `<p class="calls-trn">${esc(line.translation)}</p>` : ""}${note}</article>`;
 }
 function threadBlock() {
-  if (!threadVisible(state.mode, state.lines.length)) return `<div class="calls-thread"></div>`;
   return `<div class="calls-thread">${state.lines.slice(-12).map(bubble).join("")}</div>`;
 }
 
@@ -270,7 +349,7 @@ function statsBlock() {
 function moreSheet() {
   const voices = [`<option value="">${esc(tr("Match the voice automatically"))}</option>`].concat(PREBUILT_VOICES.map((row) => `<option value="${esc(row.name)}"${state.voice === row.name ? " selected" : ""}>${esc(row.name)}</option>`)).join("");
   const words = state.lexicon.map((row, index) => `<li>${esc(row.word)} = ${esc(row.say)} <button type="button" data-act="call-lex-del" data-i="${index}">${esc(tr("Remove"))}</button></li>`).join("");
-  return `<div class="calls-sheet"${state.more ? "" : " hidden"}>
+  return `<div class="calls-sheet calls-settings-body">
     <h3>${esc(tr("I hear"))}</h3>
     <div class="calls-modes" role="group" aria-label="${esc(tr("I hear"))}">
       ${pill("receive", "voice", state.mode.receive, tr("Voice"))}
@@ -362,37 +441,265 @@ const PARTNER_REPLIES = {
   ca: ["Sí, et sento.", "Pots repetir-ho?", "Gràcies, em va bé."]
 };
 
-function callScreen() {
-  const name = state.peerName || (state.statusCode === "calling" || state.statusCode === "waiting" ? "" : tr("Guest"));
-  const initial = (name || "G").slice(0, 1).toUpperCase();
-  const talking = state.mode.send !== "text";
-  const hint = state.hintSeen ? "" : `<p class="calls-hint">${esc(tr("You can type instead of talking."))}</p>`;
-  const back = standalone() ? "" : `<a class="calls-back" href="#/calls">${esc(tr("Back"))}</a>`;
-  const invite = state.inviteUrl && state.statusCode === "waiting" ? `<div class="calls-invite"><input readonly value="${esc(state.inviteUrl)}" aria-label="${esc(tr("Guest link"))}" data-invite><button type="button" data-act="call-copy">${esc(tr("Copy link"))}</button>${navigator.share ? `<button type="button" data-act="call-share">${esc(tr("Share"))}</button>` : ""}</div>` : "";
-  return `<div class="calls-page live" data-call-active="1" data-video="0" data-phase="${esc(state.phase)}">
-    <header class="calls-bar">${back}<h1>${esc(state.test ? tr("Test call") : tr("Calls"))}</h1></header>
-    <div class="calls-stage">
-      <div class="calls-ava" data-speaking="${state.speaking ? "1" : "0"}" data-me="${state.meSpeaking ? "1" : "0"}">${esc(initial)}</div>
-      <h2 class="calls-name">${esc(name)}</h2>
-      <p class="calls-status" data-translating="${state.translating ? "1" : "0"}">${esc(statusText())}</p>
-      ${invite}
-      ${keyPanel()}
-      ${subtitleBlock()}
-      ${threadBlock()}
-    </div>
-    ${state.mode.send === "text" ? `<form class="calls-type" data-act="call-type-form"><input name="text" maxlength="500" aria-label="${esc(tr("Type to them"))}" autocomplete="off"></form>` : ""}
-    ${state.mode.send === "note" ? (state.review ? `<div class="calls-review"><button type="button" data-act="call-note-send">${esc(tr("Send"))}</button><button type="button" data-act="call-note-cancel">${esc(tr("Cancel voice note"))}</button></div>` : `<button type="button" class="calls-talk" data-act="call-talk">${esc(state.recording ? tr("Slide to cancel") : tr("Hold to talk"))}</button>`) : ""}
-    <div class="calls-controls" data-essentials="mute speaker hangup talk">
-      <button type="button" data-act="call-mute" aria-label="${esc(state.muted ? tr("Unmute microphone") : tr("Mute microphone"))}">${esc(state.muted ? tr("Unmute") : tr("Mute"))}</button>
-      <button type="button" data-act="call-speaker" aria-pressed="${state.speakerOn ? "true" : "false"}">${esc(tr("Speaker"))}</button>
-      <button type="button" class="calls-end" data-act="call-end">${esc(tr("End call"))}</button>
-      <button type="button" data-act="call-switch" aria-pressed="${talking ? "true" : "false"}">${esc(talking ? tr("Talk") : tr("Type to them"))}</button>
-    </div>
-    ${hint}
-    ${testPanel()}
-    <button type="button" class="calls-more" data-act="call-more">${esc(tr("More"))}</button>
-    ${moreSheet()}
+
+function nextSend() {
+  return state.mode.send === "voice" ? "text" : (state.mode.send === "text" ? "note" : "voice");
+}
+function sendLabel() {
+  return state.mode.send === "text" ? tr("Text") : (state.mode.send === "note" ? tr("Tap to talk") : tr("Voice"));
+}
+function controlBar() {
+  const subsOn = state.mode.subtitles !== "off";
+  const hears = state.mode.receive !== "text";
+  return `<div class="calls-controls" data-essentials="mute speaker hangup talk">
+    ${cbtn("call-mute", state.muted ? "micOff" : "mic", state.muted ? tr("Unmute") : tr("Mute"), { cls: state.muted ? "off" : "", aria: state.muted ? tr("Unmute microphone") : tr("Mute microphone") })}
+    ${cbtn("call-speaker", state.speakerOn ? "speaker" : "speakerOff", tr("Speaker"), { pressed: state.speakerOn })}
+    ${cbtn("call-set", "captions", tr("Captions"), { pressed: subsOn, data: { group: "subtitles", value: subsOn ? "off" : "translated" } })}
+    ${cbtn("call-set", state.mode.send === "text" ? "text" : (state.mode.send === "note" ? "note" : "voice"), sendLabel(), { aria: tr("I send") + ": " + sendLabel(), data: { group: "send", value: nextSend() } })}
+    ${cbtn("call-panel", "chat", tr("Chat"), { pressed: state.panel === "chat", data: { value: state.panel === "chat" ? "" : "chat" } })}
+    ${cbtn("call-set", "translate", tr("Translation"), { pressed: hears, data: { group: "receive", value: hears ? "text" : "voice" } })}
+    ${cbtn("call-more", "more", tr("More"), { pressed: state.panel === "settings" })}
+    ${cbtn("call-end", "hangup", tr("Leave"), { cls: "end", aria: tr("End call") })}
   </div>`;
+}
+
+function panelBlock() {
+  if (!state.panel) return "";
+  const tabs = [["chat", tr("Chat")], ["settings", tr("Settings")]];
+  if (state.test) tabs.push(["test", tr("Test partner")]);
+  const head = `<header class="calls-phead"><div class="calls-tabs" role="tablist">${tabs.map((row) => `<button type="button" role="tab" class="calls-tab${state.panel === row[0] ? " on" : ""}" aria-selected="${state.panel === row[0] ? "true" : "false"}" data-act="call-panel" data-value="${row[0]}">${esc(row[1])}</button>`).join("")}</div><button type="button" class="calls-x" data-act="call-panel" data-value="" aria-label="${esc(tr("Close"))}">${ico("close")}</button></header>`;
+  let body = "";
+  if (state.panel === "settings") body = moreSheet();
+  else if (state.panel === "test" && state.test) body = `<div class="calls-sheet">${testPanel()}</div>`;
+  else {
+    body = `<div class="calls-sheet calls-chat">${threadBlock()}${state.lines.length ? "" : `<p class="calls-empty">${esc(tr("Messages and what was said show up here."))}</p>`}</div>
+      <form class="calls-type calls-compose" data-act="call-type-form"><input name="text" maxlength="500" aria-label="${esc(tr("Type to them"))}" placeholder="${esc(tr("Type to them"))}" autocomplete="off"><button type="submit" class="cb send" aria-label="${esc(tr("Send"))}">${ico("outgoing")}</button></form>`;
+  }
+  return `<aside class="calls-panel${state.panelAnim ? " enter" : ""}" data-open="1" aria-label="${esc(tr(state.panel === "chat" ? "Chat" : "Settings"))}">${head}${body}</aside>`;
+}
+
+function callScreen() {
+  const waiting = state.statusCode === "calling" || state.statusCode === "waiting";
+  const name = state.peerName || (waiting ? "" : tr("Guest"));
+  const shown = name || (state.statusCode === "waiting" ? tr("Waiting for them to join…") : tr("Calling…"));
+  const mine = state.test ? tr("You") : tr("You");
+  const invite = state.inviteUrl && state.statusCode === "waiting" ? `<div class="calls-invite"><input readonly value="${esc(state.inviteUrl)}" aria-label="${esc(tr("Guest link"))}" data-invite><button type="button" data-act="call-copy">${esc(tr("Copy link"))}</button>${navigator.share ? `<button type="button" data-act="call-share">${esc(tr("Share"))}</button>` : ""}</div>` : "";
+  const back = standalone() ? "" : "";
+  const timer = state.startedAt ? clock(Date.now() - state.startedAt) : "";
+  const noteBar = state.mode.send === "note" ? (state.review ? `<div class="calls-review"><button type="button" class="calls-go" data-act="call-note-send">${esc(tr("Send"))}</button><button type="button" data-act="call-note-cancel">${esc(tr("Cancel voice note"))}</button></div>` : `<button type="button" class="calls-talk" data-act="call-talk">${esc(state.recording ? tr("Slide to cancel") : tr("Hold to talk"))}</button>`) : "";
+  const typeBar = state.mode.send === "text" && state.panel !== "chat" ? `<form class="calls-type calls-float" data-act="call-type-form"><input name="text" maxlength="500" aria-label="${esc(tr("Type to them"))}" placeholder="${esc(tr("Type to them"))}" autocomplete="off"><button type="submit" class="cb send" aria-label="${esc(tr("Send"))}">${ico("outgoing")}</button></form>` : "";
+  const hint = state.hintSeen ? "" : `<p class="calls-hint">${esc(tr("You can type instead of talking."))}</p>`;
+  return `<div class="calls-page live" data-call-active="1" data-video="0" data-phase="${esc(state.phase)}" data-panel="${state.panel ? "1" : "0"}">
+    <header class="calls-top">
+      <div class="calls-brand"><span class="calls-logo">${ico("phone")}</span><b>${esc(state.test ? tr("Test call") : tr("Calls"))}</b></div>
+      <div class="calls-meta"><span class="calls-status" data-translating="${state.translating ? "1" : "0"}">${esc(statusText())}</span><span class="calls-timer">${esc(timer)}</span></div>
+    </header>
+    <main class="calls-stage">
+      ${keyPanel()}
+      ${invite}
+      ${testStrip()}
+      <div class="calls-grid" >
+        ${tile("peer", shown, peerLang(), state.speaking || state.translating)}
+        ${tile("me", mine, myLang(), state.meSpeaking)}
+      </div>
+      ${subtitleBlock()}
+    </main>
+    ${panelBlock()}
+    ${typeBar}${noteBar}${hint}
+    ${controlBar()}
+  </div>`;
+}
+
+function chipsHtml() {
+  const s = state.stats;
+  const info = (state.partner && state.partner.mintInfo && state.partner.mintInfo()) || (state.engine && state.engine.mintInfo && state.engine.mintInfo()) || null;
+  const t = state.test;
+  const parts = [];
+  const ms = (v) => (v == null ? "-" : tr("{ms} ms", { ms: Math.round(v) }));
+  parts.push([tr("After you stop"), s ? ms(s.endLag) : "-"]);
+  parts.push([tr("First translated sound"), s ? ms(s.firstAudio) : "-"]);
+  parts.push([tr("Jitter"), s ? ms(s.jitter) : "-"]);
+  parts.push([tr("Packets lost"), s && s.lost != null ? String(s.lost) : "-"]);
+  parts.push([tr("Route"), s ? (s.route === "relay" ? tr("Through our server") : tr("Direct")) : "-"]);
+  parts.push([tr("Per minute"), s && s.perMinute != null ? tr("{n} s of 32", { n: s.perMinute }) : "-"]);
+  parts.push([tr("Translation"), !info ? tr("Starting…") : (info.ok && info.mode === "token" ? tr("Ready") : (state.needKey ? tr("Needs a Gemini key") : tr("Text only")))]);
+  if (info && info.source) parts.push([tr("Key"), info.source === "owner" ? tr("Owner") : tr("Yours")]);
+  return parts.map((row) => `<span class="calls-chip"><i>${esc(row[0])}</i>${esc(row[1])}</span>`).join("");
+}
+function testStrip() {
+  if (!state.test) return "";
+  const t = state.test;
+  return `<div class="calls-teststrip" data-teststrip>
+    <label class="calls-tl"><span>${esc(tr("Translate me into"))}</span><select data-act="call-test-lang">${langOptions(t.lang)}</select></label>
+    <button type="button" class="calls-pill${t.hear ? " on" : ""}" data-act="call-test-hear" aria-pressed="${t.hear ? "true" : "false"}">${ico("speaker")}<span>${esc(tr("Hear it"))}</span></button>
+    <div class="calls-chips" data-testchips>${chipsHtml()}</div>
+    <p class="calls-privacy">${esc(tr("Speak and you hear your own words translated, with captions. Use headphones to avoid echo."))}</p>
+  </div>`;
+}
+function incomingToast() {
+  const who = state.incoming || {};
+  const label = who.name || (who.handle ? "@" + who.handle : tr("Guest"));
+  return `<div class="calls-toast" role="alertdialog" aria-live="assertive" aria-label="${esc(tr("Incoming call"))}">
+    <div class="calls-ava sm">${esc(initialOf(label))}</div>
+    <div class="calls-toast-text"><b>${esc(label)}</b><span>${esc(tr("is calling you"))}</span></div>
+    <button type="button" class="cb accept" data-act="call-answer" aria-label="${esc(tr("Answer"))}" title="${esc(tr("Answer"))}">${ico("phone")}</button>
+    <button type="button" class="cb end" data-act="call-decline" aria-label="${esc(tr("Decline"))}" title="${esc(tr("Decline"))}">${ico("hangup")}</button>
+  </div>`;
+}
+function incomingScreen() {
+  return homeScreen({ toast: true });
+}
+
+function historyRows(tab) {
+  const list = state.history.filter((row) => tab !== "missed" || row.missed);
+  if (!list.length) return `<p class="calls-empty">${esc(tab === "missed" ? tr("No missed calls.") : tr("No calls yet"))}</p>`;
+  return `<ul class="calls-list">${list.slice(0, 30).map((row) => {
+    const label = row.name || (row.handle ? "@" + row.handle : tr("Guest"));
+    const kind = row.missed ? tr("Missed call") : (row.incoming ? tr("Incoming call") : tr("Outgoing call"));
+    const dur = row.duration ? " · " + clock(row.duration) : "";
+    return `<li class="calls-row${row.missed ? " missed" : ""}"><div class="calls-ava sm">${esc(initialOf(label))}</div><div class="calls-rt"><b>${esc(label)}</b><span>${ico(row.incoming ? "incoming" : "outgoing", "tiny")}${esc(kind)} · ${esc(when(row.createdAt))}${esc(dur)}</span></div>${row.handle ? `<button type="button" class="cb sm" data-act="call-back" data-handle="${esc(row.handle)}" aria-label="${esc(tr("Call back"))}" title="${esc(tr("Call back"))}">${ico("phone")}</button>` : ""}</li>`;
+  }).join("")}</ul>`;
+}
+
+function homeScreen(opts) {
+  const o = opts || {};
+  const back = standalone() ? "" : `<a class="calls-back" href="#/" aria-label="${esc(tr("Back"))}">${ico("back")}</a>`;
+  const err = state.error ? `<p class="calls-error" role="alert">${esc(state.error)}</p>` : "";
+  const notSet = state.configured ? "" : `<p class="calls-empty">${esc(tr("Calls are not set up yet"))}</p>`;
+  const signed = signedIn();
+  const tab = state.tab || "recent";
+  const tabs = [["recent", tr("Recent")], ["missed", tr("Missed")], ["scheduled", tr("Scheduled")]];
+  const list = tab === "scheduled" ? `<p class="calls-empty">${esc(tr("No scheduled calls yet."))}</p>` : (signed ? historyRows(tab) : `<p class="calls-empty">${esc(tr("Sign in to see your calls."))}</p>`);
+  const side = `<aside class="calls-side">
+    <header class="calls-side-head">${back}<span class="calls-logo">${ico("phone")}</span><h1>${esc(tr("Calls"))}</h1></header>
+    <div class="calls-tabs" role="tablist" aria-label="${esc(tr("Calls"))}">${tabs.map((row) => `<button type="button" role="tab" class="calls-tab${tab === row[0] ? " on" : ""}" aria-selected="${tab === row[0] ? "true" : "false"}" data-act="call-tab" data-value="${row[0]}">${esc(row[1])}</button>`).join("")}</div>
+    ${list}
+  </aside>`;
+  const start = signed ? `<section class="calls-hero">
+      <h2>${esc(tr("Start a call"))}</h2>
+      <form class="calls-start" data-act="call-start-form"><input name="handle" maxlength="31" placeholder="${esc(tr("Username to call"))}" aria-label="${esc(tr("Username to call"))}" autocomplete="off" autocapitalize="off"><button type="submit" class="calls-go">${ico("phone")}<span>${esc(tr("Call"))}</span></button></form>
+      <div class="calls-hero-row">
+        <button type="button" class="calls-big" data-act="call-invite">${ico("link")}<span>${esc(tr("Get call link"))}</span></button>
+        <button type="button" class="calls-big ghost" data-act="call-test">${ico("test")}<span>${esc(tr("Test call"))}</span></button>
+      </div>
+      <div class="calls-modes" role="group" aria-label="${esc(tr("Link lasts"))}">${pill("ttl", "60", String(state.inviteTtl), tr("1 hour"))}${pill("ttl", "1440", String(state.inviteTtl), tr("24 hours"))}</div>
+    </section>
+    ${linkPanel()}`
+    : `<section class="calls-hero"><h2>${esc(tr("Call someone"))}</h2>
+      <p class="calls-empty">${esc(tr("Sign in to start a call, or open a guest link to join one."))}</p>
+      ${standalone() ? `<form class="calls-start" data-act="call-open-form"><input name="link" maxlength="200" placeholder="${esc(tr("Link or name"))}" aria-label="${esc(tr("Call someone with their link"))}" autocomplete="off" autocapitalize="off" spellcheck="false"><button type="submit" class="calls-go">${esc(tr("Open"))}</button></form>
+      <p class="calls-privacy">${esc(tr("A link or a name is all you need. No account."))}</p>
+      <p class="calls-privacy"><a href="./" data-signin>${esc(tr("Sign in on the app"))}</a></p>` : ""}
+    </section>`;
+  return `<div class="calls-page calls-home${standalone() ? " calls-solo" : ""}" data-video="0" data-phase="${o.toast ? "incoming" : "idle"}">
+    ${o.toast ? incomingToast() : ""}
+    ${side}
+    <section class="calls-main">
+      ${notSet}${err}${start}
+      <label class="calls-vol calls-homelang"><span>${esc(tr("I speak"))}</span><select data-act="call-lang">${langOptions(myLang())}</select></label>
+      ${installBlock()}
+    </section>
+  </div>`;
+}
+
+function joinScreen(route) {
+  const err = state.error ? `<p class="calls-error" role="alert">${esc(state.error)}</p>` : "";
+  const info = route && route.name === "calllink" && state.linkInfo ? state.linkInfo : null;
+  const title = info && info.name ? tr("Call {name}", { name: info.name }) : tr("Join call");
+  const closed = info && info.open === false ? `<p class="calls-error" role="alert">${esc(info.reason === "quiet" ? tr("They are not taking calls right now.") : tr("This person is not taking calls right now."))}</p>` : "";
+  const ended = state.statusCode === "ended" ? `<p class="calls-empty">${esc(tr("The call has ended."))}</p>` : "";
+  const mc = state.micCheck;
+  return `<div class="calls-page calls-join${standalone() ? " calls-solo" : ""}" data-phase="join" data-video="0">
+    <header class="calls-top"><div class="calls-brand"><span class="calls-logo">${ico("phone")}</span><b>${esc(tr("Calls"))}</b></div></header>
+    <div class="calls-prejoin">
+      <div class="calls-preview">
+        <div class="calls-tile" data-tile="me" data-speaking="${mc && mc.level > 0.06 ? "1" : "0"}">
+          <div class="calls-ava me">${esc(initialOf(state.name || "?"))}</div>
+          ${waveBars()}
+          <div class="calls-tag"><span class="calls-tname">${esc(state.name || tr("You"))}</span></div>
+          <div class="calls-tlang">${langBadge(myLang())}</div>
+        </div>
+        <div class="calls-checks">
+          <button type="button" class="cb${mc ? " on" : ""}" data-act="call-checkmic" aria-pressed="${mc ? "true" : "false"}">${ico("mic")}<span class="cb-l">${esc(mc ? tr("Microphone on") : tr("Check microphone"))}</span></button>
+          <span class="calls-meter" aria-hidden="true"><i data-meter style="width:${mc ? Math.round(Math.min(1, mc.level * 4) * 100) : 0}%"></i></span>
+          <button type="button" class="cb" data-act="call-checkspk">${ico("speaker")}<span class="cb-l">${esc(tr("Test speaker"))}</span></button>
+        </div>
+      </div>
+      <div class="calls-joinform">
+        <h1>${esc(title)}</h1>
+        ${ended}${closed}${err}
+        <label class="calls-vol"><span>${esc(tr("Your name"))}</span><input id="calls-name" maxlength="40" value="${esc(state.name)}" autocomplete="name"></label>
+        <label class="calls-vol"><span>${esc(tr("I speak"))}</span><select data-act="call-lang">${langOptions(myLang())}</select></label>
+        <div class="calls-vol"><span>${esc(tr("I hear"))}</span><div class="calls-modes" role="group" aria-label="${esc(tr("I hear"))}">${pill("receive", "voice", state.mode.receive, tr("Voice"))}${pill("receive", "text", state.mode.receive, tr("Text"))}${pill("receive", "both", state.mode.receive, tr("Both"))}</div></div>
+        <button type="button" class="calls-big join" data-act="call-join"${info && info.open === false ? " disabled" : ""}>${ico("phone")}<span>${esc(info ? tr("Call") : tr("Join now"))}</span></button>
+        <p class="calls-privacy">${esc(tr("No account needed. Your microphone is used only during the call."))}</p>
+        ${standalone() ? installBlock() : ""}
+      </div>
+    </div>
+  </div>`;
+}
+
+/* Microphone and speaker check before joining. The mic stays open only on this screen. */
+async function checkMic() {
+  if (state.micCheck) { stopMicCheck(); paint(); return; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    const src = ac.createMediaStreamSource(stream);
+    const an = ac.createAnalyser();
+    an.fftSize = 512;
+    src.connect(an);
+    const buf = new Uint8Array(an.fftSize);
+    const mc = { stream: stream, ac: ac, level: 0, raf: 0, last: 0 };
+    state.micCheck = mc;
+    const tick = (now) => {
+      if (state.micCheck !== mc) return;
+      an.getByteTimeDomainData(buf);
+      let sum = 0;
+      for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; sum += v * v; }
+      mc.level = Math.sqrt(sum / buf.length);
+      const bar = document.querySelector("[data-meter]");
+      if (bar) bar.style.width = Math.round(Math.min(1, mc.level * 4) * 100) + "%";
+      const t = document.querySelector(".calls-join .calls-tile");
+      if (t) t.dataset.speaking = mc.level > 0.06 ? "1" : "0";
+      mc.raf = requestAnimationFrame(tick);
+    };
+    mc.raf = requestAnimationFrame(tick);
+    paint();
+  } catch (err) {
+    state.error = tr("The microphone is blocked. Allow it in the browser to join.");
+    paint();
+  }
+}
+function stopMicCheck() {
+  const mc = state.micCheck;
+  if (!mc) return;
+  state.micCheck = null;
+  try { cancelAnimationFrame(mc.raf); } catch (err) { /* gone */ }
+  try { mc.stream.getTracks().forEach((track) => track.stop()); } catch (err) { /* stopped */ }
+  try { mc.ac.close(); } catch (err) { /* closed */ }
+}
+function checkSpeaker() {
+  try {
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    const gain = ac.createGain();
+    gain.gain.value = 0.0001;
+    gain.connect(ac.destination);
+    [523.25, 659.25, 783.99].forEach((hz, i) => {
+      const osc = ac.createOscillator();
+      osc.frequency.value = hz;
+      osc.connect(gain);
+      const t0 = ac.currentTime + i * 0.22;
+      osc.start(t0);
+      osc.stop(t0 + 0.2);
+    });
+    const now = ac.currentTime;
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.18, now + 0.05);
+    gain.gain.setValueAtTime(0.18, now + 0.62);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.7);
+    setTimeout(() => { try { ac.close(); } catch (err) { /* closed */ } }, 1200);
+  } catch (err) { /* no audio output here */ }
 }
 
 function linkUrl(slug) {
@@ -440,69 +747,15 @@ function installName() {
   catch (err) { return "ViktorychCalls"; }
 }
 
-function homeScreen() {
-  const rows = state.history.slice(0, 8).map((row) => {
-    const label = row.name || (row.handle ? "@" + row.handle : tr("Guest"));
-    const kind = row.missed ? tr("Missed call") : (row.incoming ? tr("Incoming call") : tr("Outgoing call"));
-    return `<li><span>${esc(label)} · ${esc(kind)}</span>${row.handle ? `<button type="button" data-act="call-back" data-handle="${esc(row.handle)}">${esc(tr("Call back"))}</button>` : ""}</li>`;
-  }).join("");
-  const back = standalone() ? "" : `<a class="calls-back" href="#/">${esc(tr("Back"))}</a>`;
-  const err = state.error ? `<p class="calls-error" role="alert">${esc(state.error)}</p>` : "";
-  const notSet = state.configured ? "" : `<p class="calls-empty">${esc(tr("Calls are not set up yet"))}</p>`;
-  const signed = signedIn();
-  const start = signed ? `<form class="calls-start" data-act="call-start-form"><input name="handle" maxlength="31" placeholder="${esc(tr("Username to call"))}" aria-label="${esc(tr("Username to call"))}" autocomplete="off" autocapitalize="off"><button type="submit" class="calls-go">${esc(tr("Call"))}</button></form>
-    <h3>${esc(tr("Invite a guest by link"))}</h3>
-    <div class="calls-modes" role="group" aria-label="${esc(tr("Link lasts"))}">${pill("ttl", "60", String(state.inviteTtl), tr("1 hour"))}${pill("ttl", "1440", String(state.inviteTtl), tr("24 hours"))}<button type="button" class="calls-pill" data-act="call-invite">${esc(tr("Create link and wait"))}</button></div>
-    ${linkPanel()}
-    <div class="calls-modes"><button type="button" class="calls-pill" data-act="call-test">${esc(tr("Test call"))}</button></div>`
-    : `<p class="calls-empty">${esc(tr("Sign in to start a call, or open a guest link to join one."))}</p>`;
-  return `<div class="calls-page" data-video="0" data-phase="idle">
-    <header class="calls-bar">${back}<h1>${esc(tr("Calls"))}</h1></header>
-    ${notSet}${err}${start}
-    ${rows ? `<ul class="calls-missed">${rows}</ul>` : `<p class="calls-empty">${esc(tr("No calls yet"))}</p>`}
-    ${installBlock()}
-    <label class="calls-vol calls-homelang"><span>${esc(tr("I speak"))}</span><select data-act="call-lang">${langOptions(myLang())}</select></label>
-  </div>`;
-}
 
-function incomingScreen() {
-  const who = state.incoming || {};
-  const initial = String(who.name || who.handle || "?").slice(0, 1).toUpperCase();
-  return `<div class="calls-page live" data-phase="incoming">
-    <div class="calls-stage">
-      <div class="calls-ava">${esc(initial)}</div>
-      <h2 class="calls-name">${esc(who.name || (who.handle ? "@" + who.handle : tr("Guest")))}</h2>
-      <p class="calls-status">${esc(tr("Incoming call"))}</p>
-    </div>
-    <div class="calls-controls">
-      <button type="button" class="calls-go" data-act="call-answer">${esc(tr("Answer"))}</button>
-      <button type="button" class="calls-end" data-act="call-decline">${esc(tr("Decline"))}</button>
-    </div>
-  </div>`;
-}
 
-function joinScreen(route) {
-  const err = state.error ? `<p class="calls-error" role="alert">${esc(state.error)}</p>` : "";
-  const info = route && route.name === "calllink" && state.linkInfo ? state.linkInfo : null;
-  const title = info && info.name ? tr("Call {name}", { name: info.name }) : tr("Join call");
-  const closed = info && info.open === false ? `<p class="calls-error" role="alert">${esc(info.reason === "quiet" ? tr("They are not taking calls right now.") : tr("This person is not taking calls right now."))}</p>` : "";
-  const ended = state.statusCode === "ended" ? `<p class="calls-empty">${esc(tr("The call has ended."))}</p>` : "";
-  return `<div class="calls-page calls-join" data-phase="join" data-video="0">
-    <header class="calls-bar"><h1>${esc(title)}</h1></header>
-    ${ended}${closed}${err}
-    <label class="calls-vol"><span>${esc(tr("Your name"))}</span><input id="calls-name" maxlength="40" value="${esc(state.name)}" autocomplete="name"></label>
-    <label class="calls-vol"><span>${esc(tr("I speak"))}</span><select data-act="call-lang">${langOptions(myLang())}</select></label>
-    <button type="button" class="calls-go" data-act="call-join"${info && info.open === false ? " disabled" : ""}>${esc(info ? tr("Call") : tr("Join call"))}</button>
-    <p class="calls-privacy">${esc(tr("No account needed. Your microphone is used only during the call."))}</p>
-    ${standalone() ? installBlock() : ""}
-  </div>`;
-}
 
 function page(route) {
   loadDevice();
   state.route = route || state.route;
   const r = state.route || { name: "calls" };
   if (state.phase === "incoming") return incomingScreen();
+  if (state.testPrep && state.phase === "idle") return testPrepScreen();
   if (state.phase === "active" || state.phase === "calling") return callScreen();
   if (r.name === "callguest" || r.name === "calllink") return joinScreen(r);
   return homeScreen();
@@ -538,8 +791,12 @@ function live() {
   if (thread && !thread.closest(".calls-test")) thread.outerHTML = threadBlock();
   const status = el.querySelector(".calls-status");
   if (status) { status.textContent = statusText(); status.dataset.translating = state.translating ? "1" : "0"; }
-  const ava = el.querySelector(".calls-ava");
-  if (ava) { ava.dataset.speaking = state.speaking || state.translating ? "1" : "0"; ava.dataset.me = state.meSpeaking ? "1" : "0"; }
+  const peerTile = el.querySelector('[data-tile="peer"]');
+  if (peerTile) peerTile.dataset.speaking = state.speaking || state.translating ? "1" : "0";
+  const meTile = el.querySelector('[data-tile="me"]');
+  if (meTile) meTile.dataset.speaking = state.meSpeaking ? "1" : "0";
+  const timer = el.querySelector(".calls-timer");
+  if (timer) timer.textContent = state.startedAt ? clock(Date.now() - state.startedAt) : "";
   const quota = el.querySelector("[data-quota]");
   if (quota) quota.textContent = quotaLine();
   const test = el.querySelector("[data-test]");
@@ -552,6 +809,8 @@ function paintStats() {
   const el = host();
   const box = el && el.querySelector("[data-stats]");
   if (box) box.outerHTML = statsBlock();
+  const chips = el && el.querySelector("[data-testchips]");
+  if (chips) chips.innerHTML = chipsHtml();
 }
 
 async function bindSession(active) {
@@ -724,6 +983,9 @@ function errorFor(res) {
 }
 async function begin(info, role, extra) {
   state.error = "";
+  stopMicCheck();
+  state.panel = state.test ? "test" : "";
+  state.more = false;
   state.callId = info.id;
   state.phase = "calling";
   state.lines = [];
@@ -887,6 +1149,8 @@ async function teardown(silent) {
   state.engine = null;
   state.partner = null;
   state.test = null;
+  state.panel = "";
+  state.more = false;
   state.phase = "idle";
   state.recording = false;
   state.speaking = false;
@@ -911,19 +1175,121 @@ function setMuted(on) {
 }
 
 /* ---------- self test ---------- */
-async function startTest() {
+/* Test call. A pre-join screen first: join from another device with a QR code or a link,
+   or start with a simulated partner that joins by itself. */
+async function prepareTest() {
   if (!signedIn()) return;
   state.error = "";
-  const res = await api("/v1/calls", { method: "POST", body: JSON.stringify({ invite: true, ttlMin: 10 }) }).catch(() => null);
+  const res = await api("/v1/calls", { method: "POST", body: JSON.stringify({ invite: true, ttlMin: 30 }) }).catch(() => null);
   if (!res || !res.ok) { state.error = errorFor(res); paint(); return; }
-  const lang = myLang() === "en" ? "es" : "en";
-  state.test = { lang: lang, hear: false, lines: [] };
+  const base = standalone() ? new URL("./", location.href) : new URL("calls/", document.baseURI);
+  state.testPrep = { id: res.data.call.id, invite: res.data.invite, url: base.href + "#" + res.data.invite, other: false, lang: myLang() === "en" ? "es" : "en", copied: false };
+  clearInterval(state.testPoll);
+  state.testPoll = setInterval(pollTestPrep, 2000);
+  loadQr();
+  paint();
+}
+async function pollTestPrep() {
+  const prep = state.testPrep;
+  if (!prep || state.phase !== "idle") { clearInterval(state.testPoll); return; }
+  const res = await api("/v1/calls/" + prep.id + "/state").catch(() => null);
+  if (!res || !res.ok || !state.testPrep) return;
+  const other = res.data && res.data.state === "active";
+  if (other !== prep.other) {
+    prep.other = other;
+    const status = document.querySelector("[data-teststatus]");
+    if (status) { status.outerHTML = testStatusHtml(); const btn = document.querySelector('[data-act="call-test-start"] span'); if (btn) btn.textContent = other ? tr("Start with your other device") : tr("Start test call"); }
+  }
+}
+function cancelTest() {
+  const prep = state.testPrep;
+  clearInterval(state.testPoll);
+  stopMicCheck();
+  state.testPrep = null;
+  if (prep) api("/v1/calls/" + prep.id + "/end", { method: "POST", body: "{}" }).catch(() => null);
+  paint();
+}
+async function startTest() {
+  const prep = state.testPrep;
+  if (!prep || !signedIn()) return;
+  clearInterval(state.testPoll);
+  state.error = "";
+  const tk = await api("/v1/calls/" + prep.id + "/ticket", { method: "POST", body: "{}" }).catch(() => null);
+  if (!tk || !tk.ok) { state.error = errorFor(tk); paint(); return; }
+  const simulated = !prep.other;
+  state.testPrep = null;
+  state.test = simulated ? { lang: prep.lang, hear: true, lines: [], partial: { original: "", translation: "" } } : null;
   state.statusCode = "waiting";
-  state.peerName = tr("Test partner");
-  const ok = await begin({ id: res.data.call.id, ticket: res.data.ticket, iceServers: res.data.iceServers }, "host");
+  state.peerName = simulated ? tr("Test partner") : tr("Your other device");
+  const ok = await begin({ id: prep.id, ticket: tk.data.ticket, iceServers: tk.data.iceServers }, "host");
   if (!ok) return;
-  await startPartner(res.data.invite);
-  state.statsTimer = setInterval(updateStats, 1000);
+  if (simulated) {
+    await startPartner(prep.invite);
+    state.statsTimer = setInterval(updateStats, 1000);
+  }
+}
+function testStatusHtml() {
+  const prep = state.testPrep;
+  return `<p class="calls-teststatus${prep && prep.other ? " ok" : ""}" data-teststatus role="status"><span class="calls-dot"></span>${esc(prep && prep.other ? tr("Connected") : tr("Waiting for your other device…"))}</p>`;
+}
+function loadQr() {
+  if (window.qrcode || state.qrLoading) return;
+  state.qrLoading = true;
+  const el = document.createElement("script");
+  el.src = new URL("vendor/qrcode-1.4.4.js", document.baseURI).href;
+  el.onload = () => { state.qrLoading = false; if (state.testPrep) paint(); };
+  el.onerror = () => { state.qrLoading = false; };
+  document.head.appendChild(el);
+}
+function qrSvg(text) {
+  try {
+    const make = window.qrcode;
+    if (!make) return "";
+    const qr = make(0, "M");
+    qr.addData(text);
+    qr.make();
+    return qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+  } catch (err) { return ""; }
+}
+function testPrepScreen() {
+  const prep = state.testPrep;
+  const mc = state.micCheck;
+  const err = state.error ? `<p class="calls-error" role="alert">${esc(state.error)}</p>` : "";
+  const qr = qrSvg(prep.url);
+  return `<div class="calls-page calls-join${standalone() ? " calls-solo" : ""}" data-phase="testprep" data-video="0">
+    <header class="calls-top"><div class="calls-brand"><span class="calls-logo">${ico("phone")}</span><b>${esc(tr("Test call"))}</b></div><button type="button" class="calls-x" data-act="call-test-cancel" aria-label="${esc(tr("Close"))}">${ico("close")}</button></header>
+    <div class="calls-prejoin">
+      <div class="calls-preview">
+        <div class="calls-tile" data-tile="me" data-speaking="${mc && mc.level > 0.06 ? "1" : "0"}">
+          <div class="calls-ava me">${esc(initialOf(tr("You")))}</div>
+          ${waveBars()}
+          <div class="calls-tag"><span class="calls-tname">${esc(tr("You"))}</span></div>
+          <div class="calls-tlang">${langBadge(myLang())}</div>
+        </div>
+        <div class="calls-checks">
+          <button type="button" class="cb${mc ? " on" : ""}" data-act="call-checkmic" aria-pressed="${mc ? "true" : "false"}">${ico("mic")}<span class="cb-l">${esc(mc ? tr("Microphone on") : tr("Check microphone"))}</span></button>
+          <span class="calls-meter" aria-hidden="true"><i data-meter style="width:${mc ? Math.round(Math.min(1, mc.level * 4) * 100) : 0}%"></i></span>
+          <button type="button" class="cb" data-act="call-checkspk">${ico("speaker")}<span class="cb-l">${esc(tr("Test speaker"))}</span></button>
+        </div>
+      </div>
+      <div class="calls-joinform">
+        <h1>${esc(tr("Test call"))}</h1>
+        ${err}
+        <label class="calls-vol"><span>${esc(tr("I speak"))}</span><select data-act="call-lang">${langOptions(myLang())}</select></label>
+        <label class="calls-vol"><span>${esc(tr("Translate me into"))}</span><select data-act="call-test-prep-lang">${langOptions(prep.lang)}</select></label>
+        <section class="calls-device" data-device>
+          <h3>${esc(tr("Join from another device"))}</h3>
+          <div class="calls-qr" aria-label="${esc(tr("QR code for the other device"))}">${qr || `<span class="calls-empty">${esc(tr("Loading the QR code…"))}</span>`}</div>
+          <p class="calls-privacy">${esc(tr("Scan with your phone or open in another tab."))}</p>
+          <div class="calls-invite"><input readonly value="${esc(prep.url)}" aria-label="${esc(tr("Guest link"))}" data-invite><button type="button" data-act="call-test-copy">${esc(prep.copied ? tr("Copied") : tr("Copy link"))}</button></div>
+          <a class="calls-pill calls-newtab" href="${esc(prep.url)}" target="_blank" rel="noopener">${esc(tr("Open in new tab"))}</a>
+          ${testStatusHtml()}
+        </section>
+        <button type="button" class="calls-big join" data-act="call-test-start">${ico("phone")}<span>${esc(prep.other ? tr("Start with your other device") : tr("Start test call"))}</span></button>
+        <p class="calls-privacy">${esc(tr("No second device? A simulated partner joins by itself and you hear your own words translated."))}</p>
+      </div>
+    </div>
+  </div>`;
 }
 async function startPartner(invite) {
   const t = state.test;
@@ -946,10 +1312,20 @@ async function startPartner(invite) {
       if (!state.test) return;
       if (type === "line") {
         if (d.mine) state.test.lines.push({ who: tr("Test partner"), mine: true, original: d.original });
-        else state.test.lines.push({ who: tr("You"), original: d.original, translation: d.translation });
+        else {
+          state.test.lines.push({ who: tr("You"), original: d.original, translation: d.translation });
+          state.lines.push({ who: tr("You") + " → " + langName(state.test.lang), mine: true, original: d.original, translation: d.translation });
+          if (state.lines.length > 40) state.lines.shift();
+        }
         live();
       } else if (type === "partial" && !d.mine) {
         state.test.partial = d;
+        state.partial = { original: d.original || "", translation: d.translation || "" };
+        state.whoLabel = tr("You") + " → " + langName(state.test.lang);
+        live();
+      } else if (type === "needKey") {
+        state.needKey = d && d.reason === "badkey" ? "badkey" : "nokey";
+        if (host()) paint();
       }
     }
   }));
@@ -1019,14 +1395,23 @@ function onPhrase(text) {
   if (state.engine) state.engine.sendText(spoken);
 }
 
+function setPanel(name) {
+  state.panel = name;
+  state.more = name === "settings";
+  state.hintSeen = true;
+  state.panelAnim = true;
+  saveDevice();
+  paint();
+  state.panelAnim = false;
+}
 function onAct(act, el) {
   if (act === "call-set") onSet(el.dataset.group, el.dataset.value);
-  else if (act === "call-more") {
-    state.more = !state.more;
-    state.hintSeen = true;
-    saveDevice();
-    paint();
-  } else if (act === "call-switch") {
+  else if (act === "call-more") setPanel(state.panel === "settings" ? "" : "settings");
+  else if (act === "call-panel") setPanel(el.dataset.value || "");
+  else if (act === "call-tab") { state.tab = el.dataset.value || "recent"; paint(); }
+  else if (act === "call-checkmic") checkMic();
+  else if (act === "call-checkspk") checkSpeaker();
+  else if (act === "call-switch") {
     applyMode({ send: state.mode.send === "text" ? "voice" : "text" });
     state.hintSeen = true;
     saveDevice();
@@ -1042,7 +1427,14 @@ function onAct(act, el) {
   else if (act === "call-back") startDirect(el.dataset.handle || "");
   else if (act === "call-open") { state.pendingTo = el.dataset.handle || ""; }
   else if (act === "call-invite") startInvite();
-  else if (act === "call-test") startTest();
+  else if (act === "call-test") prepareTest();
+  else if (act === "call-test-start") startTest();
+  else if (act === "call-test-cancel") cancelTest();
+  else if (act === "call-test-copy") {
+    if (state.testPrep) {
+      try { navigator.clipboard.writeText(state.testPrep.url); state.testPrep.copied = true; paint(); } catch (err) { const i = document.querySelector("[data-invite]"); if (i) { i.select(); } }
+    }
+  }
   else if (act === "call-answer") answerIncoming();
   else if (act === "call-decline") declineIncoming();
   else if (act === "call-join") {
@@ -1082,7 +1474,7 @@ function onAct(act, el) {
     if (state.test) { state.test.hear = !state.test.hear; if (state.partner) state.partner.refresh(); paint(); }
   } else if (act === "call-test-reply") testReply(el.dataset.text || "");
   else if (act === "call-install") installApp();
-  else if (act === "call-key-add") { state.needKey = "nokey"; state.more = false; paint(); }
+  else if (act === "call-key-add") { state.needKey = "nokey"; state.more = false; state.panel = ""; paint(); }
   else if (act === "call-key-remove") removeKey();
   return true;
 }
@@ -1142,10 +1534,25 @@ function onChange(event) {
     saveDevice();
     if (state.engine) { state.engine.refresh(); state.engine.announce(); }
     document.querySelectorAll('[data-act="call-lang"]').forEach((el) => { el.value = target.value; });
+  } else if (act === "call-test-prep-lang") {
+    if (state.testPrep) state.testPrep.lang = target.value;
   } else if (act === "call-test-lang") {
     if (state.test) { state.test.lang = target.value; if (state.partner) { state.partner.refresh(); state.partner.announce(); } }
   }
 }
+/* A pasted link, or just the name in it, opens the guest join screen. */
+function openByLink(text) {
+  const raw = String(text || "").trim();
+  let target = "";
+  const invite = raw.match(/#(ci1\.[A-Za-z0-9_-]{8,80})/) || raw.match(/^(ci1\.[A-Za-z0-9_-]{8,80})$/);
+  const named = raw.match(/#u\/([a-z0-9-]{3,30})\s*$/i) || raw.match(/^([a-z0-9][a-z0-9-]{2,29})$/i);
+  if (invite) target = invite[1];
+  else if (named) target = "u/" + named[1].toLowerCase();
+  if (!target) { state.error = tr("That is not a call link or name."); paint(); return; }
+  state.error = "";
+  location.hash = "#" + target;
+}
+
 function onSubmit(event) {
   const form = event.target.closest && event.target.closest("form[data-act], .calls-type");
   if (!form) return;
@@ -1171,6 +1578,8 @@ function onSubmit(event) {
     testReply(text);
   } else if (act === "call-start-form") {
     startDirect(text);
+  } else if (act === "call-open-form") {
+    openByLink(text);
   } else if (act === "call-lex-form") {
     const word = form.elements.word.value;
     const say = form.elements.say.value;
@@ -1222,7 +1631,9 @@ function installApp() {
 
 /* ---------- mounting ---------- */
 let bound = false;
+let timerBound = false;
 function mount(route) {
+  if (!timerBound) { timerBound = true; setInterval(() => { if (state.phase === "active") live(); }, 1000); }
   state.route = route || state.route;
   loadDevice();
   const target = document;

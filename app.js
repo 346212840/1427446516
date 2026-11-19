@@ -257,6 +257,9 @@
     compose: `<path d="M3.5 7h6M6.5 4v6"/><path d="M17 5.2a2.1 2.1 0 0 1 3 3L10.4 17.8 6.5 19l1.2-3.9z"/><path d="m15.3 6.9 3 3"/>`,
     /* Viktrych (the on-device AI) logo: a V with a small spark. Also logo/viktrych.svg. */
     viktrych: `<path d="M4.5 6 11 19.5l4.6-9.6"/><path d="M18.6 2.6l.9 2.3 2.3.9-2.3.9-.9 2.3-.9-2.3-2.3-.9 2.3-.9z" fill="currentColor" stroke="none"/>`,
+    /* Calls: a handset outline with two small translation waves. callsOn is the filled, bolder active state. */
+    calls: `<path d="M21.5 16.9v2.6a2 2 0 0 1-2.2 2 18.7 18.7 0 0 1-8.1-2.9 18.4 18.4 0 0 1-5.7-5.7A18.7 18.7 0 0 1 2.6 4.7a2 2 0 0 1 2-2.2h2.6a2 2 0 0 1 2 1.7c.1.9.3 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 10.1a16 16 0 0 0 5.8 5.8l1.3-1.3a2 2 0 0 1 2.1-.5c.9.4 1.8.6 2.7.7a2 2 0 0 1 1.5 2.1z"/><path d="M14.5 6.2a3.3 3.3 0 0 1 3.3 3.3"/><path d="M14.5 2.6a6.9 6.9 0 0 1 6.9 6.9"/>`,
+    callsOn: `<path fill="currentColor" d="M21.5 16.9v2.6a2 2 0 0 1-2.2 2 18.7 18.7 0 0 1-8.1-2.9 18.4 18.4 0 0 1-5.7-5.7A18.7 18.7 0 0 1 2.6 4.7a2 2 0 0 1 2-2.2h2.6a2 2 0 0 1 2 1.7c.1.9.3 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 10.1a16 16 0 0 0 5.8 5.8l1.3-1.3a2 2 0 0 1 2.1-.5c.9.4 1.8.6 2.7.7a2 2 0 0 1 1.5 2.1z"/><path d="M14.5 6.2a3.3 3.3 0 0 1 3.3 3.3"/><path d="M14.5 2.6a6.9 6.9 0 0 1 6.9 6.9"/>`,
     convert: `<path d="M4 8h11"/><path d="M12 4.5 15.5 8 12 11.5"/><path d="M20 16H9"/><path d="M12 12.5 8.5 16 12 19.5"/>`
   };
   /* The Viktorychs coin: black inside, white lines, a thin rim so it still shows on dark themes. */
@@ -11293,8 +11296,8 @@ const here = parseRoute();
   }
 
   function navItem(href, name, label, on, aria, tip, extraClass) {
-    const onName = name + tr("On");
-    const glyph = icon(on && PATH[onName] && (name === "home" || name.indexOf("mu") === 0) ? onName : name);
+    const onName = name === "calls" ? "callsOn" : name + tr("On");
+    const glyph = icon(on && (PATH[onName] || (window.ViktorychIcons && window.ViktorychIcons.has(onName))) && (name === "home" || name === "calls" || name.indexOf("mu") === 0) ? onName : name);
     const badge = name === "bell" ? bellBadgeHtml() : (href === "#/online" ? onlineCountHtml() : "");
     const accessible = aria || label;
     const tooltipText = tip || (name === "muBack" ? tr("Back") : label);
@@ -11343,7 +11346,7 @@ const here = parseRoute();
       case "contacts":
         return { id: "contacts", href: "#/contacts", icon: "phone", label: tr("Contacts"), active: (r) => r.name === "contacts", visible: () => featureOn("contacts") };
       case "calls":
-        return { id: "calls", href: "#/calls", icon: "phone", label: tr("Calls"), active: (r) => r.name === "calls" || r.name === "callguest", visible: () => !!(window.ViktorychServerFeature && window.ViktorychServerFeature("calls")) };
+        return { id: "calls", href: "#/calls", icon: "calls", label: tr("Calls"), active: (r) => r.name === "calls" || r.name === "callguest", visible: () => !!(window.ViktorychServerFeature && window.ViktorychServerFeature("calls")) };
       case "shorts":
         return { id: "shorts", href: "#/shorts", icon: "shorts", label: tr("Shorts"), active: (r) => r.name === "shorts", visible: () => shortsEnabled() && !!(window.ViktorychShorts && window.ViktorychShorts.visible()) };
       case "games":
@@ -11928,6 +11931,7 @@ const here = parseRoute();
   }
 
   function bottomGlyph(def, on) {
+    if (on && def.icon === "calls") return "callsOn";
     return on && def.icon === "home" && PATH.homeOn ? "homeOn" : def.icon;
   }
 
