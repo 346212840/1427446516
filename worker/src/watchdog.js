@@ -23,7 +23,7 @@ import { ownerKeyAlerts } from "./owner-keys.js";
 import { RENDER_BACKUP, quietHours, renderHours } from "./render-warm.js";
 import { tiktokSaveProblems } from "./tiktok-save-health.js";
 import { applyPaused } from "./status-paused.js";
-import { githubApi, pagesBase, resolveRepository } from "./site-repo.js";
+import { githubFetch, pagesBase, resolveRepository } from "./site-repo.js";
 
 export const WATCH_KEY = "owner/watchdog.json";
 const MIRROR = "https://viktorychapp.pages.dev/";
@@ -52,8 +52,7 @@ let guardAt = 0;
 async function gh(env, path, init, fetcher) {
   const token = String(env.GITHUB_DISPATCH_TOKEN || "").trim();
   const opts = init || {};
-    const repo = await resolveRepository(env, fetcher);
-    return fetcher(path.startsWith("http") ? path : githubApi(repo, path), {
+  return githubFetch(env, path, {
     method: opts.method || "GET",
     cache: "no-store",
     headers: {
@@ -64,7 +63,7 @@ async function gh(env, path, init, fetcher) {
       "Content-Type": "application/json"
     },
     body: opts.body ? JSON.stringify(opts.body) : undefined
-  });
+  }, fetcher);
 }
 
 async function safeJson(res) {

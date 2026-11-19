@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { configuredRepository, githubFetch, pagesBase, repoFromRedirect, repositoryIdFromRedirect, resolveRepository } from "../src/site-repo.js";
 
 test("the configured name is the current repository", () => {
@@ -185,4 +188,22 @@ test("a redirect off api.github.com is not followed", async () => {
   });
   assert.equal(res.status, 301);
   assert.deepEqual(seen, ["POST https://api.github.com/repos/Example/Offhost/actions/workflows/sync.yml/dispatches"]);
+});
+
+test("worker source does not call api.github.com with raw fetch", () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../src");
+  const allow = new Set(["site-repo.js"]);
+  const bad = [];
+  const walk = (dir) => {
+    for (const name of fs.readdirSync(dir)) {
+      const full = path.join(dir, name);
+      if (fs.statSync(full).isDirectory()) { walk(full); continue; }
+      if (!name.endsWith(".js") || allow.has(name)) continue;
+      const text = fs.readFileSync(full, "utf8");
+      const raw = /(?:^|[^.\w])fetch(?:er)?\s*\(\s*(?:githubApi\s*\(|["'`][^"'`]*api\.github\.com)/;
+      if (raw.test(text)) bad.push(path.relative(root, full));
+    }
+  };
+  walk(root);
+  assert.deepEqual(bad, []);
 });
