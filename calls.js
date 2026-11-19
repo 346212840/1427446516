@@ -455,7 +455,10 @@ function homeScreen() {
     <div class="calls-modes" role="group" aria-label="${esc(tr("Link lasts"))}">${pill("ttl", "60", String(state.inviteTtl), tr("1 hour"))}${pill("ttl", "1440", String(state.inviteTtl), tr("24 hours"))}<button type="button" class="calls-pill" data-act="call-invite">${esc(tr("Create link and wait"))}</button></div>
     ${linkPanel()}
     <div class="calls-modes"><button type="button" class="calls-pill" data-act="call-test">${esc(tr("Test call"))}</button></div>`
-    : `<p class="calls-empty">${esc(tr("Sign in to start a call, or open a guest link to join one."))}</p>`;
+    : `<p class="calls-empty">${esc(tr("Sign in to start a call, or open a guest link to join one."))}</p>
+    ${standalone() ? `    <form class="calls-start" data-act="call-open-form"><input name="link" maxlength="200" placeholder="${esc(tr("Link or name"))}" aria-label="${esc(tr("Call someone with their link"))}" autocomplete="off" autocapitalize="off" spellcheck="false"><button type="submit" class="calls-go">${esc(tr("Open"))}</button></form>
+    <p class="calls-privacy">${esc(tr("A link or a name is all you need. No account."))}</p>
+    <p class="calls-privacy"><a href="./" data-signin>${esc(tr("Sign in on the app"))}</a></p>` : ""}`;
   return `<div class="calls-page" data-video="0" data-phase="idle">
     <header class="calls-bar">${back}<h1>${esc(tr("Calls"))}</h1></header>
     ${notSet}${err}${start}
@@ -1146,6 +1149,19 @@ function onChange(event) {
     if (state.test) { state.test.lang = target.value; if (state.partner) { state.partner.refresh(); state.partner.announce(); } }
   }
 }
+/* A pasted link, or just the name in it, opens the guest join screen. */
+function openByLink(text) {
+  const raw = String(text || "").trim();
+  let target = "";
+  const invite = raw.match(/#(ci1\.[A-Za-z0-9_-]{8,80})/) || raw.match(/^(ci1\.[A-Za-z0-9_-]{8,80})$/);
+  const named = raw.match(/#u\/([a-z0-9-]{3,30})\s*$/i) || raw.match(/^([a-z0-9][a-z0-9-]{2,29})$/i);
+  if (invite) target = invite[1];
+  else if (named) target = "u/" + named[1].toLowerCase();
+  if (!target) { state.error = tr("That is not a call link or name."); paint(); return; }
+  state.error = "";
+  location.hash = "#" + target;
+}
+
 function onSubmit(event) {
   const form = event.target.closest && event.target.closest("form[data-act], .calls-type");
   if (!form) return;
@@ -1171,6 +1187,8 @@ function onSubmit(event) {
     testReply(text);
   } else if (act === "call-start-form") {
     startDirect(text);
+  } else if (act === "call-open-form") {
+    openByLink(text);
   } else if (act === "call-lex-form") {
     const word = form.elements.word.value;
     const say = form.elements.say.value;

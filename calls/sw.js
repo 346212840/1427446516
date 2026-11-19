@@ -1,9 +1,9 @@
 /* ViktorychCalls service worker. Its scope is this folder only, so it never
    installs or caches the main app. The shell opens from the cache and is
    refreshed in the background. Calls themselves always use the network. */
-const CACHE = "viktorych-calls-shell-v1";
+const CACHE = "viktorych-calls-shell-v2";
 const SHELL = [
-  "./", "./boot.js", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png", "./icon-180.png",
+  "./", "./boot.js", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png", "./icon-180.png", "./favicon.svg",
   "../calls.js", "../calls.css", "../accounts.config.js", "../shared/call-langs.js", "../shared/call-audio.js", "../shared/call-mode.js",
   "../shared/call-voice.js", "../shared/call-setup.js", "../shared/call-privacy.js", "../shared/call-quality.js", "../shared/call-gemini.js",
   "../shared/call-engine.js", "../shared/call-speakers.js"

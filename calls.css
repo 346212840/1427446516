@@ -67,3 +67,8 @@
 .calls-review { display: flex; justify-content: center; gap: 12px; padding: 8px; }
 .calls-test .calls-quick { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
 .calls-type input { flex: 1; background: transparent; color: inherit; border: 1px solid #333; border-radius: 8px; min-height: 44px; padding: 0 12px; font: inherit; }
+
+.calls-go:disabled { opacity: 0.4; cursor: not-allowed; }
+.calls-homelang { margin: 8px 16px; }
+.calls-homelang select { width: 100%; background: transparent; color: inherit; border: 1px solid #333; border-radius: 8px; min-height: 44px; padding: 0 12px; font: inherit; }
+.calls-privacy a { color: #1d9bf0; }

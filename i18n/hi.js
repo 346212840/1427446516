@@ -6652,5 +6652,10 @@ SI18n.addPack("hi", {
   "Your name": "आपका नाम",
   "Your quiet hours, blocks and who-can-call settings still apply. Turning the link off or making a new one stops the old link at once.": "आपके शांत घंटे, ब्लॉक और कौन कॉल कर सकता है की सेटिंग्स अब भी लागू रहती हैं। लिंक बंद करने या नया बनाने से पुराना तुरंत बंद हो जाता है।",
   "{n} s": "{n} से",
-  "{n} s of 32": "32 में से {n} से"
+  "{n} s of 32": "32 में से {n} से",
+  "Call someone with their link": "लिंक से कॉल करें",
+  "Link or name": "लिंक या नाम",
+  "Sign in on the app": "ऐप में साइन इन करें",
+  "That is not a call link or name.": "यह कॉल लिंक या नाम नहीं है।",
+  "A link or a name is all you need. No account.": "बस एक लिंक या नाम चाहिए। खाता नहीं।"
 });

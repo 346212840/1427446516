@@ -38,6 +38,7 @@ REQUIRED_EXTRAS = (
     "calls/boot.js",
     "calls/sw.js",
     "calls/manifest.webmanifest",
+    "calls/favicon.svg",
     "calls/icon-180.png",
     "calls/icon-192.png",
     "calls/icon-512.png",

@@ -6662,5 +6662,10 @@ SI18n.addPack("en", {
   "Your name": "Your name",
   "Your quiet hours, blocks and who-can-call settings still apply. Turning the link off or making a new one stops the old link at once.": "Your quiet hours, blocks and who-can-call settings still apply. Turning the link off or making a new one stops the old link at once.",
   "{n} s": "{n} s",
-  "{n} s of 32": "{n} s of 32"
+  "{n} s of 32": "{n} s of 32",
+  "Call someone with their link": "Call someone with their link",
+  "Link or name": "Link or name",
+  "Sign in on the app": "Sign in on the app",
+  "That is not a call link or name.": "That is not a call link or name.",
+  "A link or a name is all you need. No account.": "A link or a name is all you need. No account."
 });
