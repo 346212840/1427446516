@@ -22,8 +22,17 @@
     selecting: false,
     loadError: false,
     filtersOpen: false,
-    groupsOpen: false
+    groupsOpen: false,
+    openId: "",
+    folded: {},
+    foldReady: false,
+    win: null,
+    winFocus: ""
   };
+  const ROW_H = 48;
+  const HEAD_H = 40;
+  const MENU_H = 420;
+  const CONFIRM_H = 52;
   let hooks = null;
   const STORE = "owner-feeds-v1";
 
@@ -95,16 +104,46 @@
     }).then((res) => res.json().then((data) => ({ ok: res.ok, status: res.status, body: data })).catch(() => ({ ok: res.ok, status: res.status, body: null })));
   }
 
+  function focusMark(el) {
+    if (!el || el === document.body || el === document.documentElement || !el.closest) return null;
+    if (!el.closest(".feeds-org")) return null;
+    const row = el.closest(".feeds-row");
+    const fold = el.closest(".feeds-fold");
+    return {
+      id: el.id || "",
+      row: row ? row.getAttribute("data-id") || "" : "",
+      fold: fold ? fold.getAttribute("data-id") || "" : "",
+      act: (el.dataset && el.dataset.feedAct) || "",
+      tag: el.tagName || ""
+    };
+  }
+
+  function foldSelector(id) {
+    const safe = window.CSS && CSS.escape ? CSS.escape(String(id)) : String(id).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    return '.feeds-fold[data-id="' + safe + '"]';
+  }
+
+  function restoreMark(mark) {
+    if (!mark) return null;
+    let next = mark.id ? document.getElementById(mark.id) : null;
+    if (!next && mark.row) {
+      const row = document.querySelector('.feeds-row[data-id="' + String(mark.row).replace(/"/g, "") + '"]');
+      if (row && mark.act) next = row.querySelector('[data-feed-act="' + mark.act + '"]');
+      if (row && !next && mark.tag) next = row.querySelector(mark.tag);
+    }
+    if (!next && mark.fold) next = document.querySelector(foldSelector(mark.fold));
+    if (!next || !next.focus) return null;
+    try { next.focus({ preventScroll: true }); } catch (err) { next.focus(); }
+    return next;
+  }
+
   function paint() {
     const active = document.activeElement;
-    const id = active && active.id;
-    const keep = id ? caretOf(active) : null;
+    const mark = focusMark(active);
+    const keep = mark && mark.id ? caretOf(active) : null;
     if (hooks && hooks.render) hooks.render();
-    if (!id) return;
-    const next = document.getElementById(id);
-    if (!next || !next.focus) return;
-    next.focus();
-    restoreCaret(next, keep);
+    const next = restoreMark(mark);
+    if (next && mark.id) restoreCaret(next, keep);
   }
 
   function caretOf(el) {
@@ -578,7 +617,20 @@
     else if (act === "bulk-move") patchIds(selectedIds(), { groupId: el.dataset.group || "" });
     else if (act === "clear-selected") { page.selected = {}; page.selecting = false; paint(); }
     else if (act === "selecting") { page.selecting = true; paint(); }
-    else if (act === "menu") { page.menuId = page.menuId === id ? "" : id; page.confirmId = ""; paint(); }
+    else if (act === "expand") { page.openId = page.openId === id ? "" : id; paint(); }
+    else if (act === "fold") {
+      page.folded[id] = page.folded[id] !== true;
+      page.foldReady = true;
+      paint();
+      const sel = window.CSS && CSS.escape
+        ? '.feeds-fold[data-id="' + CSS.escape(id) + '"]'
+        : '.feeds-fold[data-id="' + String(id).replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"]';
+      const next = document.querySelector(sel);
+      if (next && next.focus) {
+        try { next.focus({ preventScroll: true }); } catch (err) { next.focus(); }
+      }
+    }
+    else if (act === "menu") { page.menuId = page.menuId === id ? "" : id; page.confirmId = ""; if (page.menuId) page.openId = id; paint(); }
     else if (act === "platform") { page.platform = el.dataset.platform || ""; paint(); }
     else if (act === "clear-filters") { page.q = ""; page.platform = ""; page.group = ""; page.status = ""; paint(); }
     else if (act === "reload") { page.loadError = false; load(); paint(); }
@@ -621,9 +673,51 @@
     paint();
   }
 
+  /* syncWindow refuses to rebuild while a drag is in progress. Drop and
+     dragend are the ends of a live gesture. A pointercancel ends one only
+     when no drag event follows it, so the window cannot stay frozen and a
+     hover outside the list cannot throw the drop away. */
+  let dragCancelTimer = 0;
+
+  function releaseDrag() {
+    clearTimeout(dragCancelTimer);
+    dragCancelTimer = 0;
+    page.dragLive = false;
+    page.drag = "";
+    syncWindow();
+  }
+
+  function notePointerCancel() {
+    if (!page.drag) return;
+    page.dragLive = false;
+    clearTimeout(dragCancelTimer);
+    dragCancelTimer = setTimeout(function () {
+      dragCancelTimer = 0;
+      if (page.drag && !page.dragLive) releaseDrag();
+    }, 1000);
+  }
+
+  function noteDragActivity() {
+    if (!page.drag) return;
+    page.dragLive = true;
+    clearTimeout(dragCancelTimer);
+    dragCancelTimer = 0;
+  }
+
+  function onDragEnd() {
+    if (!page.drag && !page.dragGesture) return;
+    /* The click that ends a drag can land on the next turn. The next press
+       clears this, so a later click still folds or opens the row. */
+    if (page.dragGesture) page.suppressClick = true;
+    page.dragGesture = false;
+    releaseDrag();
+  }
+
   function onDragStart(event) {
     const el = event.target && event.target.closest && event.target.closest("[data-feed-drag]");
     if (!el) return;
+    page.dragGesture = true;
+    page.dragLive = false;
     page.drag = el.dataset.feedDrag || "";
     if (event.dataTransfer) {
       event.dataTransfer.setData("text/plain", page.drag);
@@ -632,8 +726,10 @@
   }
 
   function onDragOver(event) {
+    if (!page.drag) return;
+    noteDragActivity();
     const el = event.target && event.target.closest && event.target.closest("[data-feed-drop]");
-    if (!el || !page.drag) return;
+    if (!el) return;
     event.preventDefault();
   }
 
@@ -642,20 +738,36 @@
     if (!el || !page.drag) return;
     event.preventDefault();
     const kind = el.dataset.feedDrop;
-    if (kind === "group") {
-      const groups = (page.doc.groups || []).map((group) => group.id);
-      const from = page.drag.indexOf("group:") === 0 ? page.drag.slice(6) : "";
-      const to = el.dataset.id || "";
-      page.drag = "";
-      if (!from || !to || from === to) return;
-      const ids = groups.filter((id) => id !== from);
-      const at = ids.indexOf(to);
-      ids.splice(at < 0 ? ids.length : at, 0, from);
-      sendOrder(null, null, ids);
-      return;
+    try {
+      if (kind === "group") {
+        const from = page.drag.indexOf("group:") === 0 ? page.drag.slice(6) : "";
+        const to = el.dataset.id || "";
+        if (from) {
+          if (!to || from === to) return;
+          const groups = (page.doc.groups || []).map((group) => group.id);
+          const ids = groups.filter((id) => id !== from);
+          const at = ids.indexOf(to);
+          /* A platform section uses the same drop marker. It is not a group, so a
+             miss must leave the saved order alone instead of parking the group
+             at the end. */
+          if (at < 0) return;
+          ids.splice(at, 0, from);
+          sendOrder(null, null, ids);
+          return;
+        }
+        /* A folded group mounts no rows, so its head is the only place a feed
+           can land. A platform section is not a group and stays a no-op. */
+        if (!el.hasAttribute("data-feed-drag")) return;
+        const groupId = el.dataset.group || "";
+        if (!groupId || groupId.indexOf("platform:") === 0) return;
+        dropOn("", groupId);
+        return;
+      }
+      const groupId = el.dataset.group != null ? el.dataset.group : "";
+      dropOn(kind === "row" ? (el.dataset.id || "") : "", groupId);
+    } finally {
+      releaseDrag();
     }
-    const groupId = el.dataset.group != null ? el.dataset.group : "";
-    dropOn(kind === "row" ? (el.dataset.id || "") : "", groupId);
   }
 
   function option(value, label, current) {
@@ -717,7 +829,7 @@
     }
     items.push(`<button type="button" role="menuitem" class="is-danger" data-feed-act="ask-remove" data-id="${esc(id)}">${esc(tr("Remove"))}</button>`);
     const edit = owner ? `<label class="feeds-label">${esc(tr("Account label"))}<span class="feeds-inline"><input id="feeds-label-${esc(id)}" value="${esc(row.label || "")}" maxlength="80"><button type="button" class="feeds-pill" data-feed-act="label" data-id="${esc(id)}">${esc(tr("Rename"))}</button></span></label>
-      <label class="feeds-move">${esc(tr("Move to group"))}<select data-feed-act="move-select" data-id="${esc(id)}">${groupOptions}</select></label>` : "";
+      <label class="feeds-move">${esc(tr("Move to group"))}<select id="feeds-move-${esc(id)}" data-feed-act="move-select" data-id="${esc(id)}">${groupOptions}</select></label>` : "";
     return `<div class="feeds-menu" role="menu" aria-label="${esc(tr("More actions"))}"><div class="feeds-menu-items">${items.join("")}</div>${edit}${tabBits && owner ? `<div class="feeds-tabs"><span>${esc(tr("Show in tabs"))}</span>${tabBits}</div>` : ""}</div>`;
   }
 
@@ -729,19 +841,21 @@
     const when = last && hooks.relTime ? hooks.relTime(last) : (last ? String(last).slice(0, 16) : "");
     const owner = ownerOn() && !row.site;
     const open = page.menuId === id;
+    const expanded = page.openId === id || open || page.confirmId === id;
     const statusText = status === "failing" && text ? tr(text) : healthLabel(status);
     const statusLine = row.site ? "" : `<span class="feeds-status is-${esc(status)}"><i class="feeds-dot" aria-hidden="true"></i><span>${esc(statusText)}</span>${when ? `<span class="feeds-when">· ${esc(when)}</span>` : ""}</span>`;
     const check = page.selecting && owner ? `<label class="feeds-check"><input type="checkbox" data-feed-act="select" data-id="${esc(id)}"${page.selected[id] ? " checked" : ""} aria-label="${esc(tr("Select"))}"></label>` : "";
     const toggle = owner ? `<button type="button" class="feeds-switch${row.paused ? "" : " on"}" role="switch" aria-checked="${row.paused ? "false" : "true"}" aria-label="${esc(row.paused ? tr("Resume") : tr("Pause"))}" data-feed-act="pause" data-id="${esc(id)}" data-on="${row.paused ? "1" : "0"}"><i></i></button>` : "";
     const more = `<button type="button" class="feeds-icon-btn feeds-more${open ? " on" : ""}" data-feed-act="menu" data-id="${esc(id)}" aria-haspopup="menu" aria-expanded="${open ? "true" : "false"}" aria-label="${esc(tr("More actions"))}">${hooks.icon ? hooks.icon("more") : "⋯"}</button>`;
+    const expand = `<button type="button" class="feeds-icon-btn feeds-expand${expanded ? " on" : ""}" data-feed-act="expand" data-id="${esc(id)}" aria-expanded="${expanded ? "true" : "false"}" aria-label="${esc(tr("Details"))}">${expanded ? "▾" : "›"}</button>`;
     const confirm = page.confirmId === id
       ? `<div class="feeds-confirm"><span>${esc(tr("Remove this account?"))}</span><button type="button" class="follow remove-pill" data-feed-act="confirm-remove" data-id="${esc(id)}">${esc(tr("Remove"))}</button><button type="button" class="outline" data-feed-act="cancel-remove">${esc(tr("Cancel"))}</button></div>`
       : "";
     const href = hooks.accountHash ? hooks.accountHash(row.platform, row.channelId || row.handle) : "#/feeds";
-    return `<article class="feeds-row${row.pinned ? " is-pinned" : ""}${row.paused ? " is-off" : ""}" data-feed-drag="${esc(id)}" data-feed-drop="row" data-id="${esc(id)}" data-group="${esc(row.groupId || "")}" draggable="${owner ? "true" : "false"}">
+    return `<article class="feeds-row${row.pinned ? " is-pinned" : ""}${row.paused ? " is-off" : ""}${expanded ? " is-open" : ""}" data-feed-drag="${esc(id)}" data-feed-drop="row" data-id="${esc(id)}" data-group="${esc(row.groupId || "")}" draggable="${owner ? "true" : "false"}">
       ${check}
-      <a class="feeds-who" href="${esc(href)}">${faceOf(row)}<span class="feeds-copy"><span class="feeds-name">${esc(row.label || row.name || row.handle)}${row.pinned ? `<span class="feeds-pin" aria-label="${esc(tr("Pinned"))}">${hooks.icon ? hooks.icon("pin") : ""}</span>` : ""}</span><span class="feeds-sub">@${esc(row.handle || "")} · ${esc(platformLabel(row.platform))}</span>${statusLine}</span></a>
-      <span class="feeds-row-end">${toggle}${more}</span>
+      <a class="feeds-who" draggable="false" href="${esc(href)}">${faceOf(row)}<span class="feeds-copy"><span class="feeds-name">${esc(row.label || row.name || row.handle)}${row.pinned ? `<span class="feeds-pin" aria-label="${esc(tr("Pinned"))}">${hooks.icon ? hooks.icon("pin") : ""}</span>` : ""}</span><span class="feeds-sub">@${esc(row.handle || "")} · ${esc(platformLabel(row.platform))}</span>${statusLine}</span></a>
+      <span class="feeds-row-end">${expand}${toggle}${more}</span>
       ${open ? menuHtml(row) : ""}
       ${confirm}
     </article>`;
@@ -765,6 +879,360 @@
     </details>`;
   }
 
+  function rowPixelHeight(row) {
+    let height = ROW_H;
+    if (!row) return height;
+    if (page.openId === row.id) height += 28;
+    if (page.menuId === row.id) height += MENU_H;
+    if (page.confirmId === row.id) height += CONFIRM_H;
+    return height;
+  }
+
+  function itemHeight(item) {
+    return item.kind === "head" ? HEAD_H : rowPixelHeight(item.row);
+  }
+
+  function prefixesOf(items) {
+    const prefixes = new Array(items.length + 1);
+    prefixes[0] = 0;
+    for (let i = 0; i < items.length; i++) prefixes[i + 1] = prefixes[i] + itemHeight(items[i]);
+    return prefixes;
+  }
+
+  function visibleRange(items, prefixes, viewTop, viewHeight) {
+    const from = Math.max(0, viewTop - 700);
+    const to = viewTop + viewHeight + 700;
+    let start = 0;
+    while (start < prefixes.length - 1 && prefixes[start + 1] <= from) start++;
+    let end = start;
+    while (end < prefixes.length - 1 && prefixes[end] < to) end++;
+    return { start: start, end: Math.max(end, start) };
+  }
+
+  /* Details, the menu, the remove confirm, and the row an arrow key is
+     moving to stay mounted on their own. Stretching the window to that
+     index would mount every account in between. */
+  function keptRowIds() {
+    const ids = [];
+    [page.openId, page.menuId, page.confirmId, page.winFocus].forEach((id) => {
+      if (id && ids.indexOf(id) < 0) ids.push(id);
+    });
+    return ids;
+  }
+
+  function extraIndexes(items, start, end) {
+    const extras = [];
+    keptRowIds().forEach((id) => {
+      const at = items.findIndex((item) => item.kind === "row" && item.row && item.row.id === id);
+      if (at < 0 || (at >= start && at < end)) return;
+      extras.push(at);
+    });
+    const fold = document.activeElement && document.activeElement.closest && document.activeElement.closest(".feeds-fold");
+    const foldId = fold ? fold.getAttribute("data-id") || "" : "";
+    if (foldId) {
+      const at = items.findIndex((item) => item.kind === "head" && item.id === foldId);
+      if (at >= 0 && (at < start || at >= end)) extras.push(at);
+    }
+    return extras;
+  }
+
+  function pinHtml(items, prefixes, extras) {
+    let html = "";
+    (extras || []).forEach((at) => {
+      const item = items[at];
+      if (!item) return;
+      const y = prefixes[at] || 0;
+      if (item.kind === "head") html += `<div class="feeds-window-pin" style="transform:translateY(${y}px)">${headHtml(item)}</div>`;
+      else if (item.kind === "row") html += `<div class="feeds-window-pin" style="transform:translateY(${y}px)">${rowHtml(item.row)}</div>`;
+    });
+    return html;
+  }
+
+  function foldTitleHtml(title) {
+    const safe = esc(title || "");
+    return `<span class="feeds-fold-title" data-fold-title><span class="sp-marquee" data-sp-marquee><span class="sp-marquee-clip"><span class="sp-marquee-track"><span class="sp-marquee-copy"><span class="sp-marquee-text">${safe}</span></span><span class="sp-marquee-copy" aria-hidden="true"><span class="sp-marquee-text">${safe}</span></span></span></span></span></span>`;
+  }
+
+  function reducedMotion() {
+    return typeof matchMedia === "function" && !!matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  /* The window reserves 40px for every head. A long name stays on that line
+     and scrolls, instead of wrapping over the next row. Reduced motion keeps
+     one ellipsis line: a later pass must not turn the scroll back on. */
+  function fitFoldTitles(root) {
+    if (!root || !root.querySelectorAll) return;
+    const reduced = reducedMotion();
+    root.querySelectorAll("[data-fold-title]").forEach((el) => {
+      const marquee = el.querySelector("[data-sp-marquee]");
+      const clip = el.querySelector(".sp-marquee-clip");
+      const text = el.querySelector(".sp-marquee-text");
+      if (!marquee || !clip || !text) return;
+      const previousDisplay = text.style.display;
+      const previousSpace = text.style.whiteSpace;
+      text.style.display = "inline-block";
+      text.style.whiteSpace = "nowrap";
+      const overflow = text.scrollWidth - clip.clientWidth;
+      text.style.display = previousDisplay;
+      text.style.whiteSpace = previousSpace;
+      marquee.classList.toggle("is-on", !reduced && overflow > 1);
+    });
+  }
+
+  function scheduleFoldTitles() {
+    if (typeof requestAnimationFrame !== "function") return;
+    requestAnimationFrame(() => {
+      const box = document.querySelector("[data-feed-window]");
+      if (box) fitFoldTitles(box);
+    });
+  }
+
+  function headHtml(item) {
+    /* The fold control fills the head. A button there eats the pointer, so the
+       head itself is the drag source and the click target, and the button
+       stays for the keyboard. */
+    const drag = item.drag ? ` data-feed-drag="group:${esc(item.id)}" data-feed-act="fold" draggable="true"` : "";
+    return `<div class="feeds-section-head" data-feed-drop="group" data-id="${esc(item.id)}" data-group="${esc(item.id)}"${drag}><button type="button" class="feeds-fold" data-feed-act="fold" data-id="${esc(item.id)}" aria-expanded="${item.open ? "true" : "false"}">${foldTitleHtml(item.title)}<span class="feeds-count">${esc(String(item.count))}</span></button></div>`;
+  }
+
+  function sliceHtml(items, start, end) {
+    let html = "";
+    for (let i = start; i < end && i < items.length; i++) {
+      html += items[i].kind === "head" ? headHtml(items[i]) : rowHtml(items[i].row);
+    }
+    return html;
+  }
+
+  function rowName(row) {
+    return String((row && (row.label || row.name || row.handle)) || "");
+  }
+
+  function currentViewTop() {
+    if (typeof document === "undefined") return 0;
+    const box = document.querySelector("[data-feed-window]");
+    if (!box || !box.getBoundingClientRect) return 0;
+    const y = window.scrollY || (document.documentElement && document.documentElement.scrollTop) || 0;
+    const top = box.getBoundingClientRect().top + y;
+    return Math.max(0, y - top);
+  }
+
+  function findHtml(items, prefixes, start, end) {
+    let html = "";
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const y = prefixes[i] || 0;
+      if (item.kind === "row") {
+        if (i >= start && i < end) continue;
+        const name = rowName(item.row);
+        if (name) html += `<span class="feeds-find" aria-hidden="true" style="top:${y}px">${esc(name)}</span>`;
+      } else if (item.find && item.find.length) {
+        item.find.forEach((name, n) => {
+          if (name) html += `<span class="feeds-find" aria-hidden="true" style="top:${y + n}px">${esc(name)}</span>`;
+        });
+      }
+    }
+    return html;
+  }
+
+  function windowHtml(items) {
+    /* A remount replaces the slice. The drag target is gone, so the freeze
+       must not stick to the new window. */
+    page.drag = "";
+    page.winFocus = "";
+    const prefixes = prefixesOf(items);
+    const total = prefixes[items.length] || 0;
+    const viewH = typeof window !== "undefined" && window.innerHeight ? window.innerHeight : 800;
+    let viewTop = currentViewTop();
+    if (total > 0) viewTop = Math.min(viewTop, Math.max(0, total - viewH));
+    const range = visibleRange(items, prefixes, viewTop, viewH);
+    const extras = extraIndexes(items, range.start, range.end);
+    page.win = { items: items, prefixes: prefixes, start: range.start, end: range.end, extras: extras };
+    const offset = prefixes[range.start] || 0;
+    return `<div class="feeds-window" data-feed-window style="height:${total}px"><div class="feeds-finds">${findHtml(items, prefixes, range.start, range.end)}</div><div class="feeds-window-rows" style="transform:translateY(${offset}px)">${sliceHtml(items, range.start, range.end)}</div><div class="feeds-window-pins">${pinHtml(items, prefixes, extras)}</div></div>`;
+  }
+
+  function rowSelector(id) {
+    return '.feeds-row[data-id="' + String(id || "").replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"]';
+  }
+
+  /* A checkbox's value is "on" even when the value attribute is empty.
+     Compare the live control with what the page built, not with that attribute. */
+  function fieldEdited(field) {
+    if (!field) return false;
+    const type = String(field.type || "").toLowerCase();
+    if (type === "checkbox" || type === "radio") return !!field.checked !== !!field.defaultChecked;
+    if (field.tagName === "SELECT") return false;
+    return String(field.value || "") !== String(field.defaultValue || "");
+  }
+
+  /* A half-written label lives on the input, not in the saved row. Detach
+     those rows before the window HTML is replaced and put the same nodes back. */
+  function liveInputRows(root) {
+    const active = document.activeElement;
+    const live = [];
+    if (!root || !root.querySelectorAll) return { live: live, active: null, caret: null };
+    root.querySelectorAll(".feeds-row[data-id]").forEach((row) => {
+      if (!row.querySelectorAll) return;
+      let hold = false;
+      row.querySelectorAll("input, textarea, select").forEach((field) => {
+        if (field === active && (field.tagName === "TEXTAREA" || (field.tagName === "INPUT" && field.type !== "checkbox" && field.type !== "radio"))) hold = true;
+        if (fieldEdited(field)) hold = true;
+      });
+      if (hold) live.push(row);
+    });
+    live.forEach((row) => { if (row.parentNode) row.parentNode.removeChild(row); });
+    const caret = active && live.some((row) => row.contains(active)) ? caretOf(active) : null;
+    return { live: live, active: caret ? active : null, caret: caret };
+  }
+
+  function restoreLiveRows(root, held) {
+    (held.live || []).forEach((row) => {
+      if (!root || row.isConnected) return;
+      const fresh = root.querySelector(rowSelector(row.getAttribute("data-id")));
+      if (fresh) fresh.replaceWith(row);
+    });
+  }
+
+  function parkLiveRows(pins, items, prefixes, held) {
+    if (!pins) return;
+    (held.live || []).forEach((row) => {
+      if (row.isConnected) return;
+      const id = row.getAttribute("data-id");
+      const at = items.findIndex((item) => item.kind === "row" && item.row && item.row.id === id);
+      if (at < 0) return;
+      const hold = document.createElement("div");
+      hold.className = "feeds-window-pin";
+      hold.style.transform = "translateY(" + (prefixes[at] || 0) + "px)";
+      hold.appendChild(row);
+      pins.appendChild(hold);
+    });
+    if (held.active && held.active.focus && (held.live || []).some((row) => row.contains(held.active))) {
+      try { held.active.focus({ preventScroll: true }); } catch (err) { held.active.focus(); }
+      restoreCaret(held.active, held.caret);
+    }
+  }
+
+  function syncWindow() {
+    const box = document.querySelector("[data-feed-window]");
+    const win = page.win;
+    if (!box || !win || !win.items || !win.prefixes) return;
+    /* Rebuilding the slice unmounts the element under the pointer and the
+       browser cancels the drag. Wait until it ends. */
+    if (page.drag) return;
+    const y = window.scrollY || document.documentElement.scrollTop || 0;
+    const top = box.getBoundingClientRect().top + y;
+    const viewTop = Math.max(0, y - top);
+    const range = visibleRange(win.items, win.prefixes, viewTop, window.innerHeight || 800);
+    const extras = extraIndexes(win.items, range.start, range.end);
+    const sameExtras = (win.extras || []).join(",") === extras.join(",");
+    if (range.start === win.start && range.end === win.end && sameExtras) return;
+    const active = document.activeElement;
+    const mark = focusMark(active);
+    const activeId = active && active.closest ? (active.closest(".feeds-row") || {}).getAttribute && active.closest(".feeds-row").getAttribute("data-id") : "";
+    const which = active && active.classList ? (active.classList.contains("feeds-more") ? "more" : active.classList.contains("feeds-expand") ? "expand" : active.classList.contains("feeds-switch") ? "switch" : "") : "";
+    const held = liveInputRows(box);
+    win.start = range.start;
+    win.end = range.end;
+    win.extras = extras;
+    const finds = box.querySelector(".feeds-finds");
+    if (finds) finds.innerHTML = findHtml(win.items, win.prefixes, range.start, range.end);
+    const rows = box.querySelector(".feeds-window-rows");
+    if (rows) {
+      rows.style.transform = "translateY(" + (win.prefixes[range.start] || 0) + "px)";
+      rows.innerHTML = sliceHtml(win.items, range.start, range.end);
+      restoreLiveRows(rows, held);
+    }
+    let pins = box.querySelector(".feeds-window-pins");
+    if (!pins) {
+      pins = document.createElement("div");
+      pins.className = "feeds-window-pins";
+      box.appendChild(pins);
+    }
+    pins.innerHTML = pinHtml(win.items, win.prefixes, extras);
+    restoreLiveRows(pins, held);
+    fitFoldTitles(box);
+    parkLiveRows(pins, win.items, win.prefixes, held);
+    if ((held.live || []).some((row) => row.isConnected && row.contains(document.activeElement))) return;
+    if (mark && mark.fold) {
+      const fold = box.querySelector(foldSelector(mark.fold));
+      if (fold && fold.focus) {
+        try { fold.focus({ preventScroll: true }); } catch (err) { fold.focus(); }
+      }
+      return;
+    }
+    if (mark && (mark.tag === "INPUT" || mark.tag === "TEXTAREA" || mark.tag === "SELECT" || (active && active.closest && active.closest(".feeds-menu, .feeds-confirm")))) {
+      restoreMark(mark);
+      return;
+    }
+    if (activeId && which) {
+      const next = box.querySelector('.feeds-row[data-id="' + String(activeId).replace(/"/g, "") + '"] .' + (which === "more" ? "feeds-more" : which === "expand" ? "feeds-expand" : "feeds-switch"));
+      if (next && next.focus) {
+        try { next.focus({ preventScroll: true }); } catch (err) { next.focus(); }
+      }
+    }
+  }
+
+  function focusFeedRow(id) {
+    const win = page.win;
+    if (!win || !win.items) return;
+    const index = win.items.findIndex((item) => item.kind === "row" && item.row && item.row.id === id);
+    if (index < 0) return;
+    page.winFocus = id;
+    const box = document.querySelector("[data-feed-window]");
+    if (box) {
+      const top = box.getBoundingClientRect().top + (window.scrollY || 0);
+      window.scrollTo(0, Math.max(0, top + (win.prefixes[index] || 0) - 80));
+    }
+    syncWindow();
+    const next = document.querySelector('.feeds-row[data-id="' + String(id).replace(/"/g, "") + '"] .feeds-more');
+    if (next && next.focus) next.focus();
+    page.winFocus = "";
+  }
+
+  function menuField(el) {
+    if (!el || !el.closest) return false;
+    const tag = el.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable) return true;
+    return !!el.closest(".feeds-menu, .feeds-more-panel, .feeds-confirm, [role='menu']");
+  }
+
+  function onFeedKey(event) {
+    if (event.key === "Escape" && page.drag) {
+      event.preventDefault();
+      releaseDrag();
+      return;
+    }
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    if (menuField(event.target) || menuField(document.activeElement)) return;
+    const target = event.target;
+    if (!target || !target.closest) return;
+    /* Bound for the life of the page. Only the Feeds list that is on screen
+       moves. A request, ban, or pending row has no data-id and is not a step. */
+    const list = target.closest("[data-feed-window]");
+    if (!list || !page.win || !page.win.items) return;
+    const row = target.closest(".feeds-row");
+    if (!row || !list.contains(row)) return;
+    const id = row.getAttribute("data-id");
+    if (!id) return;
+    const ids = [];
+    page.win.items.forEach((item) => { if (item.kind === "row" && item.row && item.row.id) ids.push(item.row.id); });
+    const at = ids.indexOf(id);
+    if (at < 0) return;
+    const next = ids[at + (event.key === "ArrowDown" ? 1 : -1)];
+    if (!next) return;
+    event.preventDefault();
+    focusFeedRow(next);
+  }
+
+  function onFeedScroll() {
+    if (page.winTick) return;
+    page.winTick = true;
+    requestAnimationFrame(() => {
+      page.winTick = false;
+      syncWindow();
+    });
+  }
+
   function view() {
     if (!hooks) return "";
     keepAddFocus();
@@ -782,15 +1250,20 @@
     const loose = (organized.sections || []).filter((block) => !block.id);
     let blocks = [];
     if (!page.group) {
-      blocks = named.map((block) => sectionHtml(block, true));
+      blocks = named.map((block) => ({ id: block.id, title: block.title || tr("Ungrouped"), rows: block.rows || [], drag: true }));
       (organized.ungroupedByPlatform || []).forEach((block) => {
         const platform = String(block.id || "").replace(/^platform:/, "");
-        blocks.push(sectionHtml({ id: "", title: platformLabel(platform), platform: platform, rows: block.rows }, false));
+        blocks.push({ id: "platform:" + platform, title: platformLabel(platform), rows: block.rows || [], drag: false });
       });
     } else {
-      blocks = (page.group === "none" ? loose : named).map((block) => sectionHtml(block, !!block.id));
+      blocks = (page.group === "none" ? loose : named).map((block) => ({
+        id: block.id || "loose",
+        title: block.title || tr("Ungrouped"),
+        rows: block.rows || [],
+        drag: !!block.id
+      }));
     }
-    blocks = blocks.filter(Boolean);
+    blocks = blocks.filter((block) => block.rows.length);
     const platforms = {};
     rows.forEach((row) => { platforms[row.platform || "rss"] = true; });
     const chips = [`<button type="button" class="feeds-chip${page.platform ? "" : " on"}" data-feed-act="platform" data-platform="" aria-pressed="${page.platform ? "false" : "true"}">${esc(tr("All"))}</button>`]
@@ -824,7 +1297,18 @@
     </div>`;
     const pending = page.adding.map(pendingHtml).join("");
     const filtered = !!(page.q || page.platform || page.group || page.status);
-    let body = blocks.join("");
+    if (!page.foldReady && !filtered && blocks.length > 1 && rows.length > 40) {
+      page.foldReady = true;
+      blocks.forEach((block) => { page.folded[block.id] = true; });
+    }
+    const items = [];
+    blocks.forEach((block) => {
+      const open = filtered || page.folded[block.id] !== true;
+      const find = open ? [] : block.rows.map((row) => row.label || row.name || row.handle || "").filter(Boolean);
+      items.push({ kind: "head", id: block.id, title: block.title, count: block.rows.length, open: open, drag: block.drag, find: find });
+      if (open) block.rows.forEach((row) => items.push({ kind: "row", row: row }));
+    });
+    let body = items.length ? windowHtml(items) : "";
     if (!body && !pending) {
       body = rows.length && filtered
         ? `<div class="feeds-empty"><b>${esc(tr("No matches"))}</b><span>${esc(tr("Try another search or filter."))}</span><button type="button" class="feeds-pill" data-feed-act="clear-filters">${esc(tr("Clear filters"))}</button></div>`
@@ -835,6 +1319,7 @@
     const lists = signed && window.SourceLists
       ? `<a class="feeds-banner sl-link" href="#/feeds/lists"><span>${esc(ownerOn() ? tr("Source lists: extra sources only the accounts you pick see") : tr("Your extra sources and requests"))}</span><span aria-hidden="true">›</span></a>`
       : "";
+    scheduleFoldTitles();
     return head + `<div class="feeds-org">${lists}${add}${offline}${failed}${previewCard()}${tools}${bulk}${pending ? `<section class="feeds-section is-pending-list">${pending}</section>` : ""}${body}${groupsPanel()}</div>`;
   }
 
@@ -856,13 +1341,42 @@
     }
     if (page.bound) return;
     page.bound = true;
+    document.addEventListener("click", function (event) {
+      if (!page.suppressClick) return;
+      page.suppressClick = false;
+      const fromDrag = event.target && event.target.closest && event.target.closest("a.feeds-who, [data-feed-drag], .feeds-fold");
+      if (!fromDrag) return;
+      event.preventDefault();
+      event.stopPropagation();
+    }, true);
     document.addEventListener("click", onClick);
     document.addEventListener("change", onChange);
     document.addEventListener("input", onInput);
+    document.addEventListener("keydown", onFeedKey);
     document.addEventListener("toggle", onToggle, true);
+    window.addEventListener("scroll", onFeedScroll, { passive: true });
+    document.addEventListener("scroll", onFeedScroll, { passive: true, capture: true });
+    document.addEventListener("pointerdown", function () { page.suppressClick = false; }, true);
     document.addEventListener("dragstart", onDragStart);
+    document.addEventListener("drag", noteDragActivity);
+    document.addEventListener("dragenter", noteDragActivity);
+    document.addEventListener("dragleave", noteDragActivity);
     document.addEventListener("dragover", onDragOver);
     document.addEventListener("drop", onDrop);
+    document.addEventListener("dragend", onDragEnd);
+    document.addEventListener("pointercancel", notePointerCancel);
+    document.addEventListener("visibilitychange", function () {
+      if (document.hidden && page.drag) releaseDrag();
+    });
+    if (typeof matchMedia === "function") {
+      const media = matchMedia("(prefers-reduced-motion: reduce)");
+      const onMotion = () => {
+        const box = document.querySelector("[data-feed-window]");
+        if (box) fitFoldTitles(box);
+      };
+      if (media.addEventListener) media.addEventListener("change", onMotion);
+      else if (media.addListener) media.addListener(onMotion);
+    }
   }
 
   window.FeedsPage = { attach: attach, view: view, onAdd: onAdd };

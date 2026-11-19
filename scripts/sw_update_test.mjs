@@ -697,7 +697,10 @@ async function testDismissThenHide(browser) {
     await setLifecycle(page, "active");
     const started = Date.now();
     let sha = "";
-    while (Date.now() - started < 180000) {
+    /* The worker may spend SHELL_FILE_CAP_MS (240s) on one shell file, and
+       each progress heartbeat keeps the page in "working". Stop only after
+       that cap, not while a legal download is still running. */
+    while (Date.now() - started < 300000) {
       try { sha = await shaOf(page); } catch (err) { sha = ""; }
       if (sha === NEW) break;
       await page.waitForTimeout(300);

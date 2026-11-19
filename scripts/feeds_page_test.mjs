@@ -214,6 +214,18 @@ async function run(browser, origin, vp) {
   const t0 = Date.now();
   await page.evaluate(() => document.querySelector("form.add-account button[type=submit]").click());
   await page.locator('.feeds-row.is-pending[aria-busy="true"]').waitFor({ timeout: 2000 }).catch(() => fail(tag + ": the new source shows at once with a progress state"));
+  const pendingStatus = await page.evaluate(() => {
+    const el = document.querySelector(".feeds-row.is-pending .feeds-status");
+    if (!el) return { missing: true };
+    const style = getComputedStyle(el);
+    return {
+      text: (el.textContent || "").trim(),
+      w: Math.round(el.getBoundingClientRect().width),
+      white: style.whiteSpace,
+      cut: el.scrollWidth > el.clientWidth + 2
+    };
+  });
+  if (pendingStatus.missing || pendingStatus.w < 80 || pendingStatus.white === "nowrap" || pendingStatus.cut) fail(tag + ": the pending status is clipped " + JSON.stringify(pendingStatus));
   if (Date.now() - t0 > 2000) fail(tag + ": the pending row took too long");
   if (sent.filter((s) => s.indexOf("add:") === 0).length !== 1 || sent.indexOf("add:https://t.me/sync_user:true") < 0) fail(tag + ": one add request, no separate preview " + JSON.stringify(sent));
   await noOverflow(page, tag, "pending row");
@@ -245,6 +257,619 @@ async function run(browser, origin, vp) {
   console.log("feeds page ok " + tag);
 }
 
+async function runLarge(browser, origin, vp) {
+  const phoneUa = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
+  const context = await browser.newContext(Object.assign({ serviceWorkers: "block", viewport: { width: vp.width, height: vp.height }, hasTouch: vp.name === "phone", isMobile: vp.name === "phone" }, vp.name === "phone" ? { userAgent: phoneUa } : {}));
+  const tag = "large-" + vp.name;
+  const accounts = [];
+  for (let i = 0; i < 240; i++) {
+    const platform = ["x", "telegram", "youtube", "rss"][i % 4];
+    accounts.push(account(platform + ":feed" + i, "feed" + i, { platform: platform, name: "Feed " + i, order: i }));
+  }
+  await context.route(/^https?:\/\/(?!127\.0\.0\.1)/, (route) => route.fulfill({ status: 200, body: "" }));
+  await context.route("**/v1/**", async (route) => {
+    const req = route.request();
+    const where = new URL(req.url()).pathname;
+    const reply = (body, status) => route.fulfill({ status: status || 200, contentType: "application/json", headers: { "cache-control": "no-store" }, body: JSON.stringify(body) });
+    if (where === "/v1/owner/feeds" && req.method() === "GET") return reply({ accounts: accounts, groups: [], places: [] });
+    return reply({ posts: [], ok: true });
+  });
+  const page = await context.newPage();
+  await page.addInitScript(() => {
+    localStorage.setItem("viktorychapp-lang-user-picked", "1");
+    localStorage.setItem("superintelapp-lang", "en");
+    localStorage.setItem("viktorychapp-welcome-v1", JSON.stringify({ step: 2, done: true }));
+    localStorage.setItem("viktorychapp-account-v1", JSON.stringify({ token: "local-test-token", account: { publicId: "100000000001", handle: "owner_test", displayName: "Owner Test", avatar: "", owner: true } }));
+    window.VIKTORYCH_ACCOUNTS = { api: location.origin, gate: true, tiktokAudience: "owner" };
+  });
+  await page.goto(origin + "/#/feeds", { waitUntil: "domcontentloaded" });
+  await page.locator(".feeds-fold, .feeds-row").first().waitFor({ timeout: 20000 }).catch(() => fail(tag + ": the list did not paint"));
+  const mounted = await page.evaluate(() => ({
+    rows: document.querySelectorAll(".feeds-row").length,
+    nodes: document.querySelectorAll(".feeds-org *").length,
+    height: document.documentElement.scrollHeight,
+    view: window.innerHeight,
+    folds: document.querySelectorAll(".feeds-fold").length
+  }));
+  if (mounted.folds < 2) fail(tag + ": platforms are not collapsible " + JSON.stringify(mounted));
+  if (mounted.rows >= 80) fail(tag + ": a collapsed list still mounts every row " + JSON.stringify(mounted));
+  await page.locator(".feeds-fold").first().click();
+  await page.locator(".feeds-row").first().waitFor({ timeout: 5000 }).catch(() => fail(tag + ": opening a section shows its rows"));
+  const opened = await page.evaluate(() => ({
+    rows: document.querySelectorAll(".feeds-row").length,
+    nodes: document.querySelectorAll(".feeds-org *").length,
+    height: document.documentElement.scrollHeight,
+    view: window.innerHeight
+  }));
+  if (opened.rows >= 80) fail(tag + ": offscreen rows are still mounted " + JSON.stringify(opened));
+  if (opened.rows < 8) fail(tag + ": the open section did not render " + JSON.stringify(opened));
+  if (opened.height < opened.view * 2) fail(tag + ": the list is not still scrollable " + JSON.stringify(opened));
+  await page.locator(".feeds-expand").first().click();
+  await page.waitForFunction(() => {
+    const row = document.querySelector(".feeds-row.is-open");
+    return row && row.querySelector(".feeds-status");
+  }, null, { timeout: 5000 }).catch(() => fail(tag + ": expand shows the details"));
+  const openStatus = await page.evaluate(() => {
+    const span = document.querySelector(".feeds-row.is-open .feeds-status > span");
+    if (!span) return { missing: true };
+    return { pos: getComputedStyle(span).position, w: span.getBoundingClientRect().width };
+  });
+  if (openStatus.missing || openStatus.pos === "absolute" || openStatus.w < 20) fail(tag + ": open details hide the status " + JSON.stringify(openStatus));
+  await page.keyboard.press("Escape");
+  const more = page.locator(".feeds-row .feeds-more").first();
+  await more.focus();
+  await page.keyboard.press("ArrowDown");
+  const moved = await page.evaluate(() => {
+    const el = document.activeElement;
+    return !!(el && el.classList.contains("feeds-more"));
+  });
+  if (!moved) fail(tag + ": arrow keys do not move between rows");
+  await page.fill("#feeds-q", "feed200");
+  await page.locator('.feeds-row[data-id$="feed200"]').waitFor({ timeout: 5000 }).catch(() => fail(tag + ": search still finds a feed that was not on screen"));
+  await noOverflow(page, tag, "large list");
+  await context.close();
+  console.log("feeds page large ok " + vp.name + " rows " + mounted.rows + " nodes " + mounted.nodes);
+}
+
+async function runWindow(browser, origin, vp) {
+  const tag = "window-" + vp.name;
+  const accounts = [];
+  for (let i = 0; i < 80; i++) accounts.push(account("rss:lane" + i, "lane" + i, { platform: "rss", name: i === 70 ? "Zeta Offscreen Source" : "Lane " + i, order: i }));
+  for (let i = 0; i < 40; i++) accounts.push(account("telegram:fold" + i, "fold" + i, { platform: "telegram", name: i === 3 ? "Zeta Folded Source" : "Fold " + i, order: 100 + i }));
+  const context = await browser.newContext({ serviceWorkers: "block", viewport: { width: vp.width, height: vp.height } });
+  await context.route(/^https?:\/\/(?!127\.0\.0\.1)/, (route) => route.fulfill({ status: 200, body: "" }));
+  await context.route("**/v1/**", async (route) => {
+    const req = route.request();
+    const where = new URL(req.url()).pathname;
+    const body = where === "/v1/owner/feeds" && req.method() === "GET" ? { accounts: accounts, groups: [], places: [] } : { posts: [], ok: true };
+    return route.fulfill({ status: 200, contentType: "application/json", headers: { "cache-control": "no-store" }, body: JSON.stringify(body) });
+  });
+  const page = await context.newPage();
+  await page.addInitScript(() => {
+    localStorage.setItem("viktorychapp-lang-user-picked", "1");
+    localStorage.setItem("superintelapp-lang", "en");
+    localStorage.setItem("viktorychapp-welcome-v1", JSON.stringify({ step: 2, done: true }));
+    localStorage.setItem("viktorychapp-account-v1", JSON.stringify({ token: "local-test-token", account: { publicId: "100000000001", handle: "owner_test", displayName: "Owner Test", avatar: "", owner: true } }));
+    window.VIKTORYCH_ACCOUNTS = { api: location.origin, gate: true, tiktokAudience: "owner" };
+  });
+  await page.goto(origin + "/#/feeds", { waitUntil: "domcontentloaded" });
+  await page.locator(".feeds-fold").first().waitFor({ timeout: 20000 }).catch(() => fail(tag + ": the list did not paint"));
+  const foldedHit = await page.evaluate(() => window.find("Zeta Folded Source", false, false, true));
+  if (!foldedHit) fail(tag + ": a folded account name is not findable");
+  const hiddenFind = await page.evaluate(() => {
+    const span = document.querySelector(".feeds-find");
+    return !!(span && span.getAttribute("aria-hidden") === "true");
+  });
+  if (!hiddenFind) fail(tag + ": an offscreen name is exposed to assistive tech");
+  const folds = await page.locator(".feeds-fold").count();
+  if (folds < 2) fail(tag + ": expected two sections");
+  await page.locator(".feeds-fold").first().focus();
+  const foldId = await page.evaluate(() => document.activeElement && document.activeElement.getAttribute("data-id"));
+  await page.keyboard.press("Enter");
+  await page.locator(".feeds-row").first().waitFor({ timeout: 5000 }).catch(() => fail(tag + ": the section did not open"));
+  const foldFocus = await page.evaluate(() => {
+    const el = document.activeElement;
+    return el && el.classList.contains("feeds-fold") ? el.getAttribute("data-id") : "";
+  });
+  if (!foldFocus || foldFocus !== foldId) fail(tag + ": the fold control lost keyboard focus");
+  await page.evaluate(() => {
+    const box = document.querySelector("[data-feed-window]");
+    const top = box.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo(0, Math.max(0, top + 1200));
+  });
+  const foldKept = await page.waitForFunction((id) => {
+    const el = document.activeElement;
+    return !!(el && el.classList.contains("feeds-fold") && el.getAttribute("data-id") === id);
+  }, foldId, { timeout: 3000 }).catch(() => null);
+  if (!foldKept) fail(tag + ": scrolling dropped focus from the fold control");
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.locator('.feeds-row[data-id="rss:lane0"]').waitFor({ timeout: 5000 }).catch(() => fail(tag + ": the list did not return to the first row"));
+  const sharedRows = await page.evaluate(() => {
+    const closed = document.querySelector(".feeds-window .feeds-row:not(.is-open) .feeds-status > span");
+    const probe = document.createElement("article");
+    probe.className = "feeds-row";
+    probe.innerHTML = '<span class="feeds-copy"><span class="feeds-name">List Name</span><span class="feeds-sub">@list_name</span><span class="feeds-status is-ok"><i class="feeds-dot"></i><span>Posts: 12</span></span></span>';
+    document.body.appendChild(probe);
+    const copy = getComputedStyle(probe.querySelector(".feeds-copy")).flexDirection;
+    const span = probe.querySelector(".feeds-status > span");
+    const shown = getComputedStyle(span).position !== "absolute" && span.getBoundingClientRect().width > 40;
+    probe.remove();
+    return {
+      clipped: !!(closed && getComputedStyle(closed).position === "absolute"),
+      copy: copy,
+      shown: shown
+    };
+  });
+  if (!sharedRows.clipped) fail(tag + ": a closed feed row no longer keeps its status off the row");
+  if (sharedRows.copy !== "column" || !sharedRows.shown) fail(tag + ": a shared feed row hides its name or status " + JSON.stringify(sharedRows));
+  const dragged = await page.evaluate(() => new Promise((resolve) => {
+    const row = document.querySelector('.feeds-row[data-id="rss:lane0"]');
+    row.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true }));
+    const box = document.querySelector("[data-feed-window]");
+    const top = box.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo(0, Math.max(0, top + 900));
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const live = document.querySelector('.feeds-row[data-id="rss:lane0"]');
+      const same = live === row && !!(live && live.isConnected);
+      document.dispatchEvent(new DragEvent("dragend", { bubbles: true, cancelable: true }));
+      resolve({ same: same });
+    }));
+  }));
+  if (!dragged.same) fail(tag + ": a scroll unmounted the row being dragged");
+  const stillFrozen = await page.evaluate(() => !!document.querySelector('.feeds-row[data-id="rss:lane0"]'));
+  if (stillFrozen) fail(tag + ": dragend left the window frozen");
+  async function endDrag(how) {
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.locator('.feeds-row[data-id="rss:lane0"]').waitFor({ timeout: 5000 }).catch(() => fail(tag + ": " + how + " could not find the first row"));
+    const frozen = await page.evaluate(() => new Promise((resolve) => {
+      const row = document.querySelector('.feeds-row[data-id="rss:lane0"]');
+      row.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true }));
+      const box = document.querySelector("[data-feed-window]");
+      const top = box.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo(0, Math.max(0, top + 1400));
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        resolve(document.querySelector('.feeds-row[data-id="rss:lane0"]') === row);
+      }));
+    }));
+    if (!frozen) fail(tag + ": " + how + " did not start from a frozen drag");
+    await page.evaluate((name) => {
+      if (name === "drop") {
+        const target = document.querySelector('.feeds-row[data-id="rss:lane1"]');
+        target.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true }));
+      } else if (name === "noop") {
+        const head = document.querySelector(".feeds-section-head");
+        head.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true }));
+      } else if (name === "dragend") {
+        document.dispatchEvent(new DragEvent("dragend", { bubbles: true, cancelable: true }));
+      } else if (name === "escape") {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+      } else if (name === "pointercancel") {
+        document.dispatchEvent(new PointerEvent("pointercancel", { bubbles: true, cancelable: true }));
+        const still = document.querySelector('.feeds-row[data-id="rss:lane0"]');
+        if (!still) window.__pointerCancelReleased = true;
+        document.dispatchEvent(new DragEvent("dragend", { bubbles: true, cancelable: true }));
+      } else if (name === "remount") {
+        const chip = document.querySelector('[data-feed-act="platform"][data-platform=""]');
+        if (chip) chip.click();
+      }
+    }, how);
+    const released = await page.evaluate(() => new Promise((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        resolve(!document.querySelector('.feeds-row[data-id="rss:lane0"]'));
+      }));
+    }));
+    if (!released) fail(tag + ": " + how + " left the window frozen");
+    if (how === "pointercancel" && await page.evaluate(() => window.__pointerCancelReleased)) fail(tag + ": pointercancel aborted a drag that was still moving");
+  }
+  for (const how of ["drop", "noop", "dragend", "escape", "pointercancel", "remount"]) await endDrag(how);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const offscreenHit = await page.evaluate(() => window.find("Zeta Offscreen Source", false, false, true));
+  if (!offscreenHit) fail(tag + ": an offscreen account name is not findable");
+  if (await page.locator(".feeds-row").count() >= 80) fail(tag + ": findability mounted every row");
+  await page.evaluate(() => window.scrollTo(0, 2200));
+  await page.waitForFunction(() => window.scrollY > 1500, null, { timeout: 3000 }).catch(() => fail(tag + ": the page did not scroll"));
+  await page.waitForFunction(() => {
+    return Array.from(document.querySelectorAll(".feeds-row")).some((el) => {
+      const r = el.getBoundingClientRect();
+      return r.top > 80 && r.bottom < window.innerHeight;
+    });
+  }, null, { timeout: 5000 }).catch(() => fail(tag + ": scrolling did not bring a row into view"));
+  const target = await page.evaluate(() => {
+    const row = Array.from(document.querySelectorAll(".feeds-row")).find((el) => {
+      const r = el.getBoundingClientRect();
+      return r.top > 80 && r.bottom < window.innerHeight;
+    });
+    return row ? row.getAttribute("data-id") : "";
+  });
+  if (!target) fail(tag + ": no row to expand");
+  await page.locator('.feeds-row[data-id="' + target + '"] .feeds-expand').click();
+  const stayed = await page.evaluate((id) => {
+    const row = document.querySelector('.feeds-row[data-id="' + id + '"]');
+    if (!row) return { ok: false, reason: "missing" };
+    const r = row.getBoundingClientRect();
+    return { ok: r.bottom > 0 && r.top < window.innerHeight, top: r.top };
+  }, target);
+  if (!stayed.ok) fail(tag + ": a redraw while scrolled left the row " + JSON.stringify(stayed));
+  await page.locator('.feeds-row[data-id="' + target + '"] .feeds-expand').click();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.locator('.feeds-row[data-id="rss:lane0"] .feeds-more').focus();
+  await page.keyboard.press("ArrowDown");
+  await page.evaluate(() => {
+    const box = document.querySelector("[data-feed-window]");
+    const top = box.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo(0, Math.max(0, top + box.offsetHeight - window.innerHeight + 8));
+  });
+  await page.waitForFunction(() => {
+    return Array.from(document.querySelectorAll(".feeds-row")).some((el) => {
+      const r = el.getBoundingClientRect();
+      return r.bottom > 0 && r.top < window.innerHeight;
+    });
+  }, null, { timeout: 3000 }).catch(() => fail(tag + ": the list did not settle at the bottom"));
+  const spanned = await page.locator(".feeds-row").count();
+  if (spanned >= 70) fail(tag + ": one arrow key mounted the rows in between (" + spanned + ")");
+  const firstGone = await page.locator('.feeds-row[data-id="rss:lane0"]').count();
+  if (firstGone) fail(tag + ": the pinned first rows stayed mounted after scrolling away");
+  await page.locator(".feeds-row .feeds-more").first().click();
+  await page.locator(".feeds-menu input").first().waitFor({ timeout: 5000 }).catch(() => fail(tag + ": the menu has no label field"));
+  const menuFit = await page.evaluate(() => {
+    const menu = document.querySelector(".feeds-menu");
+    const row = menu && menu.closest(".feeds-row");
+    const next = row && row.nextElementSibling;
+    if (!menu || !next || !next.getBoundingClientRect) return { ok: false, reason: "no neighbour" };
+    const menuBox = menu.getBoundingClientRect();
+    const nextBox = next.getBoundingClientRect();
+    return { ok: menuBox.bottom <= nextBox.top + 1, menuH: Math.round(menu.offsetHeight), gap: Math.round(nextBox.top - menuBox.bottom) };
+  });
+  if (!menuFit.ok) fail(tag + ": the open menu is taller than the reserved row " + JSON.stringify(menuFit));
+  await page.locator(".feeds-menu input").first().focus();
+  await page.keyboard.press("ArrowDown");
+  const inputStays = await page.evaluate(() => document.activeElement && document.activeElement.tagName === "INPUT");
+  if (!inputStays) fail(tag + ": ArrowDown left the menu field");
+  await page.locator(".feeds-menu select").first().focus();
+  await page.keyboard.press("ArrowDown");
+  const selectStays = await page.evaluate(() => document.activeElement && document.activeElement.tagName === "SELECT" && document.activeElement.closest(".feeds-menu"));
+  if (!selectStays) fail(tag + ": ArrowDown left the menu list");
+  await page.locator(".feeds-menu [role='menuitem']").first().focus();
+  await page.keyboard.press("ArrowDown");
+  const itemStays = await page.evaluate(() => {
+    const el = document.activeElement;
+    return !!(el && el.closest && el.closest(".feeds-menu"));
+  });
+  if (!itemStays) fail(tag + ": ArrowDown left the open menu");
+  await page.locator(".feeds-more.on").click();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.locator('.feeds-row[data-id="rss:lane0"] .feeds-expand').click();
+  await page.waitForFunction(() => {
+    const row = document.querySelector('.feeds-row[data-id="rss:lane0"].is-open');
+    if (!row) return false;
+    const r = row.getBoundingClientRect();
+    return r.bottom > 0 && r.top < window.innerHeight;
+  }, null, { timeout: 5000 }).catch(() => fail(tag + ": details did not open"));
+  await page.evaluate(() => {
+    const box = document.querySelector("[data-feed-window]");
+    const top = box.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo(0, Math.max(0, top + box.offsetHeight - window.innerHeight + 8));
+  });
+  const heldOpen = await page.waitForFunction(() => {
+    const row = document.querySelector('.feeds-row[data-id="rss:lane0"]');
+    const n = document.querySelectorAll(".feeds-row").length;
+    if (!row || n >= 70 || !row.closest(".feeds-window-pin") || row.getBoundingClientRect().bottom >= 0) return false;
+    return { n: n, pin: true, off: true };
+  }, null, { timeout: 5000 }).catch(() => null);
+  const openPlace = heldOpen ? await heldOpen.jsonValue() : null;
+  if (!openPlace || !openPlace.pin || !openPlace.off) fail(tag + ": an open row stretched the window " + JSON.stringify(openPlace));
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.locator('.feeds-row[data-id="rss:lane0"] .feeds-more').click();
+  const label = page.locator("#feeds-label-rss\\:lane0");
+  await label.waitFor({ timeout: 5000 }).catch(() => fail(tag + ": the rename field did not open"));
+  await page.waitForFunction(() => {
+    const input = document.querySelector("#feeds-label-rss\\:lane0");
+    if (!input) return false;
+    const r = input.getBoundingClientRect();
+    return r.bottom > 0 && r.top < window.innerHeight;
+  }, null, { timeout: 5000 }).catch(() => fail(tag + ": the rename field is off screen"));
+  await label.fill("Half written");
+  await page.evaluate(() => {
+    const box = document.querySelector("[data-feed-window]");
+    const top = box.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo(0, Math.max(0, top + box.offsetHeight - window.innerHeight + 8));
+  });
+  const typed = await page.waitForFunction(() => {
+    const input = document.querySelector("#feeds-label-rss\\:lane0");
+    const n = document.querySelectorAll(".feeds-row").length;
+    if (!input || input.value !== "Half written" || n >= 70) return false;
+    return { value: input.value, n: n };
+  }, null, { timeout: 5000 }).catch(() => null);
+  if (!typed) fail(tag + ": scrolling cleared the rename");
+  await page.locator('[data-feed-act="ask-remove"]').click();
+  await page.waitForFunction(() => {
+    const box = document.querySelector(".feeds-confirm");
+    if (!box) return false;
+    const r = box.getBoundingClientRect();
+    return r.bottom > 0 && r.top < window.innerHeight;
+  }, null, { timeout: 5000 }).catch(() => fail(tag + ": remove confirm did not open"));
+  await page.evaluate(() => {
+    const box = document.querySelector("[data-feed-window]");
+    const top = box.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo(0, Math.max(0, top + box.offsetHeight - 40));
+  });
+  const confirmed = await page.waitForFunction(() => {
+    const box = document.querySelector(".feeds-confirm");
+    const n = document.querySelectorAll(".feeds-row").length;
+    if (!box || n >= 70 || !box.closest(".feeds-window-pin") || box.getBoundingClientRect().bottom >= 0) return false;
+    return { n: n, pin: true };
+  }, null, { timeout: 5000 }).catch(() => null);
+  if (!confirmed) fail(tag + ": the remove confirm stretched the window");
+  await page.evaluate(() => {
+    const cancel = document.querySelector("[data-feed-act='cancel-remove']");
+    if (cancel) cancel.click();
+    const open = document.querySelector('.feeds-row[data-id="rss:lane0"] .feeds-expand');
+    if (open && open.getAttribute("aria-expanded") === "true") open.click();
+  });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.evaluate(() => {
+    const button = document.querySelector("[data-feed-act='selecting']");
+    if (button) button.click();
+  });
+  await page.locator(".feeds-check input").first().waitFor({ timeout: 5000 }).catch(() => fail(tag + ": select mode did not add checkboxes"));
+  const scrolled = await page.evaluate(() => new Promise((resolve) => {
+    const box = document.querySelector("[data-feed-window]");
+    const top = box.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo(0, Math.max(0, top + box.offsetHeight - window.innerHeight + 8));
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      resolve({
+        n: document.querySelectorAll(".feeds-row").length,
+        first: !!document.querySelector('.feeds-row[data-id="rss:lane0"]'),
+        checks: document.querySelectorAll(".feeds-check input").length,
+        pins: document.querySelectorAll(".feeds-window-pin").length
+      });
+    }));
+  }));
+  if (!scrolled.checks || scrolled.n >= 70 || scrolled.first || scrolled.pins) fail(tag + ": select mode kept the rows that scrolled away " + JSON.stringify(scrolled));
+  await context.close();
+  console.log("feeds window ok " + vp.name);
+}
+
+async function runDrop(browser, origin) {
+  const accounts = [
+    account("rss:loose1", "loose1", { platform: "rss", name: "Loose One", groupId: "" }),
+    account("rss:alpha1", "alpha1", { platform: "rss", name: "Alpha One", groupId: "galpha" }),
+    account("telegram:beta1", "beta1", { platform: "telegram", name: "Beta One", groupId: "gbeta" })
+  ];
+  const longName = "Alpha " + "North ".repeat(24);
+  const groups = [{ id: "galpha", name: longName, order: 0 }, { id: "gbeta", name: "Beta", order: 1 }];
+  const reorders = [];
+  const context = await browser.newContext({ serviceWorkers: "block", viewport: { width: 1280, height: 800 } });
+  await context.route(/^https?:\/\/(?!127\.0\.0\.1)/, (route) => route.fulfill({ status: 200, body: "" }));
+  await context.route("**/v1/**", async (route) => {
+    const req = route.request();
+    const where = new URL(req.url()).pathname;
+    const reply = (body, status) => route.fulfill({ status: status || 200, contentType: "application/json", headers: { "cache-control": "no-store" }, body: JSON.stringify(body) });
+    let body = {};
+    try { body = JSON.parse(req.postData() || "{}"); } catch (err) { body = {}; }
+    if (where === "/v1/owner/feeds" && req.method() === "GET") return reply({ accounts: accounts, groups: groups, places: [] });
+    if (where === "/v1/owner/feeds/reorder" && req.method() === "POST") {
+      reorders.push(body);
+      return reply({ ok: true, accounts: accounts, groups: groups, places: [] });
+    }
+    return reply({ posts: [], ok: true });
+  });
+  const page = await context.newPage();
+  await page.addInitScript(() => {
+    localStorage.setItem("viktorychapp-lang-user-picked", "1");
+    localStorage.setItem("superintelapp-lang", "en");
+    localStorage.setItem("viktorychapp-welcome-v1", JSON.stringify({ step: 2, done: true }));
+    localStorage.setItem("viktorychapp-account-v1", JSON.stringify({ token: "local-test-token", account: { publicId: "100000000001", handle: "owner_test", displayName: "Owner Test", avatar: "", owner: true } }));
+    window.VIKTORYCH_ACCOUNTS = { api: location.origin, gate: true, tiktokAudience: "owner" };
+  });
+  await page.goto(origin + "/#/feeds", { waitUntil: "domcontentloaded" });
+  await page.locator('[data-feed-drag="group:galpha"]').waitFor({ timeout: 20000 }).catch(() => fail("drop: the group head did not paint"));
+  await page.locator('.feeds-section-head[data-id="platform:rss"]').waitFor({ timeout: 5000 }).catch(() => fail("drop: the platform head did not paint"));
+  const longHead = await page.waitForFunction(() => {
+    const head = document.querySelector('.feeds-section-head[data-id="galpha"]');
+    const short = document.querySelector('.feeds-section-head[data-id="gbeta"] [data-sp-marquee]');
+    if (!head || !short) return null;
+    const fold = head.querySelector(".feeds-fold");
+    const title = head.querySelector(".sp-marquee-text");
+    const count = head.querySelector(".feeds-count");
+    const marquee = head.querySelector("[data-sp-marquee]");
+    if (!fold || !title || !count || !marquee || !marquee.classList.contains("is-on")) return null;
+    const headR = head.getBoundingClientRect();
+    const foldR = fold.getBoundingClientRect();
+    const countR = count.getBoundingClientRect();
+    const below = document.elementFromPoint(Math.min(headR.right - 8, headR.left + 24), headR.bottom + 4);
+    return {
+      headH: Math.round(headR.height),
+      foldH: Math.round(foldR.height),
+      nowrap: getComputedStyle(fold).whiteSpace,
+      scrolling: true,
+      shortStill: short.classList.contains("is-on"),
+      countInside: countR.right <= headR.right + 1 && countR.left >= headR.left,
+      steals: !!(below && (below === fold || fold.contains(below)))
+    };
+  }, null, { timeout: 5000 }).catch(() => null);
+  if (!longHead) fail("drop: a long section title did not stay on one scrolling line");
+  const headShape = await longHead.jsonValue();
+  if (headShape.headH !== 40 || headShape.foldH > 40 || headShape.nowrap !== "nowrap" || headShape.shortStill || !headShape.countInside || headShape.steals) fail("drop: a long section title overflows the head " + JSON.stringify(headShape));
+  const beforePointer = reorders.length;
+  const hit = await page.evaluate(() => {
+    const head = document.querySelector('.feeds-section-head[data-id="gbeta"]');
+    const rect = head.getBoundingClientRect();
+    const top = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    return { drag: !!(top && top.closest && top.closest("[draggable='true']")), button: !!(top && top.closest && top.closest("button")) };
+  });
+  if (!hit.drag || hit.button) fail("drop: the fold button still takes the pointer " + JSON.stringify(hit));
+  await page.locator('.feeds-section-head[data-id="gbeta"]').dragTo(page.locator('.feeds-section-head[data-id="galpha"]'));
+  for (let i = 0; i < 30 && reorders.length === beforePointer; i++) await new Promise((resolve) => setTimeout(resolve, 25));
+  const pointed = reorders[reorders.length - 1] || {};
+  if (JSON.stringify(pointed.groups) !== JSON.stringify(["gbeta", "galpha"])) fail("drop: a pointer drag on the group title did not reorder " + JSON.stringify(reorders));
+  const beforeLinger = reorders.length;
+  const fromBox = await page.locator('.feeds-section-head[data-id="gbeta"]').boundingBox();
+  const outsideBox = await page.locator("#feeds-q").boundingBox();
+  const toBox = await page.locator('.feeds-section-head[data-id="galpha"]').boundingBox();
+  if (!fromBox || !outsideBox || !toBox) fail("drop: a drag target is not on screen");
+  await page.mouse.move(fromBox.x + fromBox.width / 2, fromBox.y + fromBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(outsideBox.x + outsideBox.width / 2, outsideBox.y + outsideBox.height / 2, { steps: 15 });
+  await new Promise((resolve) => setTimeout(resolve, 1100));
+  await page.mouse.move(toBox.x + toBox.width / 2, toBox.y + toBox.height / 2, { steps: 15 });
+  await page.mouse.up();
+  for (let i = 0; i < 40 && reorders.length === beforeLinger; i++) await new Promise((resolve) => setTimeout(resolve, 25));
+  const lingered = reorders[reorders.length - 1] || {};
+  if (JSON.stringify(lingered.groups) !== JSON.stringify(["gbeta", "galpha"])) fail("drop: hovering outside the list cancelled the drag " + JSON.stringify(reorders));
+  if (!(await page.locator('.feeds-row[data-id="telegram:beta1"]').count())) fail("drop: dragging the group title folded it");
+  const hashBefore = await page.evaluate(() => location.hash);
+  const linkBlocked = await page.evaluate(() => {
+    const link = document.querySelector('.feeds-row[data-id="rss:loose1"] a.feeds-who');
+    const row = link.closest(".feeds-row");
+    row.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true }));
+    document.dispatchEvent(new DragEvent("dragend", { bubbles: true, cancelable: true }));
+    const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+    link.dispatchEvent(click);
+    return click.defaultPrevented ? "blocked" : "open";
+  });
+  if (linkBlocked !== "blocked") fail("drop: the drag-end click followed the account link " + linkBlocked);
+  const who = await page.locator('.feeds-row[data-id="rss:loose1"] a.feeds-who').boundingBox();
+  if (!who) fail("drop: the feed link is not on screen");
+  await page.mouse.move(who.x + 24, who.y + who.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(who.x + 90, who.y + who.height / 2, { steps: 10 });
+  await page.mouse.up();
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  if (await page.evaluate(() => location.hash) !== hashBefore) fail("drop: a real drag opened the account");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const reducedHead = await page.waitForFunction(() => {
+    const marquee = document.querySelector('.feeds-section-head[data-id="galpha"] [data-sp-marquee]');
+    if (!marquee || marquee.classList.contains("is-on")) return null;
+    marquee.classList.add("is-on");
+    const copy = marquee.querySelector('.sp-marquee-copy[aria-hidden="true"]');
+    const text = marquee.querySelector(".sp-marquee-text");
+    const held = {
+      copy: copy ? getComputedStyle(copy).display : "",
+      ellipsis: text ? getComputedStyle(text).textOverflow : ""
+    };
+    marquee.classList.remove("is-on");
+    return held;
+  }, null, { timeout: 5000 }).catch(() => null);
+  if (!reducedHead) fail("drop: reduced motion left the section title scrolling");
+  const reducedShape = await reducedHead.jsonValue();
+  if (reducedShape.copy !== "none" || reducedShape.ellipsis !== "ellipsis") fail("drop: reduced motion did not keep a single ellipsis " + JSON.stringify(reducedShape));
+  await page.locator('[data-feed-act="platform"][data-platform=""]').click();
+  const stayedOff = await page.waitForFunction(() => {
+    const marquee = document.querySelector('.feeds-section-head[data-id="galpha"] [data-sp-marquee]');
+    return !!(marquee && !marquee.classList.contains("is-on"));
+  }, null, { timeout: 5000 }).catch(() => null);
+  if (!stayedOff) fail("drop: a redraw turned the section title scroll back on");
+  const beforePlatform = reorders.length;
+  await page.evaluate(() => {
+    const from = document.querySelector('[data-feed-drag="group:galpha"]');
+    const to = document.querySelector('.feeds-section-head[data-id="platform:rss"]');
+    from.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true }));
+    to.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true }));
+  });
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  if (reorders.length !== beforePlatform) fail("drop: a platform head saved the group at the end " + JSON.stringify(reorders));
+  const beforeGroup = reorders.length;
+  await page.evaluate(() => {
+    const from = document.querySelector('[data-feed-drag="group:gbeta"]');
+    const to = document.querySelector('[data-feed-drag="group:galpha"]');
+    from.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true }));
+    to.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true }));
+  });
+  for (let i = 0; i < 20 && reorders.length === beforeGroup; i++) await new Promise((resolve) => setTimeout(resolve, 25));
+  const grouped = reorders[reorders.length - 1] || {};
+  if (JSON.stringify(grouped.groups) !== JSON.stringify(["gbeta", "galpha"])) fail("drop: a group head did not reorder " + JSON.stringify(reorders));
+  const beforeFeed = reorders.length;
+  await page.evaluate(() => {
+    const from = document.querySelector('[data-feed-drag="rss:loose1"]');
+    const to = document.querySelector('.feeds-section-head[data-id="platform:rss"]');
+    from.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true }));
+    to.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true }));
+  });
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  if (reorders.length !== beforeFeed) fail("drop: a platform head accepted a feed " + JSON.stringify(reorders));
+  await page.locator('.feeds-section-head[data-id="gbeta"]').click();
+  await page.waitForFunction(() => !document.querySelector('.feeds-row[data-id="telegram:beta1"]'), null, { timeout: 5000 }).catch(() => fail("drop: the group did not fold"));
+  await page.evaluate(() => {
+    const from = document.querySelector('[data-feed-drag="rss:loose1"]');
+    const to = document.querySelector('.feeds-section-head[data-id="gbeta"]');
+    from.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true }));
+    to.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true }));
+  });
+  for (let i = 0; i < 20 && reorders.length === beforeFeed; i++) await new Promise((resolve) => setTimeout(resolve, 25));
+  const moved = reorders[reorders.length - 1] || {};
+  if (moved.groupId !== "gbeta" || JSON.stringify(moved.ids) !== JSON.stringify(["telegram:beta1", "rss:loose1"])) fail("drop: a folded group head did not take the feed " + JSON.stringify(reorders));
+  await context.close();
+  console.log("feeds drop ok");
+}
+
+async function runKeys(browser, origin) {
+  const accounts = [];
+  for (let i = 0; i < 8; i++) accounts.push(account("rss:lane" + i, "lane" + i, { platform: "rss", name: "Lane " + i, order: i }));
+  const context = await browser.newContext({ serviceWorkers: "block", viewport: { width: 1280, height: 800 } });
+  await context.route(/^https?:\/\/(?!127\.0\.0\.1)/, (route) => route.fulfill({ status: 200, body: "" }));
+  await context.route("**/v1/**", async (route) => {
+    const req = route.request();
+    const where = new URL(req.url()).pathname;
+    const reply = (body) => route.fulfill({ status: 200, contentType: "application/json", headers: { "cache-control": "no-store" }, body: JSON.stringify(body) });
+    if (where === "/v1/owner/feeds" && req.method() === "GET") return reply({ accounts: accounts, groups: [], places: [] });
+    if (where.indexOf("/v1/owner/feed-requests") === 0) {
+      return reply({ requests: [{ id: "req_sample", input: "https://example.com/sample-feed", name: "Sample Feed", platform: "rss", handle: "samplefeed", state: "pending", count: 1, at: 1763500000000, people: [{ handle: "asker_one", name: "Asker One" }] }], lists: [], pending: 1, unseen: 0 });
+    }
+    return reply({ posts: [], ok: true });
+  });
+  const page = await context.newPage();
+  await page.addInitScript(() => {
+    localStorage.setItem("viktorychapp-lang-user-picked", "1");
+    localStorage.setItem("superintelapp-lang", "en");
+    localStorage.setItem("viktorychapp-welcome-v1", JSON.stringify({ step: 2, done: true }));
+    localStorage.setItem("viktorychapp-account-v1", JSON.stringify({ token: "local-test-token", account: { publicId: "100000000001", handle: "owner_test", displayName: "Owner Test", avatar: "", owner: true } }));
+    window.VIKTORYCH_ACCOUNTS = { api: location.origin, gate: true, tiktokAudience: "owner" };
+  });
+  await page.goto(origin + "/#/feeds", { waitUntil: "domcontentloaded" });
+  await page.locator(".feeds-row").first().waitFor({ timeout: 20000 }).catch(() => fail("keys: feeds did not paint"));
+  const bare = await page.evaluate(() => {
+    const host = document.querySelector(".feeds-window-rows");
+    const row = document.createElement("article");
+    row.className = "feeds-row";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "feeds-pill";
+    btn.textContent = "Allow";
+    row.appendChild(btn);
+    host.appendChild(row);
+    btn.focus();
+    const ev = new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true });
+    btn.dispatchEvent(ev);
+    return { prevented: ev.defaultPrevented, still: document.activeElement === btn };
+  });
+  if (bare.prevented || !bare.still) fail("keys: a row without data-id stole ArrowDown " + JSON.stringify(bare));
+  await page.goto(origin + "/#/settings/feed-requests", { waitUntil: "domcontentloaded" });
+  await page.locator(".fr-qrow").first().waitFor({ timeout: 20000 }).catch(() => fail("keys: source requests did not paint"));
+  const away = await page.evaluate(() => {
+    const org = document.querySelector(".feeds-org");
+    const row = document.createElement("article");
+    row.className = "feeds-row";
+    row.setAttribute("data-id", "rss:lane0");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = "Allow";
+    row.appendChild(btn);
+    org.appendChild(row);
+    btn.focus();
+    const ev = new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true });
+    btn.dispatchEvent(ev);
+    const real = document.querySelector(".fr-qrow button");
+    real.focus();
+    const ev2 = new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true });
+    real.dispatchEvent(ev2);
+    return { prevented: ev.defaultPrevented || ev2.defaultPrevented, still: document.activeElement === real, id: real.closest(".feeds-row").getAttribute("data-id") };
+  });
+  if (away.prevented || !away.still || away.id) fail("keys: arrow keys left the source requests page " + JSON.stringify(away));
+  await context.close();
+  console.log("feeds keys ok");
+}
+
 async function main() {
   const chromium = await loadPlaywright();
   const server = await startServer();
@@ -252,6 +877,12 @@ async function main() {
   const browser = await chromium.launch({ channel: "chrome", headless: true, args: ["--no-sandbox", "--disable-gpu"] });
   try {
     for (const vp of widths) await run(browser, origin, vp);
+    for (const vp of [{ width: 390, height: 844, name: "phone" }, { width: 1280, height: 800, name: "desktop" }]) {
+      await runLarge(browser, origin, vp);
+      await runWindow(browser, origin, vp);
+    }
+    await runDrop(browser, origin);
+    await runKeys(browser, origin);
   } finally {
     await browser.close();
     server.close();
