@@ -25,9 +25,9 @@ import { tiktokSaveProblems } from "./tiktok-save-health.js";
 import { applyPaused } from "./status-paused.js";
 
 export const WATCH_KEY = "owner/watchdog.json";
-export const REPO = "ViktorychGroup/ViktorychApp";
+export const REPO = "ViktorychGroup/ViktorychApp1427446516";
 const API = "https://api.github.com/repos/" + REPO;
-const PAGES = "https://viktorychgroup.github.io/ViktorychApp/";
+const PAGES = "https://viktorychgroup.github.io/ViktorychApp1427446516/";
 const MIRROR = "https://viktorychapp.pages.dev/";
 const HOUR = 36e5;
 const DAY = 24 * HOUR;

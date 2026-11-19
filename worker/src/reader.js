@@ -10,7 +10,7 @@ import { addressesArePublic, readerTarget, robotsAllows } from "../../shared/rea
 export const READER_TTL_S = 10 * 60;
 const MAX_BYTES = 1500000;
 const MAX_ROBOTS = 256 * 1024;
-const UA = "ViktorychAppReader/1.0 (+https://viktorychgroup.github.io/ViktorychApp; public reading view)";
+const UA = "ViktorychAppReader/1.0 (+https://viktorychgroup.github.io/ViktorychApp1427446516; public reading view)";
 const UA_TOKEN = "ViktorychAppReader";
 const DOH = "https://cloudflare-dns.com/dns-query";
 

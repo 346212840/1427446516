@@ -38,7 +38,7 @@ const PROFILE_CACHE_S = 3600;
 const KINDS = ["together", "room", "stats"];
 const DEFAULT_AUD = { together: "only", room: "friends", stats: "public" };
 const AUDS = ["public", "followers", "friends", "only", "list"];
-const POLITE_UA = "ViktorychApp/1.0 (+https://viktorychgroup.github.io/ViktorychApp/; cached Top 100 view, one request per 10 minutes)";
+const POLITE_UA = "ViktorychApp/1.0 (+https://viktorychgroup.github.io/ViktorychApp1427446516/; cached Top 100 view, one request per 10 minutes)";
 
 export const GAME_SOCIAL_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS game_invites (id TEXT PRIMARY KEY, game_id TEXT NOT NULL, from_id TEXT NOT NULL, to_id TEXT NOT NULL, room TEXT NOT NULL DEFAULT '', message TEXT NOT NULL DEFAULT '', lobby_id TEXT NOT NULL DEFAULT '', private INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'pending', created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, answered_at INTEGER NOT NULL DEFAULT 0)`,
