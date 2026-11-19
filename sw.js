@@ -308,17 +308,7 @@ const SHELL_FILES = [
   "./peer-pool.js",
   "./shared/peer-pool.js",
   "./shared/pool-scheduler.js",
-  "./shared/device-performance.js",
-  "./calls.js",
-  "./calls.css",
-  "./shared/call-langs.js",
-  "./shared/call-audio.js",
-  "./shared/call-mode.js",
-  "./shared/call-voice.js",
-  "./shared/call-setup.js",
-  "./shared/call-privacy.js",
-  "./shared/call-quality.js",
-  "./shared/call-gemini.js"
+  "./shared/device-performance.js"
 ];
 /* The first visit activates after these files. The rest of SHELL_FILES is
    cached when the page asks, once the browser is idle. */
