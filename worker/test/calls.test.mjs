@@ -37,7 +37,8 @@ async function call(path, opts) {
   const res = await mf.dispatchFetch("https://accounts.test" + path, {
     method: opts.method || "GET",
     headers,
-    body: opts.body ? JSON.stringify(opts.body) : undefined
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+    cf: opts.cf
   });
   const text = await res.text();
   let body = null;
@@ -120,6 +121,14 @@ test("calls stay off until the owner turns them on, then privacy is enforced", a
   assert.equal(minted.body.setup.generationConfig.translationConfig.targetLanguageCode, "sv");
   assert.ok(minted.body.setup.systemInstruction.parts[0].text.includes("Speaker language: en."));
   assert.ok(minted.body.setup.contextWindowCompression);
+
+  assert.equal(minted.body.prefer, undefined, "an unknown country keeps the default order");
+  const ruMint = await call("/v1/calls/" + created.body.call.id + "/translate", { method: "POST", token: ada.token, cf: { country: "RU" }, body: { target: "en", source: "ru", key: "k".repeat(30) } });
+  assert.equal(ruMint.body.prefer, "relay", "a caller in Russia is told to use the relay first");
+  assert.equal(ruMint.body.country, "RU");
+  const seMint = await call("/v1/calls/" + created.body.call.id + "/translate", { method: "POST", token: ada.token, cf: { country: "SE" }, body: { target: "en", source: "sv", key: "k".repeat(30) } });
+  assert.equal(seMint.body.prefer, undefined);
+  assert.equal(seMint.body.country, "SE");
 
   const invite = await call("/v1/calls", { method: "POST", token: ada.token, body: { invite: true } });
   assert.equal(invite.status, 201, JSON.stringify(invite.body));

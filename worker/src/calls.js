@@ -283,6 +283,18 @@ async function member(env, request, deps) {
   return { account: null, guest: { callId: row.call_id, guestId: row.guest_id } };
 }
 
+/* Countries where Google is blocked or throttled. Their callers go through
+   the relay first, so the browser never has to reach Google at all. */
+const RELAY_FIRST_COUNTRIES = new Set(["RU", "BY", "IR", "CN", "TM"]);
+export function relayHint(request) {
+  const cf = (request && request.cf) || {};
+  let code = String(cf.country || "");
+  if (!code && request && request.headers) code = String(request.headers.get("CF-IPCountry") || "");
+  code = code.toUpperCase();
+  if (!/^[A-Z]{2}$/.test(code)) return {};
+  return RELAY_FIRST_COUNTRIES.has(code) ? { country: code, prefer: "relay" } : { country: code };
+}
+
 async function geminiToken(env, key, target, voice, hint, source, resume) {
   const setup = liveSetup(target, voice, resume, hint, source);
   const textFallback = { mode: "text", direct: true, setup: setup };
@@ -872,6 +884,7 @@ export async function handleCalls(request, env, path, url, deps) {
     if (!picked.key) return deps.json(200, { mode: "text", direct: false, reason: picked.source === "ringing" ? "ringing" : "nokey" });
     const minted = await geminiToken(env, picked.key, target, body.voice, lexiconHint(body.lexicon), body.source, typeof body.resume === "string" ? body.resume : "");
     minted.keySource = picked.source;
+    Object.assign(minted, relayHint(request));
     if (minted.reason === "quota" || minted.mode === "text") return deps.json(200, minted);
     const packed = JSON.stringify(minted);
     if (packed.includes(picked.key)) return deps.json(500, { error: "unavailable" });

@@ -211,6 +211,31 @@ function relayFirst() {
   }
   return inRegion();
 }
+function routeKnown() {
+  try {
+    const row = JSON.parse(localStorage.getItem(ROUTE_KEY) || "null");
+    return !!(row && Date.now() - row.at < 60 * 60 * 1000);
+  } catch (err) { return false; }
+}
+/* The relay is a stateless socket, so any host that runs it will do. The
+   main Worker comes first. The Pages mirror is a second hostname for
+   networks that block workers.dev, and a site on its own domain or the
+   mirror uses its own origin first. */
+const RELAY_MIRROR = "https://viktorychapp.pages.dev";
+function relayHosts() {
+  const out = [];
+  const add = (host) => {
+    const clean = String(host || "").replace(/\/$/, "");
+    if (/^https?:\/\//i.test(clean) && out.indexOf(clean) < 0) out.push(clean);
+  };
+  const bag = window.VIKTORYCH_ACCOUNTS || {};
+  const here = typeof location !== "undefined" ? location.origin : "";
+  if (/\.pages\.dev$/i.test(here.replace(/^https?:\/\//i, ""))) add(here);
+  add(apiBase());
+  (Array.isArray(bag.relayHosts) ? bag.relayHosts : []).forEach(add);
+  add(RELAY_MIRROR);
+  return out;
+}
 function rememberRoute(via) {
   try { localStorage.setItem(ROUTE_KEY, JSON.stringify({ via: via, at: Date.now() })); } catch (err) { /* private mode */ }
 }
@@ -1451,6 +1476,8 @@ function engineConfig(extra) {
     connection: () => navigator.connection || {},
     relayFirst: relayFirst,
     relayUrl: (tokenValue) => apiBase() + "/v1/calls/live?t=" + encodeURIComponent(tokenValue),
+    relayUrls: (tokenValue) => relayHosts().map((host) => host.replace(/^http/i, "ws") + "/v1/calls/live?t=" + encodeURIComponent(tokenValue)),
+    routeKnown: routeKnown,
     onRoute: rememberRoute,
     onEvent: onEngineEvent
   }, extra || {});
