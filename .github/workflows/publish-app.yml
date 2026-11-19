@@ -391,7 +391,7 @@ jobs:
         continue-on-error: ${{ inputs.source == 'watchdog-force' }}
         env:
           PAGE_URL: ${{ needs.deploy.outputs.page_url }}
-        run: node scripts/smoke_page.mjs --url "${PAGE_URL:-https://viktorychgroup.github.io/ViktorychApp/}" --retry 18
+        run: node scripts/smoke_page.mjs --url "${PAGE_URL:-https://viktorychgroup.github.io/ViktorychApp1427446516/}" --retry 18
 
   # Assets are already live. This job publishes version.json after that,
   # so a client cannot be told to update before the files exist.

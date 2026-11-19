@@ -7,7 +7,7 @@ assert.strictEqual(direct.allows("https://mastodon.social/api/v1/accounts/lookup
 assert.strictEqual(direct.allows("https://fosstodon.org/api/v1/accounts/lookup?acct=test"), true);
 assert.strictEqual(direct.allows("https://api.fxtwitter.com/x"), true);
 assert.strictEqual(direct.allows("https://archive.org/metadata/sintel"), true);
-assert.strictEqual(direct.allows("https://raw.githubusercontent.com/ViktorychGroup/ViktorychApp/main/feeds.json"), true);
+assert.strictEqual(direct.allows("https://raw.githubusercontent.com/ViktorychGroup/ViktorychApp1427446516/main/feeds.json"), true);
 assert.strictEqual(direct.allows("https://api.invidious.io/instances.json"), true);
 assert.strictEqual(direct.allows("https://accounts.example.workers.dev/v1/data/feeds.json"), false);
 assert.strictEqual(direct.allows("https://accounts.example/v1/owner/keys"), false);
@@ -32,8 +32,8 @@ assert.strictEqual(direct.paceWait("mastodon.social", 1000), 0);
 direct.markPace("mastodon.social", 1000);
 assert.strictEqual(direct.paceWait("mastodon.social", 1500), 600);
 
-const mirror = direct.githubMirror("https://raw.githubusercontent.com/ViktorychGroup/ViktorychApp/main/feeds.json");
-assert.strictEqual(mirror, "https://cdn.jsdelivr.net/gh/ViktorychGroup/ViktorychApp@main/feeds.json");
+const mirror = direct.githubMirror("https://raw.githubusercontent.com/ViktorychGroup/ViktorychApp1427446516/main/feeds.json");
+assert.strictEqual(mirror, "https://cdn.jsdelivr.net/gh/ViktorychGroup/ViktorychApp1427446516@main/feeds.json");
 assert.strictEqual(direct.bskyProfileUrl("bsky.app"), "https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=bsky.app");
 assert.ok(direct.bskyFeedUrl("@bsky.app").indexOf("limit=30") > 0);
 assert.strictEqual(direct.mastodonLookup("mastodon.social", "Gargron"), "https://mastodon.social/api/v1/accounts/lookup?acct=Gargron");
@@ -57,7 +57,7 @@ direct.setFetch(function (url) {
   return Promise.resolve({ ok: true, status: 200, json: function () { return Promise.resolve({ via: "device", url: url }); } });
 });
 
-direct.json("https://raw.githubusercontent.com/ViktorychGroup/ViktorychApp/main/feeds.json").then(function (body) {
+direct.json("https://raw.githubusercontent.com/ViktorychGroup/ViktorychApp1427446516/main/feeds.json").then(function (body) {
   assert.strictEqual(body.via, "device");
   assert.ok(calls.some((url) => String(url).indexOf("cdn.jsdelivr.net") >= 0));
   assert.ok(direct.counts().direct >= 1);
