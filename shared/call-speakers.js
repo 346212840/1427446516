@@ -119,23 +119,32 @@ export function createDiarizer() {
     open = null;
   }
 
-  function ensure(embed, hz) {
+  /* One voice is easy to over-split: breaths, unvoiced sounds and codec
+     noise shift the sketch from frame to frame. A new speaker needs a clearly
+     different pitch, a different sketch, and the same new voice heard for
+     about a second of voiced frames. A few stray frames do not reset it. Unvoiced frames never
+     start or change a speaker. */
+  const CONFIRM_FRAMES = 10;
+  const PITCH_GAP = 0.3;
+  let pending = null;
+
+  function nearest(embed) {
     let best = null;
-    let gap = 0.55;
+    let gap = Infinity;
     speakers.forEach((item) => {
       const next = distance(embed, item.embed);
-      if (next < gap) {
-        gap = next;
-        best = item;
-      }
+      if (next < gap) { gap = next; best = item; }
     });
-    if (best) {
-      best.embed = best.embed.map((value, i) => value * 0.7 + embed[i] * 0.3);
-      if (hz) best.hz = best.hz ? best.hz * 0.7 + hz * 0.3 : hz;
-      best.voice = matchVoice(best.hz);
-      return best;
-    }
-    if (speakers.length >= SPEAKER_LIMIT) return speakers[0];
+    return { speaker: best, gap: gap };
+  }
+
+  function learn(item, embed, hz) {
+    item.embed = item.embed.map((value, i) => value * 0.9 + embed[i] * 0.1);
+    if (hz) item.hz = item.hz ? item.hz * 0.85 + hz * 0.15 : hz;
+    item.voice = matchVoice(item.hz);
+  }
+
+  function create(embed, hz) {
     const created = {
       id: "s" + (speakers.length + 1),
       hz: hz || 0,
@@ -145,6 +154,39 @@ export function createDiarizer() {
     };
     speakers.push(created);
     return created;
+  }
+
+  function ensure(embed, hz) {
+    if (!speakers.length) return create(embed, hz);
+    const current = open ? speakers.find((item) => item.id === open.id) : null;
+    const near = nearest(embed);
+    if (!hz) return current || near.speaker;
+    const known = speakers.filter((item) => item.hz);
+    const samePitch = known.find((item) => Math.abs(hz - item.hz) / item.hz < PITCH_GAP);
+    if (samePitch) {
+      if (pending) pending.count = Math.max(0, pending.count - 0.5);
+      const pick = near.gap < 0.55 && near.speaker.hz && Math.abs(hz - near.speaker.hz) / near.speaker.hz < PITCH_GAP ? near.speaker : samePitch;
+      learn(pick, embed, hz);
+      return pick;
+    }
+    if (!known.length) {
+      learn(near.speaker, embed, hz);
+      return near.speaker;
+    }
+    if (speakers.length >= SPEAKER_LIMIT) return current || near.speaker;
+    if (pending && Math.abs(hz - pending.hz) / pending.hz < 0.1) {
+      pending.count++;
+      pending.hz = pending.hz * 0.7 + hz * 0.3;
+    } else if (pending && pending.count > 1) {
+      pending.count -= 1;
+    } else {
+      pending = { hz: hz, count: 1 };
+    }
+    if (pending.count >= CONFIRM_FRAMES) {
+      pending = null;
+      return create(embed, hz);
+    }
+    return current || near.speaker;
   }
 
   return {
