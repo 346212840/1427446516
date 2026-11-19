@@ -11288,7 +11288,7 @@ const here = parseRoute();
 
   function navItem(href, name, label, on, aria, tip, extraClass) {
     const onName = name === "calls" ? "callsOn" : name + tr("On");
-    const glyph = icon(on && (PATH[onName] || XLINE[onName]) && (name === "home" || name === "calls" || name.indexOf("mu") === 0) ? onName : name);
+    const glyph = icon(on && (PATH[onName] || (window.ViktorychIcons && window.ViktorychIcons.has(onName))) && (name === "home" || name === "calls" || name.indexOf("mu") === 0) ? onName : name);
     const badge = name === "bell" ? bellBadgeHtml() : (href === "#/online" ? onlineCountHtml() : "");
     const accessible = aria || label;
     const tooltipText = tip || (name === "muBack" ? tr("Back") : label);
