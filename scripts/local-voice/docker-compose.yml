@@ -1,0 +1,33 @@
+# Optional Fish-Speech 1.5 only. Qwen3-TTS and OmniVoice use start-local-voice.ps1.
+# Optional Docker run for the OpenAudio S1-mini server.
+# Start it from the fish-speech v1.5.1 checkout the PowerShell script clones
+# (%LOCALAPPDATA%\ViktorychLocalVoice\fish-speech), after the weights are in
+# ./checkpoints/openaudio-s1-mini. The published port is loopback only.
+# Do not pass --compile. Half precision is selected in the command.
+# S2-Pro and Drama 3 do not fit a 6 GB card. This file does not download weights.
+
+services:
+  fish:
+    image: pytorch/pytorch:2.4.1-cuda12.1-cudnn9-runtime
+    working_dir: /work
+    volumes:
+      - ./:/work
+    gpus: all
+    ports:
+      - "127.0.0.1:18082:18082"
+    environment:
+      LOCAL_VOICE_TOKEN: ${LOCAL_VOICE_TOKEN}
+    command:
+      - python
+      - tools/api_server.py
+      - --listen
+      - 0.0.0.0:18082
+      - --half
+      - --llama-checkpoint-path
+      - checkpoints/openaudio-s1-mini
+      - --decoder-checkpoint-path
+      - checkpoints/openaudio-s1-mini/codec.pth
+      - --decoder-config-name
+      - modded_dac_vq
+      - --api-key
+      - ${LOCAL_VOICE_TOKEN}

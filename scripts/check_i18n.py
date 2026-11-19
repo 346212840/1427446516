@@ -34,6 +34,7 @@ ALLOW_IDENTICAL = {
     "GIF",
     "RSS",
     "YouTube Music",
+    "Fish-Speech 1.5",
     "ALT",
     "https://",
     "Wi-Fi",
