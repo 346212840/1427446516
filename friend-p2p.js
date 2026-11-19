@@ -361,7 +361,7 @@ function flush() {
   flushing = box.reduce((chain, row) => chain.then((sent) => {
     const direct = enabled() ? viaPeer(row.to, row.mid, row.text) : Promise.resolve(false);
     return direct.then((ok) => (ok ? "p2p" : viaServer(row.to, row.text, row.mid))).then((via) => {
-      if (via === "offline") return sent;
+      if (via !== "p2p" && via !== "server") return sent;
       writeJson(OUTBOX, readJson(OUTBOX, []).filter((r) => r.mid !== row.mid));
       return sent + 1;
     });
