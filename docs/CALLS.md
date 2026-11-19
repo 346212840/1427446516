@@ -37,3 +37,13 @@ A missed call can be called back in one tap. A guest keeps a return link. Repeat
 The microphone worklet sends 100 ms of 16 kHz speech, and skips silence. Translated audio is 24 kHz and starts on the first chunk. The Gemini socket is opened while the phone is still ringing. A long call resumes the session before the time limit. If the free-tier minute is tight, the call continues as text.
 
 Bluetooth and headphones take the sound without rebuilding the call. The lock screen can mute or end the call. The screen stays awake during the call.
+
+## Phones on weak mobile data (iPhone and Pixel)
+
+- The page creates one audio context on the first tap and reuses it for ringing and calls, because iOS keeps a context made later (after a fetch) suspended. It is resumed again on `statechange`, `pageshow`, focus and visibility, and every 2 s while the page is visible. `navigator.audioSession` is `play-and-record` during a call.
+- Without `setSinkId` (iOS Safari) the call keeps the default output; Ear mode then lowers the volume instead of switching to the earpiece.
+- Without the Wake Lock API a looping muted 1 s clip keeps the screen on.
+- When the network changes (`online`, Network Information `change`) signalling reconnects at once, the host restarts ICE, and the Gemini sockets skip their back-off.
+- Every 4 s the remote loss and round trip pick the Opus bitrate (64, 32, 24 or 16 kbit/s): worse quickly, better after three clean samples.
+- The translated voice is scheduled with a lead that starts at 60 ms, grows by 80 ms (up to 500 ms) when the audio runs dry in the middle of a phrase, floors at 100/160/240 ms on weaker links, and shrinks by 40 ms after 20 s without a gap.
+- Cloudflare Realtime TURN needs the Worker secrets `CF_TURN_KEY_ID` and `CF_TURN_API_TOKEN`; until they exist the public TLS 443 relay is the fallback.
