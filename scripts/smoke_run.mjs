@@ -260,7 +260,11 @@ const PAGE_STEPS = [
     paths: [file("storage_page_test.mjs"), /^storage-recordings\.js$/, /^drive\.(js|css)$/, /^shared\/storage-/, ...APP]
   }),
   step("app-scale", "node scripts/app_scale_test.mjs", { needs: ["pw", "browser"], paths: [file("app_scale_test.mjs"), /^desktop-app\.js$/, /^app\.js$/, /^mention-suggest\.js$/] }),
-  step("image-copy", "node scripts/image_copy_test.mjs", { needs: ["pw", "browser"], paths: [file("image_copy_test.mjs"), /^image-copy\.js$/] })
+  step("image-copy", "node scripts/image_copy_test.mjs", { needs: ["pw", "browser"], paths: [file("image_copy_test.mjs"), /^image-copy\.js$/] }),
+  step("audio-studio", "node scripts/audio_convert_plan_test.mjs && node scripts/audio_studio_test.mjs && python3 scripts/local_voice_route_test.py && python3 scripts/local_voice_proxy_test.py", {
+    weight: 50, needs: ["pw", "browser"],
+    paths: [/^audio-convert/, /^audio-studio-files\.js$/, /^voice-sheet\.js$/, /^telegram-account\.js$/, /^local-voice/, /^flow-music\.js$/, /^fish-cache\.js$/, file("audio_studio_test.mjs"), file("audio_convert_plan_test.mjs"), file("local_voice_route_test.py"), file("local_voice_proxy_test.py"), ...APP]
+  })
 ];
 
 const NAV_STEPS = [
@@ -302,7 +306,7 @@ const NAV_STEPS = [
 const SHARDS = {
   checks: ["action-bar", "assemble-self", "r2-catalog", "catalog-migrate", "handle-guard", "repo-path", "i18n", "telegram-stories", "stories", "device", "translate", "ondevice-ai", "dock", "for-you", "storage-recordings", "app-scale", "image-copy"],
   site: ["about-layout", "points-layout", "stories-layout", "assemble-site", "smoke-site", "smoke-mirror", "yt-embed", "x-video", "ios", "live", "shorts-page", "app-base"],
-  "ui-fast": ["notifications", "scrollbar-hidden", "pill-fit", "sidebar", "privacy", "title-privacy", "desktop-squares", "storage-page"],
+  "ui-fast": ["notifications", "scrollbar-hidden", "pill-fit", "sidebar", "privacy", "title-privacy", "desktop-squares", "storage-page", "audio-studio"],
   sw: ["sw-update"],
   "ui-profile": ["profile", "profile-tab-scroll"],
   "ui-drawer": ["drawer"],
@@ -334,7 +338,7 @@ const REQUIRED_PAGE = [
   "device-guard", "usernames", "owner-user-settings", "display-names", "settings-assistant", "nostr-settings", "games-mobile",
   "live-translate", "friend-p2p", "friend-refresh", "communities-instant", "routes-instant", "profile-by-name", "people-search", "emoji-text", "post-menu", "show-more-scroll", "action-speed", "reply-pending", "tab-sync",
   "communities-rows", "friend-privacy", "foryou-communities", "foryou-chunks", "author-marks", "foryou-off", "title-privacy", "desktop-squares",
-  "storage-recordings", "storage-page", "app-scale", "image-copy", "app-base"
+  "storage-recordings", "storage-page", "app-scale", "image-copy", "app-base", "audio-studio"
 ];
 
 export function stepsFor(suite) {
@@ -588,10 +592,13 @@ async function main() {
       "printf '%s\\n' \"$pkgs\" | tr ' ' '\\n' | grep -Eq '^(fonts-|xfonts-)' && exit 1",
       "printf '%s\\n' \"$pkgs\" | tr ' ' '\\n' | grep -qx 'libgstreamer-plugins-bad1.0-0'",
       "echo \"webkit packages: $pkgs\"",
-      "if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then sudo sed -i 's|http://[a-z0-9.-]*archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources; fi",
-      "sudo sed -i 's|http://[a-z0-9.-]*archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list || true",
+      "echo 'Acquire::ForceIPv4 \"true\";' | sudo tee /etc/apt/apt.conf.d/99force-ipv4 >/dev/null",
+      "for f in /etc/apt/sources.list /etc/apt/sources.list.d/*; do",
+      "  [ -f \"$f\" ] || continue",
+      "  sudo sed -i -E 's#https?://([A-Za-z0-9.-]+\\.)?archive\\.ubuntu\\.com/ubuntu#http://archive.ubuntu.com/ubuntu#g; s#https?://security\\.ubuntu\\.com/ubuntu#http://archive.ubuntu.com/ubuntu#g' \"$f\"",
+      "done",
       "sudo DEBIAN_FRONTEND=noninteractive apt-get update -qq",
-      "sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 install -y --no-install-recommends $pkgs"
+      "sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=6 -o Acquire::http::Timeout=20 install -y --no-install-recommends $pkgs"
     ].join("\n"), process.env);
     if (apt !== 0) throw new Error("webkit libraries failed to install");
   }

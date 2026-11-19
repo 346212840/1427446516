@@ -497,6 +497,20 @@ settings-registry.js|Friends master switch: turn Friends off entirely (no reques
 # Local AI setup: each reply language is shown in its own name.
 local-ai-ui.js|English
 local-ai-ui.js|Español
+# Format names listed next to Lossless and Lossy.
+audio-studio-files.js|WAV FLAC ALAC AIFF.
+audio-studio-files.js|MP3 AAC Opus Vorbis.
+# Model ids and product names shown as engine choices.
+audio-convert-whisper.js|Xenova/whisper-tiny
+flow-music.js|Lyria 3 Pro
+flow-music.js|Lyria 3.5
+# Audio Studio title and tab names are pack keys. The title constant is the one place the owner renames the page.
+app.js|Audio Studio
+audio-convert.js|Convert
+audio-convert.js|Voice Notes
+audio-convert.js|Type to Voice
+audio-convert.js|Music
+audio-convert.js|Audio Studio
 # Font names used only to measure whether the device can draw an emoji.
 emoji.js|32px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", emoji, sans-serif
 emoji.js|48px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", emoji, sans-serif
