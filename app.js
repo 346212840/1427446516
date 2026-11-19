@@ -522,7 +522,9 @@
     }
     const pagesHost = "viktorychapp.pages.dev";
     if (host === pagesHost || (host.length > pagesHost.length + 1 && host.slice(-(pagesHost.length + 1)) === "." + pagesHost)) {
-      return "ViktorychGroup/ViktorychApp";
+      const stamped = typeof ViktorychRepoName === "string" ? ViktorychRepoName : "";
+      if (stamped && stamped.indexOf("__") < 0 && stamped.indexOf("/") > 0) return stamped;
+      return "";
     }
     return "";
   }
@@ -33578,7 +33580,8 @@ if (data.historyPause) STATE.settings.historyPause = cleanHistoryPause(data.hist
   function registerSW() {
     if (!("serviceWorker" in navigator) || swStarted) return;
     swStarted = true;
-    navigator.serviceWorker.register("sw.js", { scope: "./", updateViaCache: "none" }).then((reg) => {
+    const adopt = window.ViktorychAppBase && window.ViktorychAppBase.adoptHere ? window.ViktorychAppBase.adoptHere() : Promise.resolve();
+    adopt.then(() => navigator.serviceWorker.register("sw.js", { scope: "./", updateViaCache: "none" })).then((reg) => {
       swReg = reg || swReg;
       if (reg && reg.update) reg.update().catch(() => {});
       syncWorkerState();

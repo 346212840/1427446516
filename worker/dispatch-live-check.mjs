@@ -7,7 +7,8 @@ import https from "node:https";
 import { Miniflare } from "miniflare";
 
 const OWNER = "mirathorn";
-const LIVE_PATH = "/repos/ViktorychGroup/ViktorychApp/actions/workflows/tiktok-live.yml/dispatches";
+const REPO = process.env.GITHUB_REPOSITORY && process.env.GITHUB_REPOSITORY.indexOf("/") > 0 ? process.env.GITHUB_REPOSITORY : "ViktorychGroup/ViktorychApp";
+const LIVE_PATH = "/repos/" + REPO + "/actions/workflows/tiktok-live.yml/dispatches";
 
 function redact(text) {
   const value = String(process.env.WORKER_DISPATCH_TOKEN || "");

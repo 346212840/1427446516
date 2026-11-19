@@ -55,6 +55,7 @@ import { handleXVideo } from "./xvideo.js";
 import { handleXBroadcast } from "./xbroadcast.js";
 import { handleNewsletter, sweepNewsletters } from "./newsletters.js";
 import { handleWatchdog, keepSyncFresh, runWatchdog, watchdogPause } from "./watchdog.js";
+import { githubFetch } from "./site-repo.js";
 import { handleComments } from "./comments-edge.js";
 import { handleYtm } from "./ytmusic.js";
 import { handleNzlay } from "./nzlay-forum.js";
@@ -4164,7 +4165,7 @@ async function dispatchWorkflows(env, files) {
   let ok = false;
   for (let i = 0; i < files.length; i++) {
     try {
-      const res = await fetch("https://api.github.com/repos/ViktorychGroup/ViktorychApp/actions/workflows/" + files[i] + "/dispatches", {
+      const res = await githubFetch(env, "/actions/workflows/" + files[i] + "/dispatches", {
         method: "POST",
         headers: {
           Authorization: "Bearer " + token,
@@ -4191,7 +4192,7 @@ async function discordLiveBusy(env) {
   const token = String(env.GITHUB_DISPATCH_TOKEN || "").trim();
   if (!token) return true;
   try {
-    const res = await fetch("https://api.github.com/repos/ViktorychGroup/ViktorychApp/actions/workflows/discord-live.yml/runs?per_page=5", {
+    const res = await githubFetch(env, "/actions/workflows/discord-live.yml/runs?per_page=5", {
       headers: {
         Authorization: "Bearer " + token,
         Accept: "application/vnd.github+json",
@@ -4272,7 +4273,7 @@ async function dispatchWorkflow(env, file, inputs) {
   const token = String(env.GITHUB_DISPATCH_TOKEN || "").trim();
   if (!token) return false;
   try {
-    const res = await fetch("https://api.github.com/repos/ViktorychGroup/ViktorychApp/actions/workflows/" + file + "/dispatches", {
+    const res = await githubFetch(env, "/actions/workflows/" + file + "/dispatches", {
       method: "POST",
       headers: {
         Authorization: "Bearer " + token,

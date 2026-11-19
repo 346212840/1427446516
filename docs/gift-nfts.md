@@ -55,7 +55,7 @@ one-time deploy fee yourself.
    OpenZeppelin 5.0.2 from the import lines.
 4. In **Deploy & run**, set the environment to **Injected Provider**
    (your wallet, on Base Sepolia). Constructor values:
-   - `baseURI_`: `https://viktorychgroup.github.io/ViktorychApp/nft/`
+   - `baseURI_`: `https://viktorychapp.pages.dev/nft/`
    - `artCount_`: `75`
    Click **Deploy** and confirm in the wallet. Copy the contract address.
 5. Set the address and chain on the Worker (a public address, but kept as a

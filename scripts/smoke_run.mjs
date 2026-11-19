@@ -63,6 +63,7 @@ const PAGE_STEPS = [
   step("handle-guard", "python3 scripts/handle_guard.py --selftest", {
     paths: [/^scripts\/handle_guard\.py$/, /^scripts\//, /^docs\//, /\.md$/]
   }),
+  step("repo-path", "python3 scripts/repo_path_guard.py", { paths: [/^scripts\/repo_path_guard\.py$/, /^worker\/src\//, /^shared\//, /^app\.js$/, /^tv\.js$/] }),
   step("i18n", "python3 scripts/check_i18n.py", { paths: [/^i18n\//, /^scripts\/check_i18n\.py$/, /^scripts\/i18n_allow\.txt$/] }),
   step("about-layout", "node scripts/about_layout_test.mjs", {
     weight: 20, needs: ["pw"],
@@ -144,6 +145,10 @@ const PAGE_STEPS = [
   step("x-video", "PLAYWRIGHT_CORE=" + core149 + " node scripts/x_video_play.mjs --root _site", {
     weight: 40, needs: ["built", "pw149"],
     paths: [file("x_video_play.mjs"), /^app\.js$/]
+  }),
+  step("app-base", "node scripts/app_base_test.mjs", {
+    needs: ["pw", "browser"],
+    paths: [file("app_base_test.mjs"), /^shared\/app-base\.js$/, /^shared\/repo-name\.js$/]
   }),
   step("signup-sizes", "SIGNUP_PART=sizes node scripts/signup_flow_test.mjs", {
     weight: 200, needs: ["pw", "browser", "worker"], timing: true,
@@ -295,8 +300,8 @@ const NAV_STEPS = [
 ];
 
 const SHARDS = {
-  checks: ["action-bar", "assemble-self", "r2-catalog", "catalog-migrate", "handle-guard", "i18n", "telegram-stories", "stories", "device", "translate", "ondevice-ai", "dock", "for-you", "storage-recordings", "app-scale", "image-copy"],
-  site: ["about-layout", "points-layout", "stories-layout", "assemble-site", "smoke-site", "smoke-mirror", "yt-embed", "x-video", "ios", "live", "shorts-page"],
+  checks: ["action-bar", "assemble-self", "r2-catalog", "catalog-migrate", "handle-guard", "repo-path", "i18n", "telegram-stories", "stories", "device", "translate", "ondevice-ai", "dock", "for-you", "storage-recordings", "app-scale", "image-copy"],
+  site: ["about-layout", "points-layout", "stories-layout", "assemble-site", "smoke-site", "smoke-mirror", "yt-embed", "x-video", "ios", "live", "shorts-page", "app-base"],
   "ui-fast": ["notifications", "scrollbar-hidden", "pill-fit", "sidebar", "privacy", "title-privacy", "desktop-squares", "storage-page"],
   sw: ["sw-update"],
   "ui-profile": ["profile", "profile-tab-scroll"],
@@ -319,17 +324,17 @@ const NAV_SHARDS = {
 };
 
 const REQUIRED_PAGE = [
-  "action-bar", "assemble-self", "r2-catalog", "catalog-migrate", "handle-guard", "i18n",
+  "action-bar", "assemble-self", "r2-catalog", "catalog-migrate", "handle-guard", "repo-path", "i18n",
   "about-layout", "points-layout", "telegram-stories", "stories", "stories-layout",
   "assemble-site", "smoke-site", "smoke-mirror", "sw-update", "notifications", "scrollbar-hidden", "profile", "profile-tab-scroll",
   "home-tabs", "tab-member", "reply-lookup", "home-watch-rearm", "pill-fit", "drawer", "sidebar", "privacy", "yt-embed", "x-video",
   "signup-flows",
-  "device", "translate", "ondevice-ai", "dock", "for-you", "compose-ai", "compose-page", "ios", "live",
+  "device", "translate", "ondevice-ai", "dock", "for-you", "compose-ai", "compose-page", "ios", "live", "shorts-page",
   "community-home", "communities-hub", "own-post", "author-card-race", "post-page", "music-dock", "video-fallback", "ig-media", "source-assign",
-  "device-guard", "usernames", "display-names", "settings-assistant", "nostr-settings", "games-mobile",
+  "device-guard", "usernames", "owner-user-settings", "display-names", "settings-assistant", "nostr-settings", "games-mobile",
   "live-translate", "friend-p2p", "friend-refresh", "communities-instant", "routes-instant", "profile-by-name", "people-search", "emoji-text", "post-menu", "show-more-scroll", "action-speed", "reply-pending", "tab-sync",
   "communities-rows", "friend-privacy", "foryou-communities", "foryou-chunks", "author-marks", "foryou-off", "title-privacy", "desktop-squares",
-  "storage-recordings", "storage-page", "app-scale", "image-copy"
+  "storage-recordings", "storage-page", "app-scale", "image-copy", "app-base"
 ];
 
 export function stepsFor(suite) {

@@ -11,8 +11,9 @@
    hotlinked from the sender, never copied. */
 
 import { safeTarget, feedCandidates, guessPaths, looksLikeFeed, feedLinks, parseFeed, sanitizeHtml, feedKey, itemKey, clip, textOf, extractArticle, archiveLinks } from "../../shared/newsletter-feed.js";
+import { appContact } from "./site-repo.js";
 
-const UA = "Mozilla/5.0 (compatible; ViktorychReader/1.0; +https://viktorychgroup.github.io/ViktorychApp)";
+const UA = "Mozilla/5.0 (compatible; ViktorychReader/1.0; +" + appContact() + ")";
 const FRESH_MS = 30 * 60 * 1000;
 export const NEWSLETTER_TTL_MS = 14 * 24 * 3600 * 1000;
 const MAX_FEED = 5 * 1024 * 1024;
