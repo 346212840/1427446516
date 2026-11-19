@@ -264,9 +264,9 @@ const PAGE_STEPS = [
   step("calls-logic", "node scripts/calls_logic_test.mjs", {
     paths: [file("calls_logic_test.mjs"), /^shared\/call-/, /^calls\.js$/, /^worker\/src\/calls\.js$/]
   }),
-  step("audio-studio", "node scripts/audio_convert_plan_test.mjs && node scripts/audio_studio_test.mjs && python3 scripts/local_voice_route_test.py && python3 scripts/local_voice_proxy_test.py", {
+  step("audio-studio", "node scripts/telegram_account_test.mjs && node scripts/audio_convert_plan_test.mjs && node scripts/audio_studio_test.mjs && python3 scripts/local_voice_route_test.py && python3 scripts/local_voice_proxy_test.py", {
     weight: 50, needs: ["pw", "browser"],
-    paths: [/^audio-convert/, /^audio-studio-files\.js$/, /^voice-sheet\.js$/, /^telegram-account\.js$/, /^local-voice/, /^flow-music\.js$/, /^fish-cache\.js$/, file("audio_studio_test.mjs"), file("audio_convert_plan_test.mjs"), file("local_voice_route_test.py"), file("local_voice_proxy_test.py"), ...APP]
+    paths: [/^audio-convert/, /^audio-studio-files\.js$/, /^voice-sheet\.js$/, /^telegram-account\.js$/, /^local-voice/, /^flow-music\.js$/, /^fish-cache\.js$/, file("telegram_account_test.mjs"), file("audio_studio_test.mjs"), file("audio_convert_plan_test.mjs"), file("local_voice_route_test.py"), file("local_voice_proxy_test.py"), ...APP]
   })
 ];
 
