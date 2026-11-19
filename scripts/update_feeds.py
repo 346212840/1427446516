@@ -1151,7 +1151,37 @@ def media_bytes(dest: Path) -> tuple[int, int]:
     return len(files), sum(p.stat().st_size for p in files)
 
 
+def refresh_meta_urls(config: dict) -> int:
+    """Point saved Instagram and Threads feeds at the current public chain.
+
+    A feed keeps the source list it was given when it was added. New mirrors
+    would never be tried for those feeds, so a dead first host still ends the
+    read. The adapter stays the one that understands that platform.
+    """
+    from meta_sources import feed_urls
+
+    adapters = {"instagram": "rsshub_instagram", "threads": "rsshub_threads"}
+    changed = 0
+    for feed in config.get("feeds") or []:
+        if not isinstance(feed, dict):
+            continue
+        platform = feed.get("platform")
+        wanted = adapters.get(platform)
+        if not wanted:
+            continue
+        if feed.get("adapter") not in (wanted, "generic_rss", "", None):
+            continue
+        urls = feed_urls(platform)
+        if feed.get("source_urls") != urls or feed.get("adapter") != wanted:
+            feed["source_urls"] = urls
+            feed["adapter"] = wanted
+            changed += 1
+    return changed
+
+
 def build(config: dict, use_fixtures: bool, download: bool) -> dict:
+    if not use_fixtures:
+        refresh_meta_urls(config)
     out_path = ROOT / config.get("output", "feeds.json")
     existing = load_document(out_path)
     old_by_feed = {}
