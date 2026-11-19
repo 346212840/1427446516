@@ -29694,6 +29694,10 @@ if (data.historyPause) STATE.settings.historyPause = cleanHistoryPause(data.hist
         followRoute();
         return;
       }
+      /* A hash change is navigation, even when the listener is not the
+         window.event inUserInput() sees. It remounts the page. A background
+         refresh is the paint that keeps a focused field. */
+      STATE.userPaint = true;
       render({
         y: y,
         done: () => {
