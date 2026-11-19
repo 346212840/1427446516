@@ -28,6 +28,19 @@ function windowGuess(m) {
 function desktopGate(innerWidth) {
   return (Number(innerWidth) || 0) >= 1000;
 }
+// A wide Windows, Mac, ChromeOS or Linux touch screen keeps the desktop scale.
+// A narrow window, or a phone OS, does not.
+function wideDesktopOs(ua, width) {
+  if ((Number(width) || 0) < 1000) return false;
+  var text = String(ua || "");
+  if (/Android|iPhone|iPad|iPod|OpenHarmony|HarmonyOS|Mobile|SmartTV|AppleTV|GoogleTV|Tizen|Web0S|\bTV\b/i.test(text)) return false;
+  return /Windows NT|Macintosh|Mac OS X|CrOS|Linux|X11/i.test(text);
+}
+function scaleDesktop(width, pointer) {
+  pointer = pointer || {};
+  if (pointer.coarse && !(pointer.fine && pointer.hover) && !wideDesktopOs(pointer.ua, width)) return false;
+  return desktopGate(width);
+}
 function clampScale(n) {
   var x = Math.round(Number(n) / 5) * 5;
   if (!isFinite(x)) return 100;
@@ -50,7 +63,7 @@ function scaleChoice(pref, guess, desktop) {
   return 100;
 }
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { windowGuess: windowGuess, clampScale: clampScale, scaleChoice: scaleChoice, desktopGate: desktopGate };
+  module.exports = { windowGuess: windowGuess, clampScale: clampScale, scaleChoice: scaleChoice, desktopGate: desktopGate, scaleDesktop: scaleDesktop };
 }
 
 (function () {
@@ -314,7 +327,12 @@ if (typeof module !== "undefined" && module.exports) {
   function desktopEnough() {
     // innerWidth is the window's CSS width. Our page scale does not change it,
     // so multiplying by the scale would keep a narrow window looking wide.
-    return desktopGate(root.innerWidth);
+    return scaleDesktop(root.innerWidth, {
+      coarse: mq("(pointer: coarse)"),
+      fine: mq("(pointer: fine)"),
+      hover: mq("(hover: hover)"),
+      ua: (root.navigator && root.navigator.userAgent) || ""
+    });
   }
   function applyScale() {
     if (!featureOn() || !desktopEnough()) {
