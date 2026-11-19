@@ -61,6 +61,8 @@
   <script src="shared/ios.js"></script>
   <script src="shared/tv-boot.js"></script>
   <script src="shared/short-link.js"></script>
+  <script src="shared/repo-name.js"></script>
+  <script src="shared/app-base.js"></script>
   <script>
     (function () {
       try {
@@ -918,7 +920,12 @@
       function registerWorker() {
         if (!("serviceWorker" in navigator) || registerWorker.done) return;
         registerWorker.done = true;
-        try { navigator.serviceWorker.register("sw.js", { scope: "./", updateViaCache: "none" }).catch(function () {}); } catch (err) {}
+        var ready = window.ViktorychAppBase && window.ViktorychAppBase.adoptHere ? window.ViktorychAppBase.adoptHere() : Promise.resolve();
+        ready.then(function () {
+          try { navigator.serviceWorker.register("sw.js", { scope: "./", updateViaCache: "none" }).catch(function () {}); } catch (err) {}
+        }, function () {
+          try { navigator.serviceWorker.register("sw.js", { scope: "./", updateViaCache: "none" }).catch(function () {}); } catch (err) {}
+        });
       }
       if ("serviceWorker" in navigator) {
         setTimeout(function () {

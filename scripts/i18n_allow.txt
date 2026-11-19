@@ -13,6 +13,11 @@ keys: mesh-chat.js
 keys: settings-registry.js
 # Local AI core: the model prompt is English on purpose, and model names are proper nouns.
 keys: local-ai.js
+keys: shared/call-langs.js
+keys: shared/call-voice.js
+keys: shared/call-setup.js
+keys: shared/call-quality.js
+keys: shared/call-speakers.js
 keys: site-permissions.js
 # Pack keys picked by a ternary inside tr().
 x-compose.js|Reply
@@ -497,6 +502,112 @@ settings-registry.js|Friends master switch: turn Friends off entirely (no reques
 # Local AI setup: each reply language is shown in its own name.
 local-ai-ui.js|English
 local-ai-ui.js|Español
+# Format names listed next to Lossless and Lossy.
+audio-studio-files.js|WAV FLAC ALAC AIFF.
+audio-studio-files.js|MP3 AAC Opus Vorbis.
+# Model ids and product names shown as engine choices.
+audio-convert-whisper.js|Xenova/whisper-tiny
+flow-music.js|Lyria 3 Pro
+flow-music.js|Lyria 3.5
+# Audio Studio title and tab names are pack keys. The title constant is the one place the owner renames the page.
+app.js|Audio Studio
+audio-convert.js|Convert
+audio-convert.js|Voice Notes
+audio-convert.js|Type to Voice
+audio-convert.js|Music
+audio-convert.js|Audio Studio
 # Font names used only to measure whether the device can draw an emoji.
 emoji.js|32px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", emoji, sans-serif
 emoji.js|48px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", emoji, sans-serif
+shared/call-langs.js|Afrikaans
+shared/call-langs.js|Akan
+shared/call-langs.js|Albanian
+shared/call-langs.js|Amharic
+shared/call-langs.js|Arabic
+shared/call-langs.js|Armenian
+shared/call-langs.js|Azerbaijani
+shared/call-langs.js|Basque
+shared/call-langs.js|Belarusian
+shared/call-langs.js|Bengali
+shared/call-langs.js|Bulgarian
+shared/call-langs.js|Burmese
+shared/call-langs.js|Catalan
+shared/call-langs.js|Chinese (Simplified)
+shared/call-langs.js|Chinese (Traditional)
+shared/call-langs.js|Croatian
+shared/call-langs.js|Czech
+shared/call-langs.js|Danish
+shared/call-langs.js|Dutch
+shared/call-langs.js|English
+shared/call-langs.js|Estonian
+shared/call-langs.js|Filipino
+shared/call-langs.js|Finnish
+shared/call-langs.js|French
+shared/call-langs.js|Galician
+shared/call-langs.js|Georgian
+shared/call-langs.js|German
+shared/call-langs.js|Greek
+shared/call-langs.js|Gujarati
+shared/call-langs.js|Hausa
+shared/call-langs.js|Hebrew
+shared/call-langs.js|Hindi
+shared/call-langs.js|Hungarian
+shared/call-langs.js|Icelandic
+shared/call-langs.js|Indonesian
+shared/call-langs.js|Italian
+shared/call-langs.js|Japanese
+shared/call-langs.js|Javanese
+shared/call-langs.js|Kannada
+shared/call-langs.js|Kazakh
+shared/call-langs.js|Khmer
+shared/call-langs.js|Kinyarwanda
+shared/call-langs.js|Korean
+shared/call-langs.js|Lao
+shared/call-langs.js|Latvian
+shared/call-langs.js|Lithuanian
+shared/call-langs.js|Macedonian
+shared/call-langs.js|Malay
+shared/call-langs.js|Malayalam
+shared/call-langs.js|Marathi
+shared/call-langs.js|Mongolian
+shared/call-langs.js|Nepali
+shared/call-langs.js|Norwegian
+shared/call-langs.js|Norwegian Bokmål
+shared/call-langs.js|Persian
+shared/call-langs.js|Polish
+shared/call-langs.js|Portuguese (Brazil)
+shared/call-langs.js|Portuguese (Portugal)
+shared/call-langs.js|Punjabi
+shared/call-langs.js|Romanian
+shared/call-langs.js|Russian
+shared/call-langs.js|Serbian
+shared/call-langs.js|Sindhi
+shared/call-langs.js|Sinhala
+shared/call-langs.js|Slovak
+shared/call-langs.js|Slovenian
+shared/call-langs.js|Spanish
+shared/call-langs.js|Sundanese
+shared/call-langs.js|Swahili
+shared/call-langs.js|Swedish
+shared/call-langs.js|Tamil
+shared/call-langs.js|Telugu
+shared/call-langs.js|Thai
+shared/call-langs.js|Turkish
+shared/call-langs.js|Ukrainian
+shared/call-langs.js|Urdu
+shared/call-langs.js|Uzbek
+shared/call-langs.js|Vietnamese
+shared/call-langs.js|Zulu
+shared/call-quality.js|Pronounce these as specified:
+shared/call-setup.js|Speaker language:
+shared/call-setup.js|Listener language:
+shared/call-speakers.js|Gemini Live Translate does not separate overlapping voices. A mix of two people is not sent as one translation. Each person is translated on their own turn after the other pauses. Audio already handed to the model cannot be pulled back.
+shared/call-speakers.js|Speaker
+shared/call-voice.js|Puck
+shared/call-voice.js|Charon
+shared/call-voice.js|Fenrir
+shared/call-voice.js|Orus
+shared/call-voice.js|Kore
+shared/call-voice.js|Aoede
+shared/call-voice.js|Zephyr
+shared/call-voice.js|Leda

@@ -14,6 +14,8 @@ import { expiredBody, telegramFileGone } from "../../shared/telegram-expiry.js";
 import { ensureTelegramExpiryColumns, freshExpired, markTelegramExpired } from "./telegram-expiry.js";
 import { handleDrive, DRIVE_SCHEMA } from "./drive.js";
 import { handleVsrRoute } from "./vsr-retrieve.js";
+import { handleTelegramVoice } from "./telegram-voice.js";
+import { handleFish } from "./fish-audio.js";
 import { handleCommunityRoute, COMMUNITY_SCHEMA } from "./communities.js";
 import { handleFederationRoute, FEDERATION_SCHEMA, isPublicFederationRoute } from "./federation.js";
 import { usageReport } from "./usage.js";
@@ -41,6 +43,7 @@ import { handleTvPair } from "./tv-pair.js";
 import { handleMediaSwarm } from "./media-swarm.js";
 import { handlePool, notePoolDocument, poolSignable, poolUsage } from "./peer-pool.js";
 import { handleLive, LIVE_SCHEMA, sweepLive } from "./live.js";
+import { handleCalls, CALLS_SCHEMA, sweepCalls, callerMayCall } from "./calls.js";
 import { clipEmoji } from "../../shared/presence.js";
 import { PRESENCE_SCHEMA, ensurePresenceColumns, handleFriendPresence, handlePresence, sweepExpiredStatuses } from "./presence.js";
 import { NOTIFICATION_SCHEMA, drainOutbox, handleNotificationRoutes, notifyFollow, planRepostNotification, notifyLiveStarted, emitNotification } from "./notifications.js";
@@ -55,6 +58,7 @@ import { handleXVideo } from "./xvideo.js";
 import { handleXBroadcast } from "./xbroadcast.js";
 import { handleNewsletter, sweepNewsletters } from "./newsletters.js";
 import { handleWatchdog, keepSyncFresh, runWatchdog, watchdogPause } from "./watchdog.js";
+import { githubFetch } from "./site-repo.js";
 import { handleComments } from "./comments-edge.js";
 import { handleYtm } from "./ytmusic.js";
 import { handleNzlay } from "./nzlay-forum.js";
@@ -362,7 +366,7 @@ function ensureSchema(env) {
       env.DB.prepare("CREATE INDEX IF NOT EXISTS account_friend_requests_recv ON account_friend_requests(receiver_id, created_at DESC)"),
       env.DB.prepare("CREATE TABLE IF NOT EXISTS account_friends (user_id TEXT NOT NULL, friend_id TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY (user_id, friend_id))"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS account_friends_user ON account_friends(user_id, created_at DESC)")
-    ].concat(DRIVE_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(COMMUNITY_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(FEDERATION_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(IDENTITY_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(VAULT_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(KEYS_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(DELETION_SCHEMA.concat(TEMP_SCHEMA).map((sql) => env.DB.prepare(sql))).concat(PRESENCE_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(CHANNEL_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(LIVE_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(NOTIFICATION_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(PROFILE_MEDIA_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(MENTION_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(DISCORD_ALERT_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(WEBAUTHN_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(SOCIAL_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(ABOUT_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(AFFILIATION_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(POINTS_SCHEMA.concat(STORE_SCHEMA, LOCKED_SCHEMA).map((sql) => env.DB.prepare(sql))).concat(GAMES_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(SERVERS_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(REACTION_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(BADGE_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(APP_STORIES_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(NOTES_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(STORY_BAR_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(HIGHLIGHT_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(AUDIENCE_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(USERNAME_SCHEMA.concat(NAME_RULES_SCHEMA, DISPLAY_NAME_SCHEMA).map((sql) => env.DB.prepare(sql))).concat(GUARD_SCHEMA.concat(RECOVERY_SCHEMA, POST_SCHEMA, SUGGEST_SCHEMA).map((sql) => env.DB.prepare(sql)))).then(() => addProfileColumns(env)).then(() => ensurePresenceColumns(env)).then(() => ensurePostColumns(env)).then(() => migrateProfileMedia(env)).then(() => migrateOwnerKeys(env)).then(() => ensureTelegramExpiryColumns(env)).catch((err) => {
+    ].concat(DRIVE_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(COMMUNITY_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(FEDERATION_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(IDENTITY_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(VAULT_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(KEYS_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(DELETION_SCHEMA.concat(TEMP_SCHEMA).map((sql) => env.DB.prepare(sql))).concat(PRESENCE_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(CHANNEL_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(LIVE_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(CALLS_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(NOTIFICATION_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(PROFILE_MEDIA_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(MENTION_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(DISCORD_ALERT_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(WEBAUTHN_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(SOCIAL_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(ABOUT_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(AFFILIATION_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(POINTS_SCHEMA.concat(STORE_SCHEMA, LOCKED_SCHEMA).map((sql) => env.DB.prepare(sql))).concat(GAMES_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(SERVERS_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(REACTION_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(BADGE_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(APP_STORIES_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(NOTES_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(STORY_BAR_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(HIGHLIGHT_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(AUDIENCE_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(USERNAME_SCHEMA.concat(NAME_RULES_SCHEMA, DISPLAY_NAME_SCHEMA).map((sql) => env.DB.prepare(sql))).concat(GUARD_SCHEMA.concat(RECOVERY_SCHEMA, POST_SCHEMA, SUGGEST_SCHEMA).map((sql) => env.DB.prepare(sql)))).then(() => addProfileColumns(env)).then(() => ensurePresenceColumns(env)).then(() => ensurePostColumns(env)).then(() => migrateProfileMedia(env)).then(() => migrateOwnerKeys(env)).then(() => ensureTelegramExpiryColumns(env)).catch((err) => {
       schemaReady = null;
       throw err;
     });
@@ -1304,6 +1308,8 @@ async function handleProfileGet(request, env, handle) {
       account.locked = true;
       reposts = [];
     }
+    try { account.canCall = !state.viewerBlocks && !state.blockedBy && await callerMayCall(env, viewer.public_id, row.public_id); }
+    catch (err) { account.canCall = false; }
   }
   return json(200, { account, reposts, identities: account.identities || [] });
 }
@@ -4164,7 +4170,7 @@ async function dispatchWorkflows(env, files) {
   let ok = false;
   for (let i = 0; i < files.length; i++) {
     try {
-      const res = await fetch("https://api.github.com/repos/ViktorychGroup/ViktorychApp/actions/workflows/" + files[i] + "/dispatches", {
+      const res = await githubFetch(env, "/actions/workflows/" + files[i] + "/dispatches", {
         method: "POST",
         headers: {
           Authorization: "Bearer " + token,
@@ -4191,7 +4197,7 @@ async function discordLiveBusy(env) {
   const token = String(env.GITHUB_DISPATCH_TOKEN || "").trim();
   if (!token) return true;
   try {
-    const res = await fetch("https://api.github.com/repos/ViktorychGroup/ViktorychApp/actions/workflows/discord-live.yml/runs?per_page=5", {
+    const res = await githubFetch(env, "/actions/workflows/discord-live.yml/runs?per_page=5", {
       headers: {
         Authorization: "Bearer " + token,
         Accept: "application/vnd.github+json",
@@ -4272,7 +4278,7 @@ async function dispatchWorkflow(env, file, inputs) {
   const token = String(env.GITHUB_DISPATCH_TOKEN || "").trim();
   if (!token) return false;
   try {
-    const res = await fetch("https://api.github.com/repos/ViktorychGroup/ViktorychApp/actions/workflows/" + file + "/dispatches", {
+    const res = await githubFetch(env, "/actions/workflows/" + file + "/dispatches", {
       method: "POST",
       headers: {
         Authorization: "Bearer " + token,
@@ -6168,6 +6174,12 @@ async function route(request, env, ctx) {
   if (path === "/v1/health" && request.method === "GET") {
     return json(200, { ok: true, ready: !!env.ACCOUNT_PEPPER, data: !!env.DATA, turnstile: !!env.TURNSTILE_SECRET, telegram: !!env.TELEGRAM_BOT_TOKEN });
   }
+  if (path === "/v1/owner/fish" || path.startsWith("/v1/owner/fish/")) {
+    return handleFish(request, env, path, { json, readJson, requireOwner, rateHit, limited });
+  }
+  if (path === "/tg/voice" || path === "/tg/voice-hook" || path === "/v1/owner/telegram-voice" || path.startsWith("/v1/owner/telegram-voice/")) {
+    return handleTelegramVoice(request, env, path, { json, readJson, requireOwner, rateHit, limited });
+  }
   if (path.startsWith("/tg/vsr/") && (request.method === "GET" || request.method === "HEAD")) {
     return handleVsrRoute(request, env, path, { json, sessionAccount, rateHit, limited });
   }
@@ -6482,6 +6494,10 @@ async function route(request, env, ctx) {
     const handled = await handleLive(request, env, path, url, { json, sessionAccount, readJson, rateHit, limited });
     if (handled) return handled;
   }
+  if (path === "/v1/calls" || path.startsWith("/v1/calls/")) {
+    const called = await handleCalls(request, env, path, url, { json, sessionAccount, readJson, rateHit, limited });
+    if (called) return called;
+  }
   if (path === "/v1/packages" || path.startsWith("/v1/packages/")) {
     return handlePackagesRoute(request, env, path, { json, sessionAccount, readJson, notify: packageNotifier(emitNotification) });
   }
@@ -6689,6 +6705,7 @@ export default {
     run("ownerFeeds", () => sweepOwnerFeeds(env, at));
     if (!off.shorts && !off.lives) run("tiktokLive", () => watchTikTokLive(env, at));
     if (!off.lives) jobs.push(sweepLive(env, at));
+    if (!off.calls) jobs.push(sweepCalls(env, at));
     if (!off.stories) run("storiesSweep", () => sweepExpiredStories(env, at));
     // The cron runs every minute for TikTok. The Discord mirror keeps its
     // fifteen minute rhythm. The D1 export uses the same minute and only

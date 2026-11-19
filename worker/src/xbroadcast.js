@@ -8,13 +8,14 @@
    a minute; replays and misses for five. */
 
 import { assertNotPaidX } from "./x-guard.js";
+import { appContact } from "./site-repo.js";
 import { syndicationToken } from "./xvideo.js";
 import { SOURCE_HOSTS, cleanId, statusId, openUrl, extractFor, present } from "../../shared/x-broadcast.js";
 
 const LIVE_TTL_S = 60;
 const QUIET_TTL_S = 5 * 60;
 const TIMEOUT_MS = 6000;
-const UA = "Mozilla/5.0 (compatible; ViktorychApp/1.0; +https://viktorychgroup.github.io/ViktorychApp)";
+const UA = "Mozilla/5.0 (compatible; ViktorychApp/1.0; +" + appContact() + ")";
 const HOSTS = new Set(SOURCE_HOSTS);
 
 function reply(status, body, maxAge) {

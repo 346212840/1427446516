@@ -256,7 +256,8 @@
     feeds: `<path d="M12 3 2.8 8 12 13l9.2-5z"/><path d="m2.8 12 9.2 5 9.2-5"/><path d="m2.8 16 9.2 5 9.2-5"/>`,
     compose: `<path d="M3.5 7h6M6.5 4v6"/><path d="M17 5.2a2.1 2.1 0 0 1 3 3L10.4 17.8 6.5 19l1.2-3.9z"/><path d="m15.3 6.9 3 3"/>`,
     /* Viktrych (the on-device AI) logo: a V with a small spark. Also logo/viktrych.svg. */
-    viktrych: `<path d="M4.5 6 11 19.5l4.6-9.6"/><path d="M18.6 2.6l.9 2.3 2.3.9-2.3.9-.9 2.3-.9-2.3-2.3-.9 2.3-.9z" fill="currentColor" stroke="none"/>`
+    viktrych: `<path d="M4.5 6 11 19.5l4.6-9.6"/><path d="M18.6 2.6l.9 2.3 2.3.9-2.3.9-.9 2.3-.9-2.3-2.3-.9 2.3-.9z" fill="currentColor" stroke="none"/>`,
+    convert: `<path d="M4 8h11"/><path d="M12 4.5 15.5 8 12 11.5"/><path d="M20 16H9"/><path d="M12 12.5 8.5 16 12 19.5"/>`
   };
   /* The Viktorychs coin: black inside, white lines, a thin rim so it still shows on dark themes. */
   const COIN_SVG = `<svg class="vk-coin" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10.6" fill="#000" stroke="rgba(255,255,255,.45)" stroke-width="1"/><circle cx="12" cy="12" r="7.8" fill="none" stroke="#fff" stroke-width="1" opacity=".6"/><path d="M8.7 8.3 12 15.9l3.3-7.6" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -522,7 +523,9 @@
     }
     const pagesHost = "viktorychapp.pages.dev";
     if (host === pagesHost || (host.length > pagesHost.length + 1 && host.slice(-(pagesHost.length + 1)) === "." + pagesHost)) {
-      return "ViktorychGroup/ViktorychApp";
+      const stamped = typeof ViktorychRepoName === "string" ? ViktorychRepoName : "";
+      if (stamped && stamped.indexOf("__") < 0 && stamped.indexOf("/") > 0) return stamped;
+      return "";
     }
     return "";
   }
@@ -1441,12 +1444,16 @@
 
   const DEFAULT_NAV_CUSTOM = {
     folders: [
-      { id: "media", name: tr("Media"), items: ["music", "shorts", "tv", "games"] },
+      { id: "media", name: tr("Media"), items: ["music", "shorts", "tv", "games", "audiostudio"] },
       { id: "library", name: tr("Library"), items: ["history", "communities", "subscriptions", "vault", "packages"] }
     ],
     order: ["home", "explore", "notifications", "messages", "feeds", "lists", "folder:media", "folder:library", "settings"],
     hidden: []
   };
+
+  /* Display name for #/studio. Change this string to rename the page. */
+  const AUDIO_STUDIO_NAME = "Audio Studio";
+  window.ViktorychAudioStudio = { name: AUDIO_STUDIO_NAME, route: "studio", href: "#/studio" };
 
   const INBOX_NAV_IDS = ["inbox-servers", "inbox-discord", "inbox-mail", "inbox-sms"];
   const INBOX_NAV_FALLBACK = {
@@ -1457,7 +1464,7 @@
   };
   const ALL_NAV_IDS = [
     "home", "explore", "notifications", "messages", "inbox-servers", "inbox-discord", "inbox-mail", "inbox-sms", "online", "feeds", "lists",
-    "history", "music", "shorts", "games", "tv", "communities",
+    "history", "music", "shorts", "games", "tv", "communities", "audiostudio",
     "subscriptions", "vault", "packages", "settings"
   ];
 
@@ -2224,7 +2231,7 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
   function friendsOffNow() {
     return !!(window.ViktorychFriendsPref && window.ViktorychFriendsPref.isOff());
   }
-  const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "pills", "nostr", "regone_leaderboard", "regone_online", "regone_rooms", "regone_profile_stats", "nzlay_forum", "nzlay_forum_post", "nzlay_forum_regone", "nft", "bitchat", "feed_requests", "friends_off", "local_ai", "local_ai_setup", "ext_nicknames", "merged_profiles", "owner_inspector", "live_frame_grab", "app_repair", "auto_update", "swipe_tabs", "compact_header", "status_bar", "zoom_lock", "app_scale", "image_copy", "update_notice", "foryou_off", "status_icons", "side_panel", "ai_people", "gguf_models", "instant_limits", "ai_tools", "site_permissions", "notif_sounds", "owner_user_settings", "tiktok_auto_record", "ai_device_setup", "x_broadcast", "ai_auto_model", "article_reader", "storage_recordings", "home_live"];
+const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "pills", "nostr", "regone_leaderboard", "regone_online", "regone_rooms", "regone_profile_stats", "nzlay_forum", "nzlay_forum_post", "nzlay_forum_regone", "nft", "bitchat", "feed_requests", "friends_off", "local_ai", "local_ai_setup", "ext_nicknames", "merged_profiles", "owner_inspector", "live_frame_grab", "app_repair", "auto_update", "swipe_tabs", "compact_header", "status_bar", "zoom_lock", "app_scale", "image_copy", "update_notice", "foryou_off", "status_icons", "side_panel", "ai_people", "gguf_models", "instant_limits", "ai_tools", "site_permissions", "notif_sounds", "owner_user_settings", "tiktok_auto_record", "ai_device_setup", "x_broadcast", "ai_auto_model", "article_reader", "storage_recordings", "home_live", "audio_convert", "telegram_account_send", "fish_audio", "local_voice", "calls"];
   function serverOffList() {
     try {
       const list = JSON.parse(localStorage.getItem(SERVER_OFF_KEY) || "[]");
@@ -2348,7 +2355,12 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
       x_broadcast: [tr("X broadcasts"), tr("Public X broadcasts play in the feed when a public stream is available. Otherwise the card opens the broadcast on X.")],
       article_reader: [tr("Article reader"), tr("A reading view for public article links in posts. Off leaves those links opening on their own sites.")],
       storage_recordings: [tr("Storage recordings"), tr("Encrypted recordings open on this device. The key stays in this tab. Off hides that part of Storage.")],
-      home_live: [tr("Live Home"), tr("An open Home shows a new post from someone you follow without waiting for the next refresh.")]
+      home_live: [tr("Live Home"), tr("An open Home shows a new post from someone you follow without waiting for the next refresh.")],
+      audio_convert: [tr(AUDIO_STUDIO_NAME), tr("Turn audio into another format on this device. Voice notes, typed speech and music sit in one page.")],
+      telegram_account_send: [tr("Send as my Telegram account"), tr("Off until you turn it on. Sign-in stays in this browser. The session is never sent to our server.")],
+      fish_audio: [tr("Type to voice"), tr("Fish Audio speech for the owner. Off until you turn it on. The API key stays on the server. Previews use the free sample.")],
+      local_voice: [tr("Local voice (free)"), tr("On a desktop, Qwen3-TTS speaks English, Spanish and Russian. OmniVoice speaks Swedish and Catalan. Nothing is uploaded.")],
+      calls: [tr("Calls"), tr("Voice and text calls with live translation. Off until you turn it on. No camera.")]
     };
     const rows = SERVER_FEATURES.map((name) => {
       const on = !off.includes(name);
@@ -11111,11 +11123,17 @@ const here = parseRoute();
       return { name: "drive", section: "files", trash: false, folder: "", view: "", album: "", query };
     }
     if (parts[0] === "contacts") return { name: "contacts", sub: parts[1] || "", query };
+    if (parts[0] === "calls") return { name: "calls", id: parts[1] || "", query };
+    if (parts[0] === "call" && parts[1]) return { name: "callguest", token: parts[1], query };
     if (parts[0] === "vault") return { name: "vault", tab: parts[1] || "my", query };
     if (parts[0] === "packages") return { name: "packages", tab: parts[1] || "active", query };
     if (parts[0] === "communitynotes") return { name: "communitynotes", tab: parts[1] || "", query };
     if (parts[0] === "customize") return { name: "customize", query };
     if (parts[0] === "ai") return { name: "localai", query };
+    if (parts[0] === "studio" || parts[0] === "convert") {
+      const tab = ["convert", "voice", "type", "music"].includes(parts[1]) ? parts[1] : "convert";
+      return { name: "studio", tab: tab, query };
+    }
     if (parts[0] === "settings") return { name: "settings", section: parts[1] || "", sub: parts[2] || "", query };
     if (parts[0] === "feeds" && parts[1] === "lists") return { name: "sourcelists", query };
     if (parts[0] === "feeds" && parts[1] === "requests") return { name: "feedrequests", query };
@@ -11320,8 +11338,12 @@ const here = parseRoute();
         return { id: "history", href: "#/history", icon: "clock", label: tr("History"), active: (r) => r.name === "history" };
       case "music":
         return { id: "music", href: "#/music", icon: "muNote", label: tr("Music"), active: (r) => false };
+      case "audiostudio":
+        return { id: "audiostudio", href: "#/studio", icon: "convert", label: tr(AUDIO_STUDIO_NAME), active: (r) => r.name === "studio", visible: () => !serverOffList().includes("audio_convert") };
       case "contacts":
         return { id: "contacts", href: "#/contacts", icon: "phone", label: tr("Contacts"), active: (r) => r.name === "contacts", visible: () => featureOn("contacts") };
+      case "calls":
+        return { id: "calls", href: "#/calls", icon: "phone", label: tr("Calls"), active: (r) => r.name === "calls" || r.name === "callguest", visible: () => !!(window.ViktorychServerFeature && window.ViktorychServerFeature("calls")) };
       case "shorts":
         return { id: "shorts", href: "#/shorts", icon: "shorts", label: tr("Shorts"), active: (r) => r.name === "shorts", visible: () => shortsEnabled() && !!(window.ViktorychShorts && window.ViktorychShorts.visible()) };
       case "games":
@@ -12251,6 +12273,7 @@ const here = parseRoute();
       } catch (err) { /* storage blocked */ }
     });
     if (serverOffList().includes("x_broadcast")) off.push("xBroadcast");
+    if (serverOffList().includes("calls")) off.push("calls");
     // The service worker reads this list so its shell download skips off features too.
     const body = JSON.stringify(off);
     if (body === featureOffSent || !window.caches) return;
@@ -19357,6 +19380,7 @@ const here = parseRoute();
       else if (section === "data") key = tr("Data usage");
       else if (section === "notifications") key = tr("Notifications");
       else if (section === "privacy") key = tr("Privacy and safety");
+      else if (section === "calls") key = tr("Calls");
       else if (section === "muted") key = tr("Muted & blocked");
       else if (section === "usernames") key = tr("Usernames");
       else if (section === "locked-follows") key = tr("Locked follows");
@@ -19391,6 +19415,7 @@ const here = parseRoute();
         shorts: tr("Shorts"),
         games: route.game === "regone" ? "ReGone" : tr("Games"),
         communities: tr("Communities"),
+        studio: tr(AUDIO_STUDIO_NAME),
         drive: route.section === "photos" ? tr("Photos") : tr("brand.storage"),
         vault: tr("Viktorych Vault"),
         packages: tr("Packages"),
@@ -20164,6 +20189,11 @@ const here = parseRoute();
       return settingsHead(title, route.sub ? "#/settings/friendship" : "#/settings/friends") + `<div class="set-block">${window.ViktorychFriendPrivacy ? window.ViktorychFriendPrivacy.pageHtml(route.sub || "") : ""}</div>`;
     }
     if (section === "permissions" && sitePermsOn()) return settingsHead(tr("Site permissions"), "#/settings") + window.ViktorychSitePerms.pageHtml();
+    if (section === "calls") {
+      ensureLazy("calls");
+      const body = window.ViktorychCalls && window.ViktorychCalls.settingsHtml ? window.ViktorychCalls.settingsHtml() : "";
+      return settingsHead(tr("Calls"), "#/settings/privacy") + `<div class="set-block">${body}</div>`;
+    }
     if (section === "muted") return settingsHead(tr("Muted & blocked"), "#/settings/privacy") + `<div class="set-block">${mutedSettingsHtml()}</div>`;
     if (section === "privacy") {
       const acct = window.ViktorychAccounts && window.ViktorychAccounts.account && window.ViktorychAccounts.account();
@@ -20204,6 +20234,7 @@ const here = parseRoute();
 
         <h2>${esc(tr("Mute and block"))}</h2>
         <div class="set-list">${settingsRow("#/settings/muted", tr("Muted & blocked"), tr("Muted words, blocked accounts, posts, comments and sources."))}</div>
+        ${window.ViktorychServerFeature && window.ViktorychServerFeature("calls") ? `<div class="set-list">${settingsRow("#/settings/calls", tr("Calls"), tr("Who can call, guest links, and call choices."))}</div>` : ""}
 
         <h2>${esc(tr("Local data shredder"))}</h2>
         <p class="phandle">${esc(tr("Immediately purges all stored accounts, history, bookmarks, and cached files from this device."))}</p>
@@ -20323,7 +20354,7 @@ const here = parseRoute();
 
   const DRAWER_LOCKED = ["home", "settings", "logout", "customize"];
   const DRAWER_PRIMARY = ["home", "explore", "notifications", "profile", "online", "premium", "communities", "bookmarks", "points", "lists", "spaces", "golive", "requests", "studio", "localai", "settings", "help", "logout", "customize"];
-  const DRAWER_EXTRA = ["contacts", "tv", "messages", "feeds", "history", "shorts", "subscriptions", "vault", "packages", "storage", "games", "music"];
+  const DRAWER_EXTRA = ["contacts", "calls", "tv", "messages", "feeds", "history", "shorts", "subscriptions", "vault", "packages", "storage", "games", "music", "audiostudio"];
   const DRAWER_IDS = DRAWER_PRIMARY.concat(DRAWER_EXTRA);
   const DRAWER_NAV = {
     home: "home",
@@ -20342,6 +20373,7 @@ const here = parseRoute();
     packages: "packages",
     games: "games",
     tv: "tv",
+    audiostudio: "audiostudio",
     settings: "settings",
     storage: "storage"
   };
@@ -22708,6 +22740,12 @@ if (STATE.histClear) {
       ensureLazy("contacts");
       return lazySkeleton(tr("Contacts"));
     }
+    if (route.name === "calls" || route.name === "callguest") {
+      if (window.ViktorychServerFeature && !window.ViktorychServerFeature("calls")) return pageHead(tr("Calls")) + emptyBlock(tr("Calls"), tr("Calls is turned off right now."));
+      if (window.ViktorychCalls) return window.ViktorychCalls.page(route);
+      ensureLazy("calls");
+      return lazySkeleton(tr("Calls"));
+    }
     if (route.name === "shorts") {
       if (!shortsEnabled()) return "";
       if (window.ViktorychShorts && window.ViktorychShorts.visible()) return window.ViktorychShorts.page(route);
@@ -22719,6 +22757,13 @@ if (STATE.histClear) {
       if (window.ViktorychLocalAIPage) return window.ViktorychLocalAIPage.page(route);
       ensureLazy("localai");
       return lazySkeleton(tr("Local AI"));
+    }
+    if (route.name === "studio") {
+      const studioName = tr(AUDIO_STUDIO_NAME);
+      if (serverOffList().includes("audio_convert")) return pageHead(studioName) + emptyBlock(studioName, tr("The audio converter is turned off right now."));
+      if (window.ViktorychConvert) return pageHead(studioName) + window.ViktorychConvert.page(route);
+      ensureLazy("audio_convert");
+      return lazySkeleton(studioName);
     }
     if (route.name === "drive") {
       loadDeviceCore().then((dev) => {
@@ -23348,6 +23393,48 @@ if (STATE.histClear) {
     });
     while (live.children.length > ordered.length) live.removeChild(live.lastChild);
   }
+  /* Tab rows are reused on their own. The rest of the column is what a
+     background paint must not swap out from under a half-written control. */
+  function columnBody(main) {
+    const copy = main.cloneNode(true);
+    copy.querySelectorAll(".tabs, [role='tablist'], .cm-filter-bar, .vault-nav-tabs, .tv-tabs-nav").forEach((el) => el.remove());
+    copy.querySelectorAll("*").forEach((el) => {
+      el.removeAttribute("style");
+      [...el.attributes].forEach((attr) => {
+        if (attr.name.indexOf("hscroll") >= 0) el.removeAttribute(attr.name);
+      });
+    });
+    return copy.innerHTML;
+  }
+  function patchScrollersInPlace(live, fresh) {
+    const liveRows = hscrollList(live);
+    const freshRows = hscrollList(fresh);
+    const used = new Set();
+    freshRows.forEach((row) => {
+      const id = hscrollId(row, fresh);
+      let match = null;
+      for (let i = 0; i < liveRows.length; i++) {
+        if (used.has(liveRows[i])) continue;
+        const liveId = liveRows[i].dataset.hscrollKey || hscrollId(liveRows[i], live);
+        if (liveId === id) { match = liveRows[i]; break; }
+      }
+      if (!match || !isTabRow(match) || !isTabRow(row)) return;
+      used.add(match);
+      patchTabRow(match, row);
+    });
+  }
+  /* parkLiveView() has already moved the on-screen .view-slot onto slot.root,
+     so the column is not in #app. hscroll rows may already have been lifted
+     into the new tree; they are not part of this comparison. */
+  function keepMain(liveRoot, frag) {
+    const live = liveRoot && liveRoot.querySelector ? liveRoot.querySelector("main.center") : null;
+    const fresh = frag.querySelector("main.center");
+    if (!live || !fresh || !fresh.parentNode || live.tagName !== fresh.tagName) return false;
+    if (live.className !== fresh.className || columnBody(live) !== columnBody(fresh)) return false;
+    patchScrollersInPlace(live, fresh);
+    fresh.replaceWith(live);
+    return true;
+  }
   function keepChrome(liveRoot, frag) {
     const route = parseRoute();
     const key = parkKey(route);
@@ -23446,22 +23533,34 @@ if (STATE.histClear) {
     STATE.forYouCardHtml = next;
   }
 
+  function livePaintHost() {
+    const key = parkKey(parseRoute());
+    const slot = key ? viewParks.get(key) : null;
+    if (slot && slot.justParked && slot.root) return slot.root;
+    return document.getElementById("app");
+  }
   function commitApp(html, background) {
     const app = document.getElementById("app");
     if (!app) return;
     hscrollHolding = true;
     hscrollHoldGen = STATE.renderGen || 0;
-    hscrollRemember(app);
+    const host = livePaintHost() || app;
+    hscrollRemember(host);
     const tpl = document.createElement("template");
     tpl.innerHTML = html;
     /* A tap rebuilds the column. The tab strip is patched in place on every
        paint, including Edit tabs, so its grips and labels update without
-       mounting a second marquee. A background paint also keeps the header. */
-    hscrollReuse(app, tpl.content);
+       mounting a second marquee. A background paint also keeps the header
+       and, when the column text matches, the centre column itself. */
+    const keptMain = !!(background && keepMain(host, tpl.content));
+    if (!keptMain) hscrollReuse(host, tpl.content);
     if (background) {
-      reuseForYouCards(app, tpl.content, true);
-      keepChrome(app, tpl.content);
+      reuseForYouCards(host, tpl.content, true);
+      keepChrome(host, tpl.content);
     }
+    const parked = parkKey(parseRoute());
+    const slot = parked ? viewParks.get(parked) : null;
+    if (slot) slot.justParked = false;
     while (app.firstChild) app.removeChild(app.firstChild);
     app.appendChild(tpl.content);
     scheduleImageSweep();
@@ -24134,6 +24233,7 @@ if (STATE.histClear) {
       slot.root.querySelectorAll(".center.route-wait").forEach((el) => el.classList.remove("route-wait"));
       scrollLock = true;
       slot.root.remove();
+      slot.justParked = true;
       scrollLock = false;
       // 0 is a real position. A truthy fallback kept the previous
       // offset after the reader had already returned to the top.
@@ -24477,6 +24577,10 @@ if (STATE.histClear) {
         if (route.name === "contacts") window.ViktorychContacts.mount(route);
         else if (window.ViktorychContacts.unmount) window.ViktorychContacts.unmount();
       }
+      if (window.ViktorychCalls) {
+        if (route.name === "calls" || route.name === "callguest") window.ViktorychCalls.mount(route);
+        else if (window.ViktorychCalls.unmount) window.ViktorychCalls.unmount();
+      }
       if (window.ViktorychShorts) {
         if (shortsEnabled() && route.name === "shorts") window.ViktorychShorts.mount(route);
         else window.ViktorychShorts.unmount();
@@ -24488,6 +24592,10 @@ if (STATE.histClear) {
       if (window.ViktorychLocalAIPage) {
         if (route.name === "localai") window.ViktorychLocalAIPage.mount(route);
         else window.ViktorychLocalAIPage.unmount();
+      }
+      if (window.ViktorychConvert) {
+        if (route.name === "studio") window.ViktorychConvert.mount(route);
+        else if (window.ViktorychConvert.unmount) window.ViktorychConvert.unmount();
       }
       paintAiFab(route);
       if (window.ViktorychVault) {
@@ -24785,6 +24893,25 @@ if (route.name === "music" && window.SIntelMusic && window.SIntelMusic.titleFor)
   function onAct(el) {
     const act = el.dataset.act;
     if (act === "stop") return;
+    if (act === "call-open") {
+      const handle = el.dataset.handle || "";
+      ensureLazy("calls");
+      const go = () => {
+        if (window.ViktorychCalls && window.ViktorychCalls.onAct) window.ViktorychCalls.onAct("call-open", el);
+        location.hash = "#/calls?to=" + encodeURIComponent(handle);
+      };
+      if (window.ViktorychCalls) go();
+      else window.addEventListener("vklazy", function once(ev) {
+        if (!ev.detail || ev.detail.name !== "calls") return;
+        window.removeEventListener("vklazy", once);
+        go();
+      });
+      return;
+    }
+    if (act && act.indexOf("call-") === 0 && window.ViktorychCalls && window.ViktorychCalls.onAct) {
+      window.ViktorychCalls.onAct(act, el);
+      return;
+    }
     if (act && act.indexOf("xc-") === 0 && window.ViktorychXCompose && window.ViktorychXCompose.onAct) {
       window.ViktorychXCompose.onAct(act, el);
       return;
@@ -32852,6 +32979,7 @@ if (data.historyPause) STATE.settings.historyPause = cleanHistoryPause(data.hist
       return;
     }
     if (msg.op === "event" && msg.topic === "notifications" && msg.data) applyHubEvent(msg.data);
+    if (msg.op === "event" && msg.topic === "calls") ensureLazy("calls");
     if (msg.op === "event" && msg.topic === "games" && msg.data && window.ViktorychGameSocial) window.ViktorychGameSocial.onChannel(msg.data);
     if (msg.op === "event" && msg.topic === "sync" && msg.data && msg.data.lists && window.SourceLists && window.SourceLists.notify) window.SourceLists.notify(msg.data);
     if (msg.op === "event" && msg.topic === "posts") {
@@ -33597,7 +33725,8 @@ if (data.historyPause) STATE.settings.historyPause = cleanHistoryPause(data.hist
   function registerSW() {
     if (!("serviceWorker" in navigator) || swStarted) return;
     swStarted = true;
-    navigator.serviceWorker.register("sw.js", { scope: "./", updateViaCache: "none" }).then((reg) => {
+    const adopt = window.ViktorychAppBase && window.ViktorychAppBase.adoptHere ? window.ViktorychAppBase.adoptHere() : Promise.resolve();
+    adopt.then(() => navigator.serviceWorker.register("sw.js", { scope: "./", updateViaCache: "none" })).then((reg) => {
       swReg = reg || swReg;
       if (reg && reg.update) reg.update().catch(() => {});
       syncWorkerState();

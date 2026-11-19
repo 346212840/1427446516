@@ -4,7 +4,7 @@
 (function (root) {
   var PAGES_HOST = "viktorychapp.pages.dev";
   var PAGES = "https://" + PAGES_HOST + "/";
-  var GITHUB = "https://viktorychgroup.github.io/ViktorychApp/";
+  var GITHUB_FALLBACK = "__GITHUB_PAGES__";
 
   function normalizeBase(value) {
     var text = String(value || "").trim();
@@ -51,6 +51,18 @@
     }
     return String(origin || "") + "/";
   }
+
+  function currentGithub() {
+    try {
+      var loc = typeof location !== "undefined" ? location : null;
+      if (loc && /\.github\.io$/i.test(String(loc.hostname || ""))) {
+        var derived = appRoot(loc.origin, loc.pathname, loc.hostname);
+        if (derived && derived !== String(loc.origin || "") + "/") return derived;
+      }
+    } catch (err) { /* the stamped fallback is the published project */ }
+    return GITHUB_FALLBACK;
+  }
+  var GITHUB = currentGithub();
 
   function bases(here, github, pages) {
     var out = [];

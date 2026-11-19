@@ -467,6 +467,12 @@ def read_source(url: str) -> str:
     headers = {"User-Agent": UA, "Accept": "*/*"}
     headers.update(auth_cookie_header(url))
     headers.update(proxy_token_header(url))
+    if "instagram.com" in url:
+        from ig_public import public_headers
+
+        # A public Instagram page is read with no cookie. A stored session is not added.
+        headers.pop("Cookie", None)
+        headers.update(public_headers(url))
     with _HTTP_LOCK:
         cached = dict(_HTTP_CACHE.get(url) or {})
     if cached.get("etag"):
@@ -609,16 +615,28 @@ def _fetch_one(url: str, adapter_name: str, feed: dict, errors: list, attempts: 
 
 
 def _fetch_sources(urls, adapter_name, feed, config, errors):
-    """Try each mirror. A bridge error falls through to the next URL."""
+    """Try each mirror. An error page or an empty list falls through.
+
+    A bridge that answers 200 with no posts must not hide a later mirror
+    that still has the timeline. A 304 keeps the saved copy and stops.
+    """
     seen = set()
+    last_empty = None
     for source in urls or []:
         url = expand(source, config, feed)
         if not url or url in seen:
             continue
         seen.add(url)
         payload, result = _fetch_one(url, adapter_name, feed, errors)
-        if result is not None:
+        if result is None:
+            continue
+        if isinstance(result, dict) and result.get("_not_modified"):
             return payload, url, adapter_name, result
+        if isinstance(result, dict) and (result.get("posts") or []):
+            return payload, url, adapter_name, result
+        last_empty = (payload, url, adapter_name, result)
+    if last_empty:
+        return last_empty
     return None, "", adapter_name, None
 
 
@@ -1133,7 +1151,37 @@ def media_bytes(dest: Path) -> tuple[int, int]:
     return len(files), sum(p.stat().st_size for p in files)
 
 
+def refresh_meta_urls(config: dict) -> int:
+    """Point saved Instagram and Threads feeds at the current public chain.
+
+    A feed keeps the source list it was given when it was added. New mirrors
+    would never be tried for those feeds, so a dead first host still ends the
+    read. The adapter stays the one that understands that platform.
+    """
+    from meta_sources import feed_urls
+
+    adapters = {"instagram": "rsshub_instagram", "threads": "rsshub_threads"}
+    changed = 0
+    for feed in config.get("feeds") or []:
+        if not isinstance(feed, dict):
+            continue
+        platform = feed.get("platform")
+        wanted = adapters.get(platform)
+        if not wanted:
+            continue
+        if feed.get("adapter") not in (wanted, "generic_rss", "", None):
+            continue
+        urls = feed_urls(platform)
+        if feed.get("source_urls") != urls or feed.get("adapter") != wanted:
+            feed["source_urls"] = urls
+            feed["adapter"] = wanted
+            changed += 1
+    return changed
+
+
 def build(config: dict, use_fixtures: bool, download: bool) -> dict:
+    if not use_fixtures:
+        refresh_meta_urls(config)
     out_path = ROOT / config.get("output", "feeds.json")
     existing = load_document(out_path)
     old_by_feed = {}

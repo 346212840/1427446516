@@ -11,12 +11,12 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from site_paths import pages_base  # noqa: E402
+from site_paths import pages_base, repository  # noqa: E402
 
 PAGES = "https://viktorychapp.pages.dev/"
 
 
-def stamp(site: Path, github: str) -> None:
+def stamp(site: Path, github: str, repo: str) -> None:
     base = github if github.endswith("/") else github + "/"
     sw = site / "sw.js"
     if sw.is_file():
@@ -24,19 +24,27 @@ def stamp(site: Path, github: str) -> None:
         text = text.replace("__MIRROR_GITHUB__", base[:-1])
         text = text.replace("__MIRROR_PAGES__", PAGES[:-1])
         sw.write_text(text, encoding="utf-8")
-    mirror = site / "shared" / "mirror.js"
-    if mirror.is_file():
-        raw = mirror.read_text(encoding="utf-8")
-        raw = raw.replace("https://viktorychgroup.github.io/ViktorychApp/", base)
-        mirror.write_text(raw, encoding="utf-8")
+    names = ["shared/mirror.js", "shared/short-link.js", "shared/repo-name.js"]
+    for rel in names:
+        target = site / rel
+        if not target.is_file():
+            continue
+        raw = target.read_text(encoding="utf-8")
+        raw = raw.replace("__GITHUB_PAGES__", base)
+        if repo:
+            raw = raw.replace("__GITHUB_REPO__", repo)
+        target.write_text(raw, encoding="utf-8")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--site", required=True)
     args = parser.parse_args()
-    github = pages_base() or "https://viktorychgroup.github.io/ViktorychApp/"
-    stamp(Path(args.site), github)
+    github = pages_base()
+    if not github:
+        print("mirror origins left as placeholders; GITHUB_REPOSITORY is unset")
+        return 0
+    stamp(Path(args.site), github, repository())
     print("mirror origins stamped")
     return 0
 
