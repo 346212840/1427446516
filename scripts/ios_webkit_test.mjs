@@ -1,5 +1,5 @@
 /* WebKit at iPhone 11 and iPad sizes. Placeholders only.
-   A slow package mirror is retried once, then the check continues. */
+   Package downloads use the main archive, including the security pocket. */
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
