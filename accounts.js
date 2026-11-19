@@ -5780,8 +5780,13 @@ function signupPayload() {
 
     var pack = { html: "", count: null };
     if (window.ViktorychAccounts && window.ViktorychAccounts.profilePostsHtml) pack = window.ViktorychAccounts.profilePostsHtml(account, activeTab) || pack;
-    /* Unknown while posts load: leave the count out rather than show 0. */
-    var count = pack.count == null ? (account.postsCount != null ? String(account.postsCount) : "") : String(pack.count);
+    /* Unknown while posts load: a stored 0 is not a result yet, so leave the
+       count out. A stored count above zero can stand in until the live list arrives. */
+    var count = "";
+    if (pack.count == null) {
+      var stored = account.postsCount != null ? Number(account.postsCount) : 0;
+      count = stored > 0 ? String(stored) : "";
+    } else count = String(pack.count);
 
     var postsEmpty = activeTab === "replies"
       ? '<div class="empty"><h2>' + esc(tr("No replies yet")) + "</h2><p>" + esc(tr("Replies from this account will show up here.")) + "</p></div>"

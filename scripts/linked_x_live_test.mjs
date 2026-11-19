@@ -160,6 +160,55 @@ async function main() {
     const note = await page.locator("text=Fresh north wind note").count();
     if (note) fail("a reply tab showed the post");
     if (errors.length) fail(errors[0]);
+    const zeroAccount = Object.assign({}, ACCOUNT, { postsCount: 0 });
+    const zero = await browser.newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: "block" });
+    const zeroPage = await zero.newPage();
+    zeroPage.on("pageerror", (err) => errors.push(String(err)));
+    await zeroPage.addInitScript((account) => {
+      localStorage.setItem("superintelapp-lang", "en");
+      localStorage.setItem("viktorychapp-lang-user-picked", "1");
+      localStorage.setItem("viktorychapp-welcome-v1", JSON.stringify({ step: 2, done: true }));
+      localStorage.setItem("viktorychapp-settings-v1", JSON.stringify({ version: 1, initialized: true, follows: [], lists: [], likes: {}, bookmarks: {}, reposts: {} }));
+      localStorage.setItem("viktorychapp-account-v1", JSON.stringify({ token: "local-test-token", account: account }));
+      window.VIKTORYCH_ACCOUNTS = { api: location.origin, gate: true, tiktokAudience: "owner" };
+    }, zeroAccount);
+    await zeroPage.route("**/v1/**", (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname === "/v1/profile/user_a") {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ account: zeroAccount, reposts: [] })
+        });
+      }
+      if (url.pathname.endsWith("/feeds.json")) {
+        return route.fulfill({ status: 200, contentType: "application/json", body: '{"posts":[]}' });
+      }
+      return route.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true,"posts":[]}' });
+    });
+    let releaseZero = () => {};
+    const zeroGate = new Promise((resolve) => { releaseZero = resolve; });
+    await zeroPage.route("https://api.fxtwitter.com/**", async (route) => {
+      await zeroGate;
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ results: [] }) });
+    });
+    await zeroPage.goto("http://127.0.0.1:" + port + "/index.html#/@user_a", { waitUntil: "domcontentloaded" });
+    const waitingCount = await zeroPage.waitForFunction(() => {
+      const loading = Array.from(document.querySelectorAll(".reply-empty")).some((el) => (el.textContent || "").indexOf("Loading") >= 0);
+      if (!loading) return null;
+      const count = document.querySelector(".profile-chrome-count");
+      return { text: count ? count.textContent.trim() : "" };
+    }, null, { timeout: 20000 }).catch(() => null);
+    if (!waitingCount) {
+      releaseZero();
+      await zero.close();
+      fail("the empty profile did not stay on Loading while the live read was in flight");
+    }
+    const headerCount = await waitingCount.jsonValue();
+    releaseZero();
+    await zero.close();
+    if (headerCount.text && /^0(\s|$)/.test(headerCount.text)) fail("the header showed a stale zero while the live read was in flight: " + headerCount.text);
+    if (errors.length) fail(errors[0]);
     console.log("linked x live ok");
   } finally {
     releaseFx();
