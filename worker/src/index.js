@@ -10,6 +10,8 @@ import { cleanHistoryCut, cleanHistoryList } from "../../shared/history-sync.js"
 import { cleanRepostKey, cleanRepostWrite } from "../../shared/reposts.js";
 import { socialKeysForPost } from "../../shared/social-keys.js";
 import { buildPlaylist, keptVideoKey, parseRange, safeTelegramPath } from "./telegram.js";
+import { expiredBody, telegramFileGone } from "../../shared/telegram-expiry.js";
+import { ensureTelegramExpiryColumns, freshExpired, markTelegramExpired } from "./telegram-expiry.js";
 import { handleDrive, DRIVE_SCHEMA } from "./drive.js";
 import { handleVsrRoute } from "./vsr-retrieve.js";
 import { handleCommunityRoute, COMMUNITY_SCHEMA } from "./communities.js";
@@ -360,7 +362,7 @@ function ensureSchema(env) {
       env.DB.prepare("CREATE INDEX IF NOT EXISTS account_friend_requests_recv ON account_friend_requests(receiver_id, created_at DESC)"),
       env.DB.prepare("CREATE TABLE IF NOT EXISTS account_friends (user_id TEXT NOT NULL, friend_id TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY (user_id, friend_id))"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS account_friends_user ON account_friends(user_id, created_at DESC)")
-    ].concat(DRIVE_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(COMMUNITY_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(FEDERATION_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(IDENTITY_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(VAULT_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(KEYS_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(DELETION_SCHEMA.concat(TEMP_SCHEMA).map((sql) => env.DB.prepare(sql))).concat(PRESENCE_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(CHANNEL_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(LIVE_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(NOTIFICATION_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(PROFILE_MEDIA_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(MENTION_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(DISCORD_ALERT_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(WEBAUTHN_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(SOCIAL_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(ABOUT_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(AFFILIATION_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(POINTS_SCHEMA.concat(STORE_SCHEMA, LOCKED_SCHEMA).map((sql) => env.DB.prepare(sql))).concat(GAMES_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(SERVERS_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(REACTION_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(BADGE_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(APP_STORIES_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(NOTES_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(STORY_BAR_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(HIGHLIGHT_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(AUDIENCE_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(USERNAME_SCHEMA.concat(NAME_RULES_SCHEMA, DISPLAY_NAME_SCHEMA).map((sql) => env.DB.prepare(sql))).concat(GUARD_SCHEMA.concat(RECOVERY_SCHEMA, POST_SCHEMA, SUGGEST_SCHEMA).map((sql) => env.DB.prepare(sql)))).then(() => addProfileColumns(env)).then(() => ensurePresenceColumns(env)).then(() => ensurePostColumns(env)).then(() => migrateProfileMedia(env)).then(() => migrateOwnerKeys(env)).catch((err) => {
+    ].concat(DRIVE_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(COMMUNITY_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(FEDERATION_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(IDENTITY_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(VAULT_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(KEYS_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(DELETION_SCHEMA.concat(TEMP_SCHEMA).map((sql) => env.DB.prepare(sql))).concat(PRESENCE_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(CHANNEL_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(LIVE_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(NOTIFICATION_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(PROFILE_MEDIA_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(MENTION_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(DISCORD_ALERT_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(WEBAUTHN_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(SOCIAL_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(ABOUT_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(AFFILIATION_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(POINTS_SCHEMA.concat(STORE_SCHEMA, LOCKED_SCHEMA).map((sql) => env.DB.prepare(sql))).concat(GAMES_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(SERVERS_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(REACTION_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(BADGE_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(APP_STORIES_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(NOTES_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(STORY_BAR_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(HIGHLIGHT_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(AUDIENCE_SCHEMA.map((sql) => env.DB.prepare(sql))).concat(USERNAME_SCHEMA.concat(NAME_RULES_SCHEMA, DISPLAY_NAME_SCHEMA).map((sql) => env.DB.prepare(sql))).concat(GUARD_SCHEMA.concat(RECOVERY_SCHEMA, POST_SCHEMA, SUGGEST_SCHEMA).map((sql) => env.DB.prepare(sql)))).then(() => addProfileColumns(env)).then(() => ensurePresenceColumns(env)).then(() => ensurePostColumns(env)).then(() => migrateProfileMedia(env)).then(() => migrateOwnerKeys(env)).then(() => ensureTelegramExpiryColumns(env)).catch((err) => {
       schemaReady = null;
       throw err;
     });
@@ -1727,7 +1729,10 @@ async function handleSyncPut(request, env) {
   const text = JSON.stringify(payload);
   if (text.length > SYNC_MAX) return json(413, { error: "too_large" });
   const base = Number(body.baseUpdatedAt || 0);
-  if (current && base && Number(current.updated_at) !== base) {
+  // A missing base means this device has not read the account copy. Writing
+  // over it used to replace tabs and their accounts with whatever this
+  // device had saved locally, often nothing.
+  if (current && (!base || Number(current.updated_at) !== base)) {
     return json(409, { error: "conflict", payload: previous, updatedAt: current.updated_at });
   }
   const unchanged = !!(current && previousText === canonicalJson(payload));
@@ -1866,9 +1871,10 @@ async function telegramObject(env, key) {
   if (!env || !env.DB || !env.TELEGRAM_BOT_TOKEN || !key || telegramSecretKey(key)) return null;
   let row = null;
   try {
-    row = await env.DB.prepare("SELECT object_key, kind, part_index, file_id, size, sha256, mime, duration, serve, encrypted FROM telegram_files WHERE object_key = ? AND kind = 'single' AND part_index = 0 AND serve = 1 AND encrypted = 0").bind(String(key)).first();
+    await ensureTelegramExpiryColumns(env);
+    row = await env.DB.prepare("SELECT object_key, kind, part_index, file_id, size, sha256, mime, duration, serve, encrypted, expired_at, updated_at FROM telegram_files WHERE object_key = ? AND kind = 'single' AND part_index = 0 AND serve = 1 AND encrypted = 0").bind(String(key)).first();
   } catch (err) { return null; }
-  if (!row || !row.file_id) return null;
+  if (!row || !row.file_id || freshExpired(row)) return null;
   try { return await telegramBody(env, row); }
   catch (err) { return null; }
 }
@@ -3370,20 +3376,30 @@ async function readCachedPath(cache, cacheKey) {
   }
 }
 
-async function telegramFilePath(env, fileId) {
+async function resolveTelegramPath(env, fileId, fresh) {
   const cache = caches.default;
   const cacheKey = new Request("https://tg-cache.internal/path/" + encodeURIComponent(fileId));
-  const cached = await readCachedPath(cache, cacheKey);
-  if (cached) return cached;
-  const loaded = await shareInflight("path:" + fileId, async () => {
-    const again = await readCachedPath(cache, cacheKey);
-    if (again) return again;
-    const res = await fetch("https://api.telegram.org/bot" + env.TELEGRAM_BOT_TOKEN + "/getFile?file_id=" + encodeURIComponent(fileId));
+  if (!fresh) {
+    const cached = await readCachedPath(cache, cacheKey);
+    if (cached) return { path: cached };
+  } else {
+    try { await cache.delete(cacheKey); } catch (err) { /* a new getFile still runs */ }
+  }
+  const loaded = await shareInflight((fresh ? "fresh:" : "path:") + fileId, async () => {
+    if (!fresh) {
+      const again = await readCachedPath(cache, cacheKey);
+      if (again) return { path: again };
+    }
     let data = null;
-    try { data = await res.json(); }
-    catch (err) { data = null; }
+    try {
+      const res = await fetch("https://api.telegram.org/bot" + env.TELEGRAM_BOT_TOKEN + "/getFile?file_id=" + encodeURIComponent(fileId));
+      data = await res.json();
+    } catch (err) {
+      return { unavailable: true };
+    }
+    if (telegramFileGone(data)) return { expired: true };
     const path = safeTelegramPath(data && data.ok && data.result && data.result.file_path);
-    if (!path) return "";
+    if (!path) return { unavailable: true };
     const stored = new Response(JSON.stringify({ path: path }), {
       headers: {
         "content-type": "application/json",
@@ -3393,9 +3409,35 @@ async function telegramFilePath(env, fileId) {
     });
     try { await cache.put(cacheKey, stored); }
     catch (err) { /* the path can still be used for this request */ }
-    return path;
+    return { path: path };
   });
-  return loaded || "";
+  return loaded || { unavailable: true };
+}
+
+async function openTelegramUpstream(env, row) {
+  if (freshExpired(row)) return { expired: true };
+  let found = await resolveTelegramPath(env, row.file_id, false);
+  if (found.expired) return { expired: true };
+  if (!found.path) return { unavailable: true };
+  let upstream = null;
+  try {
+    upstream = await fetch("https://api.telegram.org/file/bot" + env.TELEGRAM_BOT_TOKEN + "/" + found.path);
+  } catch (err) {
+    return { unavailable: true };
+  }
+  if (upstream.status === 404) {
+    found = await resolveTelegramPath(env, row.file_id, true);
+    if (found.expired) return { expired: true };
+    if (!found.path) return { unavailable: true };
+    try {
+      upstream = await fetch("https://api.telegram.org/file/bot" + env.TELEGRAM_BOT_TOKEN + "/" + found.path);
+    } catch (err) {
+      return { unavailable: true };
+    }
+    if (upstream.status === 404) return { expired: true };
+  }
+  if (!upstream || !upstream.ok || !upstream.body) return { unavailable: true };
+  return { upstream: upstream };
 }
 
 async function telegramBody(env, row) {
@@ -3410,11 +3452,13 @@ async function telegramBody(env, row) {
     if (again) {
       return { bytes: await again.arrayBuffer(), mime: again.headers.get("content-type") || row.mime || "application/octet-stream" };
     }
-    const path = await telegramFilePath(env, row.file_id);
-    if (!path) return null;
-    const upstream = await fetch("https://api.telegram.org/file/bot" + env.TELEGRAM_BOT_TOKEN + "/" + path);
-    if (!upstream.ok) return null;
-    const bytes = await upstream.arrayBuffer();
+    const opened = await openTelegramUpstream(env, row);
+    if (opened.expired) {
+      if (!freshExpired(row)) await markTelegramExpired(env, row);
+      return null;
+    }
+    if (!opened.upstream) return null;
+    const bytes = await opened.upstream.arrayBuffer();
     if (Number(row.size) > 0 && bytes.byteLength !== Number(row.size)) return null;
     const mime = row.mime || "application/octet-stream";
     const stored = new Response(bytes.slice(0), {
@@ -3491,10 +3535,13 @@ async function streamTelegram(env, row, immutable) {
   job.finally(() => { if (tgInflight.get(key) === job) tgInflight.delete(key); });
   const finish = (packed) => { resolveJob(packed || null); return packed; };
   try {
-    const path = await telegramFilePath(env, row.file_id);
-    if (!path) return finish(null) && null;
-    const upstream = await fetch("https://api.telegram.org/file/bot" + env.TELEGRAM_BOT_TOKEN + "/" + path);
-    if (!upstream.ok || !upstream.body) return finish(null) && null;
+    const opened = await openTelegramUpstream(env, row);
+    if (opened.expired) {
+      if (!freshExpired(row)) await markTelegramExpired(env, row);
+      return finish(null) && null;
+    }
+    if (!opened.upstream) return finish(null) && null;
+    const upstream = opened.upstream;
     const expect = Number(row.size) || 0;
     const len = Number(upstream.headers.get("content-length") || 0);
     const mime = row.mime || upstream.headers.get("content-type") || "application/octet-stream";
@@ -3771,7 +3818,8 @@ async function serveLiveBuffer(request, env, key, index) {
 }
 
 async function prefetchLiveSegment(env, key, index) {
-  const row = await env.DB.prepare("SELECT object_key, kind, part_index, file_id, size, sha256, mime FROM telegram_files WHERE object_key = ? AND kind = 'segment' AND part_index = ? AND serve = 1 AND encrypted = 0").bind(key, index).first();
+  const row = await env.DB.prepare("SELECT object_key, kind, part_index, file_id, size, sha256, mime, expired_at, updated_at FROM telegram_files WHERE object_key = ? AND kind = 'segment' AND part_index = ? AND serve = 1 AND encrypted = 0").bind(key, index).first();
+  if (row && freshExpired(row)) return;
   if (row && row.file_id && Number(row.size) > 0 && Number(row.size) <= TG_DIRECT_MAX) {
     await telegramBody(env, row);
     return;
@@ -3886,7 +3934,7 @@ async function handleTelegram(request, env, path, ctx) {
   }
   const kind = mode === "init" ? "init" : mode === "segment" ? "segment" : "single";
   const partIndex = mode === "segment" ? index : mode === "init" ? -1 : 0;
-  const row = await env.DB.prepare("SELECT object_key, kind, part_index, file_id, size, sha256, mime, duration, serve, encrypted FROM telegram_files WHERE object_key = ? AND kind = ? AND part_index = ? AND serve = 1 AND encrypted = 0").bind(key, kind, partIndex).first();
+  const row = await env.DB.prepare("SELECT object_key, kind, part_index, file_id, size, sha256, mime, duration, serve, encrypted, expired_at, updated_at FROM telegram_files WHERE object_key = ? AND kind = ? AND part_index = ? AND serve = 1 AND encrypted = 0").bind(key, kind, partIndex).first();
   if (!publicLoop) {
     const ownerPart = !!(viewer && viewer.owner === 1 && (mode === "segment" || mode === "init"));
     const cached = !ownerPart && (mode === "segment" || mode === "init") && await segmentCached(row);
@@ -3913,11 +3961,31 @@ async function handleTelegram(request, env, path, ctx) {
     }
     return json(404, { error: "not_found" });
   }
-  return withPrefetch(ctx, env, key, mode, index, await rangedTelegram(request, env, row, loopGroupKey(key)));
+  if (freshExpired(row)) {
+    const saved = await otherTelegramCopy(request, env, key, mode, index);
+    if (saved) return withPrefetch(ctx, env, key, mode, index, saved);
+    return json(410, expiredBody(row.updated_at));
+  }
+  const served = await rangedTelegram(request, env, row, loopGroupKey(key));
+  if (served && served.status === 502 && freshExpired(row)) {
+    const saved = await otherTelegramCopy(request, env, key, mode, index);
+    if (saved) return withPrefetch(ctx, env, key, mode, index, saved);
+    return json(410, expiredBody(row.updated_at));
+  }
+  return withPrefetch(ctx, env, key, mode, index, served);
 }
 
-async function serveKeptOriginal(request, env, key) {
-  if (!keptVideoKey(key) || !env.DATA) return null;
+async function otherTelegramCopy(request, env, key, mode, index) {
+  if ((mode === "segment" || mode === "init") && livePartKey(key)) {
+    const buffered = await serveLiveBuffer(request, env, key, mode === "init" ? -1 : index);
+    if (buffered) return buffered;
+  }
+  if (mode === "file") return serveKeptOriginal(request, env, key, true);
+  return null;
+}
+
+async function serveKeptOriginal(request, env, key, allowAny) {
+  if ((!allowAny && !keptVideoKey(key)) || !env.DATA) return null;
   const head = await env.DATA.head(key);
   if (!head) return null;
   const size = Number(head.size || 0);

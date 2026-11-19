@@ -2,7 +2,8 @@
    and thumbnails stay inside encrypted blobs. These rows are not the
    public Telegram backup index. */
 
-import { safeTelegramPath } from "./telegram.js";
+import { expiredBody } from "../../shared/telegram-expiry.js";
+import { freshExpired, markDriveChunkExpired, readTelegramBytes } from "./telegram-expiry.js";
 
 const CHUNK_MAX = 19 * 1024 * 1024;
 const TRASH_MS = 30 * 24 * 60 * 60 * 1000;
@@ -72,20 +73,9 @@ async function deleteMessage(env, messageId) {
 }
 
 async function downloadChunk(env, fileId) {
-  const token = String(env.TELEGRAM_BOT_TOKEN || "");
-  if (!token || !fileId) return null;
-  let data = null;
-  try {
-    const res = await fetch("https://api.telegram.org/bot" + token + "/getFile?file_id=" + encodeURIComponent(fileId));
-    data = await res.json();
-  } catch (err) {
-    data = null;
-  }
-  const path = safeTelegramPath(data && data.ok && data.result && data.result.file_path);
-  if (!path) return null;
-  const upstream = await fetch("https://api.telegram.org/file/bot" + token + "/" + path);
-  if (!upstream.ok) return null;
-  return upstream.arrayBuffer();
+  const loaded = await readTelegramBytes(env, fileId);
+  if (loaded.error) return loaded;
+  return { bytes: loaded.bytes };
 }
 
 function itemRow(row) {
@@ -203,11 +193,11 @@ async function handleItemsGet(env, request, deps, url) {
   const trash = url.searchParams.get("trash") === "1";
   const rows = await env.DB.prepare("SELECT * FROM drive_items WHERE public_id = ? AND deleted_at " + (trash ? "> 0" : "= 0") + " ORDER BY updated_at DESC LIMIT 2000").bind(gate.viewer.public_id).all();
   const items = ((rows && rows.results) || []).map(itemRow);
-  const chunks = await env.DB.prepare("SELECT c.item_id, c.part_index, c.size, c.iv FROM drive_chunks c JOIN drive_items i ON i.id = c.item_id WHERE i.public_id = ?").bind(gate.viewer.public_id).all();
+  const chunks = await env.DB.prepare("SELECT c.item_id, c.part_index, c.size, c.iv, c.expired_at FROM drive_chunks c JOIN drive_items i ON i.id = c.item_id WHERE i.public_id = ?").bind(gate.viewer.public_id).all();
   const parts = {};
   ((chunks && chunks.results) || []).forEach((row) => {
     if (!parts[row.item_id]) parts[row.item_id] = [];
-    parts[row.item_id].push({ index: row.part_index, size: row.size, iv: row.iv });
+    parts[row.item_id].push({ index: row.part_index, size: row.size, iv: row.iv, expiredAt: Number(row.expired_at) || 0 });
   });
   items.forEach((item) => { item.chunks = parts[item.id] || []; });
   return deps.json(200, { items: items });
@@ -335,9 +325,15 @@ async function handleChunkGet(env, request, deps, id, part) {
   const item = await ownedItem(env, gate.viewer, id);
   if (!item) return deps.json(404, { error: "not_found" });
   const index = Math.floor(Number(part));
-  const row = await env.DB.prepare("SELECT file_id, size FROM drive_chunks WHERE item_id = ? AND part_index = ?").bind(id, index).first();
+  const row = await env.DB.prepare("SELECT file_id, size, expired_at FROM drive_chunks WHERE item_id = ? AND part_index = ?").bind(id, index).first();
   if (!row) return deps.json(404, { error: "not_found" });
-  const bytes = await downloadChunk(env, row.file_id);
+  if (freshExpired(row)) return deps.json(410, expiredBody(item.created_at));
+  const loaded = await downloadChunk(env, row.file_id);
+  if (loaded && loaded.error === "expired") {
+    await markDriveChunkExpired(env, id, index);
+    return deps.json(410, expiredBody(item.created_at));
+  }
+  const bytes = loaded && loaded.bytes;
   if (!bytes) return deps.json(502, { error: "unavailable" });
   return new Response(bytes, {
     status: 200,

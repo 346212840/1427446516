@@ -6446,5 +6446,9 @@ SI18n.addPack("ru", {
   "Copy a smaller listed picture": "Копировать картинку поменьше из списка",
   "Copied a smaller listed picture. It is not the full file.": "Скопирована картинка поменьше из списка. Это не полный файл.",
   "Pick a model automatically": "Выбирать модель автоматически",
-  "Sync settings": "Синхронизировать настройки"
+  "Sync settings": "Синхронизировать настройки",
+  "Expired from Telegram backup": "Удалено из копии Telegram",
+  "The catalog stays. Nothing was deleted.": "Каталог остаётся. Ничего не удалено.",
+  "Expired from Telegram backup. Kept until {date}.": "Удалено из копии Telegram. Хранилось до {date}.",
+  "Telegram backup expires {date}": "Копия Telegram удалится {date}"
 });

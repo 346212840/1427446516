@@ -6444,5 +6444,9 @@ SI18n.addPack("en", {
   "Copy a smaller listed picture": "Copy a smaller listed picture",
   "Copied a smaller listed picture. It is not the full file.": "Copied a smaller listed picture. It is not the full file.",
   "Pick a model automatically": "Pick a model automatically",
-  "Sync settings": "Sync settings"
+  "Sync settings": "Sync settings",
+  "Expired from Telegram backup": "Expired from Telegram backup",
+  "The catalog stays. Nothing was deleted.": "The catalog stays. Nothing was deleted.",
+  "Expired from Telegram backup. Kept until {date}.": "Expired from Telegram backup. Kept until {date}.",
+  "Telegram backup expires {date}": "Telegram backup expires {date}"
 });

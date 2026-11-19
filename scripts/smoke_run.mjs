@@ -287,6 +287,7 @@ const NAV_STEPS = [
   step("profile-layout", "node scripts/profile_layout_test.mjs", { needs: ["pw", "browser"], paths: [file("profile_layout_test.mjs"), ...APP] }),
   step("notif-sounds", "node scripts/notif_sounds_test.mjs", { needs: ["pw", "browser"], paths: [file("notif_sounds_test.mjs"), /^notif-sounds\.js$/, ...APP] }),
   step("menu-pages", "node scripts/menu_pages_test.mjs", { weight: 40, needs: ["pw", "browser"], paths: [file("menu_pages_test.mjs"), ...APP] }),
+  step("x-card-fit", "node scripts/x_card_fit_test.mjs", { needs: ["pw", "browser"], paths: [file("x_card_fit_test.mjs"), /^video-embed\.js$/, ...APP] }),
   step("harmony", "node scripts/harmony_sweep_test.mjs", { weight: 30, needs: ["pw", "browser"], paths: [file("harmony_sweep_test.mjs"), /^native\.js$/, /^desktop-app\.js$/, ...APP] }),
   step("about-layout", "node scripts/about_layout_test.mjs", { needs: ["pw"], paths: [file("about_layout_test.mjs")] }),
   step("points-layout", "node scripts/points_layout_test.mjs", { needs: ["pw"], paths: [file("points_layout_test.mjs")] }),

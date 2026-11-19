@@ -373,14 +373,27 @@
     var tt = platform === "tiktok" || /tiktok\.com/i.test([post.url, media && media.open].join(" ")) ? (tiktokVideoId(post) || tiktokVideoId(media && media.open)) : "";
     if (tt) return { site: "tiktok", url: tiktokEmbedUrl(tt), width: 325, height: 578, origin: "https://www.tiktok.com" };
     var x = platform === "x" || /(?:x|twitter)\.com\//i.test(String(post.url || "")) ? (xStatusId(post) || xStatusId(media)) : "";
-    if (x) return { site: "x", url: xEmbedUrl(x), width: 550, height: 560, origin: "https://platform.twitter.com" };
+    if (x) return { site: "x", url: xEmbedUrl(x), width: 550, height: 560, fit: "contain", origin: "https://platform.twitter.com" };
     return null;
   }
-  /* Scale a fixed-size embed like object-fit: cover inside the host frame and
-     crop what spills over. */
+  /* How much to scale a fixed-size embed into a card. contain keeps the
+     whole frame visible. cover fills the card and crops the rest. */
+  function embedScale(boxW, boxH, frameW, frameH, fit) {
+    var bw = Number(boxW) || 0;
+    var bh = Number(boxH) || 0;
+    var w = Number(frameW) || 0;
+    var h = Number(frameH) || 0;
+    if (!(bw > 0 && bh > 0 && w > 0 && h > 0)) return 1;
+    var sx = bw / w;
+    var sy = bh / h;
+    return fit === "contain" ? Math.min(sx, sy) : Math.max(sx, sy);
+  }
+  /* Scale a fixed-size embed inside the host frame. X uses contain so the
+     tweet frame is never wider than the card. Other players still cover. */
   function fitEmbed(box, frame, size) {
     var w = Number(size && size.width) || 550;
     var h = Number(size && size.height) || 560;
+    var mode = size && size.fit === "contain" ? "contain" : "cover";
     box.style.position = "absolute";
     box.style.inset = "0";
     box.style.overflow = "hidden";
@@ -391,10 +404,12 @@
     frame.style.transformOrigin = "50% 50%";
     frame.style.width = w + "px";
     frame.style.height = h + "px";
+    frame.style.maxWidth = "none";
+    frame.style.minWidth = "0";
     function fit() {
       var bw = box.clientWidth || w;
       var bh = box.clientHeight || h;
-      var scale = Math.max(bw / w, bh / h);
+      var scale = embedScale(bw, bh, w, h, mode);
       frame.style.transform = "translate(-50%, -50%) scale(" + scale.toFixed(4) + ")";
     }
     fit();
@@ -465,6 +480,11 @@
       video.setAttribute("referrerpolicy", policy);
     }
     video.referrerPolicy = policy;
+    if (video.style) {
+      video.style.maxWidth = "100%";
+      video.style.objectFit = "contain";
+      if (Number(opts.width) > 0 && Number(opts.height) > 0) video.style.aspectRatio = Math.round(Number(opts.width)) + " / " + Math.round(Number(opts.height));
+    }
     if (opts.gif || opts.loop) video.loop = true;
     if (opts.gif || opts.muted) {
       video.muted = true;
@@ -566,7 +586,7 @@
         if (hold) hold.hidden = true;
         var hidePlay = host.querySelector(":scope > .play");
         if (hidePlay) hidePlay.hidden = true;
-        mountTapEmbed(host, { site: "x", url: url, width: 550, height: 560 }, {
+        mountTapEmbed(host, { site: "x", url: url, width: 550, height: 560, fit: "contain" }, {
           label: opts.tapLabel || tr("Play"),
           title: opts.title || "Post",
           onLoad: function () { host.classList.remove("is-official-wait"); host.classList.add("is-x-embed"); }
@@ -577,11 +597,17 @@
       host.classList.add("is-playing", "is-x-embed");
       var held = host.querySelector(".vfallback");
       if (held) held.hidden = true;
+      var box = document.createElement("div");
+      box.className = "vembed-fit";
+      box.setAttribute("data-site", "x");
       var frame = document.createElement("iframe");
       frame.className = "x-embed-frame";
+      frame.setAttribute("loading", "lazy");
       prepareFrame(frame, { url: url, title: opts.title || "Post", allowFullscreen: !opts.preview });
       frame.addEventListener("error", function () { showLink(); });
-      host.appendChild(frame);
+      box.appendChild(frame);
+      host.appendChild(box);
+      fitEmbed(box, frame, { width: 550, height: 560, fit: "contain" });
       frame.src = url;
       watchEmbed(frame);
       var play = host.querySelector(":scope > .play");
@@ -596,9 +622,13 @@
       var held = host.querySelector(".vfallback");
       if (held) held.hidden = true;
       var video = document.createElement("video");
-      prepareXVideo(video, source.url, { gif: !!opts.gif, muted: !!(opts.muted || opts.gif), loop: !!(opts.loop || opts.gif) });
-      video.preload = "auto";
+      prepareXVideo(video, source.url, { gif: !!opts.gif, muted: !!(opts.muted || opts.gif), loop: !!(opts.loop || opts.gif), width: opts.width, height: opts.height });
+      video.preload = opts.preview ? "none" : "metadata";
       video.controls = !opts.preview && !opts.gif;
+      if (video.controls) video.setAttribute("controls", "");
+      video.style.maxWidth = "100%";
+      video.style.objectFit = "contain";
+      if (Number(opts.width) > 0 && Number(opts.height) > 0) video.style.aspectRatio = Math.round(Number(opts.width)) + " / " + Math.round(Number(opts.height));
       if (Number(opts.resume) > 0.3) {
         video.addEventListener("loadedmetadata", function () {
           try { video.currentTime = Number(opts.resume) || 0; } catch (err) { /* not seekable yet */ }
@@ -935,6 +965,7 @@
     tiktokVideoId: tiktokVideoId,
     tiktokEmbedUrl: tiktokEmbedUrl,
     officialEmbed: officialEmbed,
+    embedScale: embedScale,
     fitEmbed: fitEmbed,
     mountTapEmbed: mountTapEmbed
   };
