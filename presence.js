@@ -310,6 +310,21 @@ function onSocketMessage(event) {
     notifyChannel(msg);
     return;
   }
+  if (msg.op === "event" && msg.topic === "calls") {
+    /* A ring from a caller. Calls loads on demand and shows the screen. */
+    try { window.dispatchEvent(new CustomEvent("viktorych-call-ring", { detail: msg.data || {} })); } catch (err) { /* no ring screen */ }
+    try {
+      if (window.ViktorychLazy && window.ViktorychLazy.ensure && !window.ViktorychCalls && window.ViktorychServerFeature && window.ViktorychServerFeature("calls")) {
+        window.ViktorychLazy.ensure("calls");
+        window.addEventListener("vklazy", function once(ev) {
+          if (!ev.detail || ev.detail.name !== "calls") return;
+          window.removeEventListener("vklazy", once);
+          if (window.ViktorychCalls && window.ViktorychCalls.onRing) window.ViktorychCalls.onRing(msg.data || {});
+        });
+      }
+    } catch (err) { /* the notification still lists the call */ }
+    return;
+  }
   if (msg.op === "event" && (msg.topic === "notifications" || msg.topic === "sync" || msg.topic === "p2p" || msg.topic === "dm" || msg.topic === "srv")) {
     notifyChannel(msg);
     return;
@@ -346,7 +361,7 @@ function connect() {
       attempt = 0;
       socketOwner = selfId();
       try {
-        ws.send(JSON.stringify({ op: "subscribe", topics: ["presence", "notifications", "sync", "posts", "p2p", "dm", "srv", "games"] }));
+        ws.send(JSON.stringify({ op: "subscribe", topics: ["presence", "notifications", "sync", "posts", "p2p", "dm", "srv", "games", "calls"] }));
         ws.send(JSON.stringify({ op: "watch", topic: "presence", ids: currentIds() }));
       } catch (err) { /* close reconnects */ }
       clearInterval(pollTimer);

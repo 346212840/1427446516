@@ -611,3 +611,16 @@ shared/call-voice.js|Kore
 shared/call-voice.js|Aoede
 shared/call-voice.js|Zephyr
 shared/call-voice.js|Leda
+calls.js|Yes, I can hear you.
+calls.js|Could you say that again?
+calls.js|Thank you, that works.
+calls.js|Sí, te escucho.
+calls.js|¿Puedes repetirlo?
+calls.js|Gracias, me parece bien.
+calls.js|Ja, jag hör dig.
+calls.js|Kan du säga det igen?
+calls.js|Tack, det fungerar.
+calls.js|Sí, et sento.
+calls.js|Pots repetir-ho?
+calls.js|Gràcies, em va bé.
+keys: shared/call-engine.js
