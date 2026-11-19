@@ -1,5 +1,6 @@
 /* Calls. Audio and text only. The camera is never opened.
-   Guests get the same tools; their choices stay on this device. */
+   Guests get the same tools; their choices stay on this device.
+   These files load when the page opens. */
 import { guessLang, detectLang, sameLang, PINNED_LANGS, CALL_LANGS, normalizeLang } from "./shared/call-langs.js";
 import { normalizeVolumes, VOLUME_KEYS, VOLUME_DEFAULTS, outputGains, createMeter, reconnectDelay, MIC_CONSTRAINTS, OPUS_MAX_BITRATE } from "./shared/call-audio.js";
 import { normalizeMode, transmitOriginal, micOpen, noteRelease, noteShouldAutoplay, showOriginalSub, showTranslationSub, threadVisible, takeClauses, QUICK_PHRASES, guestFeature, NOTE_CANCEL_DX } from "./shared/call-mode.js";
