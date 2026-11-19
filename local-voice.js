@@ -6,6 +6,30 @@
   var KEY = "viktorych-local-voice-gate";
   var memory = { voices: [], clips: {} };
 
+  function guideHref(file) {
+    var loc = root.location || {};
+    var host = String(loc.hostname || "").toLowerCase();
+    var suffix = ".github.io";
+    if (host.length > suffix.length && host.slice(-suffix.length) === suffix) {
+      var owner = host.slice(0, -suffix.length);
+      var seg = String(loc.pathname || "/").split("/").filter(Boolean)[0] || "";
+      if (owner && owner.indexOf(".") === -1 && seg && seg !== "s" && seg !== "u") {
+        return "https://github.com/" + owner + "/" + seg + "/blob/main/" + file;
+      }
+    }
+    var mirror = root.ViktorychMirror && root.ViktorychMirror.GITHUB;
+    if (mirror) {
+      try {
+        var base = new URL(mirror);
+        var parts = base.pathname.split("/").filter(Boolean);
+        var ghOwner = base.hostname.split(".")[0];
+        if (ghOwner && parts[0] && base.hostname.slice(-10) === ".github.io") {
+          return "https://github.com/" + ghOwner + "/" + parts[0] + "/blob/main/" + file;
+        }
+      } catch (err) { /* the mirror is not a Pages URL */ }
+    }
+    return file;
+  }
   function tr(key, vars) {
     var fn = root.t;
     return fn ? fn(key, vars) : key;
@@ -256,7 +280,7 @@
   }
   function inner() {
     if (!desktop() || !enabled()) return "";
-    var guide = "https://github.com/ViktorychGroup/ViktorychApp1427446516/blob/main/docs/local-voice.md";
+    var guide = guideHref("docs/local-voice.md");
     var saved = gate();
     view.language = saved.language || view.language || "auto";
     view.engine = saved.engine || view.engine || "auto";

@@ -590,12 +590,12 @@ async function main() {
       "if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then sudo sed -i 's|http://[a-z0-9.-]*archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources; fi",
       "sudo sed -i 's|http://[a-z0-9.-]*archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list || true",
       "sudo DEBIAN_FRONTEND=noninteractive apt-get update -qq",
-      "install_webkit() { sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 install -y --no-install-recommends $pkgs; }",
-      "if ! timeout 150 install_webkit; then",
+      "apt_webkit='sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 install -y --no-install-recommends'",
+      "if ! timeout 150 bash -c \"$apt_webkit $pkgs\"; then",
       "  if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then sudo sed -i 's|http://archive.ubuntu.com/ubuntu|http://azure.archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources; fi",
       "  sudo sed -i 's|http://archive.ubuntu.com/ubuntu|http://azure.archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list || true",
       "  sudo DEBIAN_FRONTEND=noninteractive apt-get update -qq",
-      "  timeout 150 install_webkit",
+      "  timeout 150 bash -c \"$apt_webkit $pkgs\"",
       "fi"
     ].join("\n"), process.env);
     if (apt !== 0) throw new Error("webkit libraries failed to install");
