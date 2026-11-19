@@ -566,6 +566,10 @@
   }
 
   function onClick(event) {
+    if (page.suppressClick) {
+      page.suppressClick = false;
+      return;
+    }
     const el = event.target && event.target.closest && event.target.closest("[data-feed-act]");
     if (!el || !hooks) return;
     const act = el.dataset.feedAct;
@@ -668,18 +672,47 @@
   /* syncWindow refuses to rebuild while a drag is in progress. Every way
      the drag ends has to clear that flag and let the window catch up,
      including a drop that already cleared the flag before dragend. */
+  let dragCancelTimer = 0;
+
   function releaseDrag() {
+    clearTimeout(dragCancelTimer);
+    dragCancelTimer = 0;
     page.drag = "";
     syncWindow();
   }
 
+  /* Chrome fires pointercancel when a drag takes the pointer, then dragover
+     and dragend. Clearing the drag there drops the reorder. A cancel with no
+     following drag ends the gesture on its own. */
+  function notePointerCancel() {
+    if (!page.drag) return;
+    clearTimeout(dragCancelTimer);
+    dragCancelTimer = setTimeout(function () {
+      dragCancelTimer = 0;
+      if (page.drag) releaseDrag();
+    }, 1000);
+  }
+
+  function noteDragContinues() {
+    clearTimeout(dragCancelTimer);
+    dragCancelTimer = 0;
+  }
+
   function onDragEnd() {
+    if (page.dragGesture) {
+      page.suppressClick = true;
+      /* The click that ends a drag is dispatched in this same turn. A later
+         click, including one after the turn, still folds the section. */
+      setTimeout(function () { page.suppressClick = false; }, 0);
+    }
+    page.dragGesture = false;
     releaseDrag();
   }
 
   function onDragStart(event) {
     const el = event.target && event.target.closest && event.target.closest("[data-feed-drag]");
     if (!el) return;
+    page.dragGesture = true;
     page.drag = el.dataset.feedDrag || "";
     if (event.dataTransfer) {
       event.dataTransfer.setData("text/plain", page.drag);
@@ -690,6 +723,7 @@
   function onDragOver(event) {
     const el = event.target && event.target.closest && event.target.closest("[data-feed-drop]");
     if (!el || !page.drag) return;
+    noteDragContinues();
     event.preventDefault();
   }
 
@@ -940,7 +974,10 @@
   }
 
   function headHtml(item) {
-    const drag = item.drag ? ` data-feed-drag="group:${esc(item.id)}" draggable="true"` : "";
+    /* The fold control fills the head. A button there eats the pointer, so the
+       head itself is the drag source and the click target, and the button
+       stays for the keyboard. */
+    const drag = item.drag ? ` data-feed-drag="group:${esc(item.id)}" data-feed-act="fold" draggable="true"` : "";
     return `<div class="feeds-section-head" data-feed-drop="group" data-id="${esc(item.id)}" data-group="${esc(item.id)}"${drag}><button type="button" class="feeds-fold" data-feed-act="fold" data-id="${esc(item.id)}" aria-expanded="${item.open ? "true" : "false"}">${foldTitleHtml(item.title)}<span class="feeds-count">${esc(String(item.count))}</span></button></div>`;
   }
 
@@ -1290,9 +1327,10 @@
     document.addEventListener("toggle", onToggle, true);
     window.addEventListener("scroll", onFeedScroll, { passive: true });
     document.addEventListener("scroll", onFeedScroll, { passive: true, capture: true });
+    document.addEventListener("pointerdown", function () { page.suppressClick = false; }, true);
     document.addEventListener("dragstart", onDragStart);
     document.addEventListener("dragend", onDragEnd);
-    document.addEventListener("pointercancel", function () { if (page.drag) releaseDrag(); });
+    document.addEventListener("pointercancel", notePointerCancel);
     document.addEventListener("dragover", onDragOver);
     document.addEventListener("drop", onDrop);
     if (typeof matchMedia === "function") {

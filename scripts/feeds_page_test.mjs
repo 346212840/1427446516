@@ -433,6 +433,9 @@ async function runWindow(browser, origin, vp) {
         document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
       } else if (name === "pointercancel") {
         document.dispatchEvent(new PointerEvent("pointercancel", { bubbles: true, cancelable: true }));
+        const still = document.querySelector('.feeds-row[data-id="rss:lane0"]');
+        if (!still) window.__pointerCancelReleased = true;
+        document.dispatchEvent(new DragEvent("dragend", { bubbles: true, cancelable: true }));
       } else if (name === "remount") {
         const chip = document.querySelector('[data-feed-act="platform"][data-platform=""]');
         if (chip) chip.click();
@@ -444,6 +447,7 @@ async function runWindow(browser, origin, vp) {
       }));
     }));
     if (!released) fail(tag + ": " + how + " left the window frozen");
+    if (how === "pointercancel" && await page.evaluate(() => window.__pointerCancelReleased)) fail(tag + ": pointercancel aborted a drag that was still moving");
   }
   for (const how of ["drop", "noop", "dragend", "escape", "pointercancel", "remount"]) await endDrag(how);
   await page.evaluate(() => window.scrollTo(0, 0));
@@ -675,6 +679,19 @@ async function runDrop(browser, origin) {
   if (!longHead) fail("drop: a long section title did not stay on one scrolling line");
   const headShape = await longHead.jsonValue();
   if (headShape.headH !== 40 || headShape.foldH > 40 || headShape.nowrap !== "nowrap" || headShape.shortStill || !headShape.countInside || headShape.steals) fail("drop: a long section title overflows the head " + JSON.stringify(headShape));
+  const beforePointer = reorders.length;
+  const hit = await page.evaluate(() => {
+    const head = document.querySelector('.feeds-section-head[data-id="gbeta"]');
+    const rect = head.getBoundingClientRect();
+    const top = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    return { drag: !!(top && top.closest && top.closest("[draggable='true']")), button: !!(top && top.closest && top.closest("button")) };
+  });
+  if (!hit.drag || hit.button) fail("drop: the fold button still takes the pointer " + JSON.stringify(hit));
+  await page.locator('.feeds-section-head[data-id="gbeta"]').dragTo(page.locator('.feeds-section-head[data-id="galpha"]'));
+  for (let i = 0; i < 30 && reorders.length === beforePointer; i++) await new Promise((resolve) => setTimeout(resolve, 25));
+  const pointed = reorders[reorders.length - 1] || {};
+  if (JSON.stringify(pointed.groups) !== JSON.stringify(["gbeta", "galpha"])) fail("drop: a pointer drag on the group title did not reorder " + JSON.stringify(reorders));
+  if (!(await page.locator('.feeds-row[data-id="telegram:beta1"]').count())) fail("drop: dragging the group title folded it");
   await page.emulateMedia({ reducedMotion: "reduce" });
   const reducedHead = await page.waitForFunction(() => {
     const marquee = document.querySelector('.feeds-section-head[data-id="galpha"] [data-sp-marquee]');
@@ -698,6 +715,7 @@ async function runDrop(browser, origin) {
     return !!(marquee && !marquee.classList.contains("is-on"));
   }, null, { timeout: 5000 }).catch(() => null);
   if (!stayedOff) fail("drop: a redraw turned the section title scroll back on");
+  const beforePlatform = reorders.length;
   await page.evaluate(() => {
     const from = document.querySelector('[data-feed-drag="group:galpha"]');
     const to = document.querySelector('.feeds-section-head[data-id="platform:rss"]');
@@ -705,15 +723,17 @@ async function runDrop(browser, origin) {
     to.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true }));
   });
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-  if (reorders.length) fail("drop: a platform head saved the group at the end " + JSON.stringify(reorders));
+  if (reorders.length !== beforePlatform) fail("drop: a platform head saved the group at the end " + JSON.stringify(reorders));
+  const beforeGroup = reorders.length;
   await page.evaluate(() => {
     const from = document.querySelector('[data-feed-drag="group:gbeta"]');
     const to = document.querySelector('[data-feed-drag="group:galpha"]');
     from.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true }));
     to.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true }));
   });
-  for (let i = 0; i < 20 && !reorders.length; i++) await new Promise((resolve) => setTimeout(resolve, 25));
-  if (!reorders.length || JSON.stringify(reorders[0].groups) !== JSON.stringify(["gbeta", "galpha"])) fail("drop: a group head did not reorder " + JSON.stringify(reorders));
+  for (let i = 0; i < 20 && reorders.length === beforeGroup; i++) await new Promise((resolve) => setTimeout(resolve, 25));
+  const grouped = reorders[reorders.length - 1] || {};
+  if (JSON.stringify(grouped.groups) !== JSON.stringify(["gbeta", "galpha"])) fail("drop: a group head did not reorder " + JSON.stringify(reorders));
   const beforeFeed = reorders.length;
   await page.evaluate(() => {
     const from = document.querySelector('[data-feed-drag="rss:loose1"]');
@@ -723,7 +743,7 @@ async function runDrop(browser, origin) {
   });
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   if (reorders.length !== beforeFeed) fail("drop: a platform head accepted a feed " + JSON.stringify(reorders));
-  await page.locator('.feeds-fold[data-id="gbeta"]').click();
+  await page.locator('.feeds-section-head[data-id="gbeta"]').click();
   await page.waitForFunction(() => !document.querySelector('.feeds-row[data-id="telegram:beta1"]'), null, { timeout: 5000 }).catch(() => fail("drop: the group did not fold"));
   await page.evaluate(() => {
     const from = document.querySelector('[data-feed-drag="rss:loose1"]');

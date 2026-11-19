@@ -6279,6 +6279,7 @@ header.nav.nav-land { display: none; }
 .feeds-window-pins, .feeds-window-pin { position: absolute; left: 0; right: 0; top: 0; }
 .feeds-find { position: absolute; left: 0; width: 1px; height: 1px; overflow: hidden; white-space: nowrap; pointer-events: none; color: transparent; }
 .feeds-section-head { height: 40px; overflow: hidden; display: flex; align-items: center; border-bottom: 1px solid var(--line); }
+.feeds-section-head[draggable="true"] > .feeds-fold { pointer-events: none; }
 .feeds-fold {
   display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; height: 40px; max-height: 40px;
   overflow: hidden; white-space: nowrap; text-align: left; border: 0; background: transparent; color: var(--muted);
