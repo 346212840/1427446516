@@ -108,12 +108,19 @@
     if (!el || el === document.body || el === document.documentElement || !el.closest) return null;
     if (!el.closest(".feeds-org")) return null;
     const row = el.closest(".feeds-row");
+    const fold = el.closest(".feeds-fold");
     return {
       id: el.id || "",
       row: row ? row.getAttribute("data-id") || "" : "",
+      fold: fold ? fold.getAttribute("data-id") || "" : "",
       act: (el.dataset && el.dataset.feedAct) || "",
       tag: el.tagName || ""
     };
+  }
+
+  function foldSelector(id) {
+    const safe = window.CSS && CSS.escape ? CSS.escape(String(id)) : String(id).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    return '.feeds-fold[data-id="' + safe + '"]';
   }
 
   function restoreMark(mark) {
@@ -124,6 +131,7 @@
       if (row && mark.act) next = row.querySelector('[data-feed-act="' + mark.act + '"]');
       if (row && !next && mark.tag) next = row.querySelector(mark.tag);
     }
+    if (!next && mark.fold) next = document.querySelector(foldSelector(mark.fold));
     if (!next || !next.focus) return null;
     try { next.focus({ preventScroll: true }); } catch (err) { next.focus(); }
     return next;
@@ -566,10 +574,6 @@
   }
 
   function onClick(event) {
-    if (page.suppressClick) {
-      page.suppressClick = false;
-      return;
-    }
     const el = event.target && event.target.closest && event.target.closest("[data-feed-act]");
     if (!el || !hooks) return;
     const act = el.dataset.feedAct;
@@ -702,12 +706,9 @@
 
   function onDragEnd() {
     if (!page.drag && !page.dragGesture) return;
-    if (page.dragGesture) {
-      page.suppressClick = true;
-      /* The click that ends a drag is dispatched in this same turn. A later
-         click, including one after the turn, still folds the section. */
-      setTimeout(function () { page.suppressClick = false; }, 0);
-    }
+    /* The click that ends a drag can land on the next turn. The next press
+       clears this, so a later click still folds or opens the row. */
+    if (page.dragGesture) page.suppressClick = true;
     page.dragGesture = false;
     releaseDrag();
   }
@@ -853,7 +854,7 @@
     const href = hooks.accountHash ? hooks.accountHash(row.platform, row.channelId || row.handle) : "#/feeds";
     return `<article class="feeds-row${row.pinned ? " is-pinned" : ""}${row.paused ? " is-off" : ""}${expanded ? " is-open" : ""}" data-feed-drag="${esc(id)}" data-feed-drop="row" data-id="${esc(id)}" data-group="${esc(row.groupId || "")}" draggable="${owner ? "true" : "false"}">
       ${check}
-      <a class="feeds-who" href="${esc(href)}">${faceOf(row)}<span class="feeds-copy"><span class="feeds-name">${esc(row.label || row.name || row.handle)}${row.pinned ? `<span class="feeds-pin" aria-label="${esc(tr("Pinned"))}">${hooks.icon ? hooks.icon("pin") : ""}</span>` : ""}</span><span class="feeds-sub">@${esc(row.handle || "")} · ${esc(platformLabel(row.platform))}</span>${statusLine}</span></a>
+      <a class="feeds-who" draggable="false" href="${esc(href)}">${faceOf(row)}<span class="feeds-copy"><span class="feeds-name">${esc(row.label || row.name || row.handle)}${row.pinned ? `<span class="feeds-pin" aria-label="${esc(tr("Pinned"))}">${hooks.icon ? hooks.icon("pin") : ""}</span>` : ""}</span><span class="feeds-sub">@${esc(row.handle || "")} · ${esc(platformLabel(row.platform))}</span>${statusLine}</span></a>
       <span class="feeds-row-end">${expand}${toggle}${more}</span>
       ${open ? menuHtml(row) : ""}
       ${confirm}
@@ -926,6 +927,12 @@
       if (at < 0 || (at >= start && at < end)) return;
       extras.push(at);
     });
+    const fold = document.activeElement && document.activeElement.closest && document.activeElement.closest(".feeds-fold");
+    const foldId = fold ? fold.getAttribute("data-id") || "" : "";
+    if (foldId) {
+      const at = items.findIndex((item) => item.kind === "head" && item.id === foldId);
+      if (at >= 0 && (at < start || at >= end)) extras.push(at);
+    }
     return extras;
   }
 
@@ -933,8 +940,10 @@
     let html = "";
     (extras || []).forEach((at) => {
       const item = items[at];
-      if (!item || item.kind !== "row") return;
-      html += `<div class="feeds-window-pin" style="transform:translateY(${prefixes[at] || 0}px)">${rowHtml(item.row)}</div>`;
+      if (!item) return;
+      const y = prefixes[at] || 0;
+      if (item.kind === "head") html += `<div class="feeds-window-pin" style="transform:translateY(${y}px)">${headHtml(item)}</div>`;
+      else if (item.kind === "row") html += `<div class="feeds-window-pin" style="transform:translateY(${y}px)">${rowHtml(item.row)}</div>`;
     });
     return html;
   }
@@ -1144,6 +1153,13 @@
     fitFoldTitles(box);
     parkLiveRows(pins, win.items, win.prefixes, held);
     if ((held.live || []).some((row) => row.isConnected && row.contains(document.activeElement))) return;
+    if (mark && mark.fold) {
+      const fold = box.querySelector(foldSelector(mark.fold));
+      if (fold && fold.focus) {
+        try { fold.focus({ preventScroll: true }); } catch (err) { fold.focus(); }
+      }
+      return;
+    }
     if (mark && (mark.tag === "INPUT" || mark.tag === "TEXTAREA" || mark.tag === "SELECT" || (active && active.closest && active.closest(".feeds-menu, .feeds-confirm")))) {
       restoreMark(mark);
       return;
@@ -1325,6 +1341,14 @@
     }
     if (page.bound) return;
     page.bound = true;
+    document.addEventListener("click", function (event) {
+      if (!page.suppressClick) return;
+      page.suppressClick = false;
+      const fromDrag = event.target && event.target.closest && event.target.closest("a.feeds-who, [data-feed-drag], .feeds-fold");
+      if (!fromDrag) return;
+      event.preventDefault();
+      event.stopPropagation();
+    }, true);
     document.addEventListener("click", onClick);
     document.addEventListener("change", onChange);
     document.addEventListener("input", onInput);
