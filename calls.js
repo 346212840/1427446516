@@ -65,6 +65,26 @@ function convShown() {
 }
 
 
+/* Owner switch calls_latency, on unless the server list says off. Timing is always taken (it is a few numbers per phrase);
+   the switch only shows it in the test chips and the statistics list. */
+function latencyFlagOn() {
+  try {
+    const list = JSON.parse(localStorage.getItem("viktorychapp-server-off") || "[]");
+    return !(Array.isArray(list) && list.indexOf("calls_latency") >= 0);
+  } catch (err) { return true; }
+}
+function latencyRows(s) {
+  const l = s && s.lat;
+  const ms = (v) => (v == null ? "-" : tr("{ms} ms", { ms: Math.round(v) }));
+  return [
+    [tr("Stop to sound (median)"), ms(l && l.stopToPlay.p50)],
+    [tr("Stop to sound (slowest)"), ms(l && l.stopToPlay.p95)],
+    [tr("Speech to first reply"), ms(l && l.toByte.p50)],
+    [tr("Reply to speaker"), ms(l && l.byteToPlay.p50)],
+    [tr("Phrases timed"), l ? String(l.n) : "-"]
+  ];
+}
+
 /* Owner switch calls_setup, on unless the server list says off. */
 function setupFlagOn() {
   try {
@@ -528,7 +548,7 @@ function statsBlock() {
     [tr("Round trip"), s.rtt != null ? tr("{ms} ms", { ms: Math.round(s.rtt) }) : "-"],
     [tr("Speech sent"), s.speechSec != null ? tr("{n} s", { n: s.speechSec }) : "-"],
     [tr("Per minute"), s.perMinute != null ? tr("{n} s of 32", { n: s.perMinute }) : "-"]
-  ];
+  ].concat(latencyFlagOn() ? latencyRows(s) : []);
   return `<dl class="calls-stats" data-stats>${rows.map((row) => `<div><dt>${esc(row[0])}</dt><dd>${esc(row[1])}</dd></div>`).join("")}</dl>`;
 }
 
@@ -867,6 +887,7 @@ function chipsHtml() {
   parts.push([tr("First translated sound"), s ? ms(s.firstAudio) : "-"]);
   parts.push([tr("Jitter"), s ? ms(s.jitter) : "-"]);
   parts.push([tr("Packets lost"), s && s.lost != null ? String(s.lost) : "-"]);
+  if (latencyFlagOn()) latencyRows(s).slice(0, 3).forEach((row) => parts.push(row));
   parts.push([tr("Route"), s ? (s.route === "relay" ? tr("Through our server") : tr("Direct")) : "-"]);
   parts.push([tr("Per minute"), s && s.perMinute != null ? tr("{n} s of 32", { n: s.perMinute }) : "-"]);
   parts.push([tr("Translation"), !info ? tr("Starting…") : (info.ok && info.mode === "token" ? tr("Ready") : (state.needKey ? tr("Needs a Gemini key") : tr("Text only")))]);
@@ -2327,6 +2348,10 @@ function testReply(text) {
   if (!clean || !state.partner) return;
   state.partner.sendText(clean);
 }
+/* In a test call the partner engine hears this device, so its heard-side timeline is the one that matters. */
+function lastTimings(owner) {
+  try { return owner && owner.timings ? owner.timings().rxSummary : null; } catch (err) { return null; }
+}
 async function updateStats() {
   const eng = state.engine;
   if (!eng) return;
@@ -2348,7 +2373,8 @@ async function updateStats() {
     lost: net.lost,
     rtt: net.rtt,
     speechSec: usage.speechMs != null ? Math.round(usage.speechMs / 100) / 10 : null,
-    perMinute: usage.perMinute != null ? Math.round(usage.perMinute / 100) / 10 : null
+    perMinute: usage.perMinute != null ? Math.round(usage.perMinute / 100) / 10 : null,
+    lat: lastTimings(p ? state.partner : eng)
   };
   paintStats();
 }
@@ -2819,6 +2845,8 @@ function debug() {
     outputRate: OUTPUT_RATE,
     worklet: MIC_WORKLET,
     stats: e ? e.stats() : null,
+    timings: e && e.timings ? e.timings() : null,
+    partnerTimings: state.partner && state.partner.timings ? state.partner.timings() : null,
     state: state
   };
 }

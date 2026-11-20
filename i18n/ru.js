@@ -6891,5 +6891,12 @@ SI18n.addPack("ru", {
   "Captions, typed messages and the message box are one panel in the call view instead of a separate chat panel. Off brings back the separate chat panel.": "Субтитры, набранные сообщения и поле ввода — одна панель на экране звонка вместо отдельной панели чата. Выключено: отдельная панель чата.",
   "Check your microphone, or join without one and type to talk.": "Проверьте микрофон или войдите без него и печатайте, чтобы говорить.",
   "One-screen join setup": "Вход на одном экране",
-  "The join screen fits one phone screen: name, languages, a microphone check that starts by itself when the mic is already allowed, and Join. Off brings back the old layout.": "Экран входа умещается на одном экране телефона: имя, языки, проверка микрофона (запускается сама, если микрофон уже разрешён) и кнопка входа. Выключено: прежний вид."
+  "The join screen fits one phone screen: name, languages, a microphone check that starts by itself when the mic is already allowed, and Join. Off brings back the old layout.": "Экран входа умещается на одном экране телефона: имя, языки, проверка микрофона (запускается сама, если микрофон уже разрешён) и кнопка входа. Выключено: прежний вид.",
+  "Stop to sound (median)": "От паузы до звука (медиана)",
+  "Stop to sound (slowest)": "От паузы до звука (самое долгое)",
+  "Speech to first reply": "От речи до первого ответа",
+  "Reply to speaker": "От ответа до динамика",
+  "Phrases timed": "Измерено фраз",
+  "Latency timing": "Замер задержки",
+  "Test calls and the statistics list show how long each translated phrase took, from when you stop talking to the first translated sound. Off hides the numbers; timing keeps running.": "Тестовые звонки и список статистики показывают, сколько заняла каждая переведённая фраза: от момента, когда вы замолчали, до первого звука перевода. Выключено: числа скрыты, замер продолжается."
 });

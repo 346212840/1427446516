@@ -166,3 +166,67 @@ export function createMeter() {
     }
   };
 }
+
+/* One translated phrase, start to finish. Times are wall-clock ms (performance.now).
+   speech: first and last frame that passed the voice gate. sent: first frame handed to the socket.
+   byte: first thing the model sent back (audio or text). play: first translated sound scheduled to the speaker.
+   The call is streamed, so the model often answers before the speaker stops: the "after you stop" numbers can be negative. */
+export function createTimeline(cap) {
+  const keep = Math.max(5, Number(cap) || 30);
+  const rows = [];
+  let cur = null;
+  let dropped = 0;
+  const num = (v) => (v == null ? null : Math.round(v));
+  const gap = (a, b) => (a == null || b == null ? null : Math.round(b - a));
+  function finish() {
+    if (!cur) return;
+    const u = cur;
+    cur = null;
+    if (u.byte == null && u.play == null) { dropped += 1; return; }
+    rows.push({
+      at: num(u.start),
+      speechMs: gap(u.start, u.end),
+      toSent: gap(u.start, u.sent),
+      toByte: gap(u.start, u.byte),
+      toPlay: gap(u.start, u.play),
+      stopToByte: gap(u.end, u.byte),
+      stopToPlay: gap(u.end, u.play),
+      byteToPlay: gap(u.byte, u.play),
+      playMs: gap(u.play, u.lastPlay)
+    });
+    if (rows.length > keep) rows.shift();
+  }
+  return {
+    speech(t) {
+      if (!Number.isFinite(t)) return;
+      if (cur && cur.play != null && t - cur.end > 2500) finish();
+      if (!cur) cur = { start: t, end: t, sent: null, byte: null, play: null, lastPlay: null };
+      cur.end = t;
+    },
+    sent(t) { if (cur && cur.sent == null && Number.isFinite(t)) cur.sent = t; },
+    byte(t) { if (cur && cur.byte == null && Number.isFinite(t)) cur.byte = t; },
+    play(t, len) {
+      if (!cur || !Number.isFinite(t)) return;
+      if (cur.play == null) cur.play = t;
+      cur.lastPlay = t + (Number(len) || 0);
+    },
+    turn() { finish(); },
+    list() { return rows.slice(); },
+    open() { return !!cur; },
+    dropped() { return dropped; },
+    summary() {
+      const col = (key) => rows.map((r) => r[key]).filter((v) => v != null).sort((a, b) => a - b);
+      const pick = (arr, q) => (arr.length ? arr[Math.min(arr.length - 1, Math.floor(q * arr.length))] : null);
+      const stop = col("stopToPlay");
+      return {
+        n: rows.length,
+        dropped: dropped,
+        stopToPlay: { p50: pick(stop, 0.5), p95: pick(stop, 0.95) },
+        toPlay: { p50: pick(col("toPlay"), 0.5) },
+        toByte: { p50: pick(col("toByte"), 0.5) },
+        byteToPlay: { p50: pick(col("byteToPlay"), 0.5) },
+        last: rows.length ? rows[rows.length - 1] : null
+      };
+    }
+  };
+}

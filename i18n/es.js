@@ -6892,5 +6892,12 @@ SI18n.addPack("es", {
   "Captions, typed messages and the message box are one panel in the call view instead of a separate chat panel. Off brings back the separate chat panel.": "Los subtítulos, los mensajes escritos y el cuadro de mensaje son un solo panel en la vista de llamada, en lugar de un panel de chat aparte. Desactivado devuelve el panel de chat aparte.",
   "Check your microphone, or join without one and type to talk.": "Comprueba tu micrófono, o únete sin él y escribe para hablar.",
   "One-screen join setup": "Pantalla de unión en una sola vista",
-  "The join screen fits one phone screen: name, languages, a microphone check that starts by itself when the mic is already allowed, and Join. Off brings back the old layout.": "La pantalla de unión cabe en una pantalla de teléfono: nombre, idiomas, una prueba de micrófono que empieza sola si el micrófono ya está permitido, y Unirme. Desactivado devuelve el diseño anterior."
+  "The join screen fits one phone screen: name, languages, a microphone check that starts by itself when the mic is already allowed, and Join. Off brings back the old layout.": "La pantalla de unión cabe en una pantalla de teléfono: nombre, idiomas, una prueba de micrófono que empieza sola si el micrófono ya está permitido, y Unirme. Desactivado devuelve el diseño anterior.",
+  "Stop to sound (median)": "De callar al sonido (mediana)",
+  "Stop to sound (slowest)": "De callar al sonido (más lento)",
+  "Speech to first reply": "Del habla a la primera respuesta",
+  "Reply to speaker": "De la respuesta al altavoz",
+  "Phrases timed": "Frases medidas",
+  "Latency timing": "Medición de latencia",
+  "Test calls and the statistics list show how long each translated phrase took, from when you stop talking to the first translated sound. Off hides the numbers; timing keeps running.": "Las llamadas de prueba y la lista de estadísticas muestran cuánto tardó cada frase traducida, desde que dejas de hablar hasta el primer sonido traducido. Desactivado oculta los números; la medición sigue."
 });

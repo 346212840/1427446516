@@ -6,7 +6,7 @@
    the listener plays that stream as is. Speech is sent in 100 ms frames,
    silence is skipped, and the Worker only mints the short-lived token. */
 import { sameLang, normalizeLang, detectLang } from "./call-langs.js";
-import { outputGains, reconnectDelay, MIC_CONSTRAINTS, micConstraints, normalizeVolumes } from "./call-audio.js";
+import { outputGains, reconnectDelay, MIC_CONSTRAINTS, micConstraints, normalizeVolumes, createTimeline } from "./call-audio.js";
 import { normalizeMode, transmitOriginal, playTranslatedVoice, noteShouldAutoplay } from "./call-mode.js";
 import { createVoiceMatch } from "./call-voice.js";
 import { lighterFor, cleanLexicon } from "./call-quality.js";
@@ -76,6 +76,7 @@ export function createPipe(env, opts) {
     idle = null;
     const line = { original: partial.original.trim(), translation: partial.translation.trim() };
     partial = { original: "", translation: "" };
+    if (opts.onTurn) opts.onTurn(pipe);
     if (line.original || line.translation) opts.onLine(pipe, line);
   }
   function armIdle() {
@@ -106,6 +107,7 @@ export function createPipe(env, opts) {
     const slot = pipe.lead.plan(t, nextAt, buffer.duration);
     if (!slot) return;
     src.start(slot.start);
+    if (opts.onPlay) opts.onPlay(pipe, now() + Math.max(0, slot.start - t) * 1000, buffer.duration * 1000);
     nextAt = slot.next;
     pipe.bytes += bytes.byteLength;
     opts.onOut(pipe, level, nextAt - t);
@@ -125,14 +127,16 @@ export function createPipe(env, opts) {
     const sc = msg.serverContent;
     if (!sc) return;
     ((sc.modelTurn && sc.modelTurn.parts) || []).forEach((part) => {
-      if (part.inlineData && part.inlineData.data) play(part.inlineData.data);
+      if (part.inlineData && part.inlineData.data) { if (opts.onByte) opts.onByte(pipe, "audio"); play(part.inlineData.data); }
     });
     if (sc.inputTranscription && sc.inputTranscription.text) {
+      if (opts.onByte) opts.onByte(pipe, "text");
       partial.original += sc.inputTranscription.text;
       opts.onPartial(pipe, partial);
       armIdle();
     }
     if (sc.outputTranscription && sc.outputTranscription.text) {
+      if (opts.onByte) opts.onByte(pipe, "text");
       partial.translation += sc.outputTranscription.text;
       opts.onPartial(pipe, partial);
       armIdle();
@@ -295,6 +299,7 @@ export function createPipe(env, opts) {
     try {
       ws.send(JSON.stringify({ realtimeInput: { audio: { data: toB64(new Uint8Array(pcm.buffer, pcm.byteOffset, pcm.byteLength)), mimeType: "audio/pcm;rate=16000" } } }));
       sentSince = true;
+      if (opts.onSent) opts.onSent(pipe);
       return true;
     } catch (err) { return false; }
   };
@@ -364,6 +369,7 @@ export function createEngine(cfg) {
   let rxFlushed = true;
   let speaking = false;
   let ownMic = true;
+  const timeline = { rx: createTimeline(), tx: createTimeline() };
   const metrics = { firstAudio: null, endLag: null, speechStart: 0, lastLoud: 0, lastVoiced: 0, waiting: false, pendingEnd: false };
 
   const mode = () => normalizeMode(cfg.getMode());
@@ -547,6 +553,10 @@ export function createEngine(cfg) {
           }
         }
       },
+      onSent: () => timeline[isTx ? "tx" : "rx"].sent(now()),
+      onByte: () => timeline[isTx ? "tx" : "rx"].byte(now()),
+      onPlay: (p, at, len) => timeline[isTx ? "tx" : "rx"].play(at, len),
+      onTurn: () => timeline[isTx ? "tx" : "rx"].turn(),
       onPartial: (p, part) => emit("partial", { mine: isTx, original: part.original, translation: part.translation, speaker: isTx ? "" : currentSpeaker() }),
       onLine: (p, line) => emit("line", { mine: isTx, original: line.original, translation: line.translation, speaker: isTx ? "" : currentSpeaker() }),
       source: isTx ? mineLang() : peer.lang
@@ -675,6 +685,7 @@ export function createEngine(cfg) {
     if (heard && heard.overlap) return;
     const d = live.onSpeech(pcm, now(), loop);
     if (d.send) {
+      if (live.vad.spoke) timeline.rx.speech(now());
       (d.chunks && d.chunks.length ? d.chunks : [pcm]).forEach((c) => rx.send(c));
       lastSpeechAt = now();
       rxFlushed = false;
@@ -703,7 +714,7 @@ export function createEngine(cfg) {
     const on = !!d.send;
     if (on !== ownSpeaking) { ownSpeaking = on; emit("speaking", { who: "me", on: on }); }
     if (!tx || !tx.ready) return;
-    if (d.send) { (d.chunks && d.chunks.length ? d.chunks : [pcm]).forEach((c) => tx.send(c)); lastTxSpeech = now(); txFlushed = false; }
+    if (d.send) { if (sendLive.vad.spoke) timeline.tx.speech(now()); (d.chunks && d.chunks.length ? d.chunks : [pcm]).forEach((c) => tx.send(c)); lastTxSpeech = now(); txFlushed = false; }
     else if (!txFlushed && now() - lastTxSpeech > 1800) { tx.flush(); txFlushed = true; }
   }
 
@@ -917,6 +928,7 @@ export function createEngine(cfg) {
   }
   E.stats = () => ({ via: route.via, rx: !!rx && rx.ready, tx: !!tx && tx.ready, peer: peer, usage: live.quota(now()), speakers: ears.speakers() });
   E.mintInfo = () => E._mint || null;
+  E.timings = () => ({ rx: timeline.rx.list(), tx: timeline.tx.list(), rxSummary: timeline.rx.summary(), txSummary: timeline.tx.summary() });
   E.metrics = () => ({ firstAudio: metrics.firstAudio, endLag: metrics.endLag });
   E.micClone = () => {
     if (!micStream) return null;

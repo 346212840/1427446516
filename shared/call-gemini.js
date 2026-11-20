@@ -106,6 +106,7 @@ export function createVad() {
   const pre = [];
   const api = {
     out: [],
+    spoke: false,
     gate(samples, strict) {
       const level = levelOf(samples);
       let gate = strict === "loop" ? LOOP_GATE : LOUD_GATE;
@@ -123,6 +124,7 @@ export function createVad() {
       }
       lastGate = gate;
       const speech = level >= gate;
+      api.spoke = speech;
       const wasOpen = hang > 0;
       const keep = speech || hang > 0;
       if (speech) hang = 12;
