@@ -26,6 +26,14 @@ const ROUTE_KEY = "viktorych-calls-route-v1";
 const GKEY = "viktorych-calls-gkey-v1";
 const SESSION_KEYS = ["viktorychapp-account-v1", "superintelapp-account-v1"];
 
+/* Owner switch calls_quiet_voice, on unless the server list says off. The stand-alone page has no list and keeps it on. */
+function quietVoiceOn() {
+  try {
+    const list = JSON.parse(localStorage.getItem("viktorychapp-server-off") || "[]");
+    return !(Array.isArray(list) && list.indexOf("calls_quiet_voice") >= 0);
+  } catch (err) { return true; }
+}
+
 function tr(key, vars) {
   const fn = window.t || (window.SI18n && window.SI18n.t);
   return fn ? fn(key, vars) : key;
@@ -1487,6 +1495,7 @@ function engineConfig(extra) {
     getKey: localKey,
     speakerOn: () => state.speakerOn,
     connection: () => navigator.connection || {},
+    quietVoice: quietVoiceOn,
     relayFirst: relayFirst,
     relayUrl: (tokenValue) => apiBase() + "/v1/calls/live?t=" + encodeURIComponent(tokenValue),
     audioContext: () => audioUnlock.get(),

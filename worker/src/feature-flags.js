@@ -143,7 +143,11 @@ export const FEATURES = {
   local_voice: { paths: [] },
   /* Live translation calls. Off until the owner turns it on. Needs
      GEMINI_API_KEY. No camera. */
-  calls: { paths: ["/v1/calls"], defaultOff: true }
+  calls: { paths: ["/v1/calls"], defaultOff: true },
+  /* Quiet voice in Calls: the call page follows the room's noise floor, lifts
+     soft speech and keeps a short pre-roll so whispers reach the translator.
+     Client only, on by default. Off restores the fixed gate. */
+  calls_quiet_voice: { paths: [] }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 

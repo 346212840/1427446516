@@ -6817,5 +6817,7 @@ SI18n.addPack("hi", {
   "ctImported.few": "{n} संपर्क आयात किए गए",
   "ctImported.many": "{n} संपर्क आयात किए गए",
   "Contacts are for signed-in accounts. Sign in to use them.": "संपर्क केवल साइन-इन खातों के लिए हैं। इनका उपयोग करने के लिए साइन इन करें।",
-  "Call someone, with live translation.": "लाइव अनुवाद के साथ किसी को कॉल करें।"
+  "Call someone, with live translation.": "लाइव अनुवाद के साथ किसी को कॉल करें।",
+  "Quiet voice in Calls": "कॉल में धीमी आवाज़",
+  "Calls follow the room's noise and lift soft or whispered speech so it is translated. Off restores the fixed level.": "कॉल कमरे के शोर के हिसाब से चलते हैं और धीमी या फुसफुसाहट वाली आवाज़ को बढ़ाते हैं ताकि उसका अनुवाद हो। बंद करने पर तय स्तर लौट आता है।"
 });

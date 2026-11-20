@@ -494,3 +494,53 @@ console.log("calls logic ok", JSON.stringify(report));
   for (let i = 0; i < 20; i++) wide.plan(i, i - 0.1, 0.1);
   assert.equal(wide.stats().lead, LEAD_MAX, "repeated gaps stop at the maximum lead");
 }
+
+/* Quiet voice: a soft voice or whisper opens the gate, is lifted, and keeps its word start. The old gate was a fixed 0.02. */
+{
+  const frame = (rms, seed) => {
+    const out = new Int16Array(1600);
+    let r = seed || 1;
+    for (let i = 0; i < out.length; i++) {
+      r = (r * 1103515245 + 12345) & 0x7fffffff;
+      const noise = ((r / 0x7fffffff) - 0.5) * 2;
+      out[i] = Math.round(noise * Math.SQRT2 * rms * 32767);
+    }
+    return out;
+  };
+  const rmsOf = (a) => { let e = 0; for (let i = 0; i < a.length; i++) e += (a[i] / 32768) ** 2; return Math.sqrt(e / a.length); };
+  const dbfs = (db) => Math.pow(10, db / 20);
+  // Room noise -58 dBFS for 2 s, then a whisper at -42 dBFS.
+  const quiet = createVad();
+  for (let i = 0; i < 20; i++) assert.equal(quiet.gate(frame(dbfs(-58), i + 1)), false, "room noise alone stays closed");
+  assert.equal(quiet.gate(frame(dbfs(-60), 99)), false);
+  assert.equal(quiet.gate(frame(dbfs(-42), 5)), true, "a -42 dBFS whisper opens the gate (the old fixed gate was -34 dBFS)");
+  assert.equal(quiet.out.length, 4, "the three frames before the gate opened go out first");
+  const lifted = rmsOf(quiet.out[3]);
+  assert.ok(lifted > 0.04 && lifted < 0.2, "the whisper is lifted toward a normal level, got " + lifted);
+  assert.ok(quiet.out.every((c) => c.every((v) => Math.abs(v) < 32768 * 0.99)), "the limiter keeps it from clipping");
+  // The old gate would not have opened.
+  const old = createVad();
+  assert.equal(old.gate(frame(dbfs(-42), 6), true), false, "strict mode keeps the old fixed gate");
+  assert.equal(old.stats().gain, 1);
+  // Normal speech is not boosted.
+  const normal = createVad();
+  for (let i = 0; i < 20; i++) normal.gate(frame(dbfs(-58), i + 7));
+  normal.gate(frame(0.08, 3));
+  assert.ok(Math.abs(rmsOf(normal.out[normal.out.length - 1]) - 0.08) < 0.01, "normal speech is left alone");
+  // A loud room: the gate rises with the floor but never past the old 0.02.
+  const loud = createVad();
+  for (let i = 0; i < 60; i++) loud.gate(frame(0.012, i + 1));
+  assert.ok(loud.stats().gate <= 0.02 && loud.stats().gate >= 0.0025);
+  assert.equal(loud.gate(frame(0.012, 500)), false, "steady room noise stays closed once learned");
+  assert.equal(loud.gate(frame(0.1, 501)), true, "speech over the noise opens it");
+  // Gain never exceeds the cap and the session passes the chunks on.
+  const sess = createLiveSession();
+  sess.ring(0); sess.ready(1);
+  for (let i = 0; i < 20; i++) sess.onSpeech(frame(dbfs(-58), i + 1), 10 + i * 100);
+  const d = sess.onSpeech(frame(dbfs(-45), 8), 3000);
+  assert.equal(d.send, true);
+  assert.ok(Array.isArray(d.chunks) && d.chunks.length >= 1 && d.chunks[d.chunks.length - 1] instanceof Int16Array);
+  const sess2 = createLiveSession();
+  sess2.ring(0); sess2.ready(1);
+  assert.equal(sess2.onSpeech(frame(dbfs(-45), 9), 3100, true).send, false, "strict (sound playing aloud) ignores soft sound, so an echo cannot open it");
+}
