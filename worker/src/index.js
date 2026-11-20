@@ -1524,7 +1524,7 @@ function cleanDrawerMenuSync(raw) {
     if (ids.indexOf(text) < 0 || text === "home" || text === "customize" || popup.indexOf(text) >= 0) return;
     popup.push(text);
   });
-  return { order: order, hidden: hidden, sections: sections, popup: popup, at: Number(raw.at) || 0, v: Number(raw.v) >= 2 ? 2 : 0 };
+  return { order: order, hidden: hidden, sections: sections, popup: popup, at: Number(raw.at) || 0, v: Number(raw.v) >= 3 ? 3 : (Number(raw.v) >= 2 ? 2 : 0) };
 }
 
 function cleanBottomNavSync(raw) {

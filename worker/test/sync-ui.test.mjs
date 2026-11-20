@@ -124,6 +124,10 @@ test("the synced menu keeps Calls and Contacts where the person put them, and an
   assert.deepEqual(menu.order.slice(0, 5), ["home", "explore", "notifications", "calls", "contacts"]);
   assert.deepEqual(menu.hidden, ["contacts"]);
   assert.equal(menu.v, 2, "the version stamp survives so the client does not move Calls again");
+  const v3 = await call("/v1/sync", { method: "PUT", token: me.token, body: { payload: { drawerMenu: { v: 3, order: ["home", "calls", "contacts"], hidden: ["calls"], sections: [], popup: ["settings", "logout"], at: 9 } }, baseUpdatedAt: put.body.updatedAt || 0, device: "phone1" } });
+  assert.equal(v3.status, 200, JSON.stringify(v3.body));
+  assert.equal(v3.body.payload.drawerMenu.v, 3, "the v3 stamp survives sync");
+  assert.deepEqual(v3.body.payload.drawerMenu.hidden, ["calls"], "a Calls hide made after v3 syncs");
   const bar = put.body.payload.bottomNav;
   assert.ok(bar.order.includes("calls"));
   assert.ok(bar.hidden.includes("calls"), "a bar saved before Calls existed does not grow a Calls tab by itself");

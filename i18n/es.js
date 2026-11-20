@@ -6829,5 +6829,6 @@ SI18n.addPack("es", {
   "ctImported.other": "{n} contactos importados",
   "ctImported.few": "{n} contactos importados",
   "ctImported.many": "{n} contactos importados",
-  "Contacts are for signed-in accounts. Sign in to use them.": "Los contactos son para cuentas con sesión iniciada. Inicia sesión para usarlos."
+  "Contacts are for signed-in accounts. Sign in to use them.": "Los contactos son para cuentas con sesión iniciada. Inicia sesión para usarlos.",
+  "Call someone, with live translation.": "Llama a alguien, con traducción en vivo."
 });
