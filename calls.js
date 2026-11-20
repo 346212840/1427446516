@@ -10,7 +10,7 @@ import { createVoiceMatch, PREBUILT_VOICES, DEFAULT_VOICE } from "./shared/call-
 import { createHistory, recordLocal, swipeAction, toggleSet } from "./shared/call-history.js";
 import { createRaiseDetector, earSinkId, createUnlocker, EAR_VOLUME_CAP } from "./shared/call-ear.js";
 import { createPip } from "./shared/call-pip.js";
-import { createPreview, PREVIEW_MIN } from "./shared/call-preview.js";
+import { createPreview } from "./shared/call-preview.js";
 import { lighterFor, pickSink, cleanLexicon, lexiconHint, rememberLine } from "./shared/call-quality.js";
 import { createAudioUnlock, createWakeFallback, micFailure, micPlatform } from "./shared/call-mobile.js";
 import { createLiveSession, MIC_WORKLET, OUTPUT_RATE, CHUNK_SAMPLES, proxiesAudio } from "./shared/call-gemini.js";
@@ -233,6 +233,8 @@ const state = {
   voice: "",
   lang: "",
   lines: [],
+  lastSendVisibleMs: 0,
+  sendStarted: 0,
   lastLine: null,
   partial: { original: "", translation: "" },
   speaking: false,
@@ -519,6 +521,8 @@ function bubbleHtml(row, opts) {
     small = hasTrn ? (row.original || "") : "";
   }
   const who = String(row.who || "");
+  const st = !o.cap && row.mine && row.typed ? String(row.status || (row.sent === false ? "sending" : "")) : "";
+  const status = st === "failed" ? `<p class="calls-bstatus">${esc(tr("Not sent."))}<button type="button" data-act="call-chat-retry" data-id="${esc(row.id)}">${esc(tr("Retry"))}</button></p>` : (st === "sending" ? `<p class="calls-bstatus">${esc(tr("Sending…"))}</p>` : "");
   const note = row.note ? `<button type="button" data-act="call-replay" data-id="${esc(row.id)}">${esc(tr("Replay"))}</button>` : "";
   const age = o.cap && row.at ? Date.now() - row.at : 0;
   const fade = o.cap && !o.live && age > CAP_FADE_MS ? " fading" : "";
@@ -528,7 +532,7 @@ function bubbleHtml(row, opts) {
   };
   return `<article class="calls-bubble${mine ? " mine" : ""}${o.live ? " partial" : ""}${fade}${o.cont ? " cont" : ""}" style="--who:${whoColor(who, mine)}">
     <div class="calls-ava xs">${esc(initialOf(who || "?"))}</div>
-    <div class="calls-bbody"><span class="calls-bname">${esc(who)}</span>${big ? `<p class="calls-bbig">${words(big)}</p>` : ""}${small ? `<p class="calls-bsmall">${words(small)}</p>` : ""}${note}</div>
+    <div class="calls-bbody"><span class="calls-bname">${esc(who)}</span>${big ? `<p class="calls-bbig">${words(big)}</p>` : ""}${small ? `<p class="calls-bsmall">${words(small)}</p>` : ""}${status}${note}</div>
   </article>`;
 }
 /* The last bubbles over the stage: left for others, right for you; older ones fade out. */
@@ -1899,8 +1903,20 @@ function ringStop() {
 }
 
 /* ---------- engine wiring ---------- */
+function markLine(id, patch) {
+  const row = state.lines.find((l) => l.id && l.id === id);
+  if (!row) return false;
+  Object.assign(row, patch);
+  return true;
+}
 function pushLine(line) {
+  const started = state.sendStarted;
   const row = Object.assign({ id: String(Date.now()) + Math.floor(Math.random() * 1000), at: Date.now() }, line);
+  if (row.typed && row.mine && started) {
+    const t0 = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+    state.lastSendVisibleMs = Math.max(0, t0 - started);
+    state.sendStarted = 0;
+  }
   state.lines.push(row);
   if (row.translation && !row.mine) state.lastLine = rememberLine(state.lastLine, { text: row.translation });
   if (state.lines.length > 40) state.lines.shift();
@@ -1947,6 +1963,9 @@ function engineConfig(extra) {
   }, extra || {});
 }
 function onEngineEvent(type, d) {
+  if (type === "chat-sent") { if (markLine(d.id, { status: "sent", sent: true })) live(); return; }
+  if (type === "chat-failed") { if (markLine(d.id, { status: "failed", sent: false })) live(); return; }
+  if (type === "chat-sending") { if (markLine(d.id, { status: "sending", sent: false })) live(); return; }
   if (type === "fallback") { state.turnFallback = !!d.on; live(); return; }
   if (type === "status") {
     state.statusCode = d.code === "translating-ready" ? (state.statusCode || "connected") : d.code;
@@ -1977,7 +1996,7 @@ function onEngineEvent(type, d) {
   } else if (type === "line") {
     state.partial = { original: "", translation: "" };
     if (d.mine) {
-      if (d.typed) pushLine({ who: tr("You"), mine: true, typed: true, original: d.original });
+      if (d.typed) pushLine({ who: tr("You"), mine: true, typed: true, original: d.original, id: d.id, sent: d.sent !== false, status: d.sent === false ? "sending" : "sent" });
       else if (d.original) pushLine({ who: tr("You"), mine: true, original: d.original, translation: d.translation });
     } else {
       pushLine({ who: d.speaker || state.peerName || tr("Guest"), original: d.original, translation: d.translation || d.original });
@@ -2372,7 +2391,7 @@ async function startPartner(invite) {
           state.whoLabel = "";
           /* Typed text already has its own bubble: add the translation to it instead of a second one. */
           const typed = d.typed ? state.lines.slice().reverse().find((l) => l.mine && l.typed && !l.translation && l.original === d.original) : null;
-          if (typed) { typed.translation = d.translation; typed.who = tr("You") + " → " + langName(state.test.lang); }
+          if (typed) { typed.translation = d.translation; typed.who = tr("You") + " → " + langName(state.test.lang); typed.status = typed.status === "failed" ? typed.status : "sent"; typed.sent = typed.status !== "failed"; }
           else state.lines.push({ id: String(Date.now()), at: Date.now(), who: tr("You") + " → " + langName(state.test.lang), mine: true, original: d.original, translation: d.translation });
           if (state.lines.length > 40) state.lines.shift();
           /* What the test partner hears is also spoken, so typing with no microphone is a full test. */
@@ -2563,6 +2582,15 @@ function onAct(act, el) {
   } else if (act === "call-test-hear") {
     if (state.test) { state.test.hear = !state.test.hear; if (state.partner) state.partner.refresh(); paint(); }
   } else if (act === "call-test-reply") testReply(el.dataset.text || "");
+  else if (act === "call-chat-retry") {
+    const id = el.dataset.id || "";
+    const row = state.lines.find((l) => l.id === id && l.typed);
+    if (row && state.engine && state.engine.sendText) {
+      row.status = "sending";
+      live();
+      state.engine.sendText(row.original, id);
+    }
+  }
   else if (act === "call-install") installApp();
   else if (act === "call-key-add") { state.needKey = "nokey"; state.more = false; state.panel = ""; paint(); }
   else if (act === "call-key-remove") removeKey();
@@ -2694,28 +2722,24 @@ function onSubmit(event) {
   const input = form.querySelector("input");
   const text = input && input.value;
   if (act === "call-type-form") {
-    const send = () => {
-      const parts = takeClauses(String(text || ""));
-      const all = parts.ready.concat(parts.rest ? [parts.rest] : []);
-      if (state.engine) (all.length ? all : [String(text || "")]).forEach((piece) => state.engine.sendText(piece));
-    };
-    /* With the preview on, a message waits a moment for its preview so it can be read before it goes, but never longer than a second and a half. */
-    const gated = previewFlagOn() && state.callId && String(text || "").trim().length >= PREVIEW_MIN && state.preview && state.preview.state().status !== "ready";
-    if (gated) {
-      if (state.previewBusy) return;
-      state.previewBusy = true;
-      state.preview.settle(text).then(() => {
-        state.previewBusy = false;
-        if (input && input.value === text) input.value = "";
-        send();
-        if (state.preview) state.preview.reset();
-      });
-    } else {
-      if (input) input.value = "";
-      send();
-      if (state.preview) state.preview.reset();
-    }
+    /* Send at once: the bubble is shown immediately, and a still-loading
+       preview must never delay or drop the message. */
+    if (input) input.value = "";
+    if (state.preview) state.preview.reset();
+    state.previewBusy = false;
     state.hintSeen = true;
+    const raw = String(text || "").trim();
+    if (!raw) return;
+    const parts = takeClauses(raw);
+    const all = parts.ready.concat(parts.rest ? [parts.rest] : []);
+    const pieces = all.length ? all : [raw];
+    state.sendStarted = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+    if (state.engine) pieces.forEach((piece) => state.engine.sendText(piece));
+    else {
+      pieces.forEach((piece) => pushLine({ who: tr("You"), mine: true, typed: true, original: piece, status: "failed", sent: false }));
+      live();
+    }
+    focusType();
   } else if (act === "call-link-form") {
     const slug = form.elements.slug.value;
     saveLink({ method: "PUT", body: JSON.stringify({ slug: slug }) });
@@ -2899,6 +2923,7 @@ function debug() {
     stats: e ? e.stats() : null,
     timings: e && e.timings ? e.timings() : null,
     partnerTimings: state.partner && state.partner.timings ? state.partner.timings() : null,
+    lastSendVisibleMs: state.lastSendVisibleMs || 0,
     state: state
   };
 }

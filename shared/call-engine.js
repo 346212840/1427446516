@@ -13,6 +13,7 @@ import { lighterFor, cleanLexicon } from "./call-quality.js";
 import { pickBitrate, setAudioSession, createPlayoutLead } from "./call-mobile.js";
 import { createLiveSession, MIC_WORKLET, OUTPUT_RATE, CHUNK_MS, shouldKeepAlive, pcmB64, silenceFrame, createUtterance, KEEP_ALIVE_MS } from "./call-gemini.js";
 import { createDiarizer } from "./call-speakers.js";
+import { createChatOutbox, CHAT_FAIL_MS } from "./call-chat.js";
 
 const IDLE_LINE_MS = 1500;
 const DIRECT_WAIT_MS = 3500;
@@ -455,6 +456,19 @@ export function createEngine(cfg) {
     if (sig && sig.readyState === 1) { try { sig.send(JSON.stringify({ op: "signal", data: data })); return true; } catch (err) { return false; } }
     return false;
   }
+  const chatOut = createChatOutbox({ send: (data) => signal(data), now: now, failMs: CHAT_FAIL_MS });
+  let chatTimer = 0;
+  function flushChat() {
+    if (ended) return;
+    chatOut.flush().forEach((row) => emit("chat-sent", { id: row.id, original: row.data.text }));
+    chatOut.expire().forEach((row) => emit("chat-failed", { id: row.id, original: row.data.text }));
+    clearTimeout(chatTimer);
+    chatTimer = 0;
+    const left = chatOut.queued();
+    if (!left.length) return;
+    const wait = Math.max(250, (left[0].at + CHAT_FAIL_MS) - now());
+    chatTimer = setTimeout(flushChat, wait);
+  }
   function modePacket() {
     const m = mode();
     return {
@@ -484,7 +498,7 @@ export function createEngine(cfg) {
     let ws = null;
     try { ws = new WebSocket(base + "/v1/calls/" + call.id + "/signal?ticket=" + encodeURIComponent(ticket)); } catch (err) { scheduleSignal(); return; }
     sig = ws;
-    ws.onopen = () => { sigAttempt = 0; };
+    ws.onopen = () => { sigAttempt = 0; flushChat(); };
     ws.onmessage = (event) => onSignal(String(event.data || ""));
     ws.onclose = () => {
       if (sig === ws) sig = null;
@@ -537,7 +551,7 @@ export function createEngine(cfg) {
     } else if (d.kind === "mode") {
       onPeerMode(d);
     } else if (d.kind === "chat") {
-      onChat(d);
+      if (chatOut.incoming(d)) onChat(d);
     }
   }
   function tuneOpus(sdp) {
@@ -1079,12 +1093,14 @@ export function createEngine(cfg) {
     if (res && res.ok && res.data && res.data.translation) return String(res.data.translation);
     return text;
   }
-  E.sendText = (text) => {
-    const clean = String(text || "").trim().slice(0, 500);
-    if (!clean) return false;
-    const sent = signal({ kind: "chat", text: clean, lang: mineLang(), id: String(Date.now()) });
-    emit("line", { mine: true, original: clean, translation: "", typed: true });
-    return sent;
+  E.sendText = (text, reuseId) => {
+    const posted = chatOut.post(text, mineLang(), reuseId);
+    if (!posted) return false;
+    if (reuseId) emit("chat-sending", { id: posted.id, original: posted.original });
+    else emit("line", { mine: true, original: posted.original, translation: "", typed: true, id: posted.id, sent: posted.sent });
+    if (posted.sent) emit("chat-sent", { id: posted.id, original: posted.original });
+    else flushChat();
+    return true;
   };
   async function onChat(d) {
     const text = String(d.text || "").slice(0, 500);
@@ -1168,6 +1184,8 @@ export function createEngine(cfg) {
   E.end = async (silent) => {
     if (ended) return;
     ended = true;
+    clearTimeout(chatTimer);
+    chatTimer = 0;
     timers.forEach(clearInterval);
     timers = [];
     document.removeEventListener("visibilitychange", onVisible);

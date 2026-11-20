@@ -71,3 +71,7 @@ With this switch on, when the other person starts a new phrase the leftover tran
 ## Duck original voice (calls_duck)
 
 The original-voice slider is the quiet level under a translation. Between phrases the original comes back up. With this switch on (the default), it stays quiet while a translation is playing. Off leaves the original at the restored level even during a translation. "Hear their original voice, quietly" still turns the original stream on or off.
+
+## Typed messages
+
+Send shows the bubble at once. The translation preview that appears while you type is only a preview: it never delays or drops the send. In a test call, the translated echo still attaches to that same bubble once the test partner receives it. If the message could not go out, the bubble says it was not sent and offers Retry.

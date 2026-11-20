@@ -17,6 +17,7 @@ import { createRaiseDetector, earSinkId, cheekLike, createUnlocker, EAR_VOLUME_C
 import { createPlayoutLead, LEAD_MIN, LEAD_MAX, pickBitrate, createAudioUnlock, setAudioSession, createWakeFallback, NOSLEEP_MP4, BITRATES, micFailure, micPlatform } from "../shared/call-mobile.js";
 import { createPipe } from "../shared/call-engine.js";
 import { createPreview } from "../shared/call-preview.js";
+import { createChatOutbox, chatId } from "../shared/call-chat.js";
 import { relayHint } from "../worker/src/calls.js";
 import pagesRelay from "./pages_relay_worker.js";
 import { readFileSync } from "node:fs";
@@ -680,6 +681,43 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.equal((await same.settle("no translation")).same, true);
   pv.reset(); assert.equal(pv.state().status, "idle");
   console.log("calls preview ok");
+
+  /* Typed send: messages go out at once, queue while the socket is down, and a retry is not delivered twice. */
+  {
+    let open = false;
+    const sent = [];
+    const clock = { t: 1000 };
+    const box = createChatOutbox({ send: (data) => { if (!open) return false; sent.push(data); return true; }, now: () => clock.t, failMs: 1000 });
+    const first = box.post("hello there", "es");
+    assert.equal(first.sent, false, "a down socket queues the message");
+    assert.equal(box.queued().length, 1);
+    open = true;
+    const flushed = box.flush();
+    assert.equal(flushed.length, 1);
+    assert.equal(sent[0].text, "hello there");
+    assert.equal(sent[0].id, first.id);
+    assert.equal(box.queued().length, 0);
+    const again = box.post("second line", "es");
+    assert.equal(again.sent, true, "an open socket sends at once");
+    assert.equal(sent[1].text, "second line");
+    assert.equal(box.incoming({ id: first.id, text: "hello there" }).id, first.id);
+    assert.equal(box.incoming({ id: first.id, text: "hello there" }), null, "the same id is not delivered twice");
+    open = false;
+    const late = box.post("will expire", "es");
+    clock.t += 1001;
+    const failed = box.expire();
+    assert.equal(failed.length, 1);
+    assert.equal(failed[0].id, late.id);
+    assert.equal(box.queued().length, 0);
+    open = true;
+    const retried = box.post("will expire", "es", late.id);
+    assert.equal(retried.sent, true);
+    assert.equal(retried.id, late.id);
+    assert.ok(chatId(1, 0.5).startsWith("c"));
+    /* Preview can still be mid-flight when Send is pressed: settle is not required. */
+    assert.equal(pv.state().status, "idle");
+    console.log("calls typed send ok");
+  }
   /* Allow microphone popup: why getUserMedia failed decides what the popup says. */
   const E = (name, message) => ({ name, message: message || "" });
   assert.deepEqual(micFailure(E("NotAllowedError", "Permission dismissed"), "prompt"), { kind: "prompt", dismissed: true, os: false }, "a closed prompt asks again");
