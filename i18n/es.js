@@ -6908,5 +6908,7 @@ SI18n.addPack("es", {
   "Shorter end of speech": "Fin de habla más corto",
   "The call notices sooner that someone has stopped talking, especially in a quiet room, so the translation can start earlier. Off keeps the longer pause.": "La llamada nota antes que alguien ha dejado de hablar, sobre todo en una habitación en silencio, para que la traducción empiece antes. Desactivado mantiene la pausa más larga.",
   "Barge-in": "Interrupción",
-  "When the other person starts talking, leftover translation playback is stopped so you hear them (and the new translation) at once. Off lets the previous phrase finish.": "Cuando la otra persona empieza a hablar, se detiene el resto de la traducción anterior para oírla (y la nueva traducción) de inmediato. Desactivado deja terminar la frase anterior."
+  "When the other person starts talking, leftover translation playback is stopped so you hear them (and the new translation) at once. Off lets the previous phrase finish.": "Cuando la otra persona empieza a hablar, se detiene el resto de la traducción anterior para oírla (y la nueva traducción) de inmediato. Desactivado deja terminar la frase anterior.",
+  "Duck original voice": "Bajar la voz original",
+  "While a translation is playing, their original voice stays quiet underneath it. Off leaves the original at the level you set, even during a translation.": "Mientras suena una traducción, su voz original se queda baja debajo. Desactivado deja la original en el nivel que elegiste, también durante la traducción."
 });

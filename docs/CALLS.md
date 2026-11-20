@@ -67,3 +67,7 @@ The quiet-voice gate already tracks the room's noise floor. With this switch on,
 ## Barge-in (calls_barge)
 
 With this switch on, when the other person starts a new phrase the leftover translated audio from the previous one is stopped and the playout lead is reset, so the new translation can start at once. Off lets the previous phrase finish playing. Closing the Live pipe also drops queued audio.
+
+## Duck original voice (calls_duck)
+
+The original-voice slider is the quiet level under a translation. Between phrases the original comes back up. With this switch on (the default), it stays quiet while a translation is playing. Off leaves the original at the restored level even during a translation. "Hear their original voice, quietly" still turns the original stream on or off.

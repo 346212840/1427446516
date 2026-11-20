@@ -6895,5 +6895,7 @@ SI18n.addPack("hi", {
   "Shorter end of speech": "बोलना जल्दी खत्म",
   "The call notices sooner that someone has stopped talking, especially in a quiet room, so the translation can start earlier. Off keeps the longer pause.": "कॉल जल्दी पहचानती है कि कोई बोलना बंद कर चुका है, खासकर शांत कमरे में, ताकि अनुवाद पहले शुरू हो सके। बंद: पहले जैसी लंबी ठहराव।",
   "Barge-in": "बीच में रोकना",
-  "When the other person starts talking, leftover translation playback is stopped so you hear them (and the new translation) at once. Off lets the previous phrase finish.": "जब दूसरा व्यक्ति बोलना शुरू करता है, पिछली अनुवादित आवाज़ रोक दी जाती है ताकि आप उसे और नया अनुवाद तुरंत सुन सकें। बंद: पिछला वाक्य पूरा चलता है।"
+  "When the other person starts talking, leftover translation playback is stopped so you hear them (and the new translation) at once. Off lets the previous phrase finish.": "जब दूसरा व्यक्ति बोलना शुरू करता है, पिछली अनुवादित आवाज़ रोक दी जाती है ताकि आप उसे और नया अनुवाद तुरंत सुन सकें। बंद: पिछला वाक्य पूरा चलता है।",
+  "Duck original voice": "मूल आवाज़ धीमी",
+  "While a translation is playing, their original voice stays quiet underneath it. Off leaves the original at the level you set, even during a translation.": "अनुवाद चलते समय उनकी मूल आवाज़ नीचे धीमी रहती है। बंद: मूल आवाज़ आपके सेट स्तर पर रहती है, अनुवाद के दौरान भी।"
 });

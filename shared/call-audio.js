@@ -52,7 +52,10 @@ export function outputGains(volumes, state) {
   const v = normalizeVolumes(volumes);
   const flags = state || {};
   let original = v.original;
-  if (!flags.translating && original > 0) original = Math.min(1, Math.max(original, original / 0.35));
+  /* v.original is the quiet level under a translation. Between phrases it
+     comes back up. The calls_duck switch can leave it up while translating. */
+  const rest = original > 0 ? Math.min(1, Math.max(original, original / 0.35)) : 0;
+  if (original > 0 && (!flags.translating || flags.duck === false)) original = rest;
   if (!flags.hearOriginal) original = 0;
   return {
     original: original * v.overall,
