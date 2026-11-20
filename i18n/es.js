@@ -6856,5 +6856,7 @@ SI18n.addPack("es", {
   "A–Z": "De la A a la Z",
   "Just went live": "Acaba de empezar",
   "Seen live for {time}": "En directo desde hace {time}",
-  "{h} h {m} min": "{h} h, {m} min"
+  "{h} h {m} min": "{h} h, {m} min",
+  "Mini player": "Minirreproductor",
+  "Open full screen": "Abrir a pantalla completa"
 });

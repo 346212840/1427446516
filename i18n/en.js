@@ -6853,5 +6853,7 @@ SI18n.addPack("en", {
   "A–Z": "A–Z",
   "Just went live": "Just went live",
   "Seen live for {time}": "Seen live for {time}",
-  "{h} h {m} min": "{h} h {m} min"
+  "{h} h {m} min": "{h} h {m} min",
+  "Mini player": "Mini player",
+  "Open full screen": "Open full screen"
 });

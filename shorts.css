@@ -489,6 +489,14 @@ html.shorts-live-open body { overflow: hidden; }
   touch-action: none;
   background: #000;
 }
+.shorts-mini-bar { display: none; }
+.shorts-live-player.is-mini { inset: auto 12px calc(76px + env(safe-area-inset-bottom)) auto; width: 132px; height: 234px; border-radius: 14px; overflow: hidden; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.2); z-index: 60; }
+.shorts-live-player.is-mini .shorts-live-hud, .shorts-live-player.is-mini .shorts-live-foot { display: none; }
+.shorts-live-player.is-mini .shorts-live-stage { pointer-events: none; }
+.shorts-live-player.is-mini .shorts-mini-bar { display: block; position: absolute; inset: 0; z-index: 3; }
+.shorts-mini-open { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent; cursor: pointer; }
+.shorts-mini-x { position: absolute; top: 4px; right: 4px; width: 28px; height: 28px; border: 0; border-radius: 50%; background: rgba(0, 0, 0, 0.6); color: #fff; font-size: 18px; line-height: 28px; cursor: pointer; }
+@media (min-width: 700px) { .shorts-live-player.is-mini { width: 200px; height: 356px; bottom: 24px; } }
 .shorts-live-player.is-saved {
   touch-action: manipulation;
 }

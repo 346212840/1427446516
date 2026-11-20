@@ -6855,5 +6855,7 @@ SI18n.addPack("ru", {
   "A–Z": "А–Я",
   "Just went live": "Только что начал",
   "Seen live for {time}": "В эфире уже {time}",
-  "{h} h {m} min": "{h} ч {m} мин"
+  "{h} h {m} min": "{h} ч {m} мин",
+  "Mini player": "Мини-плеер",
+  "Open full screen": "Открыть на весь экран"
 });
