@@ -11,7 +11,7 @@ ViktorychApp is an X.com clone shipped as a PWA. It mixes its own accounts and p
 | Piece | Where | Notes |
 | --- | --- | --- |
 | Front end (static PWA) | repo root (`index.html`, `app.js`, `*.js`, `*.css`, `i18n/`, `shared/`, `vendor/`) | Served by GitHub Pages at `https://<owner>.github.io/<repo>/` and mirrored to Cloudflare Pages (`viktorychapp.pages.dev`). No build step for code; `scripts/assemble_site.py` assembles `_site`. |
-| Service worker | `sw.js` | Line 7 is the cache stamp: `// cache-bust: <ISO time>-<label>`. See section 5. |
+| Service worker | `sw.js` | Line 7 stays `// cache-bust: source`. Publish rewrites it to the commit sha. See section 5. |
 | Live version marker | `version.json` (written by `scripts/write_version.py` in `publish-app.yml`) | Published only after the `verify-live` job passes. Installed apps use it to update. |
 | Accounts / API Worker | `worker/` (`viktorych-accounts`, `worker/src/index.js`, `worker/wrangler.toml`) | Cloudflare Worker with D1 (SQL, migrations in `worker/migrations/NNNN_name.sql`, numbers unique, latest is in `docs/STATUS.md`) and R2 (media/objects). Cron every minute plus an hourly watchdog (`worker/src/watchdog.js`). |
 | Feature switches | `worker/src/feature-flags.js` (server) and `SERVER_FEATURES` in `app.js` (client labels) | Owner-only kill switches stored in D1. Off = endpoints answer empty fast, cron skips, clients do not load it. |
@@ -60,9 +60,8 @@ Detailed merge-queue rules (DIRTY PRs, leases, deploy window): `docs/HANDOFF.md`
 
 ## 5. The `sw.js` stamp rule
 
-- Bump the stamp only when your PR changes files the service worker caches. Keep one line `// cache-bust: <UTC ISO time>-<label>` at line 7.
-- The new stamp must sort above main's current stamp (use the current UTC time, later than main's).
-- On a conflict in `sw.js`: take main's copy of the file, re-apply only your PR's own lines, and set the stamp above main's. Never keep two stamp lines. Also keep the copies of the stamp in `update.js` and the tests in step if they changed.
+- Leave line 7 as `// cache-bust: source`. Do not hand-edit it. Publish rewrites that line to `// cache-bust: <commit sha>` in the one `_site` copy that GitHub Pages and pages.dev both upload, in the same step that writes `__SW_VERSION__`. A new commit therefore publishes a different worker. A rerun of the same commit stays byte-identical.
+- On a conflict in `sw.js`: take main's copy of the file, re-apply only your PR's own lines, and leave the stamp line as `// cache-bust: source`. Never keep two stamp lines.
 - `i18n/*.js` and `scripts/i18n_allow.txt` conflicts: keep both sides (main's entries first, then yours) and fix the comma between them.
 
 ## 6. i18n

@@ -1517,6 +1517,18 @@ def main() -> None:
     check("parseSharedLink" in app and "startViewTransition" in app and 'readStored(localStorage, "timeline-v1")' in app and 'readStored(localStorage, "bookmark-queue")' in app and "setAppBadge" in app and 'decoding="async"' in app and "navigator.vibrate" in app, "share targets, view transitions, offline snapshots, badges, and haptics are wired")
     check("requestPermission" in app and app.index("requestPermission") > app.index("data-act=\"notify\""), "notification permission is requested from the settings control")
     check("manifest.webmanifest" in deployed_paths() and "__SW_VERSION__" in workflow and "GITHUB_SHA" in workflow, "the deploy copies the app shell and stamps the service worker")
+    source_stamps = [line for line in worker.splitlines() if line.startswith("// cache-bust:")]
+    publish_stamp = (ROOT / ".github" / "workflows" / "publish-app.yml").read_text(encoding="utf-8")
+    stamp_sed = "s|// cache-bust: source|// cache-bust: ${GITHUB_SHA}|"
+    mirror_upload = "name: cf-pages-site"
+    pages_upload = "name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}"
+    check(source_stamps == ["// cache-bust: source"], "the service worker source keeps one stamp line for publish to rewrite")
+    check(
+        stamp_sed in publish_stamp and mirror_upload in publish_stamp and pages_upload in publish_stamp
+        and publish_stamp.index(stamp_sed) < publish_stamp.index(mirror_upload)
+        and publish_stamp.index(stamp_sed) < publish_stamp.index(pages_upload),
+        "publish rewrites the service worker stamp before GitHub Pages and the mirror copy",
+    )
     check('ranking_mode: "recency"' in app, "fxtwitter conversations also request newest replies")
     check("COMMENT_TTL" in app and "reply-sort" in app and "Updated " in app and 'tab("relevant", tr("Relevant"))' in app and 'tab("recent", tr("Recent"))' in app and 'tab("liked", tr("Liked"))' in app and "replySortMode" in app, "opening a post can sort replies and show when they were fetched")
     yt_loader = app[app.index("function ytStub("):app.index("function liveDuration(")]
