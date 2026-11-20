@@ -2302,7 +2302,14 @@ function mount(route) {
   }
   if (state.phase === "active") { bindSession(true); holdWake(true); routeOutput(); startOrientation(); }
 }
+/* Leaving the Calls page in the app (a link, the sidebar, the back button) ends a live call the same way the Leave button does:
+   tracks stop, the sockets close, the history row is written. The standalone guest page has no other page to go to. */
+let leaving = false;
 function unmount() {
+  if (!standalone() && !leaving && (state.phase === "active" || state.phase === "calling")) {
+    leaving = true;
+    hangUp().catch(() => {}).then(() => { leaving = false; });
+  } else if (!standalone() && state.testPrep && state.phase === "idle") cancelTest();
   exitEar(true);
   stopOrientation();
   holdWake(false);
