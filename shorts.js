@@ -136,6 +136,28 @@
   function unlockedList() {
     return unlockedAccounts.slice();
   }
+  /* The owner's account lists are kept on this device so a reload shows them at once instead of an empty sheet until two requests return. */
+  var ACCT_KEY = "viktorych_shorts_accounts_v1";
+  function saveAcctCache() {
+    try {
+      localStorage.setItem(ACCT_KEY, JSON.stringify({
+        added: addedAccounts.slice(0, 60).map(function (row) { return { handle: row.handle, name: row.name || "", avatar: typeof row.avatar === "string" && row.avatar.indexOf("https://") === 0 ? row.avatar : "", builtIn: !!row.builtIn }; }),
+        unlocked: unlockedAccounts.slice(0, 60)
+      }));
+    } catch (err) { /* private mode */ }
+  }
+  function loadAcctCache() {
+    try {
+      if (!account()) { localStorage.removeItem(ACCT_KEY); return false; }
+      if (!ownerHere() || accountsLoaded || addedAccounts.length || unlockedAccounts.length) return false;
+      var row = JSON.parse(localStorage.getItem(ACCT_KEY) || "null");
+      if (!row || !Array.isArray(row.added)) return false;
+      addedAccounts = row.added.filter(function (item) { return item && typeof item.handle === "string" && item.handle; });
+      unlockedAccounts = foldList(row.unlocked || []);
+      tellShortsLock();
+      return addedAccounts.length > 0 || unlockedAccounts.length > 0;
+    } catch (err) { return false; }
+  }
   function setAdded(list) {
     addedAccounts = (list || []).filter(function (row) { return row && row.handle; });
   }
@@ -1841,14 +1863,8 @@
   }
 
   function toggleLock() {
+    /* setLocked already repaints the page and refreshes the live rows once. */
     setLocked(!isLocked());
-    if (onLiveRoute()) {
-      paintLive();
-      liveRows().forEach(function (row) { if (row && row.handle) refreshLive(row.handle); });
-    } else {
-      paintForYou();
-    }
-    renderAdded();
   }
 
   function routePane() {
@@ -3675,18 +3691,20 @@
       renderAdded();
       return Promise.resolve();
     }
+    var unlockedReq = fetch(base + "/v1/owner/tiktok/unlocked", { headers: authHeaders(), cache: "no-store" }).then(function (res) {
+      if (!res.ok) return null;
+      return res.json();
+    }).catch(function () { return null; });
     return fetch(base + "/v1/owner/tiktok/accounts", { headers: authHeaders(), cache: "no-store" }).then(function (res) {
       if (!res.ok) throw new Error(String(res.status));
       return res.json();
     }).then(function (body) {
       addedAccounts = (body && body.added) || [];
       accountsLoaded = true;
-      return fetch(base + "/v1/owner/tiktok/unlocked", { headers: authHeaders(), cache: "no-store" }).then(function (res) {
-        if (!res.ok) return null;
-        return res.json();
-      }).then(function (unlocked) {
+      return unlockedReq.then(function (unlocked) {
         if (unlocked && Array.isArray(unlocked.handles)) setUnlocked(unlocked.handles);
-      }).catch(function () {});
+        saveAcctCache();
+      });
     }).then(function () {
       renderAdded();
       if (onLiveRoute()) schedulePaint();
@@ -3737,6 +3755,7 @@
         addedAccounts = addedAccounts.filter(function (row) { return !row || row.handle !== accountRow.handle; });
         addedAccounts.unshift(accountRow);
       }
+      saveAcctCache();
       renderAdded();
       var form = document.querySelector(".shorts-add-form");
       if (form) form.reset();
@@ -3756,6 +3775,12 @@
   function removeAccount(handle) {
     var base = apiBase();
     if (!base || !hooks.token() || !handle) return;
+    /* The row leaves at once; it comes back with a note if the server says no. */
+    var before = addedAccounts.slice();
+    addedAccounts = addedAccounts.filter(function (row) { return !row || row.handle !== handle; });
+    saveAcctCache();
+    renderAdded();
+    if (onLiveRoute()) schedulePaint();
     fetch(base + "/v1/owner/tiktok/accounts/" + encodeURIComponent(handle), {
       method: "DELETE",
       headers: authHeaders()
@@ -3763,12 +3788,17 @@
       if (!res.ok) throw new Error(String(res.status));
       return res.json();
     }).then(function (body) {
-      addedAccounts = (body && body.added) || [];
+      if (body && Array.isArray(body.added)) addedAccounts = body.added;
       accountsLoaded = true;
+      saveAcctCache();
       renderAdded();
       if (onLiveRoute()) schedulePaint();
     }).catch(function () {
-      accountsNote(tr("Try again"));
+      addedAccounts = before;
+      saveAcctCache();
+      renderAdded();
+      if (onLiveRoute()) schedulePaint();
+      accountsNote(tr("Couldn’t remove this account. It is back in the list."));
     });
   }
 
@@ -3966,6 +3996,7 @@
     }
     playActive();
     /* The app calls mount on every render, ten times in the first two seconds on a cold open. The page is re-bound each time, but the owner lists are only fetched when no load is running and the last one is older than ten seconds. */
+    if (loadAcctCache()) renderAdded();
     var ready = !!(apiBase() && hooks.token() && ownerHere());
     var warm = ready && (!!loadBusy || (accountsLoaded && Date.now() - lastMountLoad < 10000));
     if (warm) {
