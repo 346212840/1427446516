@@ -432,6 +432,7 @@ export function createEngine(cfg) {
     const g = outputGains(volumes(), {
       translating: translating() && translated && !degraded,
       hearOriginal: !pre && (!translated || degraded ? true : m.original),
+      duck: !(cfg.duckOriginal) || cfg.duckOriginal(),
       playTranslation: m.receive !== "text",
       playTts: m.receive !== "text"
     });

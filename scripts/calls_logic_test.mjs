@@ -35,6 +35,9 @@ const high = outputGains({ original: 0.28, translation: 0.8, overall: 1, tts: 0.
 assert.ok(high.original < 0.3 && high.translation === 0.8 && high.tts === 0.5);
 const restored = outputGains({ original: 0.28 }, { translating: false, hearOriginal: true, playTranslation: true });
 assert.ok(restored.original > high.original);
+const unducked = outputGains({ original: 0.28, overall: 1 }, { translating: true, hearOriginal: true, duck: false });
+assert.ok(Math.abs(unducked.original - restored.original) < 1e-9, "the switch can leave the original up during a translation");
+assert.ok(outputGains({ original: 0.28, overall: 1 }, { translating: true, hearOriginal: true, duck: true }).original < 0.3);
 assert.equal(outputGains({}, { hearOriginal: false, playTranslation: false }).original, 0);
 assert.equal(MIC_CONSTRAINTS.echoCancellation, true);
 assert.equal(MIC_CONSTRAINTS.noiseSuppression, true);
