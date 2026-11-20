@@ -1529,6 +1529,17 @@ def main() -> None:
         and publish_stamp.index(stamp_sed) < publish_stamp.index(pages_upload),
         "publish rewrites the service worker stamp before GitHub Pages and the mirror copy",
     )
+    version_job = publish_stamp.split("\n  publish-version:\n", 1)[1]
+    _next = re.search(r"\n  [a-z0-9-]+:\n", version_job)
+    version_job = version_job[:_next.start()] if _next else version_job
+    version_perms = version_job.split("permissions:", 1)[1].split("environment:", 1)[0]
+    check(
+        "actions: read" in version_perms and "contents: read" in version_perms
+        and "pages: write" in version_perms and "id-token: write" in version_perms
+        and "cannot list artifacts: the token was refused" in version_job
+        and "is not listed yet" in version_job,
+        "publish-version can list its artifact and a refused token stops the wait",
+    )
     check('ranking_mode: "recency"' in app, "fxtwitter conversations also request newest replies")
     check("COMMENT_TTL" in app and "reply-sort" in app and "Updated " in app and 'tab("relevant", tr("Relevant"))' in app and 'tab("recent", tr("Recent"))' in app and 'tab("liked", tr("Liked"))' in app and "replySortMode" in app, "opening a post can sort replies and show when they were fetched")
     yt_loader = app[app.index("function ytStub("):app.index("function liveDuration(")]
