@@ -284,6 +284,9 @@
 .calls-bubble.partial .calls-bbody { outline: 2px dashed rgba(127, 127, 127, 0.45); outline-offset: -2px; }
 .calls-bubble.partial .calls-bbig::after { content: ""; display: inline-block; width: 0.5em; height: 1em; margin-left: 4px; vertical-align: -0.12em; border-radius: 3px; background: currentColor; opacity: 0.55; animation: calls-pulse 1s ease-in-out infinite; }
 .calls-bbody button { margin-top: 6px; }
+.calls-bstatus { margin: 6px 0 0; font-size: 12px; font-weight: 600; opacity: 0.92; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.calls-bstatus button { margin: 0; border: 0; background: rgba(255, 255, 255, 0.18); color: inherit; font: inherit; font-weight: 800; padding: 4px 10px; border-radius: 999px; cursor: pointer; }
+.calls-bubble.mine .calls-bstatus { color: rgba(255, 255, 255, 0.92); }
 .calls-thread { display: flex; flex-direction: column; gap: 10px; padding: 8px 0; }
 .calls-thread .calls-bubble { max-width: 92%; animation: none; }
 @keyframes calls-pop { from { transform: translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }
