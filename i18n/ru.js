@@ -6836,5 +6836,7 @@ SI18n.addPack("ru", {
   "Calls follow the room's noise and lift soft or whispered speech so it is translated. Off restores the fixed level.": "Звонки учитывают шум в помещении и усиливают тихую или шёпотом речь, чтобы её переводили. Выключено — прежний фиксированный порог.",
   "Floating call window": "Плавающее окно звонка",
   "When you switch apps during a call, a small floating window keeps it on screen with mute and hang up. Off turns it off.": "Когда вы переключаетесь на другое приложение во время звонка, небольшое плавающее окно остаётся на экране с кнопками «Выключить звук» и «Завершить». Выключено — окна нет.",
-  "Translating": "Идёт перевод"
+  "Translating": "Идёт перевод",
+  "The account list is full. Remove one first.": "Список аккаунтов заполнен. Сначала удалите один.",
+  "That doesn’t look like a TikTok account. Paste a tiktok.com link or @handle.": "Это не похоже на аккаунт TikTok. Вставьте ссылку tiktok.com или @имя."
 });

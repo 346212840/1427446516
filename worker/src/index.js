@@ -1,3 +1,4 @@
+import { normalizeTikTokInput, parseTikTokInput, resolveTikTokShort } from "./tiktok-input.js";
 import { mentionSuggest } from "./mention-suggest.js";
 import { bindOwner, inspectHandle, ownerHandle, ownerSkeleton } from "../../shared/handle-skeleton.js";
 import { handleFeatures, killedRoute, readFlags } from "./feature-flags.js";
@@ -4045,17 +4046,6 @@ function sameTikTokHandle(left, right) {
   return !!a && a === b;
 }
 
-function normalizeTikTokInput(raw) {
-  let text = String(raw || "").trim();
-  if (!text || text.length > 300) return "";
-  const fromUrl = text.match(/^(?:https?:\/\/)?(?:www\.|m\.)?tiktok\.com\/@([A-Za-z0-9._]{2,24})(?:[/?#]|$)/i);
-  if (fromUrl) return fromUrl[1];
-  if (/^https?:\/\//i.test(text)) return "";
-  text = text.replace(/^@+/, "");
-  const bare = text.match(/^([A-Za-z0-9._]{2,24})$/);
-  return bare ? bare[1] : "";
-}
-
 function publicTikTokAccount(row) {
   return {
     handle: row.handle,
@@ -4580,8 +4570,10 @@ async function handleTikTokAccounts(request, env) {
     if (!hit.ok) return limited(hit);
     const body = await readJson(request, 2000);
     if (body.error) return json(400, { error: body.error });
-    const typed = normalizeTikTokInput(body.handle || body.url || "");
-    if (!typed) return json(400, { error: "bad_handle" });
+    const parsed = parseTikTokInput(body.handle || body.url || "");
+    let typed = parsed && parsed.handle ? parsed.handle : "";
+    if (!typed && parsed && parsed.short) typed = await resolveTikTokShort(parsed.short, fetch);
+    if (!typed) return json(400, { error: "bad_handle", reason: parsed && parsed.short ? "short_link" : "format" });
     if (await bannedKeys(env, ["tiktok:" + typed])) return json(403, { error: "banned" });
     const doc = await readTikTokAccounts(env);
     const existing = doc.added.find((item) => tiktokRowMatches(item, typed));

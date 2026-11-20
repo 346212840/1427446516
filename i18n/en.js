@@ -6834,5 +6834,7 @@ SI18n.addPack("en", {
   "Calls follow the room's noise and lift soft or whispered speech so it is translated. Off restores the fixed level.": "Calls follow the room's noise and lift soft or whispered speech so it is translated. Off restores the fixed level.",
   "Floating call window": "Floating call window",
   "When you switch apps during a call, a small floating window keeps it on screen with mute and hang up. Off turns it off.": "When you switch apps during a call, a small floating window keeps it on screen with mute and hang up. Off turns it off.",
-  "Translating": "Translating"
+  "Translating": "Translating",
+  "The account list is full. Remove one first.": "The account list is full. Remove one first.",
+  "That doesn’t look like a TikTok account. Paste a tiktok.com link or @handle.": "That doesn’t look like a TikTok account. Paste a tiktok.com link or @handle."
 });
