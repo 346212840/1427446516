@@ -6677,6 +6677,8 @@ SI18n.addPack("hi", {
   "The microphone is blocked. Allow it in the browser to join.": "माइक्रोफ़ोन अवरुद्ध है। जुड़ने के लिए ब्राउज़र में अनुमति दें।",
   "Translate me into": "मेरा अनुवाद करें",
   "Hear it": "सुनें",
+  "Hear my translation": "मेरा अनुवाद सुनें",
+  "Hear my translation (use headphones)": "मेरा अनुवाद सुनें (हेडफ़ोन लगाएँ)",
   "Speak and you hear your own words translated, with captions. Use headphones to avoid echo.": "बोलें और अपने शब्द अनुवाद के साथ सुनें, कैप्शन सहित। गूँज से बचने के लिए हेडफ़ोन लगाएँ।",
   "Starting…": "शुरू हो रहा है…",
   "Needs a Gemini key": "Gemini कुंजी चाहिए",

@@ -6689,6 +6689,8 @@ SI18n.addPack("ru", {
   "The microphone is blocked. Allow it in the browser to join.": "Микрофон заблокирован. Разрешите его в браузере, чтобы присоединиться.",
   "Translate me into": "Переводить меня на",
   "Hear it": "Слышать",
+  "Hear my translation": "Слышать мой перевод",
+  "Hear my translation (use headphones)": "Слышать мой перевод (в наушниках)",
   "Speak and you hear your own words translated, with captions. Use headphones to avoid echo.": "Говорите и слушайте свои слова в переводе, с субтитрами. Используйте наушники, чтобы не было эха.",
   "Starting…": "Запуск…",
   "Needs a Gemini key": "Нужен ключ Gemini",
