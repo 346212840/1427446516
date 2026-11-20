@@ -238,6 +238,44 @@ async function main() {
     await desk.page.screenshot({ path: "/opt/cursor/artifacts/profile-tabs-desktop.png" });
     await desk.context.close();
 
+    const linked = await openProfile(browser, port, 1000, 700, null);
+    await linked.page.waitForFunction(() => {
+      const el = document.querySelector(".ptabs");
+      return el && el.scrollWidth - el.clientWidth > 20;
+    });
+    const lastHref = await linked.page.evaluate(() => {
+      const tabs = [...document.querySelectorAll(".ptabs [role='tab']")];
+      const last = tabs[tabs.length - 1];
+      return last ? last.getAttribute("href") || "" : "";
+    });
+    if (!lastHref) throw new Error("profile tabs had no last tab to open");
+    await linked.page.locator(".ptabs-bar").hover();
+    await linked.page.locator(".ptabs-bar .tab-arrow.right").click();
+    await linked.page.waitForFunction(() => {
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i) || "";
+        if (key.indexOf("hscroll") >= 0 && /[1-9]/.test(sessionStorage.getItem(key) || "")) return true;
+      }
+      return false;
+    }, null, { timeout: 3000 });
+    await linked.page.goto("http://127.0.0.1:" + port + "/index.html?deep=1" + lastHref, { waitUntil: "domcontentloaded" });
+    const linkedSeen = await linked.page.waitForFunction(() => {
+      const scroller = document.querySelector(".ptabs");
+      const tab = scroller && scroller.querySelector("[aria-selected='true']");
+      if (!scroller || !tab) return false;
+      const box = tab.getBoundingClientRect();
+      const host = scroller.getBoundingClientRect();
+      if (!host.width || !box.width) return false;
+      const ok = box.left >= host.left - 8 && box.right <= host.right + 8;
+      if (!ok) window.__deepSee = { left: Math.round(box.left), right: Math.round(box.right), hostL: Math.round(host.left), hostR: Math.round(host.right), scroll: scroller.scrollLeft, id: tab.getAttribute("data-ptab-id") };
+      return ok;
+    }, null, { timeout: 4000 }).then(() => true).catch(() => false);
+    if (!linkedSeen) {
+      const detail = await linked.page.evaluate(() => window.__deepSee || null);
+      throw new Error("a deep-linked profile tab stayed off screen " + JSON.stringify(detail));
+    }
+    await linked.context.close();
+
     const few = await openProfile(browser, port, 1280, 800, ["replies", "media", "games", "highlights", "friends", "about", "gifts"]);
     const quiet = await strip(few.page);
     if (quiet.max > 2) throw new Error("a single profile tab overflowed " + JSON.stringify(quiet));
