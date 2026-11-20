@@ -128,3 +128,30 @@ export function createWakeFallback(doc) {
     active() { return !!el; }
   };
 }
+
+/* Why getUserMedia failed, as the Allow microphone popup needs it.
+   perm is the Permissions API state ("prompt", "denied", "granted" or "unknown").
+   kind: prompt = ask again, denied = blocked, busy = another app holds it or it
+   would not start, none = no microphone. os = the browser says allowed but the
+   phone itself blocks it. dismissed = the person closed the prompt. */
+export function micFailure(err, perm) {
+  const name = String((err && err.name) || "");
+  const message = String((err && err.message) || "");
+  if (name === "NotAllowedError" || name === "SecurityError") {
+    if (/dismiss/i.test(message)) return { kind: "prompt", dismissed: true, os: false };
+    if (perm === "granted") return { kind: "denied", dismissed: false, os: true };
+    return { kind: "denied", dismissed: false, os: false };
+  }
+  if (name === "NotReadableError" || name === "AbortError" || name === "TrackStartError") return { kind: "busy", dismissed: false, os: false };
+  return { kind: "none", dismissed: false, os: false };
+}
+
+/* Which set of unblock steps fits this device. installed = a home-screen app. */
+export function micPlatform(ua, installed) {
+  const s = String(ua || "");
+  const ios = /iPhone|iPad|iPod/.test(s) || (/Macintosh/.test(s) && /Mobile/.test(s));
+  const android = /Android/.test(s);
+  if (ios) return "ios";
+  if (android) return installed ? "android-app" : "android";
+  return "desktop";
+}

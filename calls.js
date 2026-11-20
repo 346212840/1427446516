@@ -12,7 +12,7 @@ import { createRaiseDetector, earSinkId, createUnlocker, EAR_VOLUME_CAP } from "
 import { createPip } from "./shared/call-pip.js";
 import { createPreview, PREVIEW_MIN } from "./shared/call-preview.js";
 import { lighterFor, pickSink, cleanLexicon, lexiconHint, rememberLine } from "./shared/call-quality.js";
-import { createAudioUnlock, createWakeFallback } from "./shared/call-mobile.js";
+import { createAudioUnlock, createWakeFallback, micFailure, micPlatform } from "./shared/call-mobile.js";
 import { createLiveSession, MIC_WORKLET, OUTPUT_RATE, CHUNK_SAMPLES, proxiesAudio } from "./shared/call-gemini.js";
 import { createDiarizer } from "./shared/call-speakers.js";
 import { createEngine } from "./shared/call-engine.js";
@@ -675,10 +675,14 @@ function popSound() {
     ${earSupported() ? earSection() : ""}`;
 }
 function popMic() {
+  const mc = state.micCheck;
+  const line = mc ? tr("Microphone works. Say something to see the bar move.") : state.micNote || (state.noMic ? tr("No microphone is on for this call. You can still type to talk.") : "");
   return `<div class="calls-modes">
-      ${state.noMic ? "" : `<button type="button" class="calls-pill${state.muted ? " on" : ""}" data-act="call-mute" aria-pressed="${state.muted ? "true" : "false"}">${esc(state.muted ? tr("Unmute") : tr("Mute"))}</button>`}
-      <button type="button" class="calls-pill" data-act="call-checkmic">${esc(tr("Check my microphone"))}</button>
+      ${state.noMic ? `<button type="button" class="calls-pill on" data-act="call-allowmic">${esc(tr("Allow microphone"))}</button>` : `<button type="button" class="calls-pill${state.muted ? " on" : ""}" data-act="call-mute" aria-pressed="${state.muted ? "true" : "false"}">${esc(state.muted ? tr("Unmute") : tr("Mute"))}</button>`}
+      ${state.noMic ? "" : `<button type="button" class="calls-pill${mc ? " on" : ""}" data-act="call-checkmic" aria-pressed="${mc ? "true" : "false"}">${esc(mc ? tr("Microphone on") : tr("Check my microphone"))}</button>`}
     </div>
+    <span class="calls-meter" aria-hidden="true"><i data-meter style="width:${mc ? Math.round(Math.min(1, mc.level * 4) * 100) : 0}%"></i></span>
+    ${line ? `<p class="calls-privacy" role="status">${esc(line)}</p>` : ""}
     <h3>${esc(tr("I send"))}</h3>
     <div class="calls-modes" role="group" aria-label="${esc(tr("I send"))}">
       ${pill("send", "voice", state.mode.send, tr("Voice"))}
@@ -744,6 +748,7 @@ function barUp(e) {
 function setPop(name) {
   state.pop = state.pop === name ? "" : (POPS.indexOf(name) >= 0 ? name : "");
   state.popAnim = !!state.pop;
+  if (state.pop !== "mic" && state.micCheck && state.phase === "active") stopMicCheck();
   paint();
   state.popAnim = false;
 }
@@ -1119,28 +1124,41 @@ function micArt(kind, browser) {
     : `<rect x="22" y="48" width="196" height="54" rx="12" fill="var(--c-card)" stroke="var(--c-line)"/><rect x="34" y="58" width="120" height="8" rx="4" fill="var(--c-muted)"/><rect x="104" y="76" width="50" height="18" rx="9" fill="none" stroke="var(--c-line)"/><rect x="162" y="76" width="46" height="18" rx="9" fill="var(--c-blue)"/><text x="185" y="89" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">Allow</text>`;
   return `<svg viewBox="0 0 240 110" aria-hidden="true" data-browser="${browser}">${bar}${icon}${rows}</svg>`;
 }
-function micSteps(browser) {
-  if (browser === "firefox") return [tr("Click the blocked-permission icon in the address bar."), tr("Next to Use the Microphone, remove the Blocked setting."), tr("Come back here: it continues by itself, or reload the page.")];
-  if (browser === "safari") return [tr("Open the Safari menu, then Settings for This Website."), tr("Set Microphone to Allow."), tr("Come back here: it continues by itself, or reload the page.")];
-  return [tr("Click the site settings icon left of the address bar."), tr("Open Microphone and choose Allow."), tr("Come back here: it continues by itself, or reload the page.")];
+function micInstalled() {
+  try {
+    if (navigator.standalone === true) return true;
+    return !!(window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+  } catch (err) { return false; }
+}
+function micSteps(browser, platform) {
+  const back = tr("Come back here: it continues by itself, or reload the page.");
+  if (platform === "android-app") return [tr("Press and hold the app icon, then tap App info."), tr("Tap Permissions, then Microphone, and choose Allow."), back];
+  if (platform === "android") return [tr("Tap the icon left of the address bar, then Permissions."), tr("Set Microphone to Allow."), back];
+  if (platform === "ios") return [tr("Open Settings, then Safari, then Microphone."), tr("Choose Ask or Allow."), tr("Reopen this app, then tap Try again.")];
+  if (browser === "firefox") return [tr("Click the blocked-permission icon in the address bar."), tr("Next to Use the Microphone, remove the Blocked setting."), back];
+  if (browser === "safari") return [tr("Open the Safari menu, then Settings for This Website."), tr("Set Microphone to Allow."), back];
+  return [tr("Click the site settings icon left of the address bar."), tr("Open Microphone and choose Allow."), back];
 }
 function micModalHtml() {
   const m = micModal;
   const kind = m.kind;
-  const title = kind === "denied" ? tr("Microphone is blocked") : kind === "none" ? tr("No microphone found") : tr("Allow microphone");
-  const body = kind === "denied" ? tr("Your browser is blocking the microphone for this site. Allow it, then come back here.")
+  const title = kind === "denied" ? tr("Microphone is blocked") : kind === "none" ? tr("No microphone found") : kind === "busy" ? tr("Microphone is busy") : tr("Allow microphone");
+  const body = kind === "denied" ? (m.os ? tr("The phone is blocking the microphone for this app. Allow it in Settings, then come back here.") : tr("Your browser is blocking the microphone for this site. Allow it, then come back here."))
     : kind === "none" ? tr("Plug in or turn on a microphone, then try again.")
-    : tr("Your browser will ask for permission. Choose Allow so the other person can hear you.");
-  const steps = kind === "denied" ? `<ol class="calls-mm-steps">${micSteps(m.browser).map((t) => `<li>${esc(t)}</li>`).join("")}</ol>` : "";
+    : kind === "busy" ? tr("Another app may be using the microphone, or it could not start. Close other apps that use it, then try again.")
+    : (m.dismissed ? tr("You closed the permission prompt. Tap Allow microphone and choose Allow.") : tr("Your browser will ask for permission. Choose Allow so the other person can hear you."));
+  const showSteps = kind === "denied" || (m.slow && kind === "prompt");
+  const steps = showSteps ? `<ol class="calls-mm-steps">${micSteps(m.browser, m.platform).map((t) => `<li>${esc(t)}</li>`).join("")}</ol>` : "";
   const again = m.again ? `<p class="calls-mm-again" role="status">${esc(tr("Still blocked. Follow the steps above."))}</p>` : "";
-  const primary = kind === "prompt" ? tr("Allow microphone") : tr("Try again");
+  const slow = m.slow && kind === "prompt" ? `<p class="calls-mm-again" role="status">${esc(tr("No prompt appeared? The permission may be blocked. Follow the steps below."))}</p>` : "";
+  const primary = m.pending ? tr("Waiting for permission…") : kind === "prompt" && !m.slow ? tr("Allow microphone") : tr("Try again");
   return `<div class="calls-mm" role="dialog" aria-modal="true" aria-labelledby="calls-mm-t" data-kind="${kind}">
     <button type="button" class="calls-mm-x" data-mm="continue" aria-label="${esc(tr("Close"))}">${ico("close")}</button>
-    <div class="calls-mm-art">${micArt(kind, m.browser)}</div>
+    <div class="calls-mm-art">${micArt(kind === "busy" ? "none" : kind, m.browser)}</div>
     <h2 id="calls-mm-t">${esc(title)}</h2>
-    <p class="calls-mm-p">${esc(body)}</p>${steps}${again}
+    <p class="calls-mm-p">${esc(body)}</p>${slow}${steps}${again}
     <div class="calls-mm-btns">
-      <button type="button" class="calls-go" data-mm="allow">${esc(primary)}</button>
+      <button type="button" class="calls-go" data-mm="allow"${m.pending ? " disabled" : ""}>${esc(primary)}</button>
       <button type="button" class="calls-pill" data-mm="continue">${esc(tr("Continue without mic (type to talk)"))}</button>
     </div></div>`;
 }
@@ -1159,10 +1177,11 @@ function closeMicModal() {
   document.removeEventListener("keydown", m.key, true);
   if (m.back && m.back.focus) { try { m.back.focus(); } catch (err) { /* gone */ } }
 }
-function micGranted(stream) {
-  const m = micModal;
+function micGranted(stream, holder) {
+  const m = holder || micModal;
   const src = m ? m.src : "prejoin";
-  closeMicModal();
+  if (m && m.slowTimer) clearTimeout(m.slowTimer);
+  if (micModal === m) closeMicModal();
   if (src === "call" && state.engine && state.engine.attachMic) {
     state.engine.attachMic(stream).then(() => {
       state.noMic = "";
@@ -1181,15 +1200,30 @@ function micGranted(stream) {
 }
 /* Called from the click handler. getUserMedia must be the first thing that runs so the native prompt shows. */
 function micAsk() {
-  if (!micModal) return;
+  const holder = micModal;
+  if (!holder || holder.pending) return;
+  holder.pending = true;
+  holder.slow = false;
   let pending;
   try { pending = navigator.mediaDevices.getUserMedia({ audio: true, video: false }); } catch (err) { pending = Promise.reject(err); }
-  pending.then((stream) => micGranted(stream), async (err) => {
-    if (!micModal) return;
-    const blocked = err && (err.name === "NotAllowedError" || err.name === "SecurityError");
+  /* A prompt that never shows (blocked by the phone, or swallowed) must not look like a dead button. */
+  holder.slowTimer = setTimeout(() => { if (micModal === holder && holder.pending) { holder.pending = false; holder.slow = true; micMount(holder); micModalPaint(); } }, 8000);
+  if (holder.el) micModalPaint();
+  pending.then((stream) => {
+    holder.pending = false;
+    micGranted(stream, holder);
+  }, async (err) => {
+    clearTimeout(holder.slowTimer);
+    holder.pending = false;
+    if (micModal !== holder) return;
     const perm = await micPermission();
-    micModal.kind = blocked ? (perm === "prompt" ? "prompt" : "denied") : "none";
-    micModal.again = blocked && micModal.kind === "denied";
+    const f = micFailure(err, perm);
+    holder.again = f.kind === "denied" && holder.kind === "denied";
+    holder.kind = f.kind;
+    holder.os = f.os;
+    holder.dismissed = f.dismissed;
+    holder.slow = false;
+    micMount(holder);
     micModalPaint();
   });
 }
@@ -1202,30 +1236,9 @@ async function micPermission() {
   } catch (err) { /* not supported here */ }
   return "unknown";
 }
-async function openMicModal(src) {
-  if (micModal || typeof document === "undefined") return;
-  const browser = micBrowser();
-  const holder = { src: src, browser: browser, kind: "prompt", again: false, el: null, status: null, back: document.activeElement, key: null };
-  micModal = holder;
-  let perm = "unknown";
-  let status = null;
-  try {
-    if (navigator.permissions && navigator.permissions.query) { status = await navigator.permissions.query({ name: "microphone" }); perm = status.state; }
-  } catch (err) { /* not supported here */ }
-  if (micModal !== holder) return;
-  let inputs = true;
-  try {
-    const list = navigator.mediaDevices && navigator.mediaDevices.enumerateDevices ? await navigator.mediaDevices.enumerateDevices() : [];
-    inputs = list.some((d) => d.kind === "audioinput") || browser === "safari";
-  } catch (err) { /* assume a device exists */ }
-  if (micModal !== holder) return;
-  if (perm === "granted" && inputs) {
-    /* Already allowed: nothing to explain, just pick the mic up. */
-    if (src === "call") micAsk(); else closeMicModal();
-    return;
-  }
-  holder.kind = perm === "denied" ? "denied" : !inputs ? "none" : "prompt";
-  holder.status = status;
+/* Put the popup on screen. It is built once, even when the first step ran with no popup yet. */
+function micMount(holder) {
+  if (holder.el || micModal !== holder || typeof document === "undefined") return;
   const el = document.createElement("div");
   el.className = "calls-mm-wrap";
   el.addEventListener("click", (e) => {
@@ -1239,12 +1252,55 @@ async function openMicModal(src) {
   document.addEventListener("keydown", holder.key, true);
   holder.el = el;
   document.body.appendChild(el);
+}
+/* Back from the phone's Settings (or another tab): if the microphone is allowed now, carry on by itself. */
+function micRecheck() {
+  const m = micModal;
+  if (!m || !m.el || m.pending || (typeof document !== "undefined" && document.visibilityState === "hidden")) return;
+  micPermission().then((perm) => { if (micModal === m && perm === "granted" && !m.pending) micAsk(); });
+}
+async function openMicModal(src, err) {
+  if (typeof document === "undefined") return;
+  if (micModal) {
+    /* A leftover step that never got a popup must not block the next tap. */
+    if (!micModal.el && !micModal.pending) closeMicModal(); else return;
+  }
+  const browser = micBrowser();
+  const platform = micPlatform(navigator.userAgent, micInstalled());
+  const holder = { src: src, browser: browser, platform: platform, kind: "prompt", again: false, os: false, dismissed: false, pending: false, slow: false, el: null, status: null, back: document.activeElement, key: null };
+  micModal = holder;
+  let perm = "unknown";
+  let status = null;
+  try {
+    if (navigator.permissions && navigator.permissions.query) { status = await navigator.permissions.query({ name: "microphone" }); perm = status.state; }
+  } catch (e) { /* not supported here */ }
+  if (micModal !== holder) return;
+  let inputs = true;
+  try {
+    const list = navigator.mediaDevices && navigator.mediaDevices.enumerateDevices ? await navigator.mediaDevices.enumerateDevices() : [];
+    inputs = list.some((d) => d.kind === "audioinput") || browser === "safari";
+  } catch (e) { /* assume a device exists */ }
+  if (micModal !== holder) return;
+  if (err) {
+    /* The caller already tried and failed: say why, never retry silently. */
+    const f = micFailure(err, perm);
+    holder.kind = f.kind; holder.os = f.os; holder.dismissed = f.dismissed;
+  } else if (perm === "granted" && inputs) {
+    /* Already allowed: nothing to explain, just pick the mic up. A failure shows the popup. */
+    if (src === "call") micAsk();
+    else closeMicModal();
+    return;
+  } else {
+    holder.kind = perm === "denied" ? "denied" : !inputs ? "none" : "prompt";
+  }
+  holder.status = status;
+  micMount(holder);
   micModalPaint();
   /* Allowed in the browser settings while the popup is open: carry on by itself. */
   if (status) status.onchange = () => {
     if (!micModal || micModal !== holder) return;
     if (status.state === "granted") micAsk();
-    else if (status.state === "denied") { holder.kind = "denied"; micModalPaint(); }
+    else if (status.state === "denied") { holder.kind = "denied"; holder.os = false; micModalPaint(); }
   };
 }
 function maybePrejoinMic() {
@@ -1285,7 +1341,7 @@ async function checkMic() {
     const denied = err && (err.name === "NotAllowedError" || err.name === "SecurityError");
     state.micNote = denied ? tr("The microphone is blocked. You can still join and type to talk.") : tr("No mic found, you can type to talk.");
     paint();
-    openMicModal("prejoin");
+    openMicModal(state.phase === "active" ? "call" : "prejoin", err);
   }
 }
 function stopMicCheck() {
@@ -2266,6 +2322,7 @@ function onAct(act, el) {
   else if (act === "hist-all") { state.histSel = new Set(state.history.filter((r) => (state.tab || "recent") !== "missed" || r.missed).slice(0, 30).map((r) => r.id)); paint(); }
   else if (act === "hist-delete") { if (state.histSel && state.histSel.size) histRemove(Array.from(state.histSel)); }
   else if (act === "hist-clear") histConfirm();
+  else if (act === "call-allowmic") openMicModal("call");
   else if (act === "call-checkmic") checkMic();
   else if (act === "call-checkspk") checkSpeaker();
   else if (act === "call-switch") {
@@ -2584,6 +2641,9 @@ function mount(route) {
     target.addEventListener("input", onInput);
     target.addEventListener("change", onChange);
     target.addEventListener("submit", onSubmit, true);
+    document.addEventListener("visibilitychange", micRecheck);
+    window.addEventListener("focus", micRecheck);
+    window.addEventListener("pageshow", micRecheck);
     window.addEventListener("viktorych-call-ring", (event) => onRing(event.detail));
     if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) navigator.mediaDevices.addEventListener("devicechange", () => { routeOutput(); });
   }

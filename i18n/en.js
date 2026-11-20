@@ -6866,5 +6866,19 @@ SI18n.addPack("en", {
   "Microphone and sending": "Microphone and sending",
   "More controls": "More controls",
   "They speak": "They speak",
-  "This call has no guest link.": "This call has no guest link."
+  "This call has no guest link.": "This call has no guest link.",
+  "Another app may be using the microphone, or it could not start. Close other apps that use it, then try again.": "Another app may be using the microphone, or it could not start. Close other apps that use it, then try again.",
+  "Choose Ask or Allow.": "Choose Ask or Allow.",
+  "Microphone is busy": "Microphone is busy",
+  "Microphone works. Say something to see the bar move.": "Microphone works. Say something to see the bar move.",
+  "No microphone is on for this call. You can still type to talk.": "No microphone is on for this call. You can still type to talk.",
+  "No prompt appeared? The permission may be blocked. Follow the steps below.": "No prompt appeared? The permission may be blocked. Follow the steps below.",
+  "Open Settings, then Safari, then Microphone.": "Open Settings, then Safari, then Microphone.",
+  "Press and hold the app icon, then tap App info.": "Press and hold the app icon, then tap App info.",
+  "Reopen this app, then tap Try again.": "Reopen this app, then tap Try again.",
+  "Tap Permissions, then Microphone, and choose Allow.": "Tap Permissions, then Microphone, and choose Allow.",
+  "Tap the icon left of the address bar, then Permissions.": "Tap the icon left of the address bar, then Permissions.",
+  "The phone is blocking the microphone for this app. Allow it in Settings, then come back here.": "The phone is blocking the microphone for this app. Allow it in Settings, then come back here.",
+  "Waiting for permission…": "Waiting for permission…",
+  "You closed the permission prompt. Tap Allow microphone and choose Allow.": "You closed the permission prompt. Tap Allow microphone and choose Allow."
 });

@@ -6869,5 +6869,19 @@ SI18n.addPack("es", {
   "Microphone and sending": "Micrófono y envío",
   "More controls": "Más controles",
   "They speak": "Hablan",
-  "This call has no guest link.": "Esta llamada no tiene enlace de invitado."
+  "This call has no guest link.": "Esta llamada no tiene enlace de invitado.",
+  "Another app may be using the microphone, or it could not start. Close other apps that use it, then try again.": "Puede que otra aplicación esté usando el micrófono, o no pudo iniciarse. Cierra las otras aplicaciones que lo usen y vuelve a intentarlo.",
+  "Choose Ask or Allow.": "Elige Preguntar o Permitir.",
+  "Microphone is busy": "El micrófono está ocupado",
+  "Microphone works. Say something to see the bar move.": "El micrófono funciona. Di algo para ver cómo se mueve la barra.",
+  "No microphone is on for this call. You can still type to talk.": "No hay micrófono activo en esta llamada. Aún puedes escribir para hablar.",
+  "No prompt appeared? The permission may be blocked. Follow the steps below.": "¿No apareció la solicitud? Puede que el permiso esté bloqueado. Sigue los pasos de abajo.",
+  "Open Settings, then Safari, then Microphone.": "Abre Ajustes, luego Safari y luego Micrófono.",
+  "Press and hold the app icon, then tap App info.": "Mantén pulsado el icono de la app y toca Información de la app.",
+  "Reopen this app, then tap Try again.": "Vuelve a abrir esta app y toca Intentarlo de nuevo.",
+  "Tap Permissions, then Microphone, and choose Allow.": "Toca Permisos, luego Micrófono y elige Permitir.",
+  "Tap the icon left of the address bar, then Permissions.": "Toca el icono a la izquierda de la barra de direcciones y luego Permisos.",
+  "The phone is blocking the microphone for this app. Allow it in Settings, then come back here.": "El teléfono está bloqueando el micrófono para esta app. Permítelo en Ajustes y vuelve aquí.",
+  "Waiting for permission…": "Esperando el permiso…",
+  "You closed the permission prompt. Tap Allow microphone and choose Allow.": "Cerraste la solicitud de permiso. Toca Permitir micrófono y elige Permitir."
 });

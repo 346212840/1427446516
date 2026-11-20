@@ -6856,5 +6856,19 @@ SI18n.addPack("hi", {
   "Microphone and sending": "माइक्रोफ़ोन और भेजना",
   "More controls": "और नियंत्रण",
   "They speak": "वे बोलते हैं",
-  "This call has no guest link.": "इस कॉल का कोई अतिथि लिंक नहीं है।"
+  "This call has no guest link.": "इस कॉल का कोई अतिथि लिंक नहीं है।",
+  "Another app may be using the microphone, or it could not start. Close other apps that use it, then try again.": "हो सकता है माइक्रोफ़ोन किसी और ऐप में इस्तेमाल हो रहा हो, या शुरू नहीं हो पाया। उसे इस्तेमाल करने वाले दूसरे ऐप बंद करें और फिर कोशिश करें।",
+  "Choose Ask or Allow.": "पूछें या अनुमति दें चुनें।",
+  "Microphone is busy": "माइक्रोफ़ोन व्यस्त है",
+  "Microphone works. Say something to see the bar move.": "माइक्रोफ़ोन काम कर रहा है। पट्टी हिलते देखने के लिए कुछ बोलें।",
+  "No microphone is on for this call. You can still type to talk.": "इस कॉल में माइक्रोफ़ोन चालू नहीं है। आप फिर भी टाइप करके बोल सकते हैं।",
+  "No prompt appeared? The permission may be blocked. Follow the steps below.": "अनुमति का संदेश नहीं आया? हो सकता है अनुमति बंद हो। नीचे के चरण अपनाएँ।",
+  "Open Settings, then Safari, then Microphone.": "सेटिंग खोलें, फिर Safari, फिर माइक्रोफ़ोन।",
+  "Press and hold the app icon, then tap App info.": "ऐप आइकन को देर तक दबाएँ और ऐप जानकारी पर टैप करें।",
+  "Reopen this app, then tap Try again.": "इस ऐप को फिर खोलें और फिर कोशिश करें पर टैप करें।",
+  "Tap Permissions, then Microphone, and choose Allow.": "अनुमतियाँ, फिर माइक्रोफ़ोन पर टैप करें और अनुमति दें चुनें।",
+  "Tap the icon left of the address bar, then Permissions.": "पता बार के बाईं ओर के आइकन पर टैप करें, फिर अनुमतियाँ।",
+  "The phone is blocking the microphone for this app. Allow it in Settings, then come back here.": "फ़ोन इस ऐप के लिए माइक्रोफ़ोन रोक रहा है। उसे सेटिंग में अनुमति दें और यहाँ लौटें।",
+  "Waiting for permission…": "अनुमति की प्रतीक्षा…",
+  "You closed the permission prompt. Tap Allow microphone and choose Allow.": "आपने अनुमति का संदेश बंद कर दिया। माइक्रोफ़ोन की अनुमति दें पर टैप करें और अनुमति दें चुनें।"
 });
