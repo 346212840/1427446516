@@ -6,7 +6,7 @@ const SHELL = [
   "./", "./boot.js", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png", "./icon-180.png", "./favicon.svg",
   "../calls.js", "../calls.css", "../accounts.config.js", "../shared/call-langs.js", "../shared/call-audio.js", "../shared/call-mode.js",
   "../shared/call-voice.js", "../shared/call-setup.js", "../shared/call-privacy.js", "../shared/call-quality.js", "../shared/call-mobile.js", "../shared/call-ear.js", "../shared/call-history.js", "../shared/call-gemini.js",
-  "../shared/call-chat.js", "../shared/call-engine.js", "../vendor/qrcode-1.4.4.js", "../shared/call-speakers.js"
+  "../shared/call-chat.js", "../shared/call-status.js", "../shared/call-engine.js", "../vendor/qrcode-1.4.4.js", "../shared/call-speakers.js"
 ];
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => Promise.all(SHELL.map((url) => cache.add(new Request(url, { cache: "reload" })).catch(() => {})))).then(() => self.skipWaiting()));

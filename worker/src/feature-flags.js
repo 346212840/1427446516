@@ -176,6 +176,11 @@ export const FEATURES = {
      and the conversation flowing underneath with no separate card. Client
      only, on by default. Off restores the old stacked tiles and framed chat. */
   calls_onescreen: { paths: [] },
+  /* The in-call bar slides up like a bottom sheet. A visible handle,
+     swipe or tap opens every remaining control; swipe down or tap again
+     closes it. Client only, on by default. Off keeps the compact bar
+     and the existing tray popover. */
+  calls_bar_sheet: { paths: [] },
   /* Official Gemini Live Translate (translationConfig). On by default.
      If minting or the session fails, the call automatically uses the earlier
      Live interpreter path (system instruction, no translationConfig). Off
