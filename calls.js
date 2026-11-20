@@ -149,6 +149,14 @@ function barFlagOn() {
   } catch (err) { return true; }
 }
 
+/* Owner switch calls_bar_sheet, on unless the server list says off. */
+function barSheetFlagOn() {
+  try {
+    const list = JSON.parse(localStorage.getItem("viktorychapp-server-off") || "[]");
+    return !(Array.isArray(list) && list.indexOf("calls_bar_sheet") >= 0);
+  } catch (err) { return true; }
+}
+
 /* Owner switch calls_preview, on unless the server list says off. */
 function previewFlagOn() {
   try {
@@ -232,6 +240,7 @@ const hist = createHistory({ api: (path, init) => api(path, init), storage: { ge
 const state = {
   histSel: null,
   pop: "",
+  barOpen: false,
   histUndo: null,
   phase: "idle",
   configured: true,
@@ -757,22 +766,37 @@ function popBtn(pop, icon, label, opt) {
 }
 function newBar() {
   const subsOn = state.mode.subtitles !== "off";
+  const sheet = barSheetFlagOn();
+  const open = !!(sheet && state.barOpen);
   const micBtn = state.noMic
     ? cbtn("call-focus-type", "micOff", tr("No mic"), { cls: "off", aria: tr("No mic, type to talk") })
     : cbtn("call-mute", state.muted ? "micOff" : "mic", state.muted ? tr("Unmute") : tr("Mute"), { cls: state.muted ? "off" : "", aria: state.muted ? tr("Unmute microphone") : tr("Mute microphone") });
-  const caret = `<button type="button" class="cb-caret cb-extra" data-act="call-pop" data-value="mic" aria-haspopup="dialog" aria-expanded="${state.pop === "mic" ? "true" : "false"}" aria-label="${esc(tr("Microphone and sending"))}" title="${esc(tr("Microphone and sending"))}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14l5-5 5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
-  return `<div class="calls-controls calls-bar" data-essentials="mute speaker hangup talk" data-bar="1">
-    <button type="button" class="calls-handle" data-act="call-pop" data-value="tray" aria-label="${esc(tr("More controls"))}" aria-expanded="${state.pop === "tray" ? "true" : "false"}"><i></i></button>
-    <span class="cb-split">${micBtn}${caret}</span>
+  const caret = sheet ? "" : `<button type="button" class="cb-caret cb-extra" data-act="call-pop" data-value="mic" aria-haspopup="dialog" aria-expanded="${state.pop === "mic" ? "true" : "false"}" aria-label="${esc(tr("Microphone and sending"))}" title="${esc(tr("Microphone and sending"))}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14l5-5 5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+  const handleLabel = sheet ? (open ? tr("Hide call controls") : tr("Show all controls")) : tr("More controls");
+  const handle = sheet
+    ? `<button type="button" class="calls-handle" data-act="call-bar-sheet" aria-label="${esc(handleLabel)}" aria-expanded="${open ? "true" : "false"}"><i></i></button>`
+    : `<button type="button" class="calls-handle" data-act="call-pop" data-value="tray" aria-label="${esc(tr("More controls"))}" aria-expanded="${state.pop === "tray" ? "true" : "false"}"><i></i></button>`;
+  const extras = sheet ? "" : `${popBtn("sound", state.speakerOn ? "speaker" : "speakerOff", tr("Sound"), { extra: true })}
+    ${earSupported() ? cbtn("call-ear", "ear", tr("Ear mode"), { pressed: state.ear.on }).replace('class="cb', 'class="cb cb-extra') : ""}
+    ${popBtn("invite", "link", tr("Invite"), { extra: true })}
+    ${popBtn("tray", "more", tr("More"), { extra: true })}`;
+  const more = sheet ? `<div class="calls-bar-sheet">${popTray()}</div>` : "";
+  const main = `<span class="cb-split">${micBtn}${caret}</span>
     ${popBtn("lang", "translate", tr("Languages"))}
     ${popBtn("subs", "captions", tr("Captions"), { cls: subsOn ? "" : "dim" })}
-    ${popBtn("sound", state.speakerOn ? "speaker" : "speakerOff", tr("Sound"), { extra: true })}
-    ${earSupported() ? cbtn("call-ear", "ear", tr("Ear mode"), { pressed: state.ear.on }).replace('class="cb', 'class="cb cb-extra') : ""}
+    ${extras}
     ${chatBtn()}
-    ${popBtn("invite", "link", tr("Invite"), { extra: true })}
-    ${popBtn("tray", "more", tr("More"), { extra: true })}
-    ${cbtn("call-end", "hangup", tr("Leave"), { cls: "end", aria: tr("End call") })}
+    ${cbtn("call-end", "hangup", tr("Leave"), { cls: "end", aria: tr("End call") })}`;
+  return `<div class="calls-controls calls-bar" data-essentials="mute speaker hangup talk" data-bar="1"${sheet ? ` data-sheet="1" data-open="${open ? "1" : "0"}"` : ""}>
+    ${handle}
+    ${sheet ? `<div class="calls-bar-main">${main}</div>` : main}
+    ${more}
   </div>`;
+}
+function sheetShouldOpen(wasOpen, dy, threshold) {
+  const t = threshold == null ? 36 : threshold;
+  if (Math.abs(dy) < t) return !!wasOpen;
+  return dy > 0;
 }
 function popTitle(pop) {
   return { mic: tr("Microphone and sending"), lang: tr("Languages"), subs: tr("Captions"), sound: tr("Sound"), invite: tr("Invite"), tray: tr("More") }[pop] || "";
@@ -869,16 +893,74 @@ function popOutside(e) {
   state.pop = "";
   paint();
 }
-/* On phones a swipe up on the bar opens the tray, a swipe down closes it. */
+/* On phones a swipe up on the bar opens the tray, a swipe down closes it.
+   With calls_bar_sheet the bar itself is the sheet and follows the finger. */
 let barSwipe = null;
+let barDrag = null;
+function clearBarDrag() {
+  if (!barDrag) return;
+  const bar = barDrag.bar;
+  const sheet = bar && bar.querySelector && bar.querySelector(".calls-bar-sheet");
+  if (sheet) { sheet.style.maxHeight = ""; sheet.style.opacity = ""; }
+  if (bar && bar.removeAttribute) bar.removeAttribute("data-dragging");
+  barDrag = null;
+}
+function syncBarSheetSize() {
+  const bar = document.querySelector(".calls-bar[data-sheet='1']");
+  if (bar) document.documentElement.style.setProperty("--calls-bar-h", bar.offsetHeight + "px");
+  else document.documentElement.style.removeProperty("--calls-bar-h");
+}
 function barDown(e) {
-  const bar = e.target && e.target.closest && e.target.closest(".calls-bar, .calls-pop.tray");
-  barSwipe = bar ? { y: e.clientY, tray: !!e.target.closest(".calls-pop.tray") } : null;
+  if (!barFlagOn() || !e.target || !e.target.closest) { barSwipe = null; barDrag = null; return; }
+  const bar = e.target.closest(".calls-bar, .calls-pop.tray");
+  if (!bar) { barSwipe = null; return; }
+  if (barSheetFlagOn() && bar.classList.contains("calls-bar")) {
+    const onHandle = !!e.target.closest(".calls-handle");
+    const onBtn = !!e.target.closest(".cb, .calls-tilebtn, .cb-caret, input, select, a, .calls-x");
+    barDrag = { y: e.clientY, x: e.clientX, open: !!state.barOpen, fromHandle: onHandle, fromBtn: onBtn && !onHandle, moved: false, bar: bar };
+    try { if (e.pointerId != null && bar.setPointerCapture) bar.setPointerCapture(e.pointerId); } catch (err) { /* capture is optional */ }
+    return;
+  }
+  barSwipe = { y: e.clientY, tray: !!e.target.closest(".calls-pop.tray") };
+}
+function barMove(e) {
+  if (!barDrag) return;
+  const dx = e.clientX - barDrag.x;
+  const dyRaw = e.clientY - barDrag.y;
+  const dy = barDrag.y - e.clientY;
+  if (!barDrag.moved) {
+    if (Math.abs(dyRaw) < 10 && Math.abs(dx) < 10) return;
+    if (Math.abs(dx) > Math.abs(dyRaw) && !barDrag.fromHandle) return;
+    if (barDrag.fromBtn && Math.abs(dyRaw) < 16) return;
+    barDrag.moved = true;
+    barDrag.bar.dataset.dragging = "1";
+  }
+  const sheet = barDrag.bar.querySelector(".calls-bar-sheet");
+  if (!sheet) return;
+  const full = sheet.scrollHeight;
+  const base = barDrag.open ? full : 0;
+  const h = Math.max(0, Math.min(full, base + dy));
+  sheet.style.maxHeight = h + "px";
+  sheet.style.opacity = full ? String(h / full) : "0";
+  syncBarSheetSize();
 }
 function barUp(e) {
+  if (barDrag) {
+    const d = barDrag;
+    const dy = d.y - (e && e.clientY != null ? e.clientY : d.y);
+    const moved = d.moved;
+    clearBarDrag();
+    if (!barSheetFlagOn()) return;
+    if (moved) {
+      const want = sheetShouldOpen(d.open, dy);
+      if (want !== !!state.barOpen) { state.barOpen = want; swallowClickAt = Date.now(); paint(); }
+      else syncBarSheetSize();
+    }
+    return;
+  }
   const sw = barSwipe;
   barSwipe = null;
-  if (!sw || !barFlagOn()) return;
+  if (!sw || !barFlagOn() || barSheetFlagOn()) return;
   const dy = e.clientY - sw.y;
   if (dy < -36 && state.pop !== "tray") { state.pop = "tray"; swallowClickAt = Date.now(); paint(); }
   else if (dy > 36 && state.pop) { state.pop = ""; swallowClickAt = Date.now(); paint(); }
@@ -1643,6 +1725,7 @@ function paint() {
   holdWake(state.phase === "active");
   if (state.phase === "active") startOrientation();
   maybePrejoinMic();
+  syncBarSheetSize();
 }
 /* Cheap updates while a call runs: no full repaint, so typing keeps focus. */
 function live() {
@@ -2279,6 +2362,7 @@ async function teardown(silent) {
 }
 async function hangUp() {
   await teardown(false);
+  state.barOpen = false;
   state.statusCode = standalone() && state.route && state.route.name === "callguest" ? "ended" : "";
   paint();
   loadHistory();
@@ -2547,6 +2631,7 @@ function onAct(act, el) {
   else if (act === "call-panel") { state.pop = ""; if (el.dataset.value === "chat" && oneChatFlagOn()) { state.conv = state.conv === false; paint(); } else setPanel(el.dataset.value || ""); }
   else if (act === "call-conv") { state.pop = ""; state.conv = state.conv === false; paint(); }
   else if (act === "call-pop") setPop(el.dataset.value || "");
+  else if (act === "call-bar-sheet") { state.barOpen = !state.barOpen; paint(); }
   else if (act === "call-tab") { state.tab = el.dataset.value || "recent"; paint(); }
   else if (act === "hist-del") histRemove([el.dataset.id]);
   else if (act === "hist-select") { state.histSel = new Set(); paint(); }
@@ -2875,7 +2960,9 @@ function mount(route) {
     target.addEventListener("click", holdClick, true);
     target.addEventListener("click", popOutside);
     target.addEventListener("pointerdown", barDown);
+    target.addEventListener("pointermove", barMove);
     target.addEventListener("pointerup", barUp);
+    target.addEventListener("pointercancel", clearBarDrag);
     target.addEventListener("contextmenu", onContext, true);
     target.addEventListener("input", onInput);
     target.addEventListener("change", onChange);

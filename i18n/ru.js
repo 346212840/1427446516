@@ -6913,5 +6913,9 @@ SI18n.addPack("ru", {
   "Even tiles and one call screen": "Ровные плитки и один экран звонка",
   "The people in the call sit in equal tiles at the top, with language, captions, translation and speaker controls in one row, and the conversation continues underneath with no separate card. Off restores the old stacked tiles and framed chat panel.": "Участники звонка в одинаковых плитках сверху, язык, субтитры, перевод и динамик в одном ряду, а переписка продолжается ниже без отдельной карточки. Выключено: прежние наложенные плитки и чат в рамке.",
   "Hear translation": "Слушать перевод",
-  "Call controls": "Управление звонком"
+  "Call controls": "Управление звонком",
+  "Sliding call controls": "Выдвижная панель управления звонком",
+  "The call bar has a visible handle. Swipe up or tap the handle to slide it open and see every control; swipe down or tap again to close it. Off keeps the compact bar and the old tray.": "У панели звонка есть заметная ручка. Проведите вверх или нажмите на ручку, чтобы открыть все кнопки; проведите вниз или нажмите снова, чтобы свернуть. Выключено: прежняя компактная панель и лоток.",
+  "Show all controls": "Показать все элементы управления",
+  "Hide call controls": "Скрыть элементы управления звонком"
 });

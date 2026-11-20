@@ -6911,5 +6911,9 @@ SI18n.addPack("en", {
   "Even tiles and one call screen": "Even tiles and one call screen",
   "The people in the call sit in equal tiles at the top, with language, captions, translation and speaker controls in one row, and the conversation continues underneath with no separate card. Off restores the old stacked tiles and framed chat panel.": "The people in the call sit in equal tiles at the top, with language, captions, translation and speaker controls in one row, and the conversation continues underneath with no separate card. Off restores the old stacked tiles and framed chat panel.",
   "Hear translation": "Hear translation",
-  "Call controls": "Call controls"
+  "Call controls": "Call controls",
+  "Sliding call controls": "Sliding call controls",
+  "The call bar has a visible handle. Swipe up or tap the handle to slide it open and see every control; swipe down or tap again to close it. Off keeps the compact bar and the old tray.": "The call bar has a visible handle. Swipe up or tap the handle to slide it open and see every control; swipe down or tap again to close it. Off keeps the compact bar and the old tray.",
+  "Show all controls": "Show all controls",
+  "Hide call controls": "Hide call controls"
 });
