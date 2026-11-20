@@ -789,6 +789,43 @@ function swipeUp() {
   else sw.row.style.transform = "";
 }
 
+/* Press and hold a history row (or right-click it) to start selecting with that row picked, and never show the browser's own
+   menu on the Calls page, so holding Tap to talk or a row does not open Copy / Save as / Share. Text fields keep theirs. */
+let hold = null;
+const HOLD_MS = 480;
+function holdClear() { if (hold) { clearTimeout(hold.timer); hold = null; } }
+function startSelectWith(id) {
+  if (!id || state.histSel || state.phase !== "idle") return;
+  state.histSel = new Set([id]);
+  try { if (navigator.vibrate) navigator.vibrate(8); } catch (err) { /* no haptics here */ }
+  paint();
+}
+function holdDown(e) {
+  if (e.button > 0 || state.histSel || state.phase !== "idle") return;
+  const row = e.target.closest && e.target.closest(".calls-list .calls-row");
+  if (!row || e.target.closest("button, a, input")) return;
+  holdClear();
+  const id = row.dataset.id;
+  hold = { x: e.clientX, y: e.clientY, fired: false, timer: setTimeout(() => { if (hold) { hold.fired = true; swallowClickAt = Date.now(); startSelectWith(id); } }, HOLD_MS) };
+}
+function holdMove(e) { if (hold && (Math.abs(e.clientX - hold.x) > 10 || Math.abs(e.clientY - hold.y) > 10)) holdClear(); }
+let swallowClickAt = 0;
+function holdClick(e) {
+  if (swallowClickAt && Date.now() - swallowClickAt < 800 && e.target.closest && e.target.closest(".calls-page")) {
+    swallowClickAt = 0;
+    e.preventDefault();
+    e.stopPropagation();
+  }
+}
+function onContext(e) {
+  const t = e.target;
+  if (!t || !t.closest || !t.closest(".calls-page")) return;
+  if (t.closest("input, textarea, select, [contenteditable='true']")) return;
+  e.preventDefault();
+  const row = t.closest(".calls-list .calls-row");
+  if (row && !t.closest("button, a")) { swallowClickAt = Date.now(); startSelectWith(row.dataset.id); }
+}
+
 function homeScreen(opts) {
   const o = opts || {};
   const back = standalone() ? "" : `<a class="calls-back" href="#/" aria-label="${esc(tr("Back"))}">${ico("back")}</a>`;
@@ -2274,7 +2311,12 @@ function mount(route) {
     target.addEventListener("pointerdown", swipeDown);
     target.addEventListener("pointermove", swipeMove);
     target.addEventListener("pointerup", swipeUp);
-    target.addEventListener("pointercancel", () => { if (swipe) { swipe.row.style.transform = ""; swipe = null; } });
+    target.addEventListener("pointercancel", () => { holdClear(); if (swipe) { swipe.row.style.transform = ""; swipe = null; } });
+    target.addEventListener("pointerdown", holdDown);
+    target.addEventListener("pointermove", holdMove);
+    target.addEventListener("pointerup", holdClear);
+    target.addEventListener("click", holdClick, true);
+    target.addEventListener("contextmenu", onContext, true);
     target.addEventListener("input", onInput);
     target.addEventListener("change", onChange);
     target.addEventListener("submit", onSubmit, true);

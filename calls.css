@@ -348,3 +348,7 @@
 .calls-sugg-row:hover { background: var(--c-hover); }
 .calls-sugg-t { flex: 1; min-width: 0; display: grid; } .calls-sugg-t small { color: var(--c-muted); }
 .calls-sugg-row .calls-ico { width: 20px; height: 20px; color: var(--c-blue); }
+
+/* Hold actions, not the browser menu: no touch callout or text selection on the controls and rows. */
+.calls-page { -webkit-touch-callout: none; }
+.calls-page button, .calls-page .calls-row, .calls-page .calls-talk, .calls-page .calls-ava { -webkit-user-select: none; user-select: none; }
