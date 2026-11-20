@@ -1953,7 +1953,7 @@
 
   function playingLive() {
     var root = liveRoot();
-    return !!(root && root.getAttribute("data-mode") !== "saved");
+    return !!(root && root.getAttribute("data-mode") !== "saved" && !root.classList.contains("is-mini"));
   }
 
   function syncPastBadge() {
@@ -2345,6 +2345,24 @@
     var cover = root.querySelector(".shorts-live-cover");
     if (cover) cover.hidden = true;
     resumeOpen(handle);
+  }
+
+  /* Mini player: the live shrinks to a small card in the corner and keeps playing while the list, For you and Past lives stay usable. Tap the card to go full screen again. */
+  function miniOn() {
+    var root = liveRoot();
+    return !!(root && root.classList.contains("is-mini"));
+  }
+  function setMini(on) {
+    var root = liveRoot();
+    if (!root || root.getAttribute("data-mode") === "saved") return;
+    root.classList.toggle("is-mini", !!on);
+    root.setAttribute("aria-modal", on ? "false" : "true");
+    document.documentElement.classList.toggle("shorts-live-open", !on);
+    if (on) {
+      if (liveZoom) liveZoom.reset();
+      livePaintKey = "";
+      paintLive();
+    }
   }
 
   /* A strip of the other accounts that are live right now, so a tap jumps to one without going back to the list. */
@@ -3116,11 +3134,14 @@
       '<span class="shorts-live-tag">' + hooks.esc(tr("LIVE")) + "</span>" +
       '<span class="shorts-live-q"></span>' +
       '<button type="button" data-shorts="mute" aria-label="' + hooks.esc(sound ? tr("Mute") : tr("Unmute")) + '">' + hooks.icon(sound ? "vol" : "volOff") + "</button>" +
+      '<button type="button" data-shorts="mini-live" aria-label="' + hooks.esc(tr("Mini player")) + '" title="' + hooks.esc(tr("Mini player")) + '">' + hooks.esc(tr("Mini player")) + "</button>" +
       '<button type="button" data-shorts="record-live">' + hooks.esc(tr("Record this live")) + "</button>" +
       (frameGrabOn() ? '<button type="button" data-shorts="grab-frame">' + hooks.esc(tr("Save frame")) + '</button><button type="button" data-shorts="grab-burst">' + hooks.esc(tr("Burst")) + "</button>" : "") +
       "</div>" +
       '<div class="shorts-live-foot"><div class="shorts-live-switch" data-switch></div><b>@' + hooks.esc(handle) + "</b>" +
-      '<span class="shorts-live-viewers"></span></div>';
+      '<span class="shorts-live-viewers"></span></div>' +
+      '<div class="shorts-mini-bar"><button type="button" class="shorts-mini-open" data-shorts="expand-live" aria-label="' + hooks.esc(tr("Open full screen")) + '"></button>' +
+      '<button type="button" class="shorts-mini-x" data-shorts="close-live" aria-label="' + hooks.esc(tr("Close")) + '">×</button></div>';
     document.body.appendChild(root);
     paintSwitch(root, handle);
     document.documentElement.classList.add("shorts-live-open");
@@ -3142,6 +3163,12 @@
       if (kind === "close-live") {
         event.preventDefault();
         closeLive();
+      } else if (kind === "mini-live") {
+        event.preventDefault();
+        setMini(true);
+      } else if (kind === "expand-live") {
+        event.preventDefault();
+        setMini(false);
       } else if (kind === "switch-live") {
         event.preventDefault();
         var to = button.getAttribute("data-handle") || "";
@@ -3376,6 +3403,7 @@
   }
 
   function onLiveWheel(event) {
+    if (miniOn()) return;
     if (event.ctrlKey || (liveZoom && liveZoom.scale() > 1)) return;
     if (Math.abs(event.deltaY) < 24) return;
     var now = Date.now();
@@ -3737,7 +3765,7 @@
       closeLive();
       return;
     }
-    if (liveRoot()) {
+    if (liveRoot() && !miniOn()) {
       var saved = liveRoot().getAttribute("data-mode") === "saved";
       if (!saved && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
         event.preventDefault();

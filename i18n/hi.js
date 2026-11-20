@@ -6843,5 +6843,7 @@ SI18n.addPack("hi", {
   "A–Z": "A–Z",
   "Just went live": "अभी लाइव हुआ",
   "Seen live for {time}": "{time} से लाइव देखा गया",
-  "{h} h {m} min": "{h} घं {m} मिनट"
+  "{h} h {m} min": "{h} घं {m} मिनट",
+  "Mini player": "मिनी प्लेयर",
+  "Open full screen": "पूरी स्क्रीन पर खोलें"
 });
