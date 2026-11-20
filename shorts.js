@@ -2347,6 +2347,27 @@
     resumeOpen(handle);
   }
 
+  /* A strip of the other accounts that are live right now, so a tap jumps to one without going back to the list. */
+  function switchHtml(current) {
+    var live = liveRows().filter(function (row) { return row.live && !rowPaused(row); });
+    if (live.length < 2) return "";
+    return live.map(function (row) {
+      var on = foldHandle(row.handle) === foldHandle(current);
+      return '<button type="button" class="shorts-switch-chip' + (on ? " is-current" : "") + '" data-shorts="switch-live" data-handle="' + hooks.esc(row.handle) + '" aria-label="@' + hooks.esc(row.handle) + '"' + (on ? ' aria-current="true"' : "") + ">" +
+        '<span class="shorts-switch-face">' + hooks.avatar(avatarFor(row.handle, row), row.handle) + "</span>" +
+        "<span>" + hooks.esc(row.viewers ? hooks.formatCount(row.viewers, 1000) : "@" + row.handle) + "</span></button>";
+    }).join("");
+  }
+  function paintSwitch(root, current) {
+    var box = root && root.querySelector("[data-switch]");
+    if (!box) return;
+    var html = switchHtml(current);
+    if (box.getAttribute("data-key") === html) return;
+    box.setAttribute("data-key", html);
+    box.innerHTML = html;
+    box.hidden = !html;
+  }
+
   function applyPlayerStats(handle, info) {
     var root = liveRoot();
     if (!root || root.getAttribute("data-handle") !== handle || !info || info.blocked) return;
@@ -3098,9 +3119,10 @@
       '<button type="button" data-shorts="record-live">' + hooks.esc(tr("Record this live")) + "</button>" +
       (frameGrabOn() ? '<button type="button" data-shorts="grab-frame">' + hooks.esc(tr("Save frame")) + '</button><button type="button" data-shorts="grab-burst">' + hooks.esc(tr("Burst")) + "</button>" : "") +
       "</div>" +
-      '<div class="shorts-live-foot"><b>@' + hooks.esc(handle) + "</b>" +
+      '<div class="shorts-live-foot"><div class="shorts-live-switch" data-switch></div><b>@' + hooks.esc(handle) + "</b>" +
       '<span class="shorts-live-viewers"></span></div>';
     document.body.appendChild(root);
+    paintSwitch(root, handle);
     document.documentElement.classList.add("shorts-live-open");
     var stage = root.querySelector(".shorts-live-stage");
     liveZoom = bindVideoZoom(stage);
@@ -3120,6 +3142,10 @@
       if (kind === "close-live") {
         event.preventDefault();
         closeLive();
+      } else if (kind === "switch-live") {
+        event.preventDefault();
+        var to = button.getAttribute("data-handle") || "";
+        if (to && foldHandle(to) !== foldHandle(handle)) openLive(to);
       } else if (kind === "mute") {
         event.preventDefault();
         sound = !sound;
@@ -3983,6 +4009,7 @@
         if (row && foldHandle(row.handle) === foldHandle(handle)) match = row;
       });
       if (match) applyPlayerStats(handle, match);
+      paintSwitch(root, handle);
     }
     if (routePane() !== "past") schedulePaint();
   }
@@ -4232,6 +4259,7 @@
     closeCaptcha: closeCaptchaModal,
     orderLiveNow: orderLiveNow,
     liveSortMode: liveSortMode,
+    switchHtml: switchHtml,
     setLiveSortMode: setLiveSortMode,
     sinceText: sinceText,
     neighborHandle: neighborHandle,

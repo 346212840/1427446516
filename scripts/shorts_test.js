@@ -288,6 +288,13 @@ assert(nowHtml.includes("Live now"), "Live now sub-tab is present");
 assert(nowHtml.includes("Past lives"), "Past lives sub-tab is present");
 assert(nowHtml.indexOf("@sampleclip") < nowHtml.indexOf("@lockclip"), "Fewer viewers stay above more viewers");
 assert(!nowHtml.includes('data-shorts="saved"'), "Live now does not embed past playback");
+const strip = shorts.switchHtml("lockclip");
+assert(strip.includes('data-handle="lockclip"') && strip.includes('data-handle="sampleclip"'), "the quick switch lists every live account");
+assert(strip.includes('is-current'), "the quick switch marks the one that is playing");
+assert.strictEqual((strip.match(/data-shorts="switch-live"/g) || []).length, 2);
+shorts.setLiveState([{ handle: "lockclip", live: true, viewers: 40 }]);
+assert.strictEqual(shorts.switchHtml("lockclip"), "", "a lone live has nothing to switch to");
+shorts.setLiveState([{ handle: "lockclip", live: true, viewers: 40 }, { handle: "sampleclip", live: true, viewers: 2 }]);
 const emptyPast = shorts.page({ live: true, livePane: "past" });
 assert(emptyPast.includes("No recordings yet."), "An empty past list says there are no recordings yet");
 shorts.setRecordings({

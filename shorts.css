@@ -604,6 +604,8 @@ html.shorts-live-open body { overflow: hidden; }
 }
 .shorts-live-hud button svg { width: 20px; height: 20px; fill: currentColor; }
 .shorts-live-hud .shorts-live-tag { margin-right: 0; }
+.shorts-live-hud { flex-wrap: wrap; }
+.shorts-live-hud button[data-shorts="record-live"], .shorts-live-hud button[data-shorts="grab-frame"], .shorts-live-hud button[data-shorts="grab-burst"] { width: auto; padding: 0 12px; font-size: 13px; font-weight: 700; white-space: nowrap; }
 .shorts-live-q {
   font-size: 13px;
   font-weight: 700;
@@ -618,6 +620,13 @@ html.shorts-live-open body { overflow: hidden; }
   background: linear-gradient(transparent, rgba(0, 0, 0, 0.55));
 }
 .shorts-live-foot b { font-size: 16px; }
+.shorts-live-switch { display: flex; gap: 8px; overflow-x: auto; pointer-events: auto; padding-bottom: 6px; scrollbar-width: none; }
+.shorts-live-switch[hidden] { display: none; }
+.shorts-live-switch::-webkit-scrollbar { display: none; }
+.shorts-switch-chip { flex: none; display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px 0 4px; border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 999px; background: rgba(0, 0, 0, 0.45); color: #fff; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.shorts-switch-chip.is-current { border-color: #f91880; background: rgba(249, 24, 128, 0.35); }
+.shorts-switch-face { width: 28px; height: 28px; border-radius: 50%; overflow: hidden; display: block; }
+.shorts-switch-face img, .shorts-switch-face svg { width: 100%; height: 100%; display: block; object-fit: cover; }
 .shorts-live-viewers { font-size: 14px; font-weight: 700; }
 .shorts-live-seek {
   pointer-events: auto;
