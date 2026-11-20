@@ -51,3 +51,7 @@ Bluetooth and headphones take the sound without rebuilding the call. The lock sc
 ## Latency timing (calls_latency)
 
 Every translated phrase is timed on the device that hears it (`createTimeline` in `shared/call-audio.js`, hooks in `createPipe`): first and last voiced frame (`speechMs`), first frame sent (`toSent`), first model reply, audio or text (`toByte`), and first translated sound scheduled on the speaker (`toPlay`). `stopToPlay` is measured from the last voiced frame, so it is negative when the streamed answer starts before the speaker stops. The statistics list and the test-call chips show the median and slowest `stopToPlay`, `toByte`, `byteToPlay` and the number of phrases timed; the last 30 phrases are in `ViktorychCalls.debug().timings` and `.partnerTimings` (test calls). The owner switch `calls_latency` only hides the numbers.
+
+## Live stream and turn fallback (calls_live_stream)
+
+The call already opens one Gemini Live Translate session per direction and sends speech as it is heard. With this switch on, a silent 20 ms keep-alive is sent after 45 s of quiet so a phone network does not drop the socket, and if the persistent stream fails the call does not go to text at once: each phrase is held until the speaker pauses, then sent as one Live turn. A failed one-shot turn still goes to text. Audio stays in the browser; only a short-lived token is minted. Off keeps the persistent session only, with no keep-alive, and a failed stream goes to text.

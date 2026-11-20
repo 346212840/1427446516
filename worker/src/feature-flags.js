@@ -165,7 +165,8 @@ export const FEATURES = {
   calls_qr: { paths: [] },
   calls_onechat: { paths: [] },
   calls_setup: { paths: [] },
-  calls_latency: { paths: [] }
+  calls_latency: { paths: [] },
+  calls_live_stream: { paths: [] }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 
