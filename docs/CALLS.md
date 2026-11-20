@@ -47,3 +47,7 @@ Bluetooth and headphones take the sound without rebuilding the call. The lock sc
 - Every 4 s the remote loss and round trip pick the Opus bitrate (64, 32, 24 or 16 kbit/s): worse quickly, better after three clean samples.
 - The translated voice is scheduled with a lead that starts at 60 ms, grows by 80 ms (up to 500 ms) when the audio runs dry in the middle of a phrase, floors at 100/160/240 ms on weaker links, and shrinks by 40 ms after 20 s without a gap.
 - Cloudflare Realtime TURN needs the Worker secrets `CF_TURN_KEY_ID` and `CF_TURN_API_TOKEN`; until they exist the public TLS 443 relay is the fallback.
+
+## Latency timing (calls_latency)
+
+Every translated phrase is timed on the device that hears it (`createTimeline` in `shared/call-audio.js`, hooks in `createPipe`): first and last voiced frame (`speechMs`), first frame sent (`toSent`), first model reply, audio or text (`toByte`), and first translated sound scheduled on the speaker (`toPlay`). `stopToPlay` is measured from the last voiced frame, so it is negative when the streamed answer starts before the speaker stops. The statistics list and the test-call chips show the median and slowest `stopToPlay`, `toByte`, `byteToPlay` and the number of phrases timed; the last 30 phrases are in `ViktorychCalls.debug().timings` and `.partnerTimings` (test calls). The owner switch `calls_latency` only hides the numbers.

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createLiveSession, directSocketUrl, proxiesAudio, MIC_WORKLET, CHUNK_SAMPLES, OUTPUT_RATE, needsResume, SESSION_REFRESH_MS, createVad } from "../shared/call-gemini.js";
 import { isCallLang, CALL_LANGS, detectLang, guessLang } from "../shared/call-langs.js";
-import { outputGains, createJitter, soakJitter, createMeter, normalizeVolumes, MIC_CONSTRAINTS, micConstraints, OPUS_MAX_BITRATE } from "../shared/call-audio.js";
+import { outputGains, createJitter, soakJitter, createMeter, createTimeline, normalizeVolumes, MIC_CONSTRAINTS, micConstraints, OPUS_MAX_BITRATE } from "../shared/call-audio.js";
 import { callDecision, dndActive } from "../shared/call-privacy.js";
 import {
   normalizeMode, transmitOriginal, micOpen, noteRelease, noteShouldAutoplay,
@@ -692,4 +692,51 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.equal(micPlatform("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605 Version/17 Mobile/15E148 Safari/604.1", true), "ios");
   assert.equal(micPlatform("Mozilla/5.0 (X11; Linux x86_64) Chrome/130", false), "desktop");
   console.log("calls mic failures ok");
+  /* Latency timeline: one row per phrase, streamed answers can arrive before the speaker stops. */
+  const tl = createTimeline();
+  tl.speech(1000); tl.sent(1010); tl.speech(1500); tl.speech(2000);
+  tl.byte(2400); tl.play(2450, 300); tl.play(2750, 300); tl.turn();
+  const row = tl.list()[0];
+  assert.deepEqual([row.speechMs, row.toSent, row.toByte, row.stopToByte, row.toPlay, row.stopToPlay, row.byteToPlay, row.playMs], [1000, 10, 1400, 400, 1450, 450, 50, 600]);
+  tl.speech(5000); tl.byte(5200); tl.play(5100, 100); tl.speech(5300); tl.byte(5300); tl.turn();
+  assert.equal(tl.list()[1].stopToPlay, -200, "a streamed answer can start before the speaker stops");
+  tl.speech(9000); tl.turn();
+  assert.equal(tl.dropped(), 1, "a phrase with no reply is counted, not timed");
+  tl.byte(9999); tl.play(9999); assert.equal(tl.list().length, 2, "late audio with no open phrase is ignored");
+  const sm = tl.summary();
+  assert.equal(sm.n, 2); assert.equal(sm.dropped, 1);
+  assert.equal(createTimeline().summary().stopToPlay.p50, null);
+  const long = createTimeline(5); for (let i = 0; i < 12; i++) { long.speech(i * 10000); long.byte(i * 10000 + 500); long.turn(); }
+  assert.equal(long.list().length, 5, "only the last phrases are kept");
+  const spokeVad = createVad(); spokeVad.gate(new Int16Array(1600).fill(9000), false); assert.equal(spokeVad.spoke, true);
+  spokeVad.gate(new Int16Array(1600), false); assert.equal(spokeVad.spoke, false, "spoke is this frame only, not the hang-over");
+  console.log("calls timeline ok");
+  /* The pipe reports sent / first reply / playback to the timeline hooks, in that order, against a fake socket. */
+  {
+    const sockets = [];
+    globalThis.WebSocket = class { constructor(url) { this.url = url; this.readyState = 0; sockets.push(this); setTimeout(() => { this.readyState = 1; this.onopen && this.onopen(); }, 1); } send(x) { this.sent = (this.sent || []).concat(x); } close() { this.readyState = 3; this.onclose && this.onclose(); } };
+    const clock = { t: 0 };
+    const ac = { get currentTime() { return clock.t; }, createBuffer: (n, len, rate) => ({ duration: len / rate, copyToChannel() {} }), createBufferSource: () => ({ connect() {}, start() {} }) };
+    const seen = [];
+    const pipe = createPipe({ ac, relayFirst: () => false, routeKnown: () => true, noteRoute() {}, relayUrls: null }, {
+      id: "t", target: "es", out: {}, source: "en",
+      token: async () => ({ mode: "token", url: "wss://fake/x", setup: {} }),
+      onState() {}, onGoAway() {}, onOut() {}, onPartial() {}, onLine() {},
+      onSent: () => seen.push("sent"), onByte: (p, kind) => seen.push("byte:" + kind), onPlay: (p, at, len) => seen.push("play:" + Math.round(len)), onTurn: () => seen.push("turn")
+    });
+    pipe.open();
+    await new Promise((r) => setTimeout(r, 30));
+    const sock = sockets[0];
+    sock.onmessage({ data: JSON.stringify({ setupComplete: {} }) });
+    await new Promise((r) => setTimeout(r, 10));
+    assert.equal(pipe.send(new Int16Array(1600)), true);
+    const audio = Buffer.from(new Int16Array(2400).buffer).toString("base64");
+    sock.onmessage({ data: JSON.stringify({ serverContent: { modelTurn: { parts: [{ inlineData: { data: audio } }] } } }) });
+    await new Promise((r) => setTimeout(r, 10));
+    sock.onmessage({ data: JSON.stringify({ serverContent: { turnComplete: true } }) });
+    await new Promise((r) => setTimeout(r, 10));
+    assert.deepEqual(seen, ["sent", "byte:audio", "play:100", "turn"]);
+    pipe.close();
+    console.log("calls pipe timing hooks ok");
+  }
 }
