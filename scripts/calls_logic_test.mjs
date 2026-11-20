@@ -818,4 +818,31 @@ console.log("calls logic ok", JSON.stringify(report));
   while (strictHang.gate(silence, true)) sh++;
   assert.equal(sh, HANG_MAX, "the strict gate keeps the full tail so a playing translation is not cut short");
   console.log("calls short eos ok");
+
+  {
+    const sockets = [];
+    const stopped = [];
+    globalThis.WebSocket = class { constructor(url) { this.url = url; this.readyState = 0; sockets.push(this); setTimeout(() => { this.readyState = 1; this.onopen && this.onopen(); }, 1); } send(x) { this.sent = (this.sent || []).concat(x); } close() { this.readyState = 3; this.onclose && this.onclose(); } };
+    const clock = { t: 1 };
+    const ac = { get currentTime() { return clock.t; }, createBuffer: (n, len, rate) => ({ duration: len / rate, copyToChannel() {} }), createBufferSource: () => ({ connect() {}, start() {}, stop() { stopped.push(1); } }) };
+    const pipe = createPipe({ ac, relayFirst: () => false, routeKnown: () => true, noteRoute() {}, relayUrls: null }, {
+      id: "b", target: "es", out: {}, source: "en",
+      token: async () => ({ mode: "token", url: "wss://fake/x", setup: {} }),
+      onState() {}, onGoAway() {}, onOut() {}, onPartial() {}, onLine() {}
+    });
+    pipe.open();
+    await new Promise((r) => setTimeout(r, 30));
+    const sock = sockets[0];
+    sock.onmessage({ data: JSON.stringify({ setupComplete: {} }) });
+    await new Promise((r) => setTimeout(r, 10));
+    const audio = Buffer.from(new Int16Array(2400).buffer).toString("base64");
+    sock.onmessage({ data: JSON.stringify({ serverContent: { modelTurn: { parts: [{ inlineData: { data: audio } }] } } }) });
+    await new Promise((r) => setTimeout(r, 10));
+    assert.equal(pipe.playing(), true, "audio is queued");
+    pipe.cut();
+    assert.equal(stopped.length, 1, "the source is stopped");
+    assert.equal(pipe.playing(), false, "nothing is left playing");
+    pipe.close();
+    console.log("calls barge cut ok");
+  }
 }

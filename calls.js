@@ -65,6 +65,14 @@ function convShown() {
 }
 
 
+/* Owner switch calls_barge, on unless the server list says off. */
+function bargeFlagOn() {
+  try {
+    const list = JSON.parse(localStorage.getItem("viktorychapp-server-off") || "[]");
+    return !(Array.isArray(list) && list.indexOf("calls_barge") >= 0);
+  } catch (err) { return true; }
+}
+
 /* Owner switch calls_short_eos, on unless the server list says off. */
 function shortEosFlagOn() {
   try {
@@ -1918,6 +1926,7 @@ function engineConfig(extra) {
     liveStream: liveStreamFlagOn,
     streamPlay: streamPlayFlagOn,
     shortEos: shortEosFlagOn,
+    bargeIn: bargeFlagOn,
     otherPlaying: () => !!(state.test && state.test.hear && state.partner && state.partner.playing && state.partner.playing()),
     relayFirst: relayFirst,
     relayUrl: (tokenValue) => apiBase() + "/v1/calls/live?t=" + encodeURIComponent(tokenValue),

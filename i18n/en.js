@@ -6903,5 +6903,7 @@ SI18n.addPack("en", {
   "Streamed playback and captions": "Streamed playback and captions",
   "Translated sound starts as soon as the first audio chunk arrives, and captions appear word by word. Off waits the usual playout lead and shows each caption as a whole line.": "Translated sound starts as soon as the first audio chunk arrives, and captions appear word by word. Off waits the usual playout lead and shows each caption as a whole line.",
   "Shorter end of speech": "Shorter end of speech",
-  "The call notices sooner that someone has stopped talking, especially in a quiet room, so the translation can start earlier. Off keeps the longer pause.": "The call notices sooner that someone has stopped talking, especially in a quiet room, so the translation can start earlier. Off keeps the longer pause."
+  "The call notices sooner that someone has stopped talking, especially in a quiet room, so the translation can start earlier. Off keeps the longer pause.": "The call notices sooner that someone has stopped talking, especially in a quiet room, so the translation can start earlier. Off keeps the longer pause.",
+  "Barge-in": "Barge-in",
+  "When the other person starts talking, leftover translation playback is stopped so you hear them (and the new translation) at once. Off lets the previous phrase finish.": "When the other person starts talking, leftover translation playback is stopped so you hear them (and the new translation) at once. Off lets the previous phrase finish."
 });

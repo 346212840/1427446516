@@ -6905,5 +6905,7 @@ SI18n.addPack("ru", {
   "Streamed playback and captions": "Потоковое воспроизведение и субтитры",
   "Translated sound starts as soon as the first audio chunk arrives, and captions appear word by word. Off waits the usual playout lead and shows each caption as a whole line.": "Переведённый звук начинается, как только приходит первый фрагмент, а субтитры появляются слово за словом. Выключено: обычная задержка перед первым звуком и субтитр целиком.",
   "Shorter end of speech": "Более короткое окончание речи",
-  "The call notices sooner that someone has stopped talking, especially in a quiet room, so the translation can start earlier. Off keeps the longer pause.": "Звонок быстрее замечает, что человек замолчал, особенно в тихой комнате, и перевод может начаться раньше. Выключено: прежняя длинная пауза."
+  "The call notices sooner that someone has stopped talking, especially in a quiet room, so the translation can start earlier. Off keeps the longer pause.": "Звонок быстрее замечает, что человек замолчал, особенно в тихой комнате, и перевод может начаться раньше. Выключено: прежняя длинная пауза.",
+  "Barge-in": "Перебивание",
+  "When the other person starts talking, leftover translation playback is stopped so you hear them (and the new translation) at once. Off lets the previous phrase finish.": "Когда собеседник начинает говорить, оставшийся перевод предыдущей фразы останавливается, чтобы сразу слышать его и новый перевод. Выключено: предыдущая фраза доигрывается."
 });

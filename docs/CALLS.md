@@ -63,3 +63,7 @@ With this switch on, the first translated chunk is scheduled at the audio clock 
 ## Shorter end of speech (calls_short_eos)
 
 The quiet-voice gate already tracks the room's noise floor. With this switch on, a clear silence (well below that gate) shortens the hang after the last word from 1200 ms toward about 600 ms, and the Live session is told the phrase has ended as soon as the gate closes, instead of waiting another 600 ms. Soft endings near the gate, and the strict/loop gate while a translation is playing, keep the full tail so a whisper is not cut off. Off keeps the 1200 ms hang and the 1800 ms flush.
+
+## Barge-in (calls_barge)
+
+With this switch on, when the other person starts a new phrase the leftover translated audio from the previous one is stopped and the playout lead is reset, so the new translation can start at once. Off lets the previous phrase finish playing. Closing the Live pipe also drops queued audio.

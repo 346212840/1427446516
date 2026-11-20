@@ -6906,5 +6906,7 @@ SI18n.addPack("es", {
   "Streamed playback and captions": "Reproducción y subtítulos en flujo",
   "Translated sound starts as soon as the first audio chunk arrives, and captions appear word by word. Off waits the usual playout lead and shows each caption as a whole line.": "El sonido traducido empieza en cuanto llega el primer trozo de audio, y los subtítulos aparecen palabra a palabra. Desactivado espera el margen de reproducción habitual y muestra cada subtítulo como una línea entera.",
   "Shorter end of speech": "Fin de habla más corto",
-  "The call notices sooner that someone has stopped talking, especially in a quiet room, so the translation can start earlier. Off keeps the longer pause.": "La llamada nota antes que alguien ha dejado de hablar, sobre todo en una habitación en silencio, para que la traducción empiece antes. Desactivado mantiene la pausa más larga."
+  "The call notices sooner that someone has stopped talking, especially in a quiet room, so the translation can start earlier. Off keeps the longer pause.": "La llamada nota antes que alguien ha dejado de hablar, sobre todo en una habitación en silencio, para que la traducción empiece antes. Desactivado mantiene la pausa más larga.",
+  "Barge-in": "Interrupción",
+  "When the other person starts talking, leftover translation playback is stopped so you hear them (and the new translation) at once. Off lets the previous phrase finish.": "Cuando la otra persona empieza a hablar, se detiene el resto de la traducción anterior para oírla (y la nueva traducción) de inmediato. Desactivado deja terminar la frase anterior."
 });
