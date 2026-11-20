@@ -163,7 +163,8 @@ export const FEATURES = {
   calls_turn_budget: { paths: [] },
   calls_bar: { paths: [] },
   calls_qr: { paths: [] },
-  calls_onechat: { paths: [] }
+  calls_onechat: { paths: [] },
+  calls_setup: { paths: [] }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 

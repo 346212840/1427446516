@@ -431,3 +431,23 @@
   .calls-page[data-conv="1"][data-panel="1"] .calls-stage { padding-right: 404px; }
   .calls-page[data-conv="1"][data-panel="1"] .calls-conv { display: none; }
 }
+
+/* ---- one-screen first-join setup (calls_setup) ---- */
+.calls-setup .calls-setupmic { margin: 8px 2px 0; font-size: 13px; color: var(--c-muted); }
+.calls-setup .calls-setupmic.ok { color: var(--c-green); }
+.calls-setup .calls-checks .cb .cb-l { display: inline; }
+@media (max-width: 699px) {
+  .calls-setup .calls-prejoin { gap: 10px; padding: 4px 14px 12px; }
+  .calls-setup .calls-preview .calls-tile { min-height: 0; height: 92px; display: flex; align-items: center; justify-content: flex-start; gap: 12px; padding: 0 14px; }
+  .calls-setup .calls-preview .calls-ava { width: 56px; height: 56px; font-size: 24px; margin: 0; position: static; }
+  .calls-setup .calls-preview .calls-wave { display: none; }
+  .calls-setup .calls-preview .calls-tag, .calls-setup .calls-preview .calls-tlang { position: static; }
+  .calls-setup .calls-checks { margin-top: 8px; gap: 8px; }
+  .calls-setup .calls-checks .cb { height: 40px; padding: 0 12px; min-width: 0; flex-direction: row; }
+  .calls-setup .calls-checks .cb .cb-l { display: inline; font-size: 12px; }
+  .calls-setup .calls-meter { order: 3; flex: 1 0 100%; }
+  .calls-setup .calls-joinform h1 { font-size: 22px; margin: 0 0 2px; }
+  .calls-setup .calls-vol { margin: 6px 0; gap: 4px; }
+  .calls-setup .calls-joinform .calls-big.join { position: sticky; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 5; margin-top: 8px; }
+  .calls-setup .calls-privacy { margin: 6px 0 0; font-size: 12px; }
+}

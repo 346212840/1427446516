@@ -64,6 +64,15 @@ function convShown() {
   return oneChatFlagOn() && state.conv !== false;
 }
 
+
+/* Owner switch calls_setup, on unless the server list says off. */
+function setupFlagOn() {
+  try {
+    const list = JSON.parse(localStorage.getItem("viktorychapp-server-off") || "[]");
+    return !(Array.isArray(list) && list.indexOf("calls_setup") >= 0);
+  } catch (err) { return true; }
+}
+
 /* Owner switch calls_bar, on unless the server list says off. */
 function barFlagOn() {
   try {
@@ -1090,6 +1099,12 @@ function homeScreen(opts) {
   </div>`;
 }
 
+/* One line that says where the mic check stands. No microphone is fine: the call still starts. */
+function setupMicStatus() {
+  if (state.micCheck) return { ok: true, text: tr("Microphone works. Say something to see the bar move.") };
+  if (state.micNote) return { ok: false, text: state.micNote };
+  return { ok: false, text: tr("Check your microphone, or join without one and type to talk.") };
+}
 function joinScreen(route) {
   const err = state.error ? `<p class="calls-error" role="alert">${esc(state.error)}</p>` : "";
   const info = route && route.name === "calllink" && state.linkInfo ? state.linkInfo : null;
@@ -1097,7 +1112,9 @@ function joinScreen(route) {
   const closed = info && info.open === false ? `<p class="calls-error" role="alert">${esc(info.reason === "quiet" ? tr("They are not taking calls right now.") : tr("This person is not taking calls right now."))}</p>` : "";
   const ended = state.statusCode === "ended" ? `<p class="calls-empty">${esc(tr("The call has ended."))}</p>` : "";
   const mc = state.micCheck;
-  return `<div class="calls-page calls-join${standalone() ? " calls-solo" : ""}" data-phase="join" data-video="0">
+  const setupOn = setupFlagOn();
+  const setupMic = setupMicStatus();
+  return `<div class="calls-page calls-join${standalone() ? " calls-solo" : ""}${setupOn ? " calls-setup" : ""}" data-phase="join" data-video="0">
     <header class="calls-top"><div class="calls-brand"><span class="calls-logo">${ico("phone")}</span><b>${esc(tr("Calls"))}</b></div></header>
     <div class="calls-prejoin">
       <div class="calls-preview">
@@ -1112,7 +1129,7 @@ function joinScreen(route) {
           <span class="calls-meter" aria-hidden="true"><i data-meter style="width:${mc ? Math.round(Math.min(1, mc.level * 4) * 100) : 0}%"></i></span>
           <button type="button" class="cb" data-act="call-checkspk">${ico("speaker")}<span class="cb-l">${esc(tr("Test speaker"))}</span></button>
         </div>
-        ${micNoteHtml()}
+        ${setupOn ? `<p class="calls-setupmic${setupMic.ok ? " ok" : ""}" role="status">${esc(setupMic.text)}</p>` : micNoteHtml()}
       </div>
       <div class="calls-joinform">
         <h1>${esc(title)}</h1>
@@ -1330,7 +1347,7 @@ async function openMicModal(src, err) {
   } else if (perm === "granted" && inputs) {
     /* Already allowed: nothing to explain, just pick the mic up. A failure shows the popup. */
     if (src === "call") micAsk();
-    else closeMicModal();
+    else { closeMicModal(); if (setupFlagOn() && !state.micCheck && !state.noMic) checkMic(); }
     return;
   } else {
     holder.kind = perm === "denied" ? "denied" : !inputs ? "none" : "prompt";
