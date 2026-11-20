@@ -6893,5 +6893,7 @@ SI18n.addPack("hi", {
   "Streamed playback and captions": "स्ट्रीम प्लेबैक और कैप्शन",
   "Translated sound starts as soon as the first audio chunk arrives, and captions appear word by word. Off waits the usual playout lead and shows each caption as a whole line.": "पहला ऑडियो टुकड़ा आते ही अनुवादित आवाज़ शुरू होती है, और कैप्शन शब्द-दर-शब्द दिखते हैं। बंद: पहली आवाज़ से पहले सामान्य देरी, और कैप्शन पूरी पंक्ति में।",
   "Shorter end of speech": "बोलना जल्दी खत्म",
-  "The call notices sooner that someone has stopped talking, especially in a quiet room, so the translation can start earlier. Off keeps the longer pause.": "कॉल जल्दी पहचानती है कि कोई बोलना बंद कर चुका है, खासकर शांत कमरे में, ताकि अनुवाद पहले शुरू हो सके। बंद: पहले जैसी लंबी ठहराव।"
+  "The call notices sooner that someone has stopped talking, especially in a quiet room, so the translation can start earlier. Off keeps the longer pause.": "कॉल जल्दी पहचानती है कि कोई बोलना बंद कर चुका है, खासकर शांत कमरे में, ताकि अनुवाद पहले शुरू हो सके। बंद: पहले जैसी लंबी ठहराव।",
+  "Barge-in": "बीच में रोकना",
+  "When the other person starts talking, leftover translation playback is stopped so you hear them (and the new translation) at once. Off lets the previous phrase finish.": "जब दूसरा व्यक्ति बोलना शुरू करता है, पिछली अनुवादित आवाज़ रोक दी जाती है ताकि आप उसे और नया अनुवाद तुरंत सुन सकें। बंद: पिछला वाक्य पूरा चलता है।"
 });

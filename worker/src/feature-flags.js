@@ -168,7 +168,8 @@ export const FEATURES = {
   calls_latency: { paths: [] },
   calls_live_stream: { paths: [] },
   calls_stream_play: { paths: [] },
-  calls_short_eos: { paths: [] }
+  calls_short_eos: { paths: [] },
+  calls_barge: { paths: [] }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 

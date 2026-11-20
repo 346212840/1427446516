@@ -65,6 +65,7 @@ export function createPipe(env, opts) {
   };
   let ws = null;
   let nextAt = 0;
+  const sources = [];
   let attempt = 0;
   let idle = null;
   let partial = { original: "", translation: "" };
@@ -110,6 +111,8 @@ export function createPipe(env, opts) {
     const slot = pipe.lead.plan(t, nextAt, buffer.duration);
     if (!slot) return;
     src.start(slot.start);
+    sources.push(src);
+    src.onended = () => { const i = sources.indexOf(src); if (i >= 0) sources.splice(i, 1); };
     if (opts.onPlay) opts.onPlay(pipe, now() + Math.max(0, slot.start - t) * 1000, buffer.duration * 1000);
     nextAt = slot.next;
     pipe.bytes += bytes.byteLength;
@@ -297,7 +300,15 @@ export function createPipe(env, opts) {
   }
   pipe.open = connect;
   /* True while translated speech is still playing aloud on this device. */
-  pipe.playing = () => !!(env.ac && nextAt + 0.45 > env.ac.currentTime);
+  pipe.playing = () => !!(env.ac && nextAt > 0 && nextAt + 0.45 > env.ac.currentTime);
+  /* Drop queued and playing translation so a new phrase can start at once. */
+  pipe.cut = () => {
+    sources.forEach((src) => { try { src.stop(); } catch (err) { /* already ended */ } });
+    sources.length = 0;
+    nextAt = 0;
+    if (pipe.lead && pipe.lead.reset) pipe.lead.reset();
+    if (opts.onCut) opts.onCut(pipe);
+  };
   /* The network came back or changed: do not wait out the back-off. */
   pipe.nudge = () => {
     if (pipe.closed || connecting) return;
@@ -324,6 +335,7 @@ export function createPipe(env, opts) {
   pipe.close = () => {
     pipe.closed = true;
     pipe.ready = false;
+    if (pipe.cut) pipe.cut();
     clearTimeout(idle);
     const socket = ws;
     ws = null;
@@ -726,7 +738,11 @@ export function createEngine(cfg) {
       else bits.forEach((c) => rx.send(c));
       lastSpeechAt = now();
       rxFlushed = false;
-      if (!speaking) { speaking = true; emit("speaking", { who: "peer", on: true }); }
+      if (!speaking) {
+        speaking = true;
+        if (bargeOn() && rx && rx.playing && rx.playing() && rx.cut) rx.cut();
+        emit("speaking", { who: "peer", on: true });
+      }
     } else {
       if (d.reason === "quota") { degrade("quota", true); return; }
       if (speaking) { speaking = false; emit("speaking", { who: "peer", on: false }); }
@@ -779,6 +795,7 @@ export function createEngine(cfg) {
   /* Quiet-voice help is automatic: the gate follows the room's noise floor and soft speech is lifted. It is off for the
      owner switch calls_quiet_voice, and strict (the old fixed gate) while sound is playing aloud, so an echo never opens it. */
   function quietOff() { return !!(cfg.quietVoice && !cfg.quietVoice()); }
+  function bargeOn() { return !!(cfg.bargeIn && cfg.bargeIn()); }
   function shortEosOn() {
     const on = !!(cfg.shortEos && cfg.shortEos());
     live.vad.shortOn(on);
