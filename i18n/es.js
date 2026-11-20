@@ -6918,5 +6918,10 @@ SI18n.addPack("es", {
   "Sliding call controls": "Controles deslizantes de la llamada",
   "The call bar has a visible handle. Swipe up or tap the handle to slide it open and see every control; swipe down or tap again to close it. Off keeps the compact bar and the old tray.": "La barra de la llamada tiene un asa visible. Desliza hacia arriba o toca el asa para abrirla y ver todos los controles; desliza hacia abajo o toca de nuevo para cerrarla. Desactivado deja la barra compacta y la bandeja anterior.",
   "Show all controls": "Mostrar todos los controles",
-  "Hide call controls": "Ocultar los controles de la llamada"
+  "Hide call controls": "Ocultar los controles de la llamada",
+  "Live Translate model": "Modelo Live Translate",
+  "Calls use Gemini Live Translate. If that path fails, they fall back to the earlier Live interpreter automatically. Off uses only the earlier Live path.": "Las llamadas usan Gemini Live Translate. Si falla, pasan solas al intérprete Live anterior. Desactivado usa solo esa vía Live.",
+  "Live Translate": "Traducción en vivo",
+  "Live interpreter": "Intérprete Live",
+  "Path": "Vía"
 });

@@ -115,6 +115,8 @@ live-translate.js|Leda
 live-translate.js|Orus
 live-translate.js|Zephyr
 live-translate.js|You are a simultaneous interpreter. Translate everything you hear into
+shared/call-setup.js|You are a simultaneous interpreter. Translate everything you hear into
+shared/call-setup.js|Speak only the translation, never answer or comment. Stay silent when there is no speech.
 live-translate.js|Gemini Live
 nostr.js|BIP0340/aux
 nostr.js|BIP0340/nonce

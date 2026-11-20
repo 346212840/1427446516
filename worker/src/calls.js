@@ -12,7 +12,7 @@ import { visibleAvatarUrl } from "./profile-media.js";
 import { CALL_LANGS, PINNED_LANGS, CALL_MODEL, normalizeLang } from "../../shared/call-langs.js";
 import { cleanWho, callDecision, dndActive } from "../../shared/call-privacy.js";
 import { normalizeMode } from "../../shared/call-mode.js";
-import { liveSetup, rejectsClone, cleanVoice } from "../../shared/call-setup.js";
+import { liveSetup, livePath, rejectsClone, cleanVoice } from "../../shared/call-setup.js";
 import { lexiconHint } from "../../shared/call-quality.js";
 import { directSocketUrl } from "../../shared/call-gemini.js";
 import { encryptMaterial, decryptMaterial } from "../../shared/owner-keys.js";
@@ -297,38 +297,56 @@ export function relayHint(request) {
   return RELAY_FIRST_COUNTRIES.has(code) ? { country: code, prefer: "relay" } : { country: code };
 }
 
-async function geminiToken(env, key, target, voice, hint, source, resume) {
-  const setup = liveSetup(target, voice, resume, hint, source);
-  const textFallback = { mode: "text", direct: true, setup: setup };
-  if (mockKey(env, key)) {
-    return { mode: "token", direct: true, token: "test-ephemeral", url: directSocketUrl("test-ephemeral"), setup: setup };
-  }
+async function requestToken(key, setup) {
   const exp = new Date(Date.now() + 10 * 60 * 1000).toISOString();
   const fresh = new Date(Date.now() + 2 * 60 * 1000).toISOString();
+  return fetch("https://generativelanguage.googleapis.com/v1alpha/auth_tokens?key=" + encodeURIComponent(key), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      uses: 1,
+      expireTime: exp,
+      newSessionExpireTime: fresh,
+      bidiGenerateContentSetup: setup
+    })
+  });
+}
+
+function tokenResult(setup, path, token, url) {
+  return { mode: "token", direct: true, token: token, url: url, setup: setup, path: path };
+}
+
+async function geminiToken(env, key, target, voice, hint, source, resume, path) {
+  const used = path === "live" ? "live" : "translate";
+  const setup = liveSetup(target, voice, resume, hint, source, used);
+  const textFallback = { mode: "text", direct: true, setup: setup, path: used };
+  if (mockKey(env, key)) {
+    return tokenResult(setup, used, "test-ephemeral", directSocketUrl("test-ephemeral"));
+  }
   let response = null;
   try {
-    response = await fetch("https://generativelanguage.googleapis.com/v1alpha/auth_tokens?key=" + encodeURIComponent(key), {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        uses: 1,
-        expireTime: exp,
-        newSessionExpireTime: fresh,
-        bidiGenerateContentSetup: setup
-      })
-    });
+    response = await requestToken(key, setup);
   } catch (err) {
+    if (used !== "live") return geminiToken(env, key, target, voice, hint, source, resume, "live");
     return textFallback;
   }
   if (response.status === 429) return Object.assign({ reason: "quota" }, textFallback);
-  if (response.status === 400 || response.status === 401 || response.status === 403) return Object.assign({ reason: "badkey" }, textFallback);
-  if (!response.ok) return textFallback;
+  if (response.status === 401 || response.status === 403) return Object.assign({ reason: "badkey" }, textFallback);
+  /* A 400 on the Live Translate setup is often the config, not the key: try the earlier Live path once. A 400 on that path is a bad key. */
+  if (!response.ok) {
+    if (used !== "live") return geminiToken(env, key, target, voice, hint, source, resume, "live");
+    if (response.status === 400) return Object.assign({ reason: "badkey" }, textFallback);
+    return textFallback;
+  }
   const data = await response.json().catch(() => ({}));
   const name = String(data.name || data.token || "");
   const token = name.indexOf("/") >= 0 ? name.slice(name.lastIndexOf("/") + 1) : name;
   const url = directSocketUrl(token);
-  if (!url || token === key) return textFallback;
-  return { mode: "token", direct: true, token: token, url: url, setup: setup };
+  if (!url || token === key) {
+    if (used !== "live") return geminiToken(env, key, target, voice, hint, source, resume, "live");
+    return textFallback;
+  }
+  return tokenResult(setup, used, token, url);
 }
 
 const TEXT_MODELS = ["gemini-3.5-flash-lite", "gemini-3.8-flash"];
@@ -885,7 +903,9 @@ export async function handleCalls(request, env, path, url, deps) {
     if (!target) return deps.json(400, { error: "lang" });
     const picked = await pickKey(env, row, who, self, body);
     if (!picked.key) return deps.json(200, { mode: "text", direct: false, reason: picked.source === "ringing" ? "ringing" : "nokey" });
-    const minted = await geminiToken(env, picked.key, target, body.voice, lexiconHint(body.lexicon), body.source, typeof body.resume === "string" ? body.resume : "");
+    const off = await readFlags(env);
+    const path = livePath(!off.calls_live_translate, !!body.fallback);
+    const minted = await geminiToken(env, picked.key, target, body.voice, lexiconHint(body.lexicon), body.source, typeof body.resume === "string" ? body.resume : "", path);
     minted.keySource = picked.source;
     Object.assign(minted, relayHint(request));
     if (minted.reason === "quota" || minted.mode === "text") return deps.json(200, minted);

@@ -6917,5 +6917,10 @@ SI18n.addPack("ru", {
   "Sliding call controls": "Выдвижная панель управления звонком",
   "The call bar has a visible handle. Swipe up or tap the handle to slide it open and see every control; swipe down or tap again to close it. Off keeps the compact bar and the old tray.": "У панели звонка есть заметная ручка. Проведите вверх или нажмите на ручку, чтобы открыть все кнопки; проведите вниз или нажмите снова, чтобы свернуть. Выключено: прежняя компактная панель и лоток.",
   "Show all controls": "Показать все элементы управления",
-  "Hide call controls": "Скрыть элементы управления звонком"
+  "Hide call controls": "Скрыть элементы управления звонком",
+  "Live Translate model": "Модель Live Translate",
+  "Calls use Gemini Live Translate. If that path fails, they fall back to the earlier Live interpreter automatically. Off uses only the earlier Live path.": "Звонки используют Gemini Live Translate. Если этот путь не срабатывает, автоматически включается прежний Live-переводчик. Выключено: только прежний Live-путь.",
+  "Live Translate": "Live-перевод",
+  "Live interpreter": "Live-переводчик",
+  "Path": "Путь"
 });

@@ -180,7 +180,13 @@ export const FEATURES = {
      swipe or tap opens every remaining control; swipe down or tap again
      closes it. Client only, on by default. Off keeps the compact bar
      and the existing tray popover. */
-  calls_bar_sheet: { paths: [] }
+  calls_bar_sheet: { paths: [] },
+  /* Official Gemini Live Translate (translationConfig). On by default.
+     If minting or the session fails, the call automatically uses the earlier
+     Live interpreter path (system instruction, no translationConfig). Off
+     uses only that Live path. Client only in the UI; the Worker also reads
+     the switch when minting. Keys are never logged. */
+  calls_live_translate: { paths: [] }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 

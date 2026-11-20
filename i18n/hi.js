@@ -6905,5 +6905,10 @@ SI18n.addPack("hi", {
   "Sliding call controls": "कॉल नियंत्रण स्लाइड करके खुलते हैं",
   "The call bar has a visible handle. Swipe up or tap the handle to slide it open and see every control; swipe down or tap again to close it. Off keeps the compact bar and the old tray.": "कॉल बार पर एक दिखने वाला हैंडल है। ऊपर स्वाइप करें या हैंडल टैप करें, ताकि यह खुलकर हर नियंत्रण दिखे; नीचे स्वाइप करें या फिर टैप करें तो यह बंद हो जाए। बंद: पुरानी छोटी बार और ट्रे ही रहती है।",
   "Show all controls": "सभी नियंत्रण दिखाएँ",
-  "Hide call controls": "कॉल नियंत्रण छिपाएँ"
+  "Hide call controls": "कॉल नियंत्रण छिपाएँ",
+  "Live Translate model": "लाइव ट्रांसलेट मॉडल",
+  "Calls use Gemini Live Translate. If that path fails, they fall back to the earlier Live interpreter automatically. Off uses only the earlier Live path.": "कॉल Gemini Live Translate इस्तेमाल करती हैं। अगर वह रास्ता विफल हो तो पहले वाला Live दुभाषिया अपने आप चलता है। बंद: केवल वही पुराना Live रास्ता।",
+  "Live Translate": "लाइव ट्रांसलेट",
+  "Live interpreter": "लाइव दुभाषिया",
+  "Path": "रास्ता"
 });

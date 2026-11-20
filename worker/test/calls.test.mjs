@@ -119,8 +119,20 @@ test("calls stay off until the owner turns them on, then privacy is enforced", a
   assert.equal(JSON.stringify(minted.body).includes("test-key"), false);
   assert.equal(JSON.stringify(minted.body).includes("k".repeat(30)), false);
   assert.equal(minted.body.setup.generationConfig.translationConfig.targetLanguageCode, "sv");
+  assert.equal(minted.body.path, "translate");
   assert.ok(minted.body.setup.systemInstruction.parts[0].text.includes("Speaker language: en."));
   assert.ok(minted.body.setup.contextWindowCompression);
+
+  const liveMint = await call("/v1/calls/" + created.body.call.id + "/translate", {
+    method: "POST",
+    token: ada.token,
+    body: { target: "sv", source: "en", voice: "Leda", key: "k".repeat(30), fallback: true }
+  });
+  assert.equal(liveMint.status, 200, JSON.stringify(liveMint.body));
+  assert.equal(liveMint.body.path, "live");
+  assert.equal(liveMint.body.setup.generationConfig.translationConfig, undefined);
+  assert.ok(liveMint.body.setup.systemInstruction.parts[0].text.includes("simultaneous interpreter"));
+  assert.equal(JSON.stringify(liveMint.body).includes("k".repeat(30)), false);
 
   assert.equal(minted.body.prefer, undefined, "an unknown country keeps the default order");
   const ruMint = await call("/v1/calls/" + created.body.call.id + "/translate", { method: "POST", token: ada.token, cf: { country: "RU" }, body: { target: "en", source: "ru", key: "k".repeat(30) } });

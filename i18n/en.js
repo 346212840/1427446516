@@ -6915,5 +6915,10 @@ SI18n.addPack("en", {
   "Sliding call controls": "Sliding call controls",
   "The call bar has a visible handle. Swipe up or tap the handle to slide it open and see every control; swipe down or tap again to close it. Off keeps the compact bar and the old tray.": "The call bar has a visible handle. Swipe up or tap the handle to slide it open and see every control; swipe down or tap again to close it. Off keeps the compact bar and the old tray.",
   "Show all controls": "Show all controls",
-  "Hide call controls": "Hide call controls"
+  "Hide call controls": "Hide call controls",
+  "Live Translate model": "Live Translate model",
+  "Calls use Gemini Live Translate. If that path fails, they fall back to the earlier Live interpreter automatically. Off uses only the earlier Live path.": "Calls use Gemini Live Translate. If that path fails, they fall back to the earlier Live interpreter automatically. Off uses only the earlier Live path.",
+  "Live Translate": "Live Translate",
+  "Live interpreter": "Live interpreter",
+  "Path": "Path"
 });
