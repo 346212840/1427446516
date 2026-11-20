@@ -451,3 +451,19 @@
   .calls-setup .calls-joinform .calls-big.join { position: sticky; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 5; margin-top: 8px; }
   .calls-setup .calls-privacy { margin: 6px 0 0; font-size: 12px; }
 }
+
+/* ---- chat bubbles use the screen (calls_onechat) ---- */
+.calls-conv .calls-thread { gap: 6px; padding: 6px 0; }
+.calls-conv .calls-bubble { max-width: 90%; gap: 6px; }
+.calls-conv .calls-bubble.cont .calls-ava { display: none; }
+.calls-conv .calls-bubble.cont .calls-bname { display: none; }
+.calls-conv .calls-ava.xs { width: 26px; height: 26px; font-size: 12px; }
+@media (max-width: 699px) {
+  .calls-page[data-conv="1"] .calls-stage { padding-left: 0; padding-right: 0; width: 100%; align-self: stretch; }
+  .calls-page[data-conv="1"] .calls-grid { margin: 0 8px; }
+  .calls-page[data-conv="1"] .calls-stage > :not(.calls-conv):not(.calls-grid) { margin-left: 8px; margin-right: 8px; }
+  .calls-page[data-conv="1"] .calls-conv { margin: 8px 0 0; border-left: 0; border-right: 0; border-radius: 16px 16px 0 0; }
+  .calls-page[data-conv="1"] .calls-convbody { padding: 2px 6px; }
+  .calls-page[data-conv="1"] .calls-conv .calls-compose { padding: 8px 8px; }
+  .calls-conv .calls-bubble { max-width: 88%; }
+}
