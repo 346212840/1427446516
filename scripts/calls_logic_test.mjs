@@ -9,8 +9,17 @@ import {
   guestFeature, GUEST_FEATURES, modeSwitchKeepsCall, QUICK_PHRASES
 } from "../shared/call-mode.js";
 import { estimatePitch, matchVoice, resolveVoice, createVoiceMatch, voiceChanged, DEFAULT_VOICE } from "../shared/call-voice.js";
+import { langName } from "../shared/call-langs.js";
 import { createDiarizer, overlappingPitches } from "../shared/call-speakers.js";
 import { liveSetup, rejectsClone } from "../shared/call-setup.js";
+import { createHistory, loadLocal, recordLocal, removeRows, restoreRows, swipeAction, toggleSet } from "../shared/call-history.js";
+import { createRaiseDetector, earSinkId, cheekLike, createUnlocker, EAR_VOLUME_CAP } from "../shared/call-ear.js";
+import { createPlayoutLead, LEAD_MIN, LEAD_MAX, pickBitrate, createAudioUnlock, setAudioSession, createWakeFallback, NOSLEEP_MP4, BITRATES } from "../shared/call-mobile.js";
+import { createPipe } from "../shared/call-engine.js";
+import { relayHint } from "../worker/src/calls.js";
+import pagesRelay from "./pages_relay_worker.js";
+import { readFileSync } from "node:fs";
+const pagesRelaySource = readFileSync(new URL("./pages_relay_worker.js", import.meta.url), "utf8");
 import { lighterFor, pickSink, sinkChangeKeepsCall, cleanLexicon, rememberLine } from "../shared/call-quality.js";
 
 assert.equal(isCallLang("ca"), true, "Catalan is a Live Translate target");
@@ -198,7 +207,8 @@ assert.equal(overlappingPitches(tone(120), 16000).length, 0);
 assert.equal(overlappingPitches(mixed, 16000).length, 2);
 const people = createDiarizer();
 const speakerA = people.push(tone(120), 16000, "Hello thanks and this is good");
-const speakerB = people.push(tone(220), 16000, "Hola gracias también estoy aquí");
+let speakerB = null;
+for (let i = 0; i < 12; i++) speakerB = people.push(tone(220), 16000, i === 11 ? "Hola gracias también estoy aquí" : "");
 assert.equal(speakerA.send, true);
 assert.equal(speakerB.send, true);
 assert.notEqual(speakerA.speaker.id, speakerB.speaker.id);
@@ -206,7 +216,281 @@ assert.equal(speakerA.speaker.lang, "en");
 assert.equal(speakerB.speaker.lang, "es");
 assert.notEqual(speakerA.speaker.voice, speakerB.speaker.voice);
 assert.equal(people.push(mixed, 16000, "").send, false);
+const one = createDiarizer();
+for (let i = 0; i < 60; i++) one.push(tone(i % 9 === 0 ? 0 : 120 + (i % 5) * 4), 16000, "");
+assert.equal(one.speakers().length, 1, "one steady voice with small pitch wobble stays one speaker");
+const breaths = createDiarizer();
+breaths.push(tone(125), 16000, "");
+for (let i = 0; i < 20; i++) breaths.push(tone(220), 16000, "");
+assert.equal(breaths.speakers().length, 2, "a clearly different voice is a second speaker once it holds");
+const blip = createDiarizer();
+blip.push(tone(125), 16000, "");
+blip.push(tone(230), 16000, "");
+blip.push(tone(125), 16000, "");
+assert.equal(blip.speakers().length, 1, "a single odd frame does not split the voice");
 people.rename(speakerB.speaker.id, "Nova");
 assert.equal(people.speakers().find((item) => item.id === speakerB.speaker.id).name, "Nova");
 
+assert.equal(langName("es", "en"), "Spanish");
+assert.equal(langName("es", "es"), "Español");
+assert.equal(langName("sv", "ru"), "Шведский");
+assert.equal(langName("ca", "hi").length > 0, true);
+assert.equal(langName("zz", "en"), "zz");
+
+
+/* Ear mode: raise-to-ear detection, earpiece route, cheek-proof unlock */
+{
+  const feed = (det, rows) => rows.map(([t, b, g]) => det.feed({ t, beta: b, gamma: g })).filter(Boolean);
+  const raised = [];
+  for (let t = 0; t <= 1000; t += 50) raised.push([t, 50, 0]);
+  for (let t = 1050; t <= 1400; t += 50) raised.push([t, 50 + (t - 1000) / 400 * 40, 3]);
+  for (let t = 1450; t <= 2600; t += 50) raised.push([t, 92, 4]);
+  assert.deepEqual(feed(createRaiseDetector(), raised), ["ear"], "raising the phone upright to the ear locks once");
+  const mount = [];
+  for (let t = 0; t <= 6000; t += 50) mount.push([t, 90, 0]);
+  assert.deepEqual(feed(createRaiseDetector(), mount), [], "a phone sitting upright in a car mount never locks");
+  const swing = [];
+  for (let t = 0; t <= 1000; t += 50) swing.push([t, 50, 0]);
+  for (let t = 1050; t <= 2600; t += 50) swing.push([t, 90 + ((t / 50) % 2 ? 9 : -9), 0]);
+  assert.deepEqual(feed(createRaiseDetector(), swing), [], "a shaking phone does not count as raised and held");
+  const det = createRaiseDetector();
+  feed(det, raised);
+  const lower = [];
+  for (let t = 3000; t <= 4200; t += 50) lower.push([t, 20, 0]);
+  assert.deepEqual(feed(det, lower), ["away"], "lowering the phone ends an automatic ear mode");
+  assert.equal(EAR_VOLUME_CAP < 1 && EAR_VOLUME_CAP > 0.3, true);
+
+  const sinks = [{ kind: "audiooutput", label: "Speaker", deviceId: "s" }, { kind: "audiooutput", label: "Phone earpiece", deviceId: "e" }, { kind: "audiooutput", label: "Bluetooth headset", deviceId: "b" }];
+  assert.equal(earSinkId(sinks), "e");
+  assert.equal(earSinkId([sinks[0], sinks[2]]), "", "no earpiece listed means no route change");
+  assert.equal(cheekLike({ width: 70, height: 90 }), true);
+  assert.equal(cheekLike({ width: 20, height: 20 }), false);
+
+  const u = createUnlocker();
+  u.down(1, 100, 100, 0, { width: 20, height: 20 });
+  assert.equal(u.up(1, 100, 100, 80), "", "one tap does nothing");
+  u.down(1, 102, 101, 200, { width: 20, height: 20 });
+  assert.equal(u.up(1, 102, 101, 270), "unlock", "double tap unlocks");
+  u.down(2, 100, 100, 1000, { width: 90, height: 90 });
+  assert.equal(u.up(2, 100, 100, 1060), "");
+  u.down(2, 100, 100, 1150, { width: 90, height: 90 });
+  assert.equal(u.up(2, 100, 100, 1200), "", "a wide cheek contact never unlocks");
+  u.down(3, 100, 300, 2000, { width: 20, height: 20 });
+  u.down(4, 150, 300, 2010, { width: 20, height: 20 });
+  assert.equal(u.up(3, 100, 100, 2200), "", "two fingers at once are ignored");
+  u.up(4, 150, 300, 2210);
+  u.down(5, 100, 400, 3000, { width: 20, height: 20 });
+  u.move(5, 100, 250);
+  assert.equal(u.up(5, 100, 240, 3300), "unlock", "a swipe up unlocks");
+  u.down(6, 100, 400, 4000, { width: 20, height: 20 });
+  assert.equal(u.up(6, 100, 330, 4300), "", "a short drag is not a swipe");
+}
+
+/* Editing call history: hide for me, undo, clear all, guests stay local. */
+{
+  const mem = {};
+  const storage = { getItem: (k) => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); } };
+  recordLocal(storage, { id: "a1", name: "Ann", createdAt: 1000, duration: 5000 });
+  recordLocal(storage, { id: "b2", name: "Bo", createdAt: 3000 });
+  recordLocal(storage, { id: "a1", name: "Ann", createdAt: 1000 });
+  assert.deepEqual(loadLocal(storage).map((r) => r.id), ["a1", "b2"], "one row per call id, the latest record first");
+  assert.equal(loadLocal(storage).length, 2);
+  const calls = [];
+  const h = createHistory({ api: async (path, init) => { calls.push(path); return { ok: true, data: path.endsWith("/clear") ? { ids: ["x1", "x2"] } : { calls: [{ id: "x1", createdAt: 5 }, { id: "x2", createdAt: 9 }] } }; }, storage, signedIn: () => false });
+  await h.load();
+  assert.deepEqual(h.rows.map((r) => r.id).sort(), ["a1", "b2"]);
+  const t1 = await h.remove(["a1"]);
+  assert.deepEqual(h.rows.map((r) => r.id), ["b2"]);
+  assert.equal(calls.length, 0, "guests never call the Worker");
+  assert.deepEqual(loadLocal(storage).map((r) => r.id), ["b2"], "guest removal is saved on the device");
+  await h.restore(t1);
+  assert.equal(h.rows.length, 2);
+  assert.equal(h.rows[0].id, "b2", "newest first after undo");
+  const cleared = await h.clear();
+  assert.equal(h.rows.length, 0);
+  await h.restore(cleared);
+  assert.equal(h.rows.length, 2);
+
+  const s2 = createHistory({ api: async (path) => { calls.push(path); return { ok: true, data: path.endsWith("/clear") ? { ids: ["x1", "x2"] } : { calls: [{ id: "x1", createdAt: 5 }, { id: "x2", createdAt: 9 }] } }; }, storage, signedIn: () => true });
+  await s2.load();
+  assert.deepEqual(s2.rows.map((r) => r.id), ["x1", "x2"]);
+  const tk = await s2.remove(["x2"]);
+  assert.deepEqual(calls.slice(-1), ["/v1/calls/history/hide"]);
+  await s2.restore(tk);
+  assert.deepEqual(calls.slice(-1), ["/v1/calls/history/unhide"]);
+  const all = await s2.clear();
+  assert.deepEqual(all.ids, ["x1", "x2"]);
+  assert.equal(s2.rows.length, 0);
+  const bad = createHistory({ api: async () => ({ ok: false }), storage, signedIn: () => true });
+  bad.rows = [{ id: "q", createdAt: 1 }];
+  await assert.rejects(() => bad.remove(["q"]));
+  assert.equal(bad.rows.length, 1, "a failed hide puts the row back");
+  assert.equal(swipeAction(-120, 10, 320), "delete");
+  assert.equal(swipeAction(-60, 5, 320), "none");
+  assert.equal(swipeAction(-120, 90, 320), "none", "a mostly vertical drag is a scroll");
+  assert.deepEqual([...toggleSet(new Set(["a"]), "a")], []);
+  assert.deepEqual(removeRows([{ id: 1 }, { id: 2 }], [2]).kept, [{ id: 1 }]);
+  assert.equal(restoreRows([{ id: 1, createdAt: 1 }], [{ id: 2, createdAt: 2 }])[0].id, 2);
+}
+
+
+/* Route race: relay first for a blocked network, a second route that starts
+   beside a slow first one, and the loser is closed. */
+{
+  assert.deepEqual(relayHint({ cf: { country: "RU" } }), { country: "RU", prefer: "relay" });
+  assert.deepEqual(relayHint({ cf: { country: "SE" } }), { country: "SE" });
+  assert.deepEqual(relayHint({ headers: new Headers({ "CF-IPCountry": "by" }) }), { country: "BY", prefer: "relay" });
+  assert.deepEqual(relayHint({ headers: new Headers() }), {});
+
+  const sockets = [];
+  const plan = {};
+  class FakeSocket {
+    constructor(url) {
+      this.url = url; this.closed = false; sockets.push(this);
+      const how = Object.keys(plan).find((key) => url.indexOf(key) >= 0);
+      this.how = how ? plan[how] : "ok";
+      setTimeout(() => { if (this.how === "dead") { this.onclose && this.onclose(); } else if (this.how !== "hang" && !this.closed) this.onopen && this.onopen(); }, this.how === "dead" ? 5 : 0);
+    }
+    send() { if (this.how === "ok" || this.how === "slow") setTimeout(() => { if (!this.closed && this.onmessage) this.onmessage({ data: '{"setupComplete":{}}' }); }, this.how === "slow" ? 1800 : 10); }
+    close() { this.closed = true; }
+  }
+  globalThis.WebSocket = FakeSocket;
+  let minted = 0;
+  const run = async (hostPlan, order, flags) => {
+    sockets.length = 0;
+    Object.keys(plan).forEach((key) => delete plan[key]);
+    Object.assign(plan, hostPlan);
+    const seen = [];
+    const env = {
+      relayFirst: () => !!(flags && flags.relay), routeKnown: () => false, noteRoute: (via) => seen.push(via),
+      relayUrl: (t) => "wss://main.test/live?t=" + t,
+      relayUrls: (t) => ["wss://main.test/live?t=" + t, "wss://mirror.test/live?t=" + t]
+    };
+    const states = [];
+    const pipe = createPipe(env, {
+      id: "t", target: "en", out: null, source: "",
+      token: async () => { minted += 1; return { mode: "token", token: "tok" + minted + "_abcdefgh", url: "wss://google.test/ws?t=" + minted, setup: {}, prefer: flags && flags.prefer }; },
+      onState: (p, st) => states.push(st), onLine() {}, onPartial() {}, onOut() {}, onGoAway() {}
+    });
+    const t0 = Date.now();
+    pipe.open();
+    for (let i = 0; i < 80 && !pipe.via && !states.includes("failed"); i++) await new Promise((r) => setTimeout(r, 100));
+    return { via: pipe.via, ms: Date.now() - t0, seen, minted, sockets: sockets.slice(), pipe };
+  };
+  let r = await run({ "google.test": "ok" }, 0, {});
+  assert.equal(r.via, "direct");
+  assert.equal(r.sockets.length, 1, "a fast direct route never starts the relay");
+  r.pipe.close();
+  r = await run({ "google.test": "dead" }, 0, {});
+  assert.equal(r.via, "relay", "a dead direct route falls to the relay at once");
+  assert.ok(r.ms < 800, "the fallback does not wait for the full timeout: " + r.ms);
+  r.pipe.close();
+  r = await run({ "google.test": "slow", "main.test": "ok" }, 0, {});
+  assert.equal(r.via, "relay", "a slow direct route loses to the relay that starts beside it");
+  assert.ok(r.sockets.filter((sock) => sock.url.indexOf("google") >= 0).every((sock) => sock.closed), "the slow loser is closed");
+  r.pipe.close();
+  r = await run({ "main.test": "dead", "mirror.test": "ok" }, 0, { prefer: "relay" });
+  assert.equal(r.via, "relay");
+  assert.ok(r.sockets[0].url.indexOf("main.test") >= 0 && r.sockets[1].url.indexOf("mirror.test") >= 0, "a blocked main host falls to the mirror host");
+  assert.ok(!r.sockets.some((sock) => sock.url.indexOf("google") >= 0), "a hinted caller never opens a Google socket when the relay works");
+  r.pipe.close();
+  r = await run({ "main.test": "hang", "mirror.test": "ok" }, 0, { prefer: "relay" });
+  assert.equal(r.via, "relay");
+  assert.ok(r.ms > 1400 && r.ms < 2600, "a hung main host hands over to the mirror after about 1.6 s: " + r.ms);
+  assert.ok(r.sockets.filter((sock) => sock.url.indexOf("main.test") >= 0).every((sock) => sock.closed), "the hung socket is closed");
+  r.pipe.close();
+  delete globalThis.WebSocket;
+
+  const assets = { fetch: async () => new Response("asset") };
+  const hit = (path, init) => pagesRelay.fetch(new Request("https://viktorychapp.pages.dev" + path, init), { ASSETS: assets });
+  assert.equal(await (await hit("/index.html")).text(), "asset");
+  assert.equal((await hit("/v1/calls/live?t=abcdefgh1234")).status, 426);
+  assert.ok(pagesRelaySource.includes("arrayBuffer") && !/server\.send\(event\.data\)/.test(pagesRelaySource), "Blob frames are converted before they are sent on");
+  assert.equal((await hit("/v1/calls/live?t=%20bad", { headers: { Upgrade: "websocket" } })).status, 400);
+}
+
+
+/* Phone hardening: bitrate steps, the iOS audio unlock, the wake fallback. */
+{
+  let st = { level: 0, good: 0 };
+  st = pickBitrate(st, { loss: 0, rtt: 0.08 });
+  assert.equal(st.bitrate, 64000, "a clean link keeps full quality");
+  st = pickBitrate(st, { loss: 0.05, rtt: 0.2 });
+  assert.equal(st.bitrate, 24000, "5% loss drops at once");
+  st = pickBitrate(st, { loss: 0.12, rtt: 0.3 });
+  assert.equal(st.bitrate, BITRATES[3], "12% loss drops to the floor");
+  st = pickBitrate(st, { loss: 0, rtt: 0.1 });
+  st = pickBitrate(st, { loss: 0, rtt: 0.1 });
+  assert.equal(st.level, 3, "it does not climb back on two good samples");
+  st = pickBitrate(st, { loss: 0, rtt: 0.1 });
+  assert.equal(st.level, 2, "three good samples climb one step");
+  assert.equal(pickBitrate({ level: 0, good: 0 }, { loss: 0, rtt: 0.7 }).level, 2, "a very slow round trip counts as bad");
+  assert.equal(pickBitrate(null, null).bitrate, 64000);
+
+  let made = 0;
+  let resumed = 0;
+  class FakeCtx {
+    constructor() { made += 1; this.state = "suspended"; this.destination = {}; }
+    resume() { resumed += 1; this.state = "running"; return Promise.resolve(); }
+    createBuffer() { return {}; }
+    createBufferSource() { return { connect() {}, start() {} }; }
+  }
+  const unlock = createAudioUnlock({ AudioContext: FakeCtx });
+  assert.equal(unlock.get(), null, "nothing exists before the first tap");
+  const first = unlock.unlock();
+  assert.equal(first.state, "running");
+  assert.equal(unlock.unlock(), first, "later taps reuse the same context");
+  assert.equal(made, 1);
+  first.state = "closed";
+  assert.equal(unlock.get(), null, "a closed context is not handed out");
+  unlock.unlock();
+  assert.equal(made, 2, "a closed one is replaced on the next tap");
+  const listeners = [];
+  unlock.bind({ addEventListener: (name) => listeners.push(name) });
+  unlock.bind({ addEventListener: (name) => listeners.push(name) });
+  assert.deepEqual(listeners.sort(), ["click", "keydown", "pointerdown", "touchend"], "bound once");
+  assert.equal(createAudioUnlock({}).unlock(), null, "no Web Audio means no crash");
+
+  const nav = { audioSession: { type: "auto" } };
+  assert.equal(setAudioSession(nav, "play-and-record"), true);
+  assert.equal(nav.audioSession.type, "play-and-record");
+  assert.equal(setAudioSession({}, "auto"), false, "a browser without the API is left alone");
+
+  const body = [];
+  const doc = { body: { appendChild: (el) => body.push(el) }, createElement: () => ({ style: {}, setAttribute() {}, play: () => Promise.resolve(), pause() {}, removeAttribute() {}, load() {}, remove() { body.length = 0; } }) };
+  const wake = createWakeFallback(doc);
+  wake.on(); wake.on();
+  assert.equal(body.length, 1, "one hidden clip, however many times it is asked");
+  assert.ok(body[0].src.startsWith("data:video/mp4;base64,") && NOSLEEP_MP4.length < 4000, "tiny inline clip");
+  assert.equal(wake.active(), true);
+  wake.off();
+  assert.equal(wake.active(), false);
+  assert.equal(body.length, 0);
+}
+
 console.log("calls logic ok", JSON.stringify(report));
+
+/* Adaptive playout lead: quick on a good link, wider after gaps, narrower again when calm. */
+{
+  const lead = createPlayoutLead();
+  let slot = lead.plan(1, 0, 0.2);
+  assert.ok(Math.abs(slot.start - 1.06) < 1e-9, "the first chunk plays after the minimum lead");
+  let next = slot.next;
+  slot = lead.plan(1.05, next, 0.2);
+  assert.equal(slot.start, next, "a chunk that arrives in time follows the last one without a gap");
+  next = slot.next;
+  slot = lead.plan(next + 0.1, next, 0.2);
+  assert.ok(slot.start - (next + 0.1) > 0.13, "a gap inside a phrase widens the lead");
+  assert.equal(lead.stats().gaps, 1);
+  for (let i = 0; i < 20; i++) { const t = slot.next - 0.05; next = slot.next; slot = lead.plan(next - 0.1, next, 0.2); }
+  for (let i = 0; i < 10; i++) { const s0 = lead.plan(100 + i, 100 + i + 0.5, 0.2); if (!s0) throw new Error("dropped"); lead.plan(100 + i, 100 + i + 0.5, 2.5); }
+  assert.ok(lead.stats().lead >= LEAD_MIN && lead.stats().lead <= LEAD_MAX, "the lead stays inside its bounds");
+  const stale = lead.plan(10, 11.5, 0.2);
+  assert.equal(stale, null, "audio more than 0.9 s behind real time is dropped");
+  const poor = createPlayoutLead();
+  poor.floor(3);
+  assert.ok(poor.plan(5, 0, 0.1).start - 5 >= 0.24, "a poor link starts with a wider lead");
+  const wide = createPlayoutLead();
+  for (let i = 0; i < 20; i++) wide.plan(i, i - 0.1, 0.1);
+  assert.equal(wide.stats().lead, LEAD_MAX, "repeated gaps stop at the maximum lead");
+}

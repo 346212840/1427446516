@@ -624,3 +624,19 @@ calls.js|Sí, et sento.
 calls.js|Pots repetir-ho?
 calls.js|Gràcies, em va bé.
 keys: shared/call-engine.js
+contacts-ui.js|BEGIN:VCARD
+contacts-ui.js|END:VCARD
+contacts-ui.js|BEGIN:VCALENDAR
+contacts-ui.js|PRODID:-//Viktorych//Contacts//EN
+contacts-ui.js|BEGIN:VEVENT
+contacts-ui.js|BEGIN:VALARM
+contacts-ui.js|TRIGGER:-PT5M
+contacts-ui.js|ACTION:DISPLAY
+contacts-ui.js|END:VALARM
+contacts-ui.js|END:VEVENT
+contacts-ui.js|END:VCALENDAR
+contacts-ui.js|Mobile
+contacts-ui.js|Work
+contacts-ui.js|Home
+contacts-ui.js|Other
+calls.js|{n} selected

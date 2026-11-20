@@ -257,6 +257,9 @@
     compose: `<path d="M3.5 7h6M6.5 4v6"/><path d="M17 5.2a2.1 2.1 0 0 1 3 3L10.4 17.8 6.5 19l1.2-3.9z"/><path d="m15.3 6.9 3 3"/>`,
     /* Viktrych (the on-device AI) logo: a V with a small spark. Also logo/viktrych.svg. */
     viktrych: `<path d="M4.5 6 11 19.5l4.6-9.6"/><path d="M18.6 2.6l.9 2.3 2.3.9-2.3.9-.9 2.3-.9-2.3-2.3-.9 2.3-.9z" fill="currentColor" stroke="none"/>`,
+    /* Calls: a handset outline with two small translation waves. callsOn is the filled, bolder active state. */
+    calls: `<path d="M21.5 16.9v2.6a2 2 0 0 1-2.2 2 18.7 18.7 0 0 1-8.1-2.9 18.4 18.4 0 0 1-5.7-5.7A18.7 18.7 0 0 1 2.6 4.7a2 2 0 0 1 2-2.2h2.6a2 2 0 0 1 2 1.7c.1.9.3 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 10.1a16 16 0 0 0 5.8 5.8l1.3-1.3a2 2 0 0 1 2.1-.5c.9.4 1.8.6 2.7.7a2 2 0 0 1 1.5 2.1z"/><path d="M14.5 6.2a3.3 3.3 0 0 1 3.3 3.3"/><path d="M14.5 2.6a6.9 6.9 0 0 1 6.9 6.9"/>`,
+    callsOn: `<path fill="currentColor" d="M21.5 16.9v2.6a2 2 0 0 1-2.2 2 18.7 18.7 0 0 1-8.1-2.9 18.4 18.4 0 0 1-5.7-5.7A18.7 18.7 0 0 1 2.6 4.7a2 2 0 0 1 2-2.2h2.6a2 2 0 0 1 2 1.7c.1.9.3 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 10.1a16 16 0 0 0 5.8 5.8l1.3-1.3a2 2 0 0 1 2.1-.5c.9.4 1.8.6 2.7.7a2 2 0 0 1 1.5 2.1z"/><path d="M14.5 6.2a3.3 3.3 0 0 1 3.3 3.3"/><path d="M14.5 2.6a6.9 6.9 0 0 1 6.9 6.9"/>`,
     convert: `<path d="M4 8h11"/><path d="M12 4.5 15.5 8 12 11.5"/><path d="M20 16H9"/><path d="M12 12.5 8.5 16 12 19.5"/>`
   };
   /* The Viktorychs coin: black inside, white lines, a thin rim so it still shows on dark themes. */
@@ -1447,7 +1450,7 @@
       { id: "media", name: tr("Media"), items: ["music", "shorts", "tv", "games", "audiostudio"] },
       { id: "library", name: tr("Library"), items: ["history", "communities", "subscriptions", "vault", "packages"] }
     ],
-    order: ["home", "explore", "notifications", "messages", "feeds", "lists", "folder:media", "folder:library", "settings"],
+    order: ["home", "explore", "notifications", "messages", "calls", "contacts", "feeds", "lists", "folder:media", "folder:library", "settings"],
     hidden: []
   };
 
@@ -1465,8 +1468,10 @@
   const ALL_NAV_IDS = [
     "home", "explore", "notifications", "messages", "inbox-servers", "inbox-discord", "inbox-mail", "inbox-sms", "online", "feeds", "lists",
     "history", "music", "shorts", "games", "tv", "communities", "audiostudio",
-    "subscriptions", "vault", "packages", "settings"
+    "subscriptions", "vault", "packages", "calls", "contacts", "settings"
   ];
+  /* Calls and Contacts joined the sidebar later. A saved layout that has never seen them gets them right under Inbox. */
+  const NEAR_INBOX_NAV_IDS = INBOX_NAV_IDS.concat(["calls", "contacts"]);
 
   function cleanNavCustom(custom) {
     if (!custom || typeof custom !== "object") {
@@ -1500,9 +1505,9 @@
     ALL_NAV_IDS.forEach((id) => {
       if (!accounted.has(id) && !hidden.includes(id)) {
         // Inbox sections that get their own page sit right under Inbox.
-        if (INBOX_NAV_IDS.includes(id) && order.includes("messages")) {
+        if (NEAR_INBOX_NAV_IDS.includes(id) && order.includes("messages")) {
           let at = order.indexOf("messages") + 1;
-          while (at < order.length && INBOX_NAV_IDS.includes(order[at])) at += 1;
+          while (at < order.length && NEAR_INBOX_NAV_IDS.includes(order[at])) at += 1;
           order.splice(at, 0, id);
           return;
         }
@@ -5192,11 +5197,20 @@ const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "
   function deviceGuess() {
     const ua = String((navigator && navigator.userAgent) || "");
     const touchMac = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
-    let type = "desktop";
-    if (/SmartTV|AppleTV|GoogleTV|Tizen|Web0S|\bTV\b/i.test(ua)) type = "tv";
-    else if (/iPad|Tablet/i.test(ua) || touchMac || (/Android/i.test(ua) && !/Mobile/i.test(ua))) type = "tablet";
-    else if (/Mobi|iPhone|Android/i.test(ua)) type = "phone";
-    const os = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) || touchMac ? "iPad" : /Android/.test(ua) ? "Android" : /Windows/.test(ua) ? "Windows" : /Mac OS X/.test(ua) ? "Mac" : /CrOS/.test(ua) ? "ChromeOS" : /Linux/.test(ua) ? "Linux" : "";
+    let coarse = false;
+    try { coarse = !!(window.matchMedia && matchMedia("(pointer: coarse)").matches); } catch (err) { coarse = false; }
+    const sensed = window.ViktorychNative && window.ViktorychNative.formFactor
+      ? window.ViktorychNative.formFactor(ua, { coarse: coarse, width: window.innerWidth || 0, touchMac: touchMac })
+      : "";
+    let type = sensed || "desktop";
+    if (!sensed) {
+      if (/SmartTV|AppleTV|GoogleTV|Tizen|Web0S|\bTV\b/i.test(ua)) type = "tv";
+      else if (/iPad|Tablet/i.test(ua) || touchMac || (/Android/i.test(ua) && !/Mobile/i.test(ua))) type = "tablet";
+      else if (/Mobi|iPhone|Android/i.test(ua)) type = "phone";
+    }
+    let os = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) || touchMac ? "iPad" : /Android/.test(ua) ? "Android" : /Windows/.test(ua) ? "Windows" : /Mac OS X/.test(ua) ? "Mac" : /CrOS/.test(ua) ? "ChromeOS" : /Linux/.test(ua) ? "Linux" : "";
+    if (!os && type === "phone") os = tr("Phone");
+    else if (!os && type === "tablet") os = tr("Tablet");
     const browser = /Edg\//.test(ua) ? "Edge" : /OPR\//.test(ua) ? "Opera" : /Firefox\//.test(ua) ? "Firefox" : /CriOS|Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "";
     return { type, name: [os, browser].filter(Boolean).join(" · ") || tr("This device") };
   }
@@ -11284,8 +11298,8 @@ const here = parseRoute();
   }
 
   function navItem(href, name, label, on, aria, tip, extraClass) {
-    const onName = name + tr("On");
-    const glyph = icon(on && PATH[onName] && (name === "home" || name.indexOf("mu") === 0) ? onName : name);
+    const onName = name === "calls" ? "callsOn" : name + tr("On");
+    const glyph = icon(on && (PATH[onName] || (window.ViktorychIcons && window.ViktorychIcons.has(onName))) && (name === "home" || name === "calls" || name.indexOf("mu") === 0) ? onName : name);
     const badge = name === "bell" ? bellBadgeHtml() : (href === "#/online" ? onlineCountHtml() : "");
     const accessible = aria || label;
     const tooltipText = tip || (name === "muBack" ? tr("Back") : label);
@@ -11334,7 +11348,7 @@ const here = parseRoute();
       case "contacts":
         return { id: "contacts", href: "#/contacts", icon: "phone", label: tr("Contacts"), active: (r) => r.name === "contacts", visible: () => featureOn("contacts") };
       case "calls":
-        return { id: "calls", href: "#/calls", icon: "phone", label: tr("Calls"), active: (r) => r.name === "calls" || r.name === "callguest", visible: () => !!(window.ViktorychServerFeature && window.ViktorychServerFeature("calls")) };
+        return { id: "calls", href: "#/calls", icon: "calls", label: tr("Calls"), active: (r) => r.name === "calls" || r.name === "callguest", visible: () => !!(window.ViktorychServerFeature && window.ViktorychServerFeature("calls")) };
       case "shorts":
         return { id: "shorts", href: "#/shorts", icon: "shorts", label: tr("Shorts"), active: (r) => r.name === "shorts", visible: () => shortsEnabled() && !!(window.ViktorychShorts && window.ViktorychShorts.visible()) };
       case "games":
@@ -11818,7 +11832,7 @@ const here = parseRoute();
     "home", "explore", "tv", "communities", "notifications", "messages",
     "inbox-servers", "inbox-discord", "inbox-mail", "inbox-sms", "online",
     "feeds", "lists", "history", "music", "shorts", "games",
-    "subscriptions", "vault", "packages", "storage", "settings"
+    "subscriptions", "vault", "packages", "calls", "storage", "settings"
   ];
   const BOTTOM_NAV_DEFAULT_ON = ["home", "explore", "tv", "communities", "notifications", "messages"];
 
@@ -11919,6 +11933,7 @@ const here = parseRoute();
   }
 
   function bottomGlyph(def, on) {
+    if (on && def.icon === "calls") return "callsOn";
     return on && def.icon === "home" && PATH.homeOn ? "homeOn" : def.icon;
   }
 
@@ -13846,7 +13861,7 @@ const here = parseRoute();
         now: Date.now(),
         afterSignup: reason === "signup",
         prompt: reason !== "signup" && !!STATE.installPrompt,
-        ios: /iphone|ipad|ipod/i.test(navigator.userAgent || "")
+        ios: /iphone|ipad|ipod/i.test(navigator.userAgent || "") || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
       });
     }
     return reason === "signup" && choice.mode !== "never";
@@ -19225,7 +19240,18 @@ const here = parseRoute();
   // Which browser's own install steps to show when there is no install prompt.
   function installHelpKind(ua) {
     const text = String(ua == null ? navigator.userAgent || "" : ua);
-    const mobile = /android|mobile/i.test(text);
+    let coarse = false;
+    let fine = false;
+    let hover = false;
+    try {
+      coarse = !!(window.matchMedia && matchMedia("(pointer: coarse)").matches);
+      fine = !!(window.matchMedia && matchMedia("(pointer: fine)").matches);
+      hover = !!(window.matchMedia && matchMedia("(hover: hover)").matches);
+    } catch (err) { coarse = false; }
+    const touchMac = typeof navigator !== "undefined" && navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+    const mobile = window.ViktorychNative && window.ViktorychNative.installHandset
+      ? window.ViktorychNative.installHandset(text, { coarse: coarse, fine: fine, hover: hover, width: window.innerWidth || 0, touchMac: touchMac })
+      : /android|mobile/i.test(text) || touchMac;
     if (/firefox\/|fxios/i.test(text)) return mobile ? "firefox-android" : "firefox";
     if (/edg\/|edga\//i.test(text)) return mobile ? "chrome-android" : "edge";
     if (/chrome|chromium/i.test(text)) return mobile ? "chrome-android" : "chrome";
@@ -20334,8 +20360,8 @@ const here = parseRoute();
   }
 
   const DRAWER_LOCKED = ["home", "settings", "logout", "customize"];
-  const DRAWER_PRIMARY = ["home", "explore", "notifications", "profile", "online", "premium", "communities", "bookmarks", "points", "lists", "spaces", "golive", "requests", "studio", "localai", "settings", "help", "logout", "customize"];
-  const DRAWER_EXTRA = ["contacts", "calls", "tv", "messages", "feeds", "history", "shorts", "subscriptions", "vault", "packages", "storage", "games", "music", "audiostudio"];
+  const DRAWER_PRIMARY = ["home", "explore", "notifications", "calls", "contacts", "profile", "online", "premium", "communities", "bookmarks", "points", "lists", "spaces", "golive", "requests", "studio", "localai", "settings", "help", "logout", "customize"];
+  const DRAWER_EXTRA = ["tv", "messages", "feeds", "history", "shorts", "subscriptions", "vault", "packages", "storage", "games", "music", "audiostudio"];
   const DRAWER_IDS = DRAWER_PRIMARY.concat(DRAWER_EXTRA);
   const DRAWER_NAV = {
     home: "home",
@@ -20345,6 +20371,8 @@ const here = parseRoute();
     lists: "lists",
     studio: "feeds",
     messages: "messages",
+    calls: "calls",
+    contacts: "contacts",
     feeds: "feeds",
     history: "history",
     music: "music",
@@ -20360,7 +20388,7 @@ const here = parseRoute();
   };
 
   function defaultDrawerMenu() {
-    return { sections: [], order: DRAWER_PRIMARY.concat(DRAWER_EXTRA).filter((id) => id !== "settings" && id !== "logout"), hidden: [], popup: ["settings", "logout"], at: 0 };
+    return { sections: [], order: DRAWER_PRIMARY.concat(DRAWER_EXTRA).filter((id) => id !== "settings" && id !== "logout"), hidden: [], popup: ["settings", "logout"], at: 0, v: 2 };
   }
 
   function cleanDrawerMenu(raw) {
@@ -20429,7 +20457,16 @@ const here = parseRoute();
       if (DRAWER_IDS.indexOf(id) < 0 || DRAWER_LOCKED.indexOf(id) >= 0 || hidden.indexOf(id) >= 0) return;
       hidden.push(id);
     });
-    return { sections: sections, order: order, hidden: hidden, popup: popup, at: Number(raw.at) || 0 };
+    /* Menus saved before v2 carry Calls and Contacts at the very end, where they ended up behind More. Bring them up under Notifications once. */
+    if (!(Number(raw.v) >= 2)) {
+      const lift = ["calls", "contacts"].filter((id) => order.indexOf(id) >= 0);
+      lift.forEach((id) => order.splice(order.indexOf(id), 1));
+      let at = order.indexOf("notifications") + 1;
+      if (!at) at = order.indexOf("explore") + 1;
+      if (!at) at = Math.min(1, order.length);
+      lift.forEach((id, i) => order.splice(at + i, 0, id));
+    }
+    return { sections: sections, order: order, hidden: hidden, popup: popup, at: Number(raw.at) || 0, v: 2 };
   }
 
   function getDrawerMenu() {
@@ -21175,6 +21212,7 @@ if (STATE.histClear) {
       }
       addPost(post);
     });
+    let livePending = false;
     if (identities.length) {
       const allPosts = (typeof posts === "function" ? posts() : null) || (STATE.data && STATE.data.posts) || [];
       identities.forEach((ident) => {
@@ -21196,6 +21234,15 @@ if (STATE.histClear) {
             addPost(lpMod ? lpMod.asOwn(p, account) : p);
           }
         });
+        /* The catalog is the last sync. A linked X account's newest posts
+           and replies are read live, the same way its own page does. */
+        if (idPlatform === "x" && idHandle) {
+          const live = ensureLiveUser("x", idHandle);
+          if (live && !live.settled && (live.loading || live.pageTask)) livePending = true;
+          ["posts", "replies", "media"].forEach((bucket) => {
+            ((live && live[bucket]) || []).forEach((p) => addPost(lpMod ? lpMod.asOwn(p, account) : p));
+          });
+        }
       });
     }
     ownApp.forEach((post) => {
@@ -21213,7 +21260,15 @@ if (STATE.histClear) {
     /* Optional platform filters: All, Posts, X, Instagram… The default is the mixed timeline. */
     const pills = lpMod ? lpMod.filterHtml(account, postList) : "";
     if (pills) shown = shown.filter((post) => lpMod.filterPost(post, account));
-    return { html: pills + shown.map((post) => card(post, "")).join("") + more, count: postList.length };
+    /* Loading belongs in the list, under the pills. An app-only filter does
+       not receive live X posts, so an empty Posts pill is just empty and the
+       pills stay so All is still one tap away. */
+    const wantsLive = livePending && (!lpMod || !lpMod.filterPost || lpMod.filterPost({ platform: "x", kind: "post" }, account));
+    const listHtml = (!shown.length && wantsLive)
+      ? `<div class="reply-empty">${tr("Loading…")}</div>`
+      : shown.map((post) => card(post, "")).join("") + more;
+    const count = postList.length ? postList.length : (!shown.length && wantsLive ? null : postList.length);
+    return { html: pills + listHtml, count: count };
   }
 
   function repostPostById(handle, id) {
@@ -23514,13 +23569,30 @@ if (STATE.histClear) {
     STATE.forYouCardHtml = next;
   }
 
+  /* A background rebuild must not throw away a field the reader has started.
+     The value lives on the node, not in the new HTML. */
+  function keepDirtyFields(host, frag, focusedLive) {
+    if (!host || !host.querySelectorAll || !frag.querySelector) return;
+    host.querySelectorAll("textarea, input").forEach((live) => {
+      if (!live.id) return;
+      const sel = window.CSS && CSS.escape ? "#" + CSS.escape(live.id) : "#" + live.id;
+      const fresh = frag.querySelector(sel);
+      if (!fresh || fresh === live || fresh.tagName !== live.tagName) return;
+      /* Parking the view blurs the field before this runs, so remember the
+         node that had the caret. An empty field matches the new markup, but
+         swapping it still drops the caret and dismisses the phone keyboard. */
+      const focused = live === focusedLive || document.activeElement === live;
+      if (!focused && String(live.value || "") === String(fresh.value || "")) return;
+      fresh.replaceWith(live);
+    });
+  }
   function livePaintHost() {
     const key = parkKey(parseRoute());
     const slot = key ? viewParks.get(key) : null;
     if (slot && slot.justParked && slot.root) return slot.root;
     return document.getElementById("app");
   }
-  function commitApp(html, background) {
+  function commitApp(html, background, focusedLive) {
     const app = document.getElementById("app");
     if (!app) return;
     hscrollHolding = true;
@@ -23539,6 +23611,10 @@ if (STATE.histClear) {
       reuseForYouCards(host, tpl.content, true);
       keepChrome(host, tpl.content);
     }
+    /* After chrome is kept. Doing this earlier moves a half-written nav
+       field into the fresh header, and keepChrome then throws that header
+       away. */
+    if (background) keepDirtyFields(host, tpl.content, focusedLive);
     const parked = parkKey(parseRoute());
     const slot = parked ? viewParks.get(parked) : null;
     if (slot) slot.justParked = false;
@@ -24528,8 +24604,9 @@ if (STATE.histClear) {
         if (!decision || !decision.commit) return;
         if (slot && slot.force) slot.force = false;
         const restoreAi = !!(document.activeElement && document.activeElement.closest && document.activeElement.closest('.mhead a.m-ai[href="#/ai"]'));
+        const focusedLive = document.activeElement;
         parkLiveView();
-        commitApp(html, !userPaintNow);
+        commitApp(html, !userPaintNow, focusedLive);
         if (key) {
           const prev = viewParks.get(key);
           if (prev && prev.root) prev.root.remove();
@@ -29653,6 +29730,10 @@ if (data.historyPause) STATE.settings.historyPause = cleanHistoryPause(data.hist
         followRoute();
         return;
       }
+      /* A hash change is navigation, even when the listener is not the
+         window.event inUserInput() sees. It remounts the page. A background
+         refresh is the paint that keeps a focused field. */
+      STATE.userPaint = true;
       render({
         y: y,
         done: () => {

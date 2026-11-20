@@ -23,6 +23,18 @@ window.SI18n = {
     if (vars) text = String(text).replace(/\{(\w+)\}/g, (all, name) => (vars[name] == null ? "" : String(vars[name])));
     return text;
   },
+  /* Plural forms by locale (Russian has one, few, many and other). Packs hold key.one, key.few, key.many, key.other. */
+  tn(key, n, vars) {
+    const value = Number(n) || 0;
+    let cat = "other";
+    try { cat = new Intl.PluralRules(lang).select(value); } catch (err) { /* one form */ }
+    const table = PACKS[lang] || {};
+    let chosen = key + "." + cat;
+    if (!Object.prototype.hasOwnProperty.call(table, chosen) && cat !== "other") chosen = key + ".other";
+    let shown = String(value);
+    try { shown = new Intl.NumberFormat(lang).format(value); } catch (err) { /* plain number */ }
+    return window.SI18n.t(chosen, Object.assign({ n: shown }, vars || {}));
+  },
   getLang() { return lang; }
 };
 window.t = window.SI18n.t;

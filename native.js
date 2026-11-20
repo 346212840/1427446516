@@ -38,6 +38,40 @@
     return false;
   }
 
+  /* A wide Windows, Mac, ChromeOS or Linux screen stays a desktop even when
+     the keyboard is detached and the pointer is coarse. A narrow screen, or a
+     phone OS such as Android, iOS or OpenHarmony, is a handset. */
+  function wideDesktopOs(ua, width) {
+    if ((Number(width) || 0) < 1000) return false;
+    var text = String(ua || "");
+    if (/Android|iPhone|iPad|iPod|OpenHarmony|HarmonyOS|Mobile|SmartTV|AppleTV|GoogleTV|Tizen|Web0S|\bTV\b/i.test(text)) return false;
+    return /Windows NT|Macintosh|Mac OS X|CrOS|Linux|X11/i.test(text);
+  }
+
+  function installHandset(ua, extra) {
+    extra = extra || {};
+    /* iPadOS reports a Mac user agent. A touch Mac is still a handset. */
+    if (extra.touchMac) return true;
+    if (wideDesktopOs(ua, extra.width)) return false;
+    if (extra.coarse && !(extra.fine && extra.hover)) return true;
+    return /android|mobile|iphone|ipod/i.test(String(ua || ""));
+  }
+
+  /* Phone, tablet, desktop, or TV. Pointer and width decide the handset.
+     A television still comes from the user agent: a TV has no pointer we can trust. */
+  function formFactor(ua, extra) {
+    var text = String(ua || "");
+    extra = extra || {};
+    if (/SmartTV|AppleTV|GoogleTV|Tizen|Web0S|\bTV\b/i.test(text)) return "tv";
+    var width = Number(extra.width) || 0;
+    if (extra.coarse && width >= 700) return "tablet";
+    if (extra.coarse && width > 0 && width < 700) return "phone";
+    var touchMac = !!extra.touchMac;
+    if (/iPad|Tablet/i.test(text) || touchMac || (/Android/i.test(text) && !/Mobile/i.test(text))) return "tablet";
+    if (/Mobi|iPhone|Android/i.test(text)) return "phone";
+    return "desktop";
+  }
+
   function installKind(ua, extra) {
     var text = String(ua || "");
     var touchMac = !!(extra && extra.touchMac);
@@ -554,6 +588,8 @@
   return {
     shouldOfferInstall: shouldOfferInstall,
     installKind: installKind,
+    installHandset: installHandset,
+    formFactor: formFactor,
     installArrow: installArrow,
     readInstallChoice: readInstallChoice,
     writeInstallChoice: writeInstallChoice,

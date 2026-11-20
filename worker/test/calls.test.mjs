@@ -37,7 +37,8 @@ async function call(path, opts) {
   const res = await mf.dispatchFetch("https://accounts.test" + path, {
     method: opts.method || "GET",
     headers,
-    body: opts.body ? JSON.stringify(opts.body) : undefined
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+    cf: opts.cf
   });
   const text = await res.text();
   let body = null;
@@ -120,6 +121,14 @@ test("calls stay off until the owner turns them on, then privacy is enforced", a
   assert.equal(minted.body.setup.generationConfig.translationConfig.targetLanguageCode, "sv");
   assert.ok(minted.body.setup.systemInstruction.parts[0].text.includes("Speaker language: en."));
   assert.ok(minted.body.setup.contextWindowCompression);
+
+  assert.equal(minted.body.prefer, undefined, "an unknown country keeps the default order");
+  const ruMint = await call("/v1/calls/" + created.body.call.id + "/translate", { method: "POST", token: ada.token, cf: { country: "RU" }, body: { target: "en", source: "ru", key: "k".repeat(30) } });
+  assert.equal(ruMint.body.prefer, "relay", "a caller in Russia is told to use the relay first");
+  assert.equal(ruMint.body.country, "RU");
+  const seMint = await call("/v1/calls/" + created.body.call.id + "/translate", { method: "POST", token: ada.token, cf: { country: "SE" }, body: { target: "en", source: "sv", key: "k".repeat(30) } });
+  assert.equal(seMint.body.prefer, undefined);
+  assert.equal(seMint.body.country, "SE");
 
   const invite = await call("/v1/calls", { method: "POST", token: ada.token, body: { invite: true } });
   assert.equal(invite.status, 201, JSON.stringify(invite.body));
@@ -262,4 +271,46 @@ test("a permanent call-me link follows the same rules and the owner-key rule", a
     if (res.status === 429) limited += 1;
   }
   assert.ok(limited >= 1, "abuse is rate limited");
+});
+
+test("editing call history only hides rows for that user, with undo and clear", async () => {
+  const ownerToken = globalThis.__callsOwnerToken;
+  const ed = await signup(61, "Ed Example", "ed_example");
+  const fay = await signup(62, "Fay Example", "fay_example");
+  const gus = await signup(63, "Gus Example", "gus_example");
+  await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls", off: false } });
+  const ids = [];
+  for (let i = 0; i < 2; i++) {
+    const made = await call("/v1/calls", { method: "POST", token: ed.token, body: { handle: "fay_example" } });
+    assert.equal(made.status, 201, JSON.stringify(made.body));
+    ids.push(made.body.call.id);
+    await call("/v1/calls/" + made.body.call.id + "/end", { method: "POST", token: ed.token });
+  }
+  const list = async (token) => ((await call("/v1/calls/history", { token })).body.calls || []).map((row) => row.id);
+  assert.deepEqual((await list(ed.token)).sort(), ids.slice().sort());
+
+  /* hiding one row hides it only for me */
+  const hid = await call("/v1/calls/history/hide", { method: "POST", token: ed.token, body: { ids: [ids[0]] } });
+  assert.equal(hid.status, 200, JSON.stringify(hid.body));
+  assert.deepEqual(hid.body.ids, [ids[0]]);
+  assert.equal((await list(ed.token)).includes(ids[0]), false);
+  assert.equal((await list(fay.token)).includes(ids[0]), true);
+
+  /* a stranger cannot hide rows that are not theirs */
+  const nope = await call("/v1/calls/history/hide", { method: "POST", token: gus.token, body: { ids: [ids[1]] } });
+  assert.deepEqual(nope.body.ids, []);
+  assert.equal((await list(ed.token)).includes(ids[1]), true);
+
+  /* undo brings it back */
+  await call("/v1/calls/history/unhide", { method: "POST", token: ed.token, body: { ids: [ids[0]] } });
+  assert.equal((await list(ed.token)).includes(ids[0]), true);
+
+  /* clear all hides everything of mine and tells me what to restore */
+  const cleared = await call("/v1/calls/history/clear", { method: "POST", token: ed.token, body: {} });
+  assert.equal(cleared.status, 200);
+  assert.deepEqual(cleared.body.ids.slice().sort(), ids.slice().sort());
+  assert.deepEqual(await list(ed.token), []);
+  assert.deepEqual((await list(fay.token)).sort(), ids.slice().sort());
+  assert.equal((await call("/v1/calls/history/hide", { method: "POST", body: { ids: [ids[0]] } })).status, 401);
+  assert.equal((await call("/v1/calls/history/hide", { method: "POST", token: ed.token, body: { ids: ["x"] } })).status, 400);
 });

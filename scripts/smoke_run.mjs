@@ -211,6 +211,10 @@ const PAGE_STEPS = [
     needs: ["pw", "browser"],
     paths: [file("keep_column_test.mjs"), /^app\.js$/]
   }),
+  step("linked-x-live", "node scripts/linked_x_live_test.mjs", {
+    needs: ["pw", "browser"],
+    paths: [file("linked_x_live_test.mjs"), /^app\.js$/, /^accounts\.js$/, /^linked-profiles\.js$/]
+  }),
   step("action-speed", "node scripts/action_speed_test.mjs", {
     needs: ["pw", "browser"],
     paths: [file("action_speed_test.mjs"), file("action_speed_bench.mjs"), /^app\.js$/, /^accounts\.js$/]
@@ -304,6 +308,7 @@ const NAV_STEPS = [
   step("notif-sounds", "node scripts/notif_sounds_test.mjs", { needs: ["pw", "browser"], paths: [file("notif_sounds_test.mjs"), /^notif-sounds\.js$/, ...APP] }),
   step("menu-pages", "node scripts/menu_pages_test.mjs", { weight: 40, needs: ["pw", "browser"], paths: [file("menu_pages_test.mjs"), ...APP] }),
   step("x-card-fit", "node scripts/x_card_fit_test.mjs", { needs: ["pw", "browser"], paths: [file("x_card_fit_test.mjs"), /^video-embed\.js$/, ...APP] }),
+  step("harmony", "node scripts/harmony_sweep_test.mjs", { weight: 30, needs: ["pw", "browser"], paths: [file("harmony_sweep_test.mjs"), /^native\.js$/, /^desktop-app\.js$/, ...APP] }),
   step("about-layout", "node scripts/about_layout_test.mjs", { needs: ["pw"], paths: [file("about_layout_test.mjs")] }),
   step("points-layout", "node scripts/points_layout_test.mjs", { needs: ["pw"], paths: [file("points_layout_test.mjs")] }),
   step("stories-layout", "node scripts/stories_layout_test.mjs", { needs: ["pw"], paths: [file("stories_layout_test.mjs")] }),
@@ -317,7 +322,7 @@ const SHARDS = {
   sw: ["sw-update"],
   "ui-profile": ["profile", "profile-tab-scroll"],
   "ui-drawer": ["drawer"],
-  home: ["home-tabs", "tab-member", "reply-lookup", "foryou-chunks", "foryou-off", "home-watch-rearm", "keep-column"],
+  home: ["home-tabs", "tab-member", "reply-lookup", "foryou-chunks", "foryou-off", "home-watch-rearm", "keep-column", "linked-x-live"],
   "compose-core": ["compose-ai", "compose-page"],
   "compose-a": ["community-home", "communities-hub", "own-post", "author-card-race", "author-marks", "post-page"],
   "compose-b": ["music-dock", "video-fallback", "ig-media", "source-assign", "device-guard", "usernames", "owner-user-settings"],
@@ -338,7 +343,7 @@ const REQUIRED_PAGE = [
   "action-bar", "assemble-self", "r2-catalog", "catalog-migrate", "handle-guard", "repo-path", "i18n",
   "about-layout", "points-layout", "telegram-stories", "stories", "stories-layout",
   "assemble-site", "smoke-site", "smoke-mirror", "sw-update", "notifications", "scrollbar-hidden", "profile", "profile-tab-scroll",
-  "home-tabs", "tab-member", "reply-lookup", "home-watch-rearm", "keep-column", "pill-fit", "drawer", "sidebar", "privacy", "yt-embed", "x-video",
+  "home-tabs", "tab-member", "reply-lookup", "home-watch-rearm", "keep-column", "linked-x-live", "pill-fit", "drawer", "sidebar", "privacy", "yt-embed", "x-video",
   "signup-flows",
   "device", "translate", "ondevice-ai", "dock", "for-you", "compose-ai", "compose-page", "ios", "live", "shorts-page",
   "community-home", "communities-hub", "own-post", "author-card-race", "post-page", "music-dock", "video-fallback", "ig-media", "source-assign",

@@ -85,6 +85,12 @@ export const CALLS_SCHEMA = [
     mask TEXT NOT NULL,
     updated_at INTEGER NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS call_hidden (
+    public_id TEXT NOT NULL,
+    call_id TEXT NOT NULL,
+    hidden_at INTEGER NOT NULL,
+    PRIMARY KEY (public_id, call_id)
+  )`,
   `CREATE TABLE IF NOT EXISTS call_guests (
     token_hash TEXT PRIMARY KEY,
     call_id TEXT NOT NULL,
@@ -277,6 +283,18 @@ async function member(env, request, deps) {
   return { account: null, guest: { callId: row.call_id, guestId: row.guest_id } };
 }
 
+/* Countries where Google is blocked or throttled. Their callers go through
+   the relay first, so the browser never has to reach Google at all. */
+const RELAY_FIRST_COUNTRIES = new Set(["RU", "BY", "IR", "CN", "TM"]);
+export function relayHint(request) {
+  const cf = (request && request.cf) || {};
+  let code = String(cf.country || "");
+  if (!code && request && request.headers) code = String(request.headers.get("CF-IPCountry") || "");
+  code = code.toUpperCase();
+  if (!/^[A-Z]{2}$/.test(code)) return {};
+  return RELAY_FIRST_COUNTRIES.has(code) ? { country: code, prefer: "relay" } : { country: code };
+}
+
 async function geminiToken(env, key, target, voice, hint, source, resume) {
   const setup = liveSetup(target, voice, resume, hint, source);
   const textFallback = { mode: "text", direct: true, setup: setup };
@@ -311,27 +329,34 @@ async function geminiToken(env, key, target, voice, hint, source, resume) {
   return { mode: "token", direct: true, token: token, url: url, setup: setup };
 }
 
+const TEXT_MODELS = ["gemini-3.5-flash-lite", "gemini-3.8-flash"];
 async function translateText(env, key, text, target, hint) {
   const lang = normalizeLang(target) || "en";
   const clipped = String(text || "").slice(0, 500);
   const note = String(hint || "").slice(0, 800);
   if (mockKey(env, key)) return { text: clipped, translation: clipped, lang: lang, fallback: "speech" };
-  try {
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + encodeURIComponent(key), {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: (note ? note + "\n" : "") + "Translate into " + lang + ". Reply with only the translation.\n\n" + clipped }] }]
-      })
-    });
-    if (response.status === 429) return { error: "quota" };
-    if (response.status === 400 || response.status === 401 || response.status === 403) return { error: "badkey" };
-    const data = await response.json().catch(() => ({}));
-    const out = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0] && data.candidates[0].content.parts[0].text;
-    return { text: clipped, translation: String(out || clipped).slice(0, 800), lang: lang, fallback: "speech" };
-  } catch (err) {
-    return { text: clipped, translation: clipped, lang: lang, fallback: "speech" };
+  /* Models get retired (gemini-2.5-flash now answers 404), so walk a short list and never mistake a dead model for a translation. */
+  const prompt = (note ? note + "\n" : "") + "Translate into " + lang + ". Reply with only the translation.\n\n" + clipped;
+  let hardError = "";
+  for (const model of TEXT_MODELS) {
+    try {
+      const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + encodeURIComponent(key), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      });
+      if (response.status === 429) return { error: "quota" };
+      if (response.status === 401 || response.status === 403) return { error: "badkey" };
+      if (response.status === 400) { hardError = "badkey"; continue; }
+      if (!response.ok) continue;
+      const data = await response.json().catch(() => ({}));
+      const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+      const out = (parts || []).map((part) => (part && part.text) || "").join("").trim();
+      if (out) return { text: clipped, translation: out.slice(0, 800), lang: lang, fallback: "speech" };
+    } catch (err) { /* try the next model */ }
   }
+  if (hardError) return { error: hardError };
+  return { text: clipped, translation: clipped, lang: lang, fallback: "speech", untranslated: true };
 }
 
 function viewCall(row) {
@@ -572,7 +597,7 @@ export async function handleCalls(request, env, path, url, deps) {
     const who = await member(env, request, deps);
     if (!who.account) return deps.json(401, { error: "unauthorized" });
     const me = who.account.public_id;
-    const listed = await env.DB.prepare("SELECT s.*, a.handle AS other_handle, COALESCE(NULLIF(a.display_name, ''), n.name, '') AS other_name FROM call_sessions s LEFT JOIN accounts a ON a.public_id = CASE WHEN s.host_id = ? THEN s.peer_id ELSE s.host_id END LEFT JOIN call_names n ON n.call_id = s.id WHERE s.host_id = ? OR s.peer_id = ? ORDER BY s.created_at DESC LIMIT 40").bind(me, me, me).all();
+    const listed = await env.DB.prepare("SELECT s.*, a.handle AS other_handle, COALESCE(NULLIF(a.display_name, ''), n.name, '') AS other_name FROM call_sessions s LEFT JOIN accounts a ON a.public_id = CASE WHEN s.host_id = ? THEN s.peer_id ELSE s.host_id END LEFT JOIN call_names n ON n.call_id = s.id WHERE (s.host_id = ? OR s.peer_id = ?) AND NOT EXISTS (SELECT 1 FROM call_hidden h WHERE h.public_id = ? AND h.call_id = s.id) ORDER BY s.created_at DESC LIMIT 40").bind(me, me, me, me).all();
     const calls = ((listed && listed.results) || []).map((row) => {
       const item = viewCall(row);
       item.handle = String(row.other_handle || "");
@@ -583,6 +608,38 @@ export async function handleCalls(request, env, path, url, deps) {
       return item;
     });
     return deps.json(200, { calls: calls });
+  }
+
+  /* Editing your call history only hides rows for you. The other person's history and the call itself stay. */
+  if ((path === "/v1/calls/history/hide" || path === "/v1/calls/history/unhide" || path === "/v1/calls/history/clear") && request.method === "POST") {
+    const who = await member(env, request, deps);
+    if (!who.account) return deps.json(401, { error: "unauthorized" });
+    const me = who.account.public_id;
+    const paced = await deps.rateHit(env, "callhist:" + me, 60, 10 * 60 * 1000);
+    if (!paced.ok) return deps.limited(paced);
+    const body = await deps.readJson(request, 8000);
+    if (body && body.error) return deps.json(400, { error: body.error });
+    if (path === "/v1/calls/history/clear") {
+      const mine = await env.DB.prepare("SELECT s.id FROM call_sessions s WHERE (s.host_id = ? OR s.peer_id = ?) AND NOT EXISTS (SELECT 1 FROM call_hidden h WHERE h.public_id = ? AND h.call_id = s.id) ORDER BY s.created_at DESC LIMIT 500").bind(me, me, me).all();
+      const ids = ((mine && mine.results) || []).map((row) => String(row.id));
+      const now = Date.now();
+      for (const id of ids) await env.DB.prepare("INSERT OR IGNORE INTO call_hidden (public_id, call_id, hidden_at) VALUES (?, ?, ?)").bind(me, id, now).run();
+      return deps.json(200, { ids: ids });
+    }
+    const wanted = (Array.isArray(body && body.ids) ? body.ids : []).map((id) => String(id || "")).filter((id) => /^[a-f0-9]{16,64}$/.test(id)).slice(0, 100);
+    if (!wanted.length) return deps.json(400, { error: "ids" });
+    const done = [];
+    for (const id of wanted) {
+      if (path === "/v1/calls/history/hide") {
+        const owned = await env.DB.prepare("SELECT id FROM call_sessions WHERE id = ? AND (host_id = ? OR peer_id = ?)").bind(id, me, me).first();
+        if (!owned) continue;
+        await env.DB.prepare("INSERT OR IGNORE INTO call_hidden (public_id, call_id, hidden_at) VALUES (?, ?, ?)").bind(me, id, Date.now()).run();
+      } else {
+        await env.DB.prepare("DELETE FROM call_hidden WHERE public_id = ? AND call_id = ?").bind(me, id).run();
+      }
+      done.push(id);
+    }
+    return deps.json(200, { ids: done });
   }
 
   if (path === "/v1/calls/incoming" && request.method === "GET") {
@@ -827,6 +884,7 @@ export async function handleCalls(request, env, path, url, deps) {
     if (!picked.key) return deps.json(200, { mode: "text", direct: false, reason: picked.source === "ringing" ? "ringing" : "nokey" });
     const minted = await geminiToken(env, picked.key, target, body.voice, lexiconHint(body.lexicon), body.source, typeof body.resume === "string" ? body.resume : "");
     minted.keySource = picked.source;
+    Object.assign(minted, relayHint(request));
     if (minted.reason === "quota" || minted.mode === "text") return deps.json(200, minted);
     const packed = JSON.stringify(minted);
     if (packed.includes(picked.key)) return deps.json(500, { error: "unavailable" });

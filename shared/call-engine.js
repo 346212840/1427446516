@@ -10,11 +10,17 @@ import { outputGains, reconnectDelay, MIC_CONSTRAINTS, normalizeVolumes } from "
 import { normalizeMode, transmitOriginal, playTranslatedVoice, noteShouldAutoplay } from "./call-mode.js";
 import { createVoiceMatch } from "./call-voice.js";
 import { lighterFor, cleanLexicon } from "./call-quality.js";
+import { pickBitrate, setAudioSession, createPlayoutLead } from "./call-mobile.js";
 import { createLiveSession, MIC_WORKLET, OUTPUT_RATE, CHUNK_MS } from "./call-gemini.js";
 import { createDiarizer } from "./call-speakers.js";
 
 const IDLE_LINE_MS = 1500;
 const DIRECT_WAIT_MS = 3500;
+const RACE_AFTER_DIRECT_MS = 900;
+const RACE_AFTER_RELAY_MS = 1500;
+const RACE_AFTER_KNOWN_MS = 2500;
+const RELAY_HOST_WAIT_MS = 4500;
+const RELAY_HOST_STAGGER_MS = 1600;
 const ROTATE_MS = 8 * 60 * 1000;
 const NOTE_CHUNK = 16384;
 
@@ -40,7 +46,10 @@ function now() {
 
 /* One Gemini Live Translate socket. It is direct first and falls back to
    our Worker relay when Google cannot be reached from this network. */
-function createPipe(env, opts) {
+/* An AudioWorklet module is added once per audio context, even across calls. */
+const workletReady = new WeakSet();
+
+export function createPipe(env, opts) {
   const pipe = {
     id: opts.id,
     target: opts.target,
@@ -51,7 +60,8 @@ function createPipe(env, opts) {
     handle: "",
     openedAt: 0,
     via: "",
-    bytes: 0
+    bytes: 0,
+    lead: createPlayoutLead()
   };
   let ws = null;
   let nextAt = 0;
@@ -59,6 +69,7 @@ function createPipe(env, opts) {
   let idle = null;
   let partial = { original: "", translation: "" };
   let sentSince = false;
+  let connecting = false;
 
   function finishLine() {
     clearTimeout(idle);
@@ -90,11 +101,12 @@ function createPipe(env, opts) {
     src.buffer = buffer;
     src.connect(pipe.out);
     const t = ac.currentTime;
-    /* The model streams at real time, so a pile-up is stale audio. */
-    if (nextAt - t > 0.9) return;
-    if (nextAt < t + 0.02) nextAt = t + 0.06;
-    src.start(nextAt);
-    nextAt += buffer.duration;
+    /* The model streams at real time, so a pile-up is stale audio. The lead
+       grows when the audio runs dry mid-phrase and shrinks on a calm link. */
+    const slot = pipe.lead.plan(t, nextAt, buffer.duration);
+    if (!slot) return;
+    src.start(slot.start);
+    nextAt = slot.next;
     pipe.bytes += bytes.byteLength;
     opts.onOut(pipe, level, nextAt - t);
   }
@@ -128,6 +140,11 @@ function createPipe(env, opts) {
     if (sc.turnComplete) finishLine();
   }
   async function connect() {
+    if (pipe.closed || connecting) return;
+    connecting = true;
+    try { await connectOnce(); } finally { connecting = false; }
+  }
+  async function connectOnce() {
     if (pipe.closed) return;
     let minted = null;
     try {
@@ -140,19 +157,85 @@ function createPipe(env, opts) {
       opts.onState(pipe, why === "quota" || why === "nokey" || why === "badkey" ? why : "text");
       return;
     }
-    const routes = env.relayFirst() ? ["relay", "direct"] : ["direct", "relay"];
-    for (let i = 0; i < routes.length; i++) {
-      if (pipe.closed) return;
-      const ok = await open(routes[i], minted);
-      if (ok) { env.noteRoute(routes[i]); return; }
-    }
+    const hinted = minted.prefer === "relay";
+    const order = hinted || env.relayFirst() ? ["relay", "direct"] : ["direct", "relay"];
+    const known = hinted || env.relayFirst() || env.routeKnown();
+    const won = await race(order, minted, known);
+    if (won) return;
     scheduleRetry();
   }
-  function open(route, minted) {
+  /* The first route starts at once. If it is slow the second starts beside
+     it with a fresh token (tokens are single use), and the first socket to
+     finish setup wins. The loser is closed. */
+  function race(order, first, known) {
+    return new Promise((resolve) => {
+      const group = { winner: null, sockets: [] };
+      let settled = false;
+      let started = 0;
+      let failed = 0;
+      let timer = null;
+      const settle = (ok) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        group.sockets.forEach((sock) => { if (sock !== group.winner) { try { sock.close(); } catch (err) { /* closed */ } } });
+        resolve(ok);
+      };
+      const run = async (route, minted) => {
+        const ok = route === "relay" ? await openRelay(minted, group) : await open(route, minted, group, minted.url);
+        if (settled) return;
+        if (ok) { env.noteRoute(route); settle(true); return; }
+        failed += 1;
+        if (pipe.closed) { settle(false); return; }
+        if (started < 2) second(); else if (failed >= started) settle(false);
+      };
+      const second = async () => {
+        if (started >= 2 || settled || pipe.closed) return;
+        started = 2;
+        clearTimeout(timer);
+        let again = null;
+        try { again = await opts.token({ target: pipe.target, voice: pipe.voice, resume: pipe.handle, source: opts.source }); } catch (err) { again = null; }
+        if (settled || pipe.closed) return;
+        if (!again || again.mode !== "token" || !again.url) again = first;
+        run(order[1], again);
+      };
+      started = 1;
+      run(order[0], first);
+      timer = setTimeout(second, order[0] === "relay" ? (known ? RACE_AFTER_KNOWN_MS : RACE_AFTER_RELAY_MS) : (known ? RACE_AFTER_KNOWN_MS : RACE_AFTER_DIRECT_MS));
+    });
+  }
+  /* Several relay hosts: the next one starts beside a slow one, so a blocked
+     hostname costs under two seconds instead of its whole timeout. */
+  function openRelay(minted, group) {
+    const urls = env.relayUrls ? env.relayUrls(minted.token) : [env.relayUrl ? env.relayUrl(minted.token) : ""];
+    const list = urls.filter(Boolean);
+    return new Promise((resolve) => {
+      let next = 0;
+      let pending = 0;
+      let done = false;
+      let timer = null;
+      const launch = () => {
+        clearTimeout(timer);
+        if (done || group.winner || pipe.closed || next >= list.length) return;
+        const url = list[next++];
+        pending += 1;
+        open("relay", minted, group, url, list.length > 1 ? RELAY_HOST_WAIT_MS : 6000).then((ok) => {
+          pending -= 1;
+          if (done) return;
+          if (ok) { done = true; clearTimeout(timer); resolve(true); return; }
+          if (next < list.length) launch();
+          else if (!pending) { done = true; resolve(false); }
+        });
+        if (next < list.length) timer = setTimeout(launch, RELAY_HOST_STAGGER_MS);
+      };
+      if (!list.length) { resolve(false); return; }
+      launch();
+    });
+  }
+  function open(route, minted, group, url, wait) {
     return new Promise((resolve) => {
       let socket = null;
       let done = false;
-      const url = route === "relay" && env.relayUrl ? env.relayUrl(minted.token) : minted.url;
       if (!url) { resolve(false); return; }
       const finish = (ok) => {
         if (done) return;
@@ -161,14 +244,17 @@ function createPipe(env, opts) {
         if (!ok && socket) { try { socket.close(); } catch (err) { /* closed */ } }
         resolve(ok);
       };
-      const timer = setTimeout(() => finish(false), route === "direct" ? DIRECT_WAIT_MS : 6000);
+      const timer = setTimeout(() => finish(false), wait || (route === "direct" ? DIRECT_WAIT_MS : 6000));
       try { socket = new WebSocket(url); } catch (err) { finish(false); return; }
+      group.sockets.push(socket);
       socket.onopen = () => { try { socket.send(JSON.stringify({ setup: minted.setup })); } catch (err) { finish(false); } };
       socket.onmessage = (event) => {
         const read = typeof event.data === "string" ? Promise.resolve(event.data) : (event.data && event.data.text ? event.data.text() : Promise.resolve(""));
         read.then((text) => {
           if (!done) {
             if (text.indexOf("setupComplete") >= 0) {
+              if (group.winner || pipe.closed) { finish(false); return; }
+              group.winner = socket;
               ws = socket;
               pipe.via = route;
               finish(true);
@@ -195,6 +281,13 @@ function createPipe(env, opts) {
     setTimeout(connect, reconnectDelay(attempt));
   }
   pipe.open = connect;
+  /* The network came back or changed: do not wait out the back-off. */
+  pipe.nudge = () => {
+    if (pipe.closed || connecting) return;
+    if (ws && ws.readyState === 1 && pipe.ready) return;
+    attempt = 0;
+    connect();
+  };
   pipe.send = (pcm) => {
     if (!ws || ws.readyState !== 1 || !pipe.ready) return false;
     try {
@@ -231,6 +324,8 @@ export function createEngine(cfg) {
   const peer = { id: "", name: "", lang: "", pre: false, degraded: false, joined: false };
   const route = { via: "direct" };
   let ac = null;
+  let shared = false;
+  const taps = [];
   let master = null;
   let origOut = null;
   let transOut = null;
@@ -276,6 +371,8 @@ export function createEngine(cfg) {
     get ac() { return ac; },
     relayFirst: () => !!(cfg.relayFirst && cfg.relayFirst()),
     relayUrl: (token) => (cfg.relayUrl ? cfg.relayUrl(token) : ""),
+    relayUrls: (token) => (cfg.relayUrls ? cfg.relayUrls(token) : [cfg.relayUrl ? cfg.relayUrl(token) : ""]),
+    routeKnown: () => !!(cfg.routeKnown && cfg.routeKnown()),
     noteRoute: (via) => { route.via = via; if (cfg.onRoute) cfg.onRoute(via); emit("route", { via: via }); }
   };
   function every(ms, fn) { const id = setInterval(fn, ms); timers.push(id); return id; }
@@ -389,6 +486,8 @@ export function createEngine(cfg) {
       try { await pc.setRemoteDescription({ type: "answer", sdp: d.sdp }); } catch (err) { /* stale answer */ }
     } else if (d.kind === "ice") {
       try { await pc.addIceCandidate(d.candidate); } catch (err) { /* late candidate */ }
+    } else if (d.kind === "restart") {
+      if (call.role === "host") await offer(true);
     } else if (d.kind === "mode") {
       onPeerMode(d);
     } else if (d.kind === "chat") {
@@ -456,12 +555,18 @@ export function createEngine(cfg) {
       method: "POST",
       body: JSON.stringify({ target: p.target, source: p.source || undefined, voice: p.voice || undefined, resume: p.resume || undefined, key: (cfg.getKey && cfg.getKey()) || undefined, lexicon: cleanLexicon(cfg.getLexicon()) })
     });
-    if (!res || !res.ok) return { mode: "text", reason: res && res.status === 429 ? "quota" : "" };
+    if (!res || !res.ok) {
+      E._mint = { ok: false, status: res ? res.status : 0, reason: res && res.status === 429 ? "quota" : "http", source: "", at: now() };
+      return { mode: "text", reason: res && res.status === 429 ? "quota" : "" };
+    }
+    E._mint = { ok: true, status: res.status, reason: String((res.data && res.data.reason) || ""), source: String((res.data && res.data.keySource) || ""), mode: String((res.data && res.data.mode) || ""), at: now() };
     return res.data;
   }
   function makePipe(isTx, target, voice, out) {
     const cb = pipeCallbacks(isTx);
     const p = createPipe(env, Object.assign({ id: (isTx ? "tx" : "rx") + Date.now(), target: target, voice: voice, out: out }, cb));
+    p.lead.floor(link.level);
+    livePipes.add(p);
     return p;
   }
   function onPipeState(p, state, isTx) {
@@ -532,9 +637,9 @@ export function createEngine(cfg) {
   /* ---------- audio taps ---------- */
   async function tapNode(onFrame) {
     const url = URL.createObjectURL(new Blob([MIC_WORKLET], { type: "text/javascript" }));
-    if (!E._workletLoaded) {
+    if (!workletReady.has(ac)) {
       await ac.audioWorklet.addModule(url);
-      E._workletLoaded = true;
+      workletReady.add(ac);
     }
     URL.revokeObjectURL(url);
     const node = new AudioWorkletNode(ac, "call-mic", { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 1 });
@@ -543,6 +648,7 @@ export function createEngine(cfg) {
     mute.gain.value = 0;
     node.connect(mute);
     mute.connect(ac.destination);
+    taps.push(node, mute);
     return node;
   }
   function onRemoteFrame(pcm) {
@@ -595,7 +701,10 @@ export function createEngine(cfg) {
   E.start = async function start(info) {
     call = { id: info.id, ticket: info.ticket, role: info.role === "host" ? "host" : "guest" };
     ended = false;
-    ac = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: "interactive" });
+    shared = !!(cfg.audioContext && cfg.audioContext());
+    ac = shared ? cfg.audioContext() : new (window.AudioContext || window.webkitAudioContext)({ latencyHint: "interactive" });
+    setAudioSession(navigator, "play-and-record");
+    if (ac.state !== "running") ac.resume().catch(() => {});
     master = ac.createGain();
     master.connect(ac.destination);
     origOut = ac.createGain();
@@ -609,7 +718,14 @@ export function createEngine(cfg) {
     transToSend = ac.createGain();
     origToSend.connect(sendDest);
     transToSend.connect(sendDest);
-    micStream = cfg.getMic ? await cfg.getMic() : await navigator.mediaDevices.getUserMedia({ audio: MIC_CONSTRAINTS, video: false });
+    /* No microphone, or permission denied: the call still starts and typed text still works. */
+    try {
+      micStream = cfg.getMic ? await cfg.getMic() : await navigator.mediaDevices.getUserMedia({ audio: MIC_CONSTRAINTS, video: false });
+    } catch (err) {
+      micStream = null;
+      const denied = err && (err.name === "NotAllowedError" || err.name === "SecurityError");
+      emit("nomic", { reason: denied ? "denied" : "none" });
+    }
     ownMic = !cfg.getMic;
     if (micStream) {
       const micSrc = ac.createMediaStreamSource(micStream);
@@ -657,26 +773,92 @@ export function createEngine(cfg) {
       }
     });
     document.addEventListener("visibilitychange", onVisible);
-    ac.onstatechange = () => { if (ac && ac.state === "suspended" && !ended) ac.resume().catch(() => {}); };
+    /* iOS also reports "interrupted" (a phone call, Siri, the lock screen). */
+    ac.onstatechange = () => { if (ac && ac.state !== "running" && ac.state !== "closed" && !ended) ac.resume().catch(() => {}); };
+    ["pageshow", "focus"].forEach((name) => window.addEventListener(name, onVisible));
+    window.addEventListener("online", onNetwork);
+    try { if (navigator.connection && navigator.connection.addEventListener) navigator.connection.addEventListener("change", onNetwork); } catch (err) { /* no Network Information API */ }
+    every(2000, () => { if (ac && ac.state !== "running" && ac.state !== "closed" && document.visibilityState !== "hidden") ac.resume().catch(() => {}); });
+    every(4000, adaptLink);
     applyGains();
     await connectSignal();
     ensureRx();
     ensureTx();
   };
-  function onVisible() { if (ac && ac.state === "suspended") ac.resume().catch(() => {}); }
-  function applyBitrate() {
+  function onVisible() { if (ac && ac.state !== "running" && ac.state !== "closed") ac.resume().catch(() => {}); }
+  /* A switch from Wi-Fi to mobile data (or back) leaves the old paths dead. */
+  let netTimer = null;
+  function onNetwork() {
+    if (ended) return;
+    clearTimeout(netTimer);
+    netTimer = setTimeout(() => { if (!ended) E.nudge(); }, 400);
+  }
+  E.nudge = function nudge() {
+    if (ended || !call) return;
+    sigAttempt = 0;
+    if (!sig) connectSignal();
+    const st = pc ? pc.iceConnectionState : "";
+    if (pc && st !== "connected" && st !== "completed") {
+      emit("status", { code: "reconnecting" });
+      if (call.role === "host") offer(true); else signal({ kind: "restart" });
+    } else if (pc && call.role === "host") {
+      /* The addresses may have changed even though the old path still reads connected. */
+      offer(true);
+    }
+    [rx, tx].forEach((p) => { if (p && p.nudge) p.nudge(); });
+  };
+  let link = { level: 0, good: 0 };
+  const livePipes = new Set();
+  let lastSent = 0;
+  let lastLost = 0;
+  async function adaptLink() {
+    if (!pc || ended) return;
+    let rtt = 0;
+    let loss = 0;
+    try {
+      const stats = await pc.getStats();
+      stats.forEach((row) => {
+        if (row.type === "remote-inbound-rtp" && row.kind === "audio") {
+          if (typeof row.roundTripTime === "number") rtt = row.roundTripTime;
+          if (typeof row.fractionLost === "number") loss = row.fractionLost;
+        }
+      });
+    } catch (err) { return; }
+    const next = pickBitrate(link, { loss: loss, rtt: rtt });
+    const changed = next.level !== link.level;
+    link = next;
+    livePipes.forEach((p) => { if (p.closed) livePipes.delete(p); else p.lead.floor(next.level); });
+    if (changed) { applyBitrate(next.bitrate); emit("link", { level: next.level, bitrate: next.bitrate, loss: loss, rtt: rtt }); }
+  }
+  function applyBitrate(forced) {
     try {
       const sender = pc.getSenders().find((s) => s.track && s.track.kind === "audio");
       if (!sender || !sender.getParameters) return;
       const lighter = lighterFor(cfg.connection ? cfg.connection() : {});
       const params = sender.getParameters();
       if (!params.encodings || !params.encodings.length) params.encodings = [{}];
-      params.encodings[0].maxBitrate = lighter.lighter ? lighter.bitrate : 64000;
+      const base = lighter.lighter ? lighter.bitrate : 64000;
+      params.encodings[0].maxBitrate = forced ? Math.min(forced, base) : Math.min(base, link.level ? pickBitrate({ level: link.level, good: 0 }, { loss: 0, rtt: 0 }).bitrate : base);
       sender.setParameters(params).catch(() => {});
     } catch (err) { /* the default bitrate is fine */ }
   }
   E.prewarm = function prewarm() { ensureRx(); };
 
+  /* The mic was allowed after the call started: wire it in without touching the peer connection. */
+  E.attachMic = async function attachMic(stream) {
+    if (micStream || !ac || !stream) return false;
+    micStream = stream;
+    ownMic = true;
+    const micSrc = ac.createMediaStreamSource(stream);
+    micLevel = ac.createGain();
+    micSrc.connect(micLevel);
+    micLevel.connect(origToSend);
+    const tapMic = await tapNode(onOwnFrame);
+    micLevel.connect(tapMic);
+    stream.getAudioTracks().forEach((track) => { track.enabled = !muted; });
+    applyGains();
+    return true;
+  };
   E.setMuted = (on) => {
     muted = !!on;
     if (micStream) micStream.getAudioTracks().forEach((t) => { t.enabled = !muted; });
@@ -713,6 +895,7 @@ export function createEngine(cfg) {
     emit("quota", { reason: reason });
   }
   E.stats = () => ({ via: route.via, rx: !!rx && rx.ready, tx: !!tx && tx.ready, peer: peer, usage: live.quota(now()), speakers: ears.speakers() });
+  E.mintInfo = () => E._mint || null;
   E.metrics = () => ({ firstAudio: metrics.firstAudio, endLag: metrics.endLag });
   E.micClone = () => {
     if (!micStream) return null;
@@ -846,6 +1029,11 @@ export function createEngine(cfg) {
     timers.forEach(clearInterval);
     timers = [];
     document.removeEventListener("visibilitychange", onVisible);
+    ["pageshow", "focus"].forEach((name) => window.removeEventListener(name, onVisible));
+    window.removeEventListener("online", onNetwork);
+    try { if (navigator.connection && navigator.connection.removeEventListener) navigator.connection.removeEventListener("change", onNetwork); } catch (err) { /* nothing bound */ }
+    clearTimeout(netTimer);
+    setAudioSession(navigator, "auto");
     if (!silent && call) { try { await cfg.api("/v1/calls/" + call.id + "/end", { method: "POST", body: "{}" }); } catch (err) { /* the row expires */ } }
     [rx, tx].forEach((p) => { if (p) { p.finish(); p.close(); } });
     rx = null;
@@ -855,7 +1043,13 @@ export function createEngine(cfg) {
     try { if (pc) pc.close(); } catch (err) { /* closed */ }
     if (micStream && (ownMic || true)) micStream.getTracks().forEach((t) => t.stop());
     if (remoteEl) { remoteEl.srcObject = null; }
-    try { if (ac) await ac.close(); } catch (err) { /* closed */ }
+    if (ac && shared) {
+      /* The unlocked context outlives the call, so only this call's graph goes. */
+      ac.onstatechange = null;
+      [master, origOut, transOut, remoteBus, remoteSrc, origToSend, transToSend, micLevel].concat(taps).forEach((node) => { try { if (node) node.disconnect(); } catch (err) { /* gone */ } });
+    } else {
+      try { if (ac) await ac.close(); } catch (err) { /* closed */ }
+    }
     ac = null;
     pc = null;
     sig = null;

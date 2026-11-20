@@ -33,54 +33,136 @@ function startServer() {
   return new Promise((resolve) => server.listen(0, "127.0.0.1", () => resolve(server)));
 }
 
+const HANDSET = "Mozilla/5.0 (Phone; OpenHarmony 5.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 ArkWeb/4.1.6.1 HuaweiBrowser/15.0.4.300";
+
+function arm(page) {
+  const errors = [];
+  page.on("pageerror", (err) => errors.push(String(err)));
+  return errors;
+}
+async function prepare(page) {
+  await page.addInitScript(() => {
+    localStorage.setItem("superintelapp-lang", "en");
+    localStorage.setItem("viktorychapp-lang-user-picked", "1");
+    localStorage.setItem("viktorychapp-welcome-v1", JSON.stringify({ step: 2, done: true }));
+    localStorage.setItem("viktorychapp-account-v1", JSON.stringify({
+      token: "local-test-token",
+      account: { publicId: "100000000001", handle: "user_a", displayName: "User A", avatar: "" }
+    }));
+    localStorage.setItem("viktorychapp-settings-v1", JSON.stringify({ version: 1, initialized: true, follows: [], lists: [], feedTabs: [], likes: {}, bookmarks: {}, reposts: {} }));
+    window.VIKTORYCH_ACCOUNTS = { api: location.origin, gate: true, tiktokAudience: "owner" };
+  });
+  await page.route("**/v1/**", (route) => route.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true,"posts":[]}' }));
+}
+async function draftSurvives(page, label, where) {
+  const result = await page.evaluate((place) => {
+    const box = document.getElementById("compose-text");
+    const main = document.querySelector("main.center");
+    if (!box) return { error: "compose is missing" };
+    if (place === "column" && !box.closest("main.center")) return { error: "compose is not in the centre column" };
+    if (!document.querySelector("#app .view-slot")) return { error: "home is not parked" };
+    box.focus();
+    box.value = "still writing";
+    const mark = document.createElement("span");
+    mark.id = "paint-mark";
+    mark.textContent = "changed";
+    (main || box.parentElement).appendChild(mark);
+    window.ViktorychAccounts.requestRender("background");
+    const live = document.getElementById("compose-text");
+    return {
+      same: live === box,
+      connected: !!(live && live.isConnected),
+      focused: document.activeElement === live,
+      value: live ? live.value : ""
+    };
+  }, where);
+  if (result.error) fail(label + ": " + result.error);
+  if (!result.same || !result.connected) fail(label + ": background paint replaced the compose box " + JSON.stringify(result));
+  if (!result.focused) fail(label + ": background paint moved focus off the compose box");
+  if (result.value !== "still writing") fail(label + ": background paint cleared the draft " + JSON.stringify(result));
+  console.log("keep column ok " + label);
+}
+
 async function main() {
   const spec = process.env.PLAYWRIGHT_CORE || "playwright-core";
   const mod = await import(spec.startsWith("/") ? pathToFileURL(spec).href : spec);
   const chromium = mod.chromium || (mod.default && mod.default.chromium);
   const server = await startServer();
   const port = server.address().port;
+  const origin = "http://127.0.0.1:" + port + "/index.html#/";
   const browser = await chromium.launch({ headless: true, channel: "chrome" });
   try {
-    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: "block" });
-    const page = await context.newPage();
-    const errors = [];
-    page.on("pageerror", (err) => errors.push(String(err)));
-    await page.addInitScript(() => {
-      localStorage.setItem("superintelapp-lang", "en");
-      localStorage.setItem("viktorychapp-lang-user-picked", "1");
-      localStorage.setItem("viktorychapp-welcome-v1", JSON.stringify({ step: 2, done: true }));
-      localStorage.setItem("viktorychapp-account-v1", JSON.stringify({
-        token: "local-test-token",
-        account: { publicId: "100000000001", handle: "user_a", displayName: "User A", avatar: "" }
-      }));
-      localStorage.setItem("viktorychapp-settings-v1", JSON.stringify({ version: 1, initialized: true, follows: [], lists: [], feedTabs: [], likes: {}, bookmarks: {}, reposts: {} }));
-      window.VIKTORYCH_ACCOUNTS = { api: location.origin, gate: true, tiktokAudience: "owner" };
+    const desktop = await browser.newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: "block" });
+    const deskPage = await desktop.newPage();
+    const deskErrors = arm(deskPage);
+    await prepare(deskPage);
+    await deskPage.goto(origin, { waitUntil: "domcontentloaded" });
+    await deskPage.waitForSelector("#compose-text", { timeout: 20000 });
+    await deskPage.waitForSelector("#app .view-slot", { timeout: 20000 });
+    await draftSurvives(deskPage, "desktop", "column");
+    await deskPage.waitForSelector("[data-act='rename-nav-folder'][data-folder-id='media']", { timeout: 20000 });
+    await deskPage.evaluate(() => document.querySelector("[data-act='rename-nav-folder'][data-folder-id='media']").click());
+    await deskPage.waitForSelector("#nav-folder-rename-input", { timeout: 20000 });
+    const folder = await deskPage.evaluate(() => {
+      const input = document.getElementById("nav-folder-rename-input");
+      if (!input || !input.closest("header.nav, nav")) return { error: "the rename field is not in the nav" };
+      input.focus();
+      input.value = "Half named";
+      window.ViktorychAccounts.requestRender("background");
+      const live = document.getElementById("nav-folder-rename-input");
+      return {
+        same: live === input,
+        connected: !!(live && live.isConnected),
+        value: live ? live.value : ""
+      };
     });
-    await page.route("**/v1/**", (route) => route.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true,"posts":[]}' }));
-    await page.goto("http://127.0.0.1:" + port + "/index.html#/", { waitUntil: "domcontentloaded" });
-    await page.waitForSelector("#compose-text", { timeout: 20000 });
-    await page.waitForSelector("#app .view-slot", { timeout: 20000 });
-    const result = await page.evaluate(() => {
+    if (folder.error) fail("nav folder: " + folder.error);
+    if (!folder.same || !folder.connected) fail("background paint dropped the folder rename " + JSON.stringify(folder));
+    if (folder.value !== "Half named") fail("background paint cleared the folder name " + JSON.stringify(folder));
+    console.log("keep column ok nav folder");
+    if (deskErrors.length) fail("desktop: " + deskErrors[0]);
+    await desktop.close();
+
+    const handset = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+      userAgent: HANDSET,
+      isMobile: true,
+      hasTouch: true,
+      serviceWorkers: "block"
+    });
+    const phone = await handset.newPage();
+    const phoneErrors = arm(phone);
+    await prepare(phone);
+    await phone.addInitScript(() => localStorage.setItem("viktorychapp-compose-open", "1"));
+    await phone.goto(origin, { waitUntil: "domcontentloaded" });
+    await phone.waitForSelector("main.center #compose-text", { timeout: 20000 });
+    await phone.waitForSelector("#app .view-slot", { timeout: 20000 });
+    await phone.waitForSelector("button.fab", { timeout: 20000 });
+    await draftSurvives(phone, "handset", "column");
+    const empty = await phone.evaluate(() => {
       const box = document.getElementById("compose-text");
-      if (!box || !box.closest("main.center")) return { error: "compose is not in the centre column" };
-      if (!document.querySelector("#app .view-slot")) return { error: "home is not parked" };
+      if (!box) return { error: "compose is missing" };
       box.focus();
-      box.value = "still writing";
+      box.value = "";
+      const old = document.getElementById("paint-mark");
+      if (old) old.remove();
+      const mark = document.createElement("span");
+      mark.id = "paint-mark";
+      mark.textContent = "again";
+      (document.querySelector("main.center") || box.parentElement).appendChild(mark);
       window.ViktorychAccounts.requestRender("background");
       const live = document.getElementById("compose-text");
       return {
         same: live === box,
-        connected: !!(live && live.isConnected),
         focused: document.activeElement === live,
-        value: live ? live.value : ""
+        value: live ? live.value : "missing"
       };
     });
-    if (result.error) fail(result.error);
-    if (!result.same || !result.connected) fail("background paint replaced the compose box " + JSON.stringify(result));
-    if (!result.focused) fail("background paint moved focus off the compose box");
-    if (result.value !== "still writing") fail("background paint cleared the draft " + JSON.stringify(result));
-    if (errors.length) fail(errors[0]);
-    console.log("keep column ok");
+    if (empty.error) fail("handset empty: " + empty.error);
+    if (!empty.same || !empty.focused || empty.value !== "") fail("background paint dropped a focused empty field " + JSON.stringify(empty));
+    console.log("keep column ok empty focus");
+    if (phoneErrors.length) fail("handset: " + phoneErrors[0]);
+    await handset.close();
   } finally {
     await browser.close();
     server.close();

@@ -74,6 +74,8 @@
     var key = valid(code);
     if (!key || !pack) return;
     PACKS[key] = pack;
+    /* Labels written into the page itself (hidden dialogs, the offline banner) get the pack too. */
+    if (key === lang && typeof document !== "undefined") applyChrome();
     /* Code that drew before this pack arrived gets one more paint. */
     if (key === lang && listeners.length && !packNotice) {
       packNotice = setTimeout(function () {
