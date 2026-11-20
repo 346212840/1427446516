@@ -31,7 +31,8 @@ export function pickBitrate(prev, sample) {
 export const LEAD_MIN = 0.06;
 export const LEAD_MAX = 0.5;
 const LEAD_FLOOR = [0.06, 0.1, 0.16, 0.24];
-export function createPlayoutLead() {
+export function createPlayoutLead(opts) {
+  const immediate = !!(opts && opts.immediate);
   let lead = LEAD_MIN;
   let floor = LEAD_MIN;
   let calm = 0;
@@ -49,7 +50,7 @@ export function createPlayoutLead() {
         calm += dur;
         if (calm >= 20) { calm = 0; lead = Math.max(floor, lead - 0.04); }
       }
-      if (nextAt < t + 0.02) start = t + Math.max(lead, floor);
+      if (nextAt < t + 0.02) start = t + ((immediate && nextAt === 0) ? 0 : Math.max(lead, floor));
       return { start: start, next: start + dur };
     },
     floor(level) { floor = LEAD_FLOOR[Math.max(0, Math.min(3, level | 0))]; if (lead < floor) lead = floor; },

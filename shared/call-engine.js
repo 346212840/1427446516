@@ -6,7 +6,7 @@
    the listener plays that stream as is. Speech is sent in 100 ms frames,
    silence is skipped, and the Worker only mints the short-lived token. */
 import { sameLang, normalizeLang, detectLang } from "./call-langs.js";
-import { outputGains, reconnectDelay, MIC_CONSTRAINTS, micConstraints, normalizeVolumes, createTimeline } from "./call-audio.js";
+import { outputGains, reconnectDelay, MIC_CONSTRAINTS, micConstraints, normalizeVolumes, createTimeline, mergeTranscript } from "./call-audio.js";
 import { normalizeMode, transmitOriginal, playTranslatedVoice, noteShouldAutoplay } from "./call-mode.js";
 import { createVoiceMatch } from "./call-voice.js";
 import { lighterFor, cleanLexicon } from "./call-quality.js";
@@ -61,7 +61,7 @@ export function createPipe(env, opts) {
     openedAt: 0,
     via: "",
     bytes: 0,
-    lead: createPlayoutLead()
+    lead: createPlayoutLead({ immediate: !!opts.immediatePlay })
   };
   let ws = null;
   let nextAt = 0;
@@ -142,13 +142,13 @@ export function createPipe(env, opts) {
     });
     if (sc.inputTranscription && sc.inputTranscription.text) {
       if (opts.onByte) opts.onByte(pipe, "text");
-      partial.original += sc.inputTranscription.text;
+      partial.original = mergeTranscript(partial.original, sc.inputTranscription.text);
       opts.onPartial(pipe, partial);
       armIdle();
     }
     if (sc.outputTranscription && sc.outputTranscription.text) {
       if (opts.onByte) opts.onByte(pipe, "text");
-      partial.translation += sc.outputTranscription.text;
+      partial.translation = mergeTranscript(partial.translation, sc.outputTranscription.text);
       opts.onPartial(pipe, partial);
       armIdle();
     }
@@ -601,7 +601,7 @@ export function createEngine(cfg) {
   }
   function makePipe(isTx, target, voice, out) {
     const cb = pipeCallbacks(isTx);
-    const p = createPipe(env, Object.assign({ id: (isTx ? "tx" : "rx") + Date.now(), target: target, voice: voice, out: out, keepAlive: liveStreamOn() }, cb));
+    const p = createPipe(env, Object.assign({ id: (isTx ? "tx" : "rx") + Date.now(), target: target, voice: voice, out: out, keepAlive: liveStreamOn(), immediatePlay: !!(cfg.streamPlay && cfg.streamPlay()) }, cb));
     p.lead.floor(link.level);
     livePipes.add(p);
     return p;

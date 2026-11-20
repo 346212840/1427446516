@@ -6889,5 +6889,7 @@ SI18n.addPack("hi", {
   "Test calls and the statistics list show how long each translated phrase took, from when you stop talking to the first translated sound. Off hides the numbers; timing keeps running.": "टेस्ट कॉल और आँकड़ों की सूची दिखाती है कि हर अनुवादित वाक्य में कितना समय लगा, आपके चुप होने से पहली अनुवादित आवाज़ तक। बंद करने पर संख्याएँ छिप जाती हैं; माप चलता रहता है।",
   "Live stream translation": "लाइव स्ट्रीम अनुवाद",
   "The call keeps a streaming Gemini Live session open, with a quiet keep-alive, and falls back to one phrase at a time if the stream fails. Off uses only the persistent session and goes to text if it fails.": "कॉल एक स्ट्रीमिंग Gemini Live सेशन खुला रखती है, चुप keep-alive के साथ, और स्ट्रीम फेल होने पर एक-एक वाक्य पर जाती है। बंद: केवल स्थायी सेशन, फेल होने पर टेक्स्ट।",
-  "One phrase at a time": "एक-एक वाक्य"
+  "One phrase at a time": "एक-एक वाक्य",
+  "Streamed playback and captions": "स्ट्रीम प्लेबैक और कैप्शन",
+  "Translated sound starts as soon as the first audio chunk arrives, and captions appear word by word. Off waits the usual playout lead and shows each caption as a whole line.": "पहला ऑडियो टुकड़ा आते ही अनुवादित आवाज़ शुरू होती है, और कैप्शन शब्द-दर-शब्द दिखते हैं। बंद: पहली आवाज़ से पहले सामान्य देरी, और कैप्शन पूरी पंक्ति में।"
 });

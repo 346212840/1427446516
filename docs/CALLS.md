@@ -55,3 +55,7 @@ Every translated phrase is timed on the device that hears it (`createTimeline` i
 ## Live stream and turn fallback (calls_live_stream)
 
 The call already opens one Gemini Live Translate session per direction and sends speech as it is heard. With this switch on, a silent 20 ms keep-alive is sent after 45 s of quiet so a phone network does not drop the socket, and if the persistent stream fails the call does not go to text at once: each phrase is held until the speaker pauses, then sent as one Live turn. A failed one-shot turn still goes to text. Audio stays in the browser; only a short-lived token is minted. Off keeps the persistent session only, with no keep-alive, and a failed stream goes to text.
+
+## Streamed playback and word-by-word captions (calls_stream_play)
+
+With this switch on, the first translated chunk is scheduled at the audio clock (no 60 ms lead); later chunks still use the adaptive lead so a weak link does not underrun. Live captions merge each transcription update (a delta or the whole line so far) and render the growing line as words, with the newest word marked. Off keeps the 60 ms first-chunk lead and shows the caption as a plain line. Transcript merging is always on, so a cumulative update cannot repeat the start of the phrase.

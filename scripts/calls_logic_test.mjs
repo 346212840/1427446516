@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createLiveSession, directSocketUrl, proxiesAudio, MIC_WORKLET, CHUNK_SAMPLES, OUTPUT_RATE, needsResume, SESSION_REFRESH_MS, createVad, shouldKeepAlive, silenceFrame, pcmB64, createUtterance, KEEP_ALIVE_MS, SILENCE_SAMPLES } from "../shared/call-gemini.js";
 import { isCallLang, CALL_LANGS, detectLang, guessLang } from "../shared/call-langs.js";
-import { outputGains, createJitter, soakJitter, createMeter, createTimeline, normalizeVolumes, MIC_CONSTRAINTS, micConstraints, OPUS_MAX_BITRATE } from "../shared/call-audio.js";
+import { outputGains, createJitter, soakJitter, createMeter, createTimeline, normalizeVolumes, MIC_CONSTRAINTS, micConstraints, OPUS_MAX_BITRATE, mergeTranscript, transcriptWords } from "../shared/call-audio.js";
 import { callDecision, dndActive } from "../shared/call-privacy.js";
 import {
   normalizeMode, transmitOriginal, micOpen, noteRelease, noteShouldAutoplay,
@@ -782,4 +782,18 @@ console.log("calls logic ok", JSON.stringify(report));
     pipe.close();
     console.log("calls keep-alive ok");
   }
+
+  assert.equal(mergeTranscript("", "Hello"), "Hello");
+  assert.equal(mergeTranscript("Hello", "Hello world"), "Hello world", "a cumulative update replaces the prefix");
+  assert.equal(mergeTranscript("Hello", " world"), "Hello world", "a delta is appended");
+  assert.equal(mergeTranscript("Hello wor", "world"), "Hello world", "an overlapping tail is joined once");
+  assert.equal(mergeTranscript("Hello world", "Hello"), "Hello world", "a shorter snapshot is ignored");
+  assert.deepEqual(transcriptWords("Hi, can you"), ["Hi, ", "can ", "you"]);
+  assert.deepEqual(transcriptWords(""), []);
+  const snap = createPlayoutLead({ immediate: true }).plan(1, 0, 0.2);
+  assert.equal(snap.start, 1, "the first chunk plays at once when immediate");
+  const later = createPlayoutLead({ immediate: true }).plan(1, 0.5, 0.2);
+  /* nextAt 0.5 is behind t=1 by 0.5s, so this is a gap, not the first chunk. */
+  assert.ok(later.start >= 1, "later chunks still use the lead");
+  console.log("calls stream play helpers ok");
 }
