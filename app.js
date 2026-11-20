@@ -23160,6 +23160,10 @@ if (STATE.histClear) {
   let tabScrollRoute = "";
   let hscrollNav = false;
   let profileTabHold = "";
+  /* Set only by an arrow click in this view. A new route, a new selection,
+     or the first mount clears it, so a stored offset cannot hide the tab
+     a link opened. */
+  let profileArrowScroll = false;
   let hscrollTouching = false;
   let hscrollHolding = false;
   let hscrollHoldGen = 0;
@@ -23640,9 +23644,10 @@ if (STATE.histClear) {
     while (app.firstChild) app.removeChild(app.firstChild);
     app.appendChild(tpl.content);
     scheduleImageSweep();
+    const tabMemBefore = hscrollMemSnapshot();
     hscrollSettle({ reveal: true });
     if (window.ViktorychAccounts && window.ViktorychAccounts.bindProfileTabs) window.ViktorychAccounts.bindProfileTabs();
-    revealProfileTabs();
+    revealProfileTabs(tabMemBefore);
     reconcilePostPreviews();
   }
 
@@ -23671,7 +23676,14 @@ if (STATE.histClear) {
     return box.right > host.right + 8 || box.left < host.left - 8;
   }
 
-  function revealProfileTabs() {
+  function hscrollMemSnapshot() {
+    const snap = {};
+    Object.keys(hscrollActiveMem).forEach((key) => { snap[key] = hscrollActiveMem[key]; });
+    return snap;
+  }
+
+  function revealProfileTabs(beforeMem) {
+    const prior = beforeMem || null;
     const started = STATE.renderGen || 0;
     let frames = 0;
     const apply = () => {
@@ -23679,13 +23691,33 @@ if (STATE.histClear) {
       const store = hscrollStore();
       let clipped = false;
       document.querySelectorAll(".ptabs").forEach((el) => {
-        const next = revealSelectedTab(el, false);
-        if (el.scrollTo) el.scrollTo({ left: el.scrollLeft, behavior: "auto" });
         const id = el.dataset.hscrollKey || hscrollId(el, root);
         el.dataset.hscrollKey = id;
+        const active = hscrollActive(el);
+        const prev = prior && Object.prototype.hasOwnProperty.call(prior, id) ? (prior[id] || "") : "";
+        const saved = store[id];
+        /* prior is the selection from before hscrollSettle wrote the new
+           one into memory. An arrow offset is kept only after an arrow
+           click in this same view. A first mount, a new route, or a new
+           tab always brings the selected tab on screen. */
+        let selectionChanged = !!profileTabHold;
+        if (prior) {
+          if (!Object.prototype.hasOwnProperty.call(prior, id) || prev !== active) selectionChanged = true;
+        } else if (!profileArrowScroll) selectionChanged = true;
+        if (selectionChanged) profileArrowScroll = false;
+        if (profileArrowScroll && !selectionChanged && typeof saved === "number" && saved > 1) {
+          const max = Math.max(0, el.scrollWidth - el.clientWidth);
+          if (max > 1) el.scrollLeft = Math.min(saved, max);
+          else clipped = true;
+          if (active) hscrollActiveMem[id] = active;
+          return;
+        }
+        const next = revealSelectedTab(el, false);
+        if (el.scrollTo) el.scrollTo({ left: el.scrollLeft, behavior: "auto" });
         if (typeof next === "number") store[id] = next;
         el.dataset.hscrollRevealed = "1";
         if (profileTabClipped(el)) clipped = true;
+        if (active) hscrollActiveMem[id] = active;
       });
       syncTabArrows();
       return clipped;
@@ -23707,6 +23739,7 @@ if (STATE.histClear) {
     let pending = false;
     hscrollListLive(root).forEach((el) => {
       if (!el.isConnected || el.dataset.hscrollRevealed === "1") return;
+      if (el.classList.contains("ptabs") && !profileArrowScroll) return;
       const id = el.dataset.hscrollKey || hscrollId(el, root);
       el.dataset.hscrollKey = id;
       const saved = store[id];
@@ -23738,7 +23771,8 @@ if (STATE.histClear) {
       const active = hscrollActive(el);
       const prev = hscrollActiveMem[id] || "";
       const changed = !!(reveal && prev && active && prev !== active);
-      if (!changed && typeof saved === "number" && saved > 0 && Math.abs((el.scrollLeft || 0) - saved) > 1) {
+      const keepProfileArrow = !(el.classList.contains("ptabs") && !profileArrowScroll);
+      if (keepProfileArrow && !changed && typeof saved === "number" && saved > 0 && Math.abs((el.scrollLeft || 0) - saved) > 1) {
         const max = el.scrollWidth - el.clientWidth;
         if (max > 1 || el.scrollWidth > el.clientWidth) el.scrollLeft = saved;
       }
@@ -23810,10 +23844,14 @@ if (STATE.histClear) {
     const max = scroller.scrollWidth - scroller.clientWidth;
     const canLeft = max > 2 && scroller.scrollLeft > 2;
     const canRight = max > 2 && scroller.scrollLeft < max - 2;
+    const kept = scroller.scrollLeft || 0;
     // Hiding the focused arrow makes the browser drop focus and jump the
     // strip back to the start, so a key that reaches the end keeps its button.
+    // A paint replaces that button, so it is no longer focused, and hiding
+    // the new one jumps a scroll the person just made. Put that place back.
     left.hidden = !canLeft && document.activeElement !== left;
     right.hidden = !canRight && document.activeElement !== right;
+    if (kept > 1 && (scroller.scrollLeft || 0) + 1 < kept) scroller.scrollLeft = kept;
     bar.classList.toggle("is-fade-left", canLeft);
     bar.classList.toggle("is-fade-right", canRight);
     if (!(scroller.scrollLeft === 0 && max <= 1 && tabScrollLeft > 1)) {
@@ -24297,8 +24335,19 @@ if (STATE.histClear) {
   function wrapLive(app) {
     const root = document.createElement("div");
     root.className = "view-slot";
+    /* Moving a scroller into the slot resets its scrollLeft. Remember the
+       rows the person has moved, including the profile tabs, and put them
+       back after the move. */
+    const saved = [];
+    if (app.querySelectorAll) {
+      app.querySelectorAll(HSCROLL_SELECTOR).forEach((el) => {
+        const left = el.scrollLeft || 0;
+        if (left > 1) saved.push([el, left]);
+      });
+    }
     while (app.firstChild) root.appendChild(app.firstChild);
     app.appendChild(root);
+    saved.forEach((pair) => { pair[0].scrollLeft = pair[1]; });
     return root;
   }
   function parkLiveView() {
@@ -24480,6 +24529,7 @@ if (STATE.histClear) {
     if (!(route.name === "home" && STATE.tabMenu === currentTab)) STATE.tabMenu = null;
     let nextKey = routeScrollKey();
     const routeChanged = !!STATE.scrollKey && STATE.scrollKey !== nextKey;
+    if (routeChanged) profileArrowScroll = false;
     /* A render that runs after the hash moved but before the hashchange
        handler (a fetch or module repaint landing in that gap, common on slow
        CPUs) used to paint the new route at the old page's scrollY and then
@@ -25834,10 +25884,27 @@ if (route.name === "music" && window.SIntelMusic && window.SIntelMusic.titleFor)
       if (!scroller) return;
       const dir = Number(el.dataset.dir) || 1;
       const max = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+      /* The strip can be clicked in the same turn it was painted, before the
+         tabs have a width. A zero max would record a scroll of 0 and the
+         click would be lost. Try again on the next frames, then stop. */
+      if (max <= 2 && el.isConnected) {
+        const tries = Number(el.dataset.scrollTries || 0);
+        if (tries < 8) {
+          el.dataset.scrollTries = String(tries + 1);
+          const schedule = window.requestAnimationFrame || ((fn) => setTimeout(fn, 16));
+          schedule(() => { if (el.isConnected) onAct(el); });
+          return;
+        }
+      }
+      if (el.dataset) el.dataset.scrollTries = "0";
       const amount = scroller.clientWidth || 240;
       const next = Math.max(0, Math.min(max, scroller.scrollLeft + dir * amount));
       const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const profile = scroller.classList && scroller.classList.contains("ptabs");
+      if (profile) {
+        profileTabHold = "";
+        profileArrowScroll = true;
+      }
       tabScrollLeft = next;
       tabScrollRoute = routeScrollKey();
       if (profile || reduced || !scroller.scrollTo) scroller.scrollLeft = next;
