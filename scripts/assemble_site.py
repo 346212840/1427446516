@@ -316,14 +316,24 @@ def commit_built(sha: str, root: Path | None = None) -> str:
         return ""
 
 
+SOURCE_STAMP = "// cache-bust: source"
+
+
+def apply_worker_stamp(text: str, sha: str, built: str = "") -> str:
+    """Write the publish sha into the worker. The source line stays fixed in git."""
+    if sha:
+        text = text.replace("__SW_VERSION__", sha)
+        text = text.replace(SOURCE_STAMP, "// cache-bust: " + sha)
+    if built:
+        text = text.replace("__SW_BUILT__", built)
+    return text
+
+
 def stamp_worker(dest: Path, sha: str) -> None:
     worker = dest / "sw.js"
     if not worker.is_file() or not sha:
         return
-    text = worker.read_text(encoding="utf-8").replace("__SW_VERSION__", sha)
-    built = commit_built(sha)
-    if built:
-        text = text.replace("__SW_BUILT__", built)
+    text = apply_worker_stamp(worker.read_text(encoding="utf-8"), sha, commit_built(sha))
     worker.write_text(text, encoding="utf-8")
 
 
@@ -433,6 +443,17 @@ def selftest() -> int:
             if not (built / name).is_file():
                 print("real build left out " + name)
                 return 1
+        source_stamps = [line for line in (ROOT / "sw.js").read_text(encoding="utf-8").splitlines() if line.startswith("// cache-bust:")]
+        if source_stamps != [SOURCE_STAMP]:
+            print("source stamp " + repr(source_stamps))
+            return 1
+        import subprocess
+        sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+        stamp_worker(built, sha)
+        stamped = (built / "sw.js").read_text(encoding="utf-8")
+        if ("// cache-bust: " + sha) not in stamped or SOURCE_STAMP in stamped or "__SW_VERSION__" in stamped:
+            print("built worker did not take the publish stamp")
+            return 1
     finally:
         shutil.rmtree(built, ignore_errors=True)
     print("assemble_site: shell files " + str(len(files)))

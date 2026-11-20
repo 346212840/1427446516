@@ -148,7 +148,7 @@ function startServer() {
       if (rel === "/sw.js") {
         const swSha = state.swSha || state.version;
         const swBuilt = state.swBuilt || state.built;
-        body = Buffer.from(data.toString("utf8").replaceAll("__SW_VERSION__", swSha).replaceAll("__SW_BUILT__", swBuilt));
+        body = Buffer.from(data.toString("utf8").replaceAll("__SW_VERSION__", swSha).replaceAll("__SW_BUILT__", swBuilt).replaceAll("// cache-bust: source", "// cache-bust: " + swSha));
       }
       res.writeHead(200, { ...headers, "content-type": mime(file) });
       res.end(body);

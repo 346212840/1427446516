@@ -187,10 +187,8 @@ def _overlay(root: Path, dest: Path) -> None:
     worker = dest / "sw.js"
     if worker.is_file():
         sha = _head_sha(root)
-        text = worker.read_text(encoding="utf-8").replace("__SW_VERSION__", sha)
         built = assembler.commit_built(sha, root) if hasattr(assembler, "commit_built") else ""
-        if built:
-            text = text.replace("__SW_BUILT__", built)
+        text = assembler.apply_worker_stamp(worker.read_text(encoding="utf-8"), sha, built)
         worker.write_text(text, encoding="utf-8")
     assembler.verify_site(dest, assembler.shell_files(root))
 

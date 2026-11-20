@@ -62,7 +62,7 @@ Queued work, in order:
 
 ## Merge queue: one coordinator
 
-Why things stall: about twenty workers push PRs at once. Every PR bumps the `// cache-bust:` stamp line in `sw.js` and appends strings to the end of the `i18n/*.js` packs, so each merge makes most other open PRs conflict (DIRTY). Every rebase starts a new CI run, the Actions concurrency limit lets only a few run at a time, and the queue grows faster than it drains. Main does not require branches to be up to date, so only real conflicts block a merge.
+Why things stall: about twenty workers push PRs at once. Open PRs used to bump the same `// cache-bust:` line in `sw.js`, and they still append strings to the end of the `i18n/*.js` packs, so each merge makes most other open PRs conflict (DIRTY). The stamp line now stays `// cache-bust: source` and publish writes the commit sha. Every rebase starts a new CI run, the Actions concurrency limit lets only a few run at a time, and the queue grows faster than it drains. Main does not require branches to be up to date, so only real conflicts block a merge.
 
 Rules:
 1. One coordinator merges. Workers push commits to their own PR branch and stop; they never run `ship.sh`, auto-ship loops or `gh pr merge` themselves. The coordinator stops leftover per-PR loops by their exact PID and takes those PRs into its queue.
@@ -70,7 +70,7 @@ Rules:
 3. Merge order: small fixes first, then features, then large or risky work. Leave Dependabot PRs and anything touching `.github/workflows/` or dependencies for the owner. A PR whose checks take a long time goes in a quiet window when nothing else will merge.
 4. Merge one PR at a time with `/workspace/ship.sh <pr>` (squash, `--match-head-commit`). Only PRs that are green and not DIRTY merge.
 5. Rebasing a DIRTY PR: work in a separate worktree. Fetch the branch first and note its head sha, rebase onto `origin/main`, and keep both sides' intent.
-   - `sw.js`: start from main's file and re-apply only that PR's own lines. For the stamp line, keep one `// cache-bust:` line with a fresh time and the PR's label.
+   - `sw.js`: start from main's file and re-apply only that PR's own lines. Leave one stamp line, `// cache-bust: source`. Publish writes the commit sha.
    - `i18n/*.js` and `scripts/i18n_allow.txt`: keep both sides (main's entries first, then the PR's) and fix the comma between them.
    - Every new English string needs `ru`, `es` and `hi` entries; run `python3 scripts/check_i18n.py`.
    - Run the quick checks from the smoke workflow (`check_i18n.py`, `assemble_site.py --selftest`, `handle_guard.py --selftest`) before you push.

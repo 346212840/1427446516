@@ -186,6 +186,7 @@ assert(appCode.includes('if (id === "customize") return { id: id, href: "", icon
 assert(appCode.includes('data-act="drawer-edit"'), "the Customize page must keep its Edit menu row");
 console.log("  Legacy entry guard OK");
 
+function DRAWER_ALL_BUT_HOME(d) { return Object.keys(d.DRAWER_NAV).filter((id) => ["home", "settings", "logout", "customize"].indexOf(id) < 0 && id !== "calls" && id !== "contacts"); }
 // Calls and Contacts in the sidebar, the phone menu and the bottom bar, including for layouts saved before they existed.
 {
   console.log("  Checking Calls and Contacts reach saved layouts...");
@@ -210,14 +211,45 @@ console.log("  Legacy entry guard OK");
   // A menu saved before v2 had Calls appended at the end (behind More).
   const old = drawer.cleanDrawerMenu({ order: ["home", "explore", "notifications", "profile", "tv", "messages", "calls", "contacts"], hidden: [], sections: [], popup: ["settings", "logout"] });
   assert.deepStrictEqual(old.order.slice(0, 5), ["home", "explore", "notifications", "calls", "contacts"], "an old saved menu lifts Calls under Notifications");
-  assert.strictEqual(old.v, 2);
+  assert.strictEqual(old.v, 3);
   // Once stamped, the person's own placement is kept.
-  const mine = drawer.cleanDrawerMenu({ v: 2, order: ["home", "calls", "explore", "notifications"], hidden: [], sections: [], popup: ["settings", "logout"] });
+  const mine = drawer.cleanDrawerMenu({ v: 3, order: ["home", "calls", "explore", "notifications"], hidden: [], sections: [], popup: ["settings", "logout"] });
   assert.strictEqual(mine.order[1], "calls");
-  const hid = drawer.cleanDrawerMenu({ order: ["home", "calls"], hidden: ["calls"], sections: [], popup: ["settings", "logout"] });
+  const hid = drawer.cleanDrawerMenu({ v: 3, order: ["home", "calls"], hidden: ["calls"], sections: [], popup: ["settings", "logout"] });
   assert(hid.hidden.includes("calls"), "hiding Calls in the menu sticks");
-  const missing = drawer.cleanDrawerMenu({ v: 2, order: ["home", "explore"], hidden: [], sections: [], popup: ["settings", "logout"] });
+  const missing = drawer.cleanDrawerMenu({ v: 3, order: ["home", "explore"], hidden: [], sections: [], popup: ["settings", "logout"] });
   assert(missing.order.includes("calls") && missing.order.includes("contacts"), "an id missing from a saved menu is appended");
+
+  // The owner's phone: Calls and Contacts hidden, Notifications hidden, Vault and History in the popup, saved as v2.
+  const his = {
+    v: 2,
+    sections: [{ id: "f1", name: "Folder", emoji: "", items: ["calls", "bookmarks"] }],
+    order: ["home", "explore", "notifications", "profile", "messages", "section:f1", "feeds", "subscriptions", "storage", "games", "music", "packages", "audiostudio"],
+    hidden: ["explore", "notifications", "calls", "contacts", "profile"],
+    popup: ["settings", "vault", "history", "logout"]
+  };
+  const migrated = drawer.cleanDrawerMenu(his);
+  assert.strictEqual(migrated.v, 3);
+  ["calls", "contacts"].forEach((id) => {
+    assert(!migrated.hidden.includes(id), id + " is unhidden once");
+    assert(!migrated.popup.includes(id) && migrated.sections.every((sec) => !sec.items.includes(id)), id + " is in the main list");
+    assert(migrated.order.includes(id));
+  });
+  assert.deepStrictEqual(migrated.order.slice(0, 4), ["home", "calls", "contacts", "explore"], "with Notifications hidden they follow the first visible main item (Home)");
+  assert(migrated.hidden.includes("notifications") && migrated.popup.includes("vault"), "the rest of his choices stay");
+  // Re-cleaning the stamped result changes nothing, and a hide after v3 sticks.
+  assert.deepStrictEqual(drawer.cleanDrawerMenu(migrated), migrated);
+  const hiddenAfter = drawer.cleanDrawerMenu(Object.assign({}, migrated, { hidden: migrated.hidden.concat(["calls"]) }));
+  assert(hiddenAfter.hidden.includes("calls"), "a hide after v3 stays hidden");
+  // Notifications visible: they go right under it, in a v1 menu without v too.
+  const nv = drawer.cleanDrawerMenu({ order: ["home", "explore", "notifications", "profile"], hidden: ["calls"], popup: ["settings", "logout"], sections: [] });
+  assert.deepStrictEqual(nv.order.slice(0, 5), ["home", "explore", "notifications", "calls", "contacts"]);
+  // Only Home visible: still reachable.
+  const lone = drawer.cleanDrawerMenu({ v: 2, order: ["home"], hidden: DRAWER_ALL_BUT_HOME(drawer), popup: ["settings", "logout"], sections: [] });
+  assert(lone.order.indexOf("calls") > 0 && !lone.hidden.includes("calls"));
+  // Settings always carries a Calls row, and the sidebar migration is wired.
+  assert(/settingsRow\("#\/calls", tr\("Calls"\)/.test(appCode), "Settings lists Calls");
+  assert(/navCustom\.hidden = parsed\.navCustom\.hidden\.filter\(\(id\) => id !== "calls"/.test(appCode), "a sidebar saved with Calls hidden is unhidden once");
 
   assert(/const BOTTOM_NAV_IDS = \[[^\]]*"calls"/.test(appCode), "the bottom bar can pin Calls");
   console.log("  Calls and Contacts OK");

@@ -13,7 +13,7 @@ description: "Git and shipping rules: branches, PRs, one merge at a time, live v
 - Run the quick checks before pushing: `python3 scripts/check_i18n.py`, `python3 scripts/assemble_site.py --selftest`, `python3 scripts/handle_guard.py --selftest`, plus tests for what you touched (`python3 scripts/selftest.py`, `cd worker && npm test`, the matching `scripts/*_test.mjs`).
 - Merge only when the PR is `CLEAN` and every check is success or skipped: `gh pr merge <n> --squash --match-head-commit <sha>`. One merge in flight at a time across all agents and people.
 - After each merge verify live before the next one: deploy runs for the new main commit succeed, the live `version.json` shows main's commit, and `/v1/watchdog` returns 200 (`/verify-live`).
-- `sw.js`: bump the line-7 stamp `// cache-bust: <UTC ISO>-<label>` above main's only when cached files change. On conflict take main's file and bump above it (`/resolve-sw-conflict`).
+- `sw.js`: leave line 7 as `// cache-bust: source`. Publish writes the commit sha there. On conflict take main's file and keep that one line (`/resolve-sw-conflict`).
 - D1 migration numbers in `worker/migrations/` must be unique and above the latest on main.
 - Failed Actions are never abandoned: investigate, fix, re-run (`/triage-failed-actions`). TikTok workflows stay enabled.
 - Leave Dependabot PRs, workflow or dependency changes, payments and data deletion for the owner.

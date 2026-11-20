@@ -207,7 +207,9 @@ jobs:
           rm -rf _site
           python3 scripts/assemble_site.py --site _site
           export VERSION_BUILT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          if [ -n "${GITHUB_SHA:-}" ]; then sed -i "s|__SW_VERSION__|${GITHUB_SHA}|g; s|__SW_BUILT__|${VERSION_BUILT}|g" _site/sw.js; fi
+          # GitHub Pages and pages.dev both upload this _site, so one rewrite
+          # stamps the worker on both hosts. The sha changes on every commit.
+          if [ -n "${GITHUB_SHA:-}" ]; then sed -i "s|__SW_VERSION__|${GITHUB_SHA}|g; s|__SW_BUILT__|${VERSION_BUILT}|g; s|// cache-bust: source|// cache-bust: ${GITHUB_SHA}|" _site/sw.js; fi
           mkdir -p version-next
           python3 scripts/write_version.py --out version-next/version.json
           python3 scripts/write_version.py --previous --out _site/version.json
