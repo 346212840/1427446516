@@ -6835,5 +6835,13 @@ SI18n.addPack("hi", {
   "Means": "मतलब",
   "Typed message preview": "टाइप किए संदेश का पूर्वावलोकन",
   "While you type to someone on a call, a card shows what they will read and what it means. Off removes the card and sends at once.": "कॉल पर किसी को टाइप करते समय एक कार्ड दिखाता है कि वे क्या पढ़ेंगे और उसका मतलब क्या है। बंद करने पर कार्ड हट जाता है और संदेश तुरंत जाता है।",
-  "Couldn’t remove this account. It is back in the list.": "यह खाता हटाया नहीं जा सका। यह फिर से सूची में है।"
+  "Couldn’t remove this account. It is back in the list.": "यह खाता हटाया नहीं जा सका। यह फिर से सूची में है।",
+  "Sort live accounts": "लाइव खाते क्रमबद्ध करें",
+  "Most viewers": "सबसे ज़्यादा दर्शक",
+  "Fewest viewers": "सबसे कम दर्शक",
+  "Newest first": "सबसे नया पहले",
+  "A–Z": "A–Z",
+  "Just went live": "अभी लाइव हुआ",
+  "Seen live for {time}": "{time} से लाइव देखा गया",
+  "{h} h {m} min": "{h} घं {m} मिनट"
 });

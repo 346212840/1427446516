@@ -254,6 +254,30 @@ const tied = shorts.orderLiveNow([
   { handle: "a_name", live: true, viewers: 5 }
 ], ["b_name", "a_name"]);
 assert.strictEqual(tied[0].handle, "b_name");
+const sortRows = [
+  { handle: "big", live: true, viewers: 90, since: 1000 },
+  { handle: "small", live: true, viewers: 3, since: 3000 },
+  { handle: "mid", live: true, viewers: 30, since: 2000 },
+  { handle: "old", live: false, lastLiveAt: "2026-11-01T10:00:00Z" },
+  { handle: "recent", live: false, lastLiveAt: "2026-11-19T10:00:00Z" },
+  { handle: "aaa", live: false }
+];
+const names = (mode) => shorts.orderLiveNow(sortRows, [], mode).map((row) => row.handle);
+assert.deepStrictEqual(names("few"), ["small", "mid", "big", "recent", "old", "aaa"], "fewest viewers first, then the most recently live");
+assert.deepStrictEqual(names("most"), ["big", "mid", "small", "recent", "old", "aaa"], "most viewers first");
+assert.deepStrictEqual(names("recent"), ["small", "mid", "big", "recent", "old", "aaa"], "newest live first");
+assert.deepStrictEqual(names("name"), ["big", "mid", "small", "aaa", "old", "recent"], "A to Z keeps live on top");
+assert.strictEqual(shorts.setLiveSortMode("nope"), "few", "an unknown sort falls back to the default");
+assert.strictEqual(shorts.setLiveSortMode("most"), "most");
+assert.strictEqual(shorts.liveSortMode(), "most", "the sort is remembered");
+shorts.setLiveSortMode("few");
+const oldT = global.window && global.window.t;
+if (global.window) global.window.t = (key, vars) => String(key).replace(/\{(\w+)\}/g, (m, name) => (vars && vars[name] != null ? vars[name] : m));
+assert.strictEqual(shorts.sinceText(0), "");
+assert.ok(/Just went live/.test(shorts.sinceText(Date.now() - 5000)));
+assert.ok(/Seen live for 12 min/.test(shorts.sinceText(Date.now() - 12 * 60000 - 500)));
+assert.ok(/Seen live for 1 h 5 min/.test(shorts.sinceText(Date.now() - 65 * 60000 - 500)));
+if (global.window) global.window.t = oldT;
 shorts.setLiveState([
   { handle: "lockclip", live: true, viewers: 40 },
   { handle: "sampleclip", live: true, viewers: 2 }

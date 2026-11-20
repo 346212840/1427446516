@@ -6847,5 +6847,13 @@ SI18n.addPack("ru", {
   "Means": "Значит",
   "Typed message preview": "Предпросмотр набранных сообщений",
   "While you type to someone on a call, a card shows what they will read and what it means. Off removes the card and sends at once.": "Пока вы пишете собеседнику в звонке, карточка показывает, что он прочтёт и что это значит. Выключено: карточки нет, сообщение уходит сразу.",
-  "Couldn’t remove this account. It is back in the list.": "Не удалось удалить аккаунт. Он снова в списке."
+  "Couldn’t remove this account. It is back in the list.": "Не удалось удалить аккаунт. Он снова в списке.",
+  "Sort live accounts": "Сортировка эфиров",
+  "Most viewers": "Больше зрителей",
+  "Fewest viewers": "Меньше зрителей",
+  "Newest first": "Сначала новые",
+  "A–Z": "А–Я",
+  "Just went live": "Только что начал",
+  "Seen live for {time}": "В эфире уже {time}",
+  "{h} h {m} min": "{h} ч {m} мин"
 });

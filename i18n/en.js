@@ -6845,5 +6845,13 @@ SI18n.addPack("en", {
   "Means": "Means",
   "Typed message preview": "Typed message preview",
   "While you type to someone on a call, a card shows what they will read and what it means. Off removes the card and sends at once.": "While you type to someone on a call, a card shows what they will read and what it means. Off removes the card and sends at once.",
-  "Couldn’t remove this account. It is back in the list.": "Couldn’t remove this account. It is back in the list."
+  "Couldn’t remove this account. It is back in the list.": "Couldn’t remove this account. It is back in the list.",
+  "Sort live accounts": "Sort live accounts",
+  "Most viewers": "Most viewers",
+  "Fewest viewers": "Fewest viewers",
+  "Newest first": "Newest first",
+  "A–Z": "A–Z",
+  "Just went live": "Just went live",
+  "Seen live for {time}": "Seen live for {time}",
+  "{h} h {m} min": "{h} h {m} min"
 });
