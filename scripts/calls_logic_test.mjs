@@ -591,3 +591,44 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.equal(none.start(), false);
   console.log("calls pip ok");
 }
+
+// Test call with Hear my translation: five spoken turns in a row, each followed by the speakers playing the translation back
+// into the microphone. The echo must not open the gate, so the budget is never spent on it and every turn is still sent.
+{
+  const { createLiveSession, LOOP_GATE } = await import("../shared/call-gemini.js");
+  const tone = (rms, n) => { const out = new Int16Array(n); for (let i = 0; i < n; i++) out[i] = Math.round(Math.sin(i / 6) * rms * 1.4142 * 32768); return out; };
+  const speech = tone(0.1, 1600);
+  const echo = tone(0.04, 1600);
+  const room = tone(0.002, 1600);
+  const run = (loopFlag) => {
+    const s = createLiveSession();
+    s.ring(0); s.ready(0);
+    let t = 0;
+    const turns = [];
+    for (let turn = 0; turn < 6; turn++) {
+      let sent = 0;
+      for (let i = 0; i < 100; i++) { t += 100; if (s.onSpeech(speech, t, false).send) sent++; }      // 10 s of the person talking
+      for (let i = 0; i < 100; i++) { t += 100; s.onSpeech(echo, t, loopFlag ? "loop" : false); }     // 10 s of their translation coming back
+      for (let i = 0; i < 80; i++) { t += 100; s.onSpeech(room, t, false); }                          // a short pause
+      turns.push(sent);
+    }
+    return { turns, phase: s.phase() };
+  };
+  const guarded = run(true);
+  assert.ok(guarded.turns.every((n) => n >= 90), "every one of 6 turns is sent with the echo guard: " + guarded.turns);
+  assert.notEqual(guarded.phase, "text", "the budget is not spent on echo");
+  assert.ok(LOOP_GATE > 0.04, "the echo level stays under the loop gate");
+  const unguarded = run(false);
+  assert.ok(unguarded.turns.some((n) => n < 90), "without the guard the echo spends the budget and a later turn is lost: " + unguarded.turns);
+  // A pause from the budget lifts by itself.
+  const s = createLiveSession();
+  s.ring(0); s.ready(0);
+  let t = 0;
+  for (let i = 0; i < 400; i++) { t += 100; s.onSpeech(speech, t, false); }
+  assert.equal(s.phase(), "text", "40 s of talking in a minute pauses voice");
+  assert.equal(s.recover(t), false, "not yet");
+  t += 45000;
+  assert.equal(s.recover(t), true, "voice returns once the last minute is quiet");
+  assert.equal(s.onSpeech(speech, t + 100, false).send, true, "and the next turn is sent");
+  console.log("calls echo loop ok", guarded.turns.join(","), "| unguarded", unguarded.turns.join(","));
+}

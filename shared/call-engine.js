@@ -282,7 +282,7 @@ export function createPipe(env, opts) {
   }
   pipe.open = connect;
   /* True while translated speech is still playing aloud on this device. */
-  pipe.playing = () => !!(env.ac && nextAt > env.ac.currentTime);
+  pipe.playing = () => !!(env.ac && nextAt + 0.45 > env.ac.currentTime);
   /* The network came back or changed: do not wait out the back-off. */
   pipe.nudge = () => {
     if (pipe.closed || connecting) return;
@@ -668,16 +668,19 @@ export function createEngine(cfg) {
     const diarVoice = heard && heard.speaker && ears.speakers().length > 1 ? heard.speaker.voice : "";
     const picked = cfg.voiceOverride() || diarVoice || (match.source === "pitch" ? match.voice : "");
     if (picked) wantVoice = picked;
-    if (!rx || !rx.ready) { live.onSpeech(pcm, now(), quietOff()); return; }
+    /* In a test call these frames came out of this device's own microphone, so while its translation plays aloud they
+       carry that sound back. Only clearly louder speech may open the gate then, or the call translates itself. */
+    const loop = cfg.micLoop && rx && rx.playing && rx.playing() ? "loop" : quietOff();
+    if (!rx || !rx.ready) { live.onSpeech(pcm, now(), loop); return; }
     if (heard && heard.overlap) return;
-    const d = live.onSpeech(pcm, now(), quietOff());
+    const d = live.onSpeech(pcm, now(), loop);
     if (d.send) {
       (d.chunks && d.chunks.length ? d.chunks : [pcm]).forEach((c) => rx.send(c));
       lastSpeechAt = now();
       rxFlushed = false;
       if (!speaking) { speaking = true; emit("speaking", { who: "peer", on: true }); }
     } else {
-      if (d.reason === "quota") { degrade("quota"); return; }
+      if (d.reason === "quota") { degrade("quota", true); return; }
       if (speaking) { speaking = false; emit("speaking", { who: "peer", on: false }); }
       if (!rxFlushed && now() - lastSpeechAt > 1800) { rx.flush(); rxFlushed = true; maybeSwapVoice(); }
     }
@@ -694,8 +697,9 @@ export function createEngine(cfg) {
      owner switch calls_quiet_voice, and strict (the old fixed gate) while sound is playing aloud, so an echo never opens it. */
   function quietOff() { return !!(cfg.quietVoice && !cfg.quietVoice()); }
   function onOwnFrame(pcm) {
+    const loop = !!(cfg.otherPlaying && cfg.otherPlaying());
     const aloud = speaking || (rx && rx.playing && rx.playing());
-    const d = sendLive.onSpeech(pcm, now(), quietOff() || !!aloud);
+    const d = sendLive.onSpeech(pcm, now(), loop ? "loop" : (quietOff() || !!aloud));
     const on = !!d.send;
     if (on !== ownSpeaking) { ownSpeaking = on; emit("speaking", { who: "me", on: on }); }
     if (!tx || !tx.ready) return;
@@ -786,6 +790,14 @@ export function createEngine(cfg) {
     try { if (navigator.connection && navigator.connection.addEventListener) navigator.connection.addEventListener("change", onNetwork); } catch (err) { /* no Network Information API */ }
     every(2000, () => { if (ac && ac.state !== "running" && ac.state !== "closed" && document.visibilityState !== "hidden") ac.resume().catch(() => {}); });
     every(4000, adaptLink);
+    /* A pause from the local speech budget lifts by itself once the last minute is quiet. */
+    every(2500, () => {
+      if (!degraded || !localPause || ended) return;
+      const t = now();
+      const a = live.recover(t);
+      const b = sendLive.recover(t);
+      if ((a || live.phase() !== "text") && (b || sendLive.phase() !== "text")) { localPause = false; E.retryTranslation(); }
+    });
     applyGains();
     await connectSignal();
     ensureRx();
@@ -882,6 +894,7 @@ export function createEngine(cfg) {
     try { if (ac && ac.setSinkId && id != null) await ac.setSinkId(id); } catch (err) { /* keep the speaker */ }
   };
   E.degraded = () => degraded;
+  E.playing = () => !!(rx && rx.playing && rx.playing());
   /* After a key is saved: try translation again without ending the call. */
   E.retryTranslation = () => {
     if (!degraded || ended) { ensureRx(); ensureTx(); return; }
@@ -891,9 +904,11 @@ export function createEngine(cfg) {
     ensureTx();
     applyGains();
   };
-  function degrade(reason) {
+  let localPause = false;
+  function degrade(reason, local) {
     if (degraded) return;
     degraded = true;
+    localPause = !!local;
     if (rx) { rx.finish(); rx.close(); rx = null; }
     if (tx) { tx.finish(); tx.close(); tx = null; }
     announce();

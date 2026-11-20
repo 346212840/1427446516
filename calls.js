@@ -549,7 +549,7 @@ function testPanel() {
   return `<section class="calls-test" data-test>
     <h3>${esc(tr("Test partner"))}</h3>
     <label class="calls-vol"><span>${esc(tr("Partner speaks"))}</span><select data-act="call-test-lang">${langOptions(t.lang)}</select></label>
-    <button type="button" class="calls-pill${t.hear ? " on" : ""}" data-act="call-test-hear" aria-pressed="${t.hear ? "true" : "false"}">${esc(tr("Hear the partner side (use headphones)"))}</button>
+    ${hearSwitch(t)}
     <div class="calls-thread">${lines}</div>
     <div class="calls-quick">${replies}</div>
     <form class="calls-type" data-act="call-test-form"><input name="text" maxlength="500" aria-label="${esc(tr("Reply as the partner"))}" placeholder="${esc(tr("Reply as the partner"))}" autocomplete="off"></form>
@@ -652,12 +652,17 @@ function chipsHtml() {
   if (info && info.source) parts.push([tr("Key"), info.source === "owner" ? tr("Owner") : tr("Yours")]);
   return parts.map((row) => `<span class="calls-chip"><i>${esc(row[0])}</i>${esc(row[1])}</span>`).join("");
 }
+/* One clear on/off switch, always on its own row at the top of the test controls, so it is never hidden or pushed off a narrow phone. */
+function hearSwitch(t) {
+  const on = !!(t && t.hear);
+  return `<button type="button" class="calls-switch${on ? " on" : ""}" role="switch" aria-checked="${on ? "true" : "false"}" data-act="call-test-hear" data-hear-switch title="${esc(tr("Hear my translation (use headphones)"))}"><span class="calls-switch-track" aria-hidden="true"><i></i></span><span class="calls-switch-label">${esc(tr("Hear my translation"))}</span><b class="calls-switch-state">${esc(on ? tr("On") : tr("Off"))}</b></button>`;
+}
 function testStrip() {
   if (!state.test) return "";
   const t = state.test;
   return `<div class="calls-teststrip" data-teststrip>
     <label class="calls-tl"><span>${esc(tr("Translate me into"))}</span><select data-act="call-test-lang">${langOptions(t.lang)}</select></label>
-    <button type="button" class="calls-pill${t.hear ? " on" : ""}" data-act="call-test-hear" aria-pressed="${t.hear ? "true" : "false"}" title="${esc(tr("Hear my translation (use headphones)"))}">${ico("speaker")}<span>${esc(tr("Hear my translation"))}</span></button>
+    ${hearSwitch(t)}
     <button type="button" class="cb sm calls-info${state.testInfo ? " on" : ""}" data-act="call-test-info" aria-pressed="${state.testInfo ? "true" : "false"}" aria-label="${esc(tr("Call details"))}" title="${esc(tr("Call details"))}">${ico("info")}</button>
     <div class="calls-chips" data-testchips${state.testInfo ? "" : " hidden"}>${chipsHtml()}</div>
     <p class="calls-privacy">${esc(tr("Speak and you hear your own words translated, with captions. Use headphones to avoid echo."))}</p>
@@ -1562,6 +1567,7 @@ function engineConfig(extra) {
     speakerOn: () => state.speakerOn,
     connection: () => navigator.connection || {},
     quietVoice: quietVoiceOn,
+    otherPlaying: () => !!(state.test && state.test.hear && state.partner && state.partner.playing && state.partner.playing()),
     relayFirst: relayFirst,
     relayUrl: (tokenValue) => apiBase() + "/v1/calls/live?t=" + encodeURIComponent(tokenValue),
     audioContext: () => audioUnlock.get(),
@@ -1968,6 +1974,7 @@ async function startPartner(invite) {
   const eng = createEngine(engineConfig({
     api: (path, init) => api(path, Object.assign({}, init || {}, { headers: { "content-type": "application/json", "x-call-guest": guestToken } })),
     getMode: () => partnerMode,
+    micLoop: true,
     getVolumes: () => normalizeVolumes({ overall: state.test && state.test.hear ? 1 : 0, translation: state.test && state.test.hear ? 0.9 : 0, tts: 0 }),
     getLang: () => (state.test ? state.test.lang : "en"),
     getName: () => tr("Test partner"),

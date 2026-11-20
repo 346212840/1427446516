@@ -70,6 +70,8 @@ function levelOf(samples) {
    the feature is off) puts the old fixed gate back, so the speaker's own
    echo never opens it. */
 export const LOUD_GATE = 0.02;
+/* Test call with Hear my translation: the speakers play your translation, so only clearly louder speech may open the gate. */
+export const LOOP_GATE = 0.06;
 export const MIN_GATE = 0.0025;
 export const SPEECH_OVER_FLOOR = 2.5;
 export const FLOOR_WINDOW = 50;
@@ -106,7 +108,7 @@ export function createVad() {
     out: [],
     gate(samples, strict) {
       const level = levelOf(samples);
-      let gate = LOUD_GATE;
+      let gate = strict === "loop" ? LOOP_GATE : LOUD_GATE;
       if (!strict) {
         /* The floor is the quietest frame of the last few seconds: speech has pauses, noise does not go away. It drops at
            once and climbs slowly, so starting to talk right away never turns the first words into "noise". */
@@ -159,6 +161,7 @@ export function createQuota() {
   const marks = [];
   let warned = false;
   let degraded = false;
+  let hard = false;
   function windowMs(now) {
     let sum = 0;
     for (let i = marks.length - 1; i >= 0; i--) {
@@ -177,6 +180,14 @@ export function createQuota() {
     fail() {
       warned = true;
       degraded = true;
+      hard = true;
+    },
+    /* Running over the budget pauses voice, it does not end it: once the last minute is quiet again voice comes back. */
+    recover(now) {
+      if (!degraded || hard || windowMs(now) >= 12000) return false;
+      degraded = false;
+      warned = false;
+      return true;
     },
     report(now, callStart) {
       let speech = 0;
@@ -200,6 +211,7 @@ export function createLiveSession() {
   let warmedAt = 0;
   let handle = "";
   let openedAt = 0;
+  let quotaPaused = false;
   return {
     ring(now) {
       if (phase === "idle") {
@@ -221,6 +233,13 @@ export function createLiveSession() {
     warm() {
       return phase === "ready" || phase === "live";
     },
+    /* True when a local-budget pause is over and voice is back. */
+    recover(now) {
+      if (phase !== "text" || !quotaPaused || !quota.recover(now)) return false;
+      phase = openedAt ? "live" : "ready";
+      quotaPaused = false;
+      return true;
+    },
     onSpeech(samples, now, strict) {
       if (phase === "text") return { send: false, reason: "text" };
       if (!vad.gate(samples, strict)) return { send: false, reason: "vad" };
@@ -228,6 +247,7 @@ export function createLiveSession() {
       const usage = quota.report(now, openedAt || warmedAt || now);
       if (usage.degraded) {
         phase = "text";
+        quotaPaused = true;
         return { send: false, reason: "quota", usage: usage };
       }
       if (phase === "ready") phase = "live";
