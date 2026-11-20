@@ -14,6 +14,7 @@ import { pickBitrate, setAudioSession, createPlayoutLead } from "./call-mobile.j
 import { createLiveSession, MIC_WORKLET, OUTPUT_RATE, CHUNK_MS, shouldKeepAlive, pcmB64, silenceFrame, createUtterance, KEEP_ALIVE_MS } from "./call-gemini.js";
 import { createDiarizer } from "./call-speakers.js";
 import { createChatOutbox, CHAT_FAIL_MS } from "./call-chat.js";
+import { iceAlreadyUp, signalOpenRestores } from "./call-status.js";
 
 const IDLE_LINE_MS = 1500;
 const DIRECT_WAIT_MS = 3500;
@@ -484,24 +485,45 @@ export function createEngine(cfg) {
   function announce() { signal(modePacket()); }
   E.announce = announce;
 
+  let sigGen = 0;
+  function quietCloseSig() {
+    const prev = sig;
+    sig = null;
+    if (!prev) return;
+    prev.onclose = () => {};
+    prev.onerror = () => {};
+    prev.onmessage = () => {};
+    try { if (prev.readyState < 2) prev.close(); } catch (err) { /* already closed */ }
+  }
   async function connectSignal() {
     if (ended || !call) return;
+    const gen = ++sigGen;
+    quietCloseSig();
     const base = cfg.apiBase().replace(/^http/i, "ws");
     let ticket = call.ticket;
     call.ticket = "";
     if (!ticket) {
       const res = await cfg.api("/v1/calls/" + call.id + "/ticket", { method: "POST", body: "{}" }).catch(() => null);
+      if (ended || gen !== sigGen) return;
       ticket = res && res.ok && res.data && res.data.ticket;
       if (res && res.data && res.data.iceServers && pc) { /* keep current ICE servers */ }
     }
     if (!ticket) { scheduleSignal(); return; }
     let ws = null;
     try { ws = new WebSocket(base + "/v1/calls/" + call.id + "/signal?ticket=" + encodeURIComponent(ticket)); } catch (err) { scheduleSignal(); return; }
+    if (ended || gen !== sigGen) { try { ws.close(); } catch (err) { /* replaced */ } return; }
     sig = ws;
-    ws.onopen = () => { sigAttempt = 0; flushChat(); };
+    ws.onopen = () => {
+      if (sig !== ws) return;
+      sigAttempt = 0;
+      flushChat();
+      const ice = pc ? pc.iceConnectionState : "";
+      if (signalOpenRestores(ice, !!(peer && peer.joined))) emit("status", { code: "connected" });
+    };
     ws.onmessage = (event) => onSignal(String(event.data || ""));
     ws.onclose = () => {
       if (sig === ws) sig = null;
+      else return;
       if (!ended) { emit("status", { code: "reconnecting" }); scheduleSignal(); }
     };
     ws.onerror = () => { /* close follows */ };
@@ -949,13 +971,11 @@ export function createEngine(cfg) {
     sigAttempt = 0;
     if (!sig) connectSignal();
     const st = pc ? pc.iceConnectionState : "";
-    if (pc && st !== "connected" && st !== "completed") {
+    if (pc && !iceAlreadyUp(st)) {
       emit("status", { code: "reconnecting" });
       if (call.role === "host") offer(true); else signal({ kind: "restart" });
-    } else if (pc && call.role === "host") {
-      /* The addresses may have changed even though the old path still reads connected. */
-      offer(true);
     }
+    /* A healthy ICE path is left alone. A real break emits disconnected/failed. */
     [rx, tx].forEach((p) => { if (p && p.nudge) p.nudge(); });
   };
   let link = { level: 0, good: 0 };

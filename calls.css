@@ -616,8 +616,15 @@
   background: transparent;
   margin: 4px 0 0;
   box-shadow: none;
+  flex: 1 1 0;
+  min-height: 12rem;
 }
-.calls-page[data-onescreen="1"] .calls-convbody { padding: 2px 10px; }
+.calls-page[data-onescreen="1"] .calls-convbody {
+  padding: 2px 10px;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+}
 .calls-page[data-onescreen="1"] .calls-conv .calls-compose {
   margin: 0 6px 0;
   padding: 8px;
@@ -664,6 +671,8 @@
     margin: 4px 0 0;
     border: 0;
     border-radius: 0;
+    flex: 1 1 0;
+    min-height: 12rem;
   }
   .calls-page[data-onescreen="1"] .calls-stagechips { margin: 8px 8px 4px; }
   /* Keep chip labels on a phone; shrink padding rather than hide the control. */
@@ -689,6 +698,7 @@
     margin: 4px 0 0;
     z-index: auto;
     flex: 1 1 0;
+    min-height: 12rem;
   }
   .calls-page[data-onescreen="1"] .calls-grid .calls-tile {
     height: 132px;

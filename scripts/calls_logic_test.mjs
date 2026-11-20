@@ -910,3 +910,66 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.ok(!/\[data-onescreen="1"\][\s\S]{0,1200}\[data-tile="me"\][^{]{0,80}\{[^}]*display:\s*none/.test(css), "the new layout does not hide the self waveform");
   console.log("calls onescreen layout ok");
 }
+
+
+{
+  const {
+    applyStatusCode, holdStatus, shouldRemountOnStatus, shouldRemountOnPeer,
+    signalOpenRestores, iceAlreadyUp, signalAdmit, RECONNECT_HOLD_MS
+  } = await import("../shared/call-status.js");
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const root = path.join(path.dirname(new URL(import.meta.url).pathname), "..");
+
+  assert.equal(applyStatusCode("reconnecting", "translating-ready"), "connected", "a ready translator must not leave Reconnecting on the line");
+  assert.equal(applyStatusCode("connected", "translating-ready"), "connected");
+  assert.equal(applyStatusCode("connected", "translator-reconnecting"), "connected", "Gemini keep-alive must not change the call status line");
+  assert.equal(applyStatusCode("waiting", "connected"), "connected");
+
+  const t0 = 1000;
+  const held = holdStatus("connected", "reconnecting", t0, 0);
+  assert.equal(held.code, "connected", "a brief ICE blip keeps Connected");
+  assert.equal(held.heldAt, t0);
+  const still = holdStatus("connected", "reconnecting", t0 + 500, held.heldAt);
+  assert.equal(still.code, "connected");
+  const shown = holdStatus("connected", "reconnecting", t0 + RECONNECT_HOLD_MS, held.heldAt);
+  assert.equal(shown.code, "reconnecting", "a lasting drop still shows Reconnecting");
+  const recov = holdStatus("connected", "connected", t0 + 100, held.heldAt);
+  assert.equal(recov.code, "connected");
+  assert.equal(recov.heldAt, 0);
+
+  assert.equal(shouldRemountOnStatus("idle", "connected"), true);
+  assert.equal(shouldRemountOnStatus("active", "connected"), false, "a later connected event must not rebuild the chat");
+  assert.equal(shouldRemountOnStatus("active", "reconnecting"), false);
+  assert.equal(shouldRemountOnPeer({ name: "Maria", degraded: false }, { name: "Maria", degraded: false }), false);
+  assert.equal(shouldRemountOnPeer({ name: "Maria", degraded: false }, { name: "Maria", degraded: true }), true);
+
+  assert.equal(iceAlreadyUp("completed"), true);
+  assert.equal(signalOpenRestores("checking", true), true, "signaling back up after the peer joined restores Connected");
+  assert.equal(signalOpenRestores("new", false), false);
+
+  const replace = signalAdmit([{ peer: "111111111111", ws: 1 }, { peer: "222222222222", ws: 2 }], "111111111111");
+  assert.equal(replace.ok, true, "the same peer may replace its socket in a full room");
+  assert.equal(replace.stale.length, 1);
+  assert.equal(replace.others[0].peer, "222222222222");
+  const full = signalAdmit([{ peer: "111111111111" }, { peer: "222222222222" }], "333333333333");
+  assert.equal(full.ok, false, "a third person is still rejected");
+
+  const js = fs.readFileSync(path.join(root, "calls.js"), "utf8");
+  assert.ok(js.includes("holdStatus("), "the call page holds brief reconnect flashes");
+  assert.ok(js.includes("shouldRemountOnStatus"), "the call page does not remount after the first connect");
+  const eng = fs.readFileSync(path.join(root, "shared/call-engine.js"), "utf8");
+  assert.ok(eng.includes("quietCloseSig"), "a new signaling socket closes the previous one first");
+  assert.ok(eng.includes("signalOpenRestores"), "signaling open restores Connected when the peer is already in");
+  assert.ok(!eng.includes("The addresses may have changed even though the old path still reads connected"), "nudge does not ICE-restart a healthy path");
+  const css = fs.readFileSync(path.join(root, "calls.css"), "utf8");
+  assert.ok(/data-onescreen="1"\] \.calls-conv \{[^}]*min-height:\s*12rem/.test(css), "the conversation keeps a visible height in the one-screen layout");
+  const worker = fs.readFileSync(path.join(root, "worker/src/calls.js"), "utf8");
+  assert.ok(worker.includes("signalAdmit"), "the signaling room replaces a returning peer");
+  assert.ok(worker.includes("replaced: true"), "a replaced socket does not announce leave");
+  const sw = fs.readFileSync(path.join(root, "sw.js"), "utf8");
+  assert.ok(sw.includes("./shared/call-status.js"), "the app cache lists the new helper");
+  const csw = fs.readFileSync(path.join(root, "calls/sw.js"), "utf8");
+  assert.ok(csw.includes("../shared/call-status.js"), "the Calls shell lists the new helper");
+  console.log("calls testchat status ok");
+}
