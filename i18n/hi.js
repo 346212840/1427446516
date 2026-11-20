@@ -6876,5 +6876,8 @@ SI18n.addPack("hi", {
   "Invite QR code": "आमंत्रण QR कोड",
   "Guests can scan a QR code in the Invite sheet and the waiting screen to join. Off shows only the link.": "अतिथि आमंत्रण शीट और प्रतीक्षा स्क्रीन में QR कोड स्कैन करके जुड़ सकते हैं। बंद करने पर केवल लिंक दिखता है।",
   "One chat panel": "एक चैट पैनल",
-  "Captions, typed messages and the message box are one panel in the call view instead of a separate chat panel. Off brings back the separate chat panel.": "कैप्शन, टाइप किए संदेश और संदेश बॉक्स कॉल व्यू में अलग चैट पैनल की जगह एक ही पैनल हैं। बंद करने पर अलग चैट पैनल लौट आता है।"
+  "Captions, typed messages and the message box are one panel in the call view instead of a separate chat panel. Off brings back the separate chat panel.": "कैप्शन, टाइप किए संदेश और संदेश बॉक्स कॉल व्यू में अलग चैट पैनल की जगह एक ही पैनल हैं। बंद करने पर अलग चैट पैनल लौट आता है।",
+  "Check your microphone, or join without one and type to talk.": "अपना माइक्रोफ़ोन जाँचें, या उसके बिना जुड़ें और टाइप करके बोलें।",
+  "One-screen join setup": "एक स्क्रीन में जुड़ना",
+  "The join screen fits one phone screen: name, languages, a microphone check that starts by itself when the mic is already allowed, and Join. Off brings back the old layout.": "जुड़ने की स्क्रीन फ़ोन की एक स्क्रीन में आ जाती है: नाम, भाषाएँ, माइक्रोफ़ोन जाँच (माइक पहले से अनुमत हो तो अपने आप शुरू) और जुड़ें। बंद करने पर पुराना रूप लौट आता है।"
 });

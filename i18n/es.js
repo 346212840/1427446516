@@ -6889,5 +6889,8 @@ SI18n.addPack("es", {
   "Invite QR code": "Código QR de invitación",
   "Guests can scan a QR code in the Invite sheet and the waiting screen to join. Off shows only the link.": "Los invitados pueden escanear un código QR en la hoja Invitar y en la pantalla de espera. Desactivado muestra solo el enlace.",
   "One chat panel": "Un solo panel de chat",
-  "Captions, typed messages and the message box are one panel in the call view instead of a separate chat panel. Off brings back the separate chat panel.": "Los subtítulos, los mensajes escritos y el cuadro de mensaje son un solo panel en la vista de llamada, en lugar de un panel de chat aparte. Desactivado devuelve el panel de chat aparte."
+  "Captions, typed messages and the message box are one panel in the call view instead of a separate chat panel. Off brings back the separate chat panel.": "Los subtítulos, los mensajes escritos y el cuadro de mensaje son un solo panel en la vista de llamada, en lugar de un panel de chat aparte. Desactivado devuelve el panel de chat aparte.",
+  "Check your microphone, or join without one and type to talk.": "Comprueba tu micrófono, o únete sin él y escribe para hablar.",
+  "One-screen join setup": "Pantalla de unión en una sola vista",
+  "The join screen fits one phone screen: name, languages, a microphone check that starts by itself when the mic is already allowed, and Join. Off brings back the old layout.": "La pantalla de unión cabe en una pantalla de teléfono: nombre, idiomas, una prueba de micrófono que empieza sola si el micrófono ya está permitido, y Unirme. Desactivado devuelve el diseño anterior."
 });

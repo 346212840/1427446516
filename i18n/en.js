@@ -6886,5 +6886,8 @@ SI18n.addPack("en", {
   "Invite QR code": "Invite QR code",
   "Guests can scan a QR code in the Invite sheet and the waiting screen to join. Off shows only the link.": "Guests can scan a QR code in the Invite sheet and the waiting screen to join. Off shows only the link.",
   "One chat panel": "One chat panel",
-  "Captions, typed messages and the message box are one panel in the call view instead of a separate chat panel. Off brings back the separate chat panel.": "Captions, typed messages and the message box are one panel in the call view instead of a separate chat panel. Off brings back the separate chat panel."
+  "Captions, typed messages and the message box are one panel in the call view instead of a separate chat panel. Off brings back the separate chat panel.": "Captions, typed messages and the message box are one panel in the call view instead of a separate chat panel. Off brings back the separate chat panel.",
+  "Check your microphone, or join without one and type to talk.": "Check your microphone, or join without one and type to talk.",
+  "One-screen join setup": "One-screen join setup",
+  "The join screen fits one phone screen: name, languages, a microphone check that starts by itself when the mic is already allowed, and Join. Off brings back the old layout.": "The join screen fits one phone screen: name, languages, a microphone check that starts by itself when the mic is already allowed, and Join. Off brings back the old layout."
 });
