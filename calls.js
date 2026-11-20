@@ -16,6 +16,7 @@ import { createAudioUnlock, createWakeFallback, micFailure, micPlatform } from "
 import { createLiveSession, MIC_WORKLET, OUTPUT_RATE, CHUNK_SAMPLES, proxiesAudio } from "./shared/call-gemini.js";
 import { createDiarizer } from "./shared/call-speakers.js";
 import { createEngine } from "./shared/call-engine.js";
+import { holdStatus, shouldRemountOnStatus, shouldRemountOnPeer } from "./shared/call-status.js";
 
 const CAP_SIZES = ["s", "m", "l", "xl"];
 const CAP_SHOW = 3;
@@ -2013,15 +2014,20 @@ function onEngineEvent(type, d) {
   if (type === "chat-sending") { if (markLine(d.id, { status: "sending", sent: false })) live(); return; }
   if (type === "fallback") { state.turnFallback = !!d.on; live(); return; }
   if (type === "status") {
-    state.statusCode = d.code === "translating-ready" ? (state.statusCode || "connected") : d.code;
+    const wasActive = state.phase === "active";
+    const held = holdStatus(state.statusCode, d.code, Date.now(), state.reconnectHeldAt);
+    state.reconnectHeldAt = held.heldAt;
+    state.statusCode = held.code;
     if (d.code === "joined" || d.code === "connected") { state.phase = "active"; if (!state.startedAt) state.startedAt = Date.now(); ringStop(); }
     if (d.code === "left") { state.peerName = state.peerName; }
     live();
-    if (d.code === "joined" || d.code === "connected") paint();
+    if (shouldRemountOnStatus(wasActive ? "active" : "idle", d.code)) paint();
   } else if (type === "peer") {
+    const remount = shouldRemountOnPeer({ name: state.peerName, degraded: state.peerQuota }, d);
     state.peerName = d.name || state.peerName;
     state.peerQuota = !!d.degraded;
-    paint();
+    if (remount) paint();
+    else live();
   } else if (type === "peerQuota") {
     state.mode = normalizeMode(Object.assign({}, state.mode, { send: "text" }));
     saveDevice();

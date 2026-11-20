@@ -17,6 +17,7 @@ import { lexiconHint } from "../../shared/call-quality.js";
 import { directSocketUrl } from "../../shared/call-gemini.js";
 import { encryptMaterial, decryptMaterial } from "../../shared/owner-keys.js";
 import { isOwnerViewer } from "./owner-view.js";
+import { signalAdmit } from "../../shared/call-status.js";
 
 const ACCOUNT = /^\d{12}$/;
 const ID = /^[a-f0-9]{32}$/;
@@ -465,12 +466,17 @@ export function callFetch(room, request) {
   const peer = String(request.headers.get("x-call-peer") || "");
   if (!peerOk(peer)) return new Response("peer", { status: 403 });
   const open = socketsOf(room);
-  if (open.length >= 2) return new Response("full", { status: 503 });
+  const decision = signalAdmit(open.map((ws) => ({ peer: attachment(ws).peer, ws: ws })), peer);
+  if (!decision.ok) return new Response("full", { status: 503 });
+  decision.stale.forEach((row) => {
+    try { row.ws.serializeAttachment(Object.assign({}, attachment(row.ws), { replaced: true })); } catch (err) { /* closing */ }
+    try { row.ws.close(4000, "replaced"); } catch (err) { /* already closed */ }
+  });
   const pair = new WebSocketPair();
   room.ctx.acceptWebSocket(pair[1]);
   pair[1].serializeAttachment({ peer: peer, role: request.headers.get("x-call-role") === "host" ? "host" : "guest" });
-  send(pair[1], { op: "welcome", self: peer, peers: open.map((ws) => attachment(ws).peer).filter(Boolean) });
-  open.forEach((ws) => send(ws, { op: "join", peer: peer }));
+  send(pair[1], { op: "welcome", self: peer, peers: decision.others.map((row) => row.peer).filter(Boolean) });
+  decision.others.forEach((row) => send(row.ws, { op: "join", peer: peer }));
   return new Response(null, { status: 101, webSocket: pair[0] });
 }
 
@@ -494,6 +500,7 @@ export function callMessage(room, ws, message) {
 }
 
 export function callClose(room, ws) {
+  if (attachment(ws).replaced) return;
   const peer = attachment(ws).peer;
   socketsOf(room).forEach((other) => {
     if (other !== ws) send(other, { op: "leave", peer: peer });
