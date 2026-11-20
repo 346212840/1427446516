@@ -9,6 +9,7 @@ import { normalizeMode, transmitOriginal, micOpen, noteRelease, noteShouldAutopl
 import { createVoiceMatch, PREBUILT_VOICES, DEFAULT_VOICE } from "./shared/call-voice.js";
 import { createHistory, recordLocal, swipeAction, toggleSet } from "./shared/call-history.js";
 import { createRaiseDetector, earSinkId, createUnlocker, EAR_VOLUME_CAP } from "./shared/call-ear.js";
+import { createPip } from "./shared/call-pip.js";
 import { lighterFor, pickSink, cleanLexicon, lexiconHint, rememberLine } from "./shared/call-quality.js";
 import { createAudioUnlock, createWakeFallback } from "./shared/call-mobile.js";
 import { createLiveSession, MIC_WORKLET, OUTPUT_RATE, CHUNK_SAMPLES, proxiesAudio } from "./shared/call-gemini.js";
@@ -31,6 +32,14 @@ function quietVoiceOn() {
   try {
     const list = JSON.parse(localStorage.getItem("viktorychapp-server-off") || "[]");
     return !(Array.isArray(list) && list.indexOf("calls_quiet_voice") >= 0);
+  } catch (err) { return true; }
+}
+
+/* Owner switch calls_pip, on unless the server list says off. */
+function pipFlagOn() {
+  try {
+    const list = JSON.parse(localStorage.getItem("viktorychapp-server-off") || "[]");
+    return !(Array.isArray(list) && list.indexOf("calls_pip") >= 0);
   } catch (err) { return true; }
 }
 
@@ -1258,7 +1267,27 @@ function paintStats() {
   if (chips) chips.innerHTML = chipsHtml();
 }
 
+/* Floating call window: starts with an active call, opens when the page is hidden, closes on return and at hang-up. */
+let pip = null;
+let pipBound = false;
+function pipInfo() {
+  return { name: state.peerName || tr("Guest"), time: state.startedAt ? clock(Date.now() - state.startedAt) : "", muted: state.muted, test: !!state.test, mutedText: tr("Muted"), testText: tr("Test call"), liveText: tr("Translating") };
+}
+function pipOn(active) {
+  if (!active || !pipFlagOn()) { if (pip) { pip.stop(); pip = null; } return; }
+  if (!pip) pip = createPip({ info: pipInfo });
+  if (pip.supported && !pip.active) pip.start();
+  if (!pipBound) {
+    pipBound = true;
+    document.addEventListener("visibilitychange", () => {
+      if (!pip || state.phase !== "active") return;
+      if (document.visibilityState === "hidden") pip.enter();
+      else pip.exit();
+    });
+  }
+}
 async function bindSession(active) {
+  pipOn(active);
   const ms = navigator.mediaSession;
   if (!ms) return;
   try {
@@ -1269,7 +1298,7 @@ async function bindSession(active) {
     if (ms.setMicrophoneActive) ms.setMicrophoneActive(!state.muted);
     if (ms.setCameraActive) ms.setCameraActive(false);
   } catch (err) { /* the call continues without lock-screen controls */ }
-  const handlers = [["pause", () => setMuted(true)], ["play", () => setMuted(false)], ["stop", () => hangUp()], ["hangup", () => hangUp()], ["togglemicrophone", () => setMuted(!state.muted)]];
+  const handlers = [["pause", () => setMuted(true)], ["play", () => setMuted(false)], ["stop", () => hangUp()], ["hangup", () => hangUp()], ["togglemicrophone", () => setMuted(!state.muted)], ["enterpictureinpicture", () => { if (pip) pip.enter(); }]];
   handlers.forEach((row) => { try { ms.setActionHandler(row[0], row[1]); } catch (err) { /* this action is not supported here */ } });
 }
 /* iOS makes the audio context in a tap or it stays silent, so the first tap anywhere unlocks one the calls reuse. */
@@ -1797,6 +1826,7 @@ async function teardown(silent) {
   if (partner) await partner.end(true).catch(() => {});
   if (engine) await engine.end(silent).catch(() => {});
   holdWake(false);
+  pipOn(false);
   state.guestToken = state.guestToken;
 }
 async function hangUp() {

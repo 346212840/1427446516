@@ -6821,5 +6821,8 @@ SI18n.addPack("hi", {
   "Contacts are for signed-in accounts. Sign in to use them.": "संपर्क केवल साइन-इन खातों के लिए हैं। इनका उपयोग करने के लिए साइन इन करें।",
   "Call someone, with live translation.": "लाइव अनुवाद के साथ किसी को कॉल करें।",
   "Quiet voice in Calls": "कॉल में धीमी आवाज़",
-  "Calls follow the room's noise and lift soft or whispered speech so it is translated. Off restores the fixed level.": "कॉल कमरे के शोर के हिसाब से चलते हैं और धीमी या फुसफुसाहट वाली आवाज़ को बढ़ाते हैं ताकि उसका अनुवाद हो। बंद करने पर तय स्तर लौट आता है।"
+  "Calls follow the room's noise and lift soft or whispered speech so it is translated. Off restores the fixed level.": "कॉल कमरे के शोर के हिसाब से चलते हैं और धीमी या फुसफुसाहट वाली आवाज़ को बढ़ाते हैं ताकि उसका अनुवाद हो। बंद करने पर तय स्तर लौट आता है।",
+  "Floating call window": "फ़्लोटिंग कॉल विंडो",
+  "When you switch apps during a call, a small floating window keeps it on screen with mute and hang up. Off turns it off.": "कॉल के दौरान ऐप बदलने पर एक छोटी फ़्लोटिंग विंडो कॉल को स्क्रीन पर रखती है, म्यूट और कॉल समाप्त करने के बटन के साथ। बंद करने पर यह नहीं दिखती।",
+  "Translating": "अनुवाद हो रहा है"
 });
