@@ -155,7 +155,12 @@ export const FEATURES = {
   /* Typed message preview: while you type to the other person, a card shows
      what they will read and what it means back in your language. Client only,
      on by default. Off removes the card and sends at once. */
-  calls_preview: { paths: [] }
+  calls_preview: { paths: [] },
+  /* TURN budget for Calls. On by default: Cloudflare TURN credentials stop at a
+     soft monthly cap (see call-turn.js) and calls fall back to the free relay.
+     Off lifts only the monthly cap; who may get credentials, the two hour
+     lifetime and the rate limits stay. Client only, no paths. */
+  calls_turn_budget: { paths: [] }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 

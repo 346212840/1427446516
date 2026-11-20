@@ -3,6 +3,7 @@
    It never receives call audio and never clones a voice. */
 
 import { iceServers } from "./live.js";
+import { TURN_SCHEMA, mintTurn, settleTurn, turnStatus } from "./call-turn.js";
 import { readFlags } from "./feature-flags.js";
 import { blocksEither } from "./social.js";
 import { publishToAccount } from "./channel.js";
@@ -97,7 +98,7 @@ export const CALLS_SCHEMA = [
     guest_id TEXT NOT NULL,
     expires_at INTEGER NOT NULL
   )`
-];
+].concat(TURN_SCHEMA);
 
 let schema = null;
 function ensure(env) {
@@ -392,29 +393,16 @@ function viewLink(row) {
    monthly allowance; its credentials are minted here and last a day. The
    optional public relay is a last resort on TLS port 443. Media stays
    encrypted end to end between the two phones. */
-let turnCache = { at: 0, list: null };
-async function callIceServers(env) {
+/* ctx is { id, self, state } for the call the person is in. Without it, or when
+   any safeguard in call-turn.js says no, only the free paths are returned. */
+async function callIceServers(env, deps, ctx) {
   const base = iceServers(env);
-  const keyId = String((env && env.CF_TURN_KEY_ID) || "");
-  const token = String((env && env.CF_TURN_API_TOKEN) || "");
   let extra = [];
-  if (keyId && token) {
-    if (turnCache.list && Date.now() - turnCache.at < 50 * 60 * 1000) extra = turnCache.list;
-    else {
-      try {
-        const res = await fetch("https://rtc.live.cloudflare.com/v1/turn/keys/" + encodeURIComponent(keyId) + "/credentials/generate-ice-servers", {
-          method: "POST",
-          headers: { Authorization: "Bearer " + token, "content-type": "application/json" },
-          body: JSON.stringify({ ttl: 86400 })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          extra = (Array.isArray(data.iceServers) ? data.iceServers : []).filter((row) => row && row.urls && row.credential);
-          turnCache = { at: Date.now(), list: extra };
-        }
-      } catch (err) { extra = []; }
-    }
-  }
+  try {
+    const off = await readFlags(env);
+    const minted = await mintTurn(env, deps, ctx ? Object.assign({ budgetOff: !!off.calls_turn_budget }, ctx) : null);
+    extra = minted.servers;
+  } catch (err) { extra = []; }
   const out = base.concat(extra);
   if (String((env && env.CALLS_PUBLIC_TURN) || "on") !== "off" && !extra.length) {
     out.push({ urls: ["turns:openrelay.metered.ca:443?transport=tcp", "turn:openrelay.metered.ca:443?transport=tcp"], username: "openrelayproject", credential: "openrelayproject" });
@@ -642,6 +630,12 @@ export async function handleCalls(request, env, path, url, deps) {
     return deps.json(200, { ids: done });
   }
 
+  if (path === "/v1/calls/turn-status" && request.method === "GET") {
+    const gate = await deps.requireOwner(request, env);
+    if (gate.error) return gate.error;
+    return deps.json(200, await turnStatus(env));
+  }
+
   if (path === "/v1/calls/incoming" && request.method === "GET") {
     const who = await member(env, request, deps);
     if (!who.account) return deps.json(401, { error: "unauthorized" });
@@ -666,7 +660,7 @@ export async function handleCalls(request, env, path, url, deps) {
       await env.DB.prepare("INSERT INTO call_sessions (id, host_id, peer_id, kind, state, created_at, answered_at, ended_at, expires_at) VALUES (?, ?, '', 'invite', 'ringing', ?, 0, 0, ?)").bind(id, who.account.public_id, now, now + ttl).run();
       await env.DB.prepare("INSERT INTO call_invites (token_hash, call_id, expires_at) VALUES (?, ?, ?)").bind(await sha256Hex(invite), id, now + ttl).run();
       const ticket = await mintTicket(env, id, who.account.public_id, "host");
-      return deps.json(201, { call: viewCall(await env.DB.prepare("SELECT * FROM call_sessions WHERE id = ?").bind(id).first()), invite: invite, ticket: ticket.ticket, expiresAt: now + ttl, iceServers: await callIceServers(env), video: false });
+      return deps.json(201, { call: viewCall(await env.DB.prepare("SELECT * FROM call_sessions WHERE id = ?").bind(id).first()), invite: invite, ticket: ticket.ticket, expiresAt: now + ttl, iceServers: await callIceServers(env, deps, { id: id, self: who.account.public_id, state: "ringing" }), video: false });
     }
     const handle = String(body.handle || "").replace(/^@/, "").trim().toLowerCase();
     if (!/^[a-z0-9_]{1,30}$/.test(handle)) return deps.json(400, { error: "bad_call" });
@@ -693,7 +687,7 @@ export async function handleCalls(request, env, path, url, deps) {
         platform: "app"
       });
     } catch (err) { /* ringing still works in the open app */ }
-    return deps.json(201, { call: { id: id, hostId: who.account.public_id, peerId: peer.public_id, kind: "direct", state: "ringing", video: false }, ticket: ticket.ticket, iceServers: await callIceServers(env), video: false });
+    return deps.json(201, { call: { id: id, hostId: who.account.public_id, peerId: peer.public_id, kind: "direct", state: "ringing", video: false }, ticket: ticket.ticket, iceServers: await callIceServers(env, deps, { id: id, self: who.account.public_id, state: "ringing" }), video: false });
   }
 
   const linkRoute = path.match(/^\/v1\/calls\/link(?:\/([a-z0-9-]{3,30})(\/join)?|\/(regenerate))?$/);
@@ -775,7 +769,7 @@ export async function handleCalls(request, env, path, url, deps) {
       }
       const ticket = await mintTicket(env, id, peerId, "guest");
       try { await publishToAccount(env, owner, "calls", { op: "ring", id: id, name: displayName, handle: visitor ? String(visitor.handle || "") : "", avatar: "", guest: !visitor }, id); } catch (err) { /* history still shows it */ }
-      return deps.json(200, { call: { id: id, hostId: owner, peerId: peerId, kind: "link", state: "ringing", video: false }, guestId: peerId, guestToken: guestToken, name: displayName, ticket: ticket.ticket, iceServers: await callIceServers(env), ringing: true, video: false });
+      return deps.json(200, { call: { id: id, hostId: owner, peerId: peerId, kind: "link", state: "ringing", video: false }, guestId: peerId, guestToken: guestToken, name: displayName, ticket: ticket.ticket, iceServers: await callIceServers(env, deps, { id: id, self: peerId, state: "ringing" }), ringing: true, video: false });
     }
     return deps.json(405, { error: "method" });
   }
@@ -805,7 +799,7 @@ export async function handleCalls(request, env, path, url, deps) {
       await env.DB.prepare("UPDATE call_sessions SET state = 'active', answered_at = ?, peer_id = ? WHERE id = ?").bind(now, guestId, row.id).run();
     }
     const ticket = await mintTicket(env, row.id, guestId, "guest");
-    return deps.json(200, { call: viewCall(await env.DB.prepare("SELECT * FROM call_sessions WHERE id = ?").bind(row.id).first()), guestId: guestId, guestToken: guestToken, name: cleanName(body && body.name) || "Guest", ticket: ticket.ticket, iceServers: await callIceServers(env), video: false });
+    return deps.json(200, { call: viewCall(await env.DB.prepare("SELECT * FROM call_sessions WHERE id = ?").bind(row.id).first()), guestId: guestId, guestToken: guestToken, name: cleanName(body && body.name) || "Guest", ticket: ticket.ticket, iceServers: await callIceServers(env, deps, { id: row.id, self: guestId, state: "active" }), video: false });
   }
 
   const one = path.match(/^\/v1\/calls\/([a-f0-9]{32})(\/answer|\/decline|\/end|\/ticket|\/translate|\/speak|\/preview|\/signal|\/return|\/state)?$/);
@@ -843,24 +837,26 @@ export async function handleCalls(request, env, path, url, deps) {
     const now = Date.now();
     await env.DB.prepare("UPDATE call_sessions SET state = 'active', answered_at = ? WHERE id = ?").bind(now, id).run();
     const ticket = await mintTicket(env, id, self, linkHost ? "host" : "guest");
-    return deps.json(200, { call: viewCall(await env.DB.prepare("SELECT * FROM call_sessions WHERE id = ?").bind(id).first()), ticket: ticket.ticket, iceServers: await callIceServers(env), video: false });
+    return deps.json(200, { call: viewCall(await env.DB.prepare("SELECT * FROM call_sessions WHERE id = ?").bind(id).first()), ticket: ticket.ticket, iceServers: await callIceServers(env, deps, { id: id, self: self, state: "active" }), video: false });
   }
   if (action === "/state" && request.method === "GET") {
     return deps.json(200, { state: row.state, answered: !!row.answered_at, ended: row.state === "ended" || row.state === "missed" });
   }
   if (action === "/decline" && request.method === "POST") {
     await env.DB.prepare("UPDATE call_sessions SET state = 'missed', ended_at = ? WHERE id = ? AND answered_at = 0").bind(Date.now(), id).run();
+    await settleTurn(env, id, 0).catch(() => {});
     return deps.json(200, { ok: true });
   }
   if (action === "/end" && request.method === "POST") {
     const now = Date.now();
     const missed = !row.answered_at;
     await env.DB.prepare("UPDATE call_sessions SET state = ?, ended_at = ? WHERE id = ?").bind(missed ? "missed" : "ended", now, id).run();
+    await settleTurn(env, id, row.answered_at ? now - row.answered_at : 0, now).catch(() => {});
     return deps.json(200, { ok: true, duration: row.answered_at ? Math.max(0, now - row.answered_at) : 0 });
   }
   if (action === "/ticket" && request.method === "POST") {
     const ticket = await mintTicket(env, id, self, self === row.host_id ? "host" : "guest");
-    return deps.json(200, { ticket: ticket.ticket, iceServers: await callIceServers(env), video: false });
+    return deps.json(200, { ticket: ticket.ticket, iceServers: await callIceServers(env, deps, { id: id, self: self, state: row.state }), video: false });
   }
   if (action === "/return" && request.method === "POST") {
     if (!who.account || who.account.public_id !== row.host_id) return deps.json(403, { error: "calls_closed" });
