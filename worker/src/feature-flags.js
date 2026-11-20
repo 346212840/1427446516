@@ -162,7 +162,8 @@ export const FEATURES = {
      lifetime and the rate limits stay. Client only, no paths. */
   calls_turn_budget: { paths: [] },
   calls_bar: { paths: [] },
-  calls_qr: { paths: [] }
+  calls_qr: { paths: [] },
+  calls_onechat: { paths: [] }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 

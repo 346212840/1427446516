@@ -6886,5 +6886,7 @@ SI18n.addPack("ru", {
   "QR code for the guest link": "QR-код гостевой ссылки",
   "Scan with a phone camera to join as a guest.": "Наведите камеру телефона, чтобы войти как гость.",
   "Invite QR code": "QR-код приглашения",
-  "Guests can scan a QR code in the Invite sheet and the waiting screen to join. Off shows only the link.": "Гости могут отсканировать QR-код в окне «Пригласить» и на экране ожидания. Выключено: только ссылка."
+  "Guests can scan a QR code in the Invite sheet and the waiting screen to join. Off shows only the link.": "Гости могут отсканировать QR-код в окне «Пригласить» и на экране ожидания. Выключено: только ссылка.",
+  "One chat panel": "Одна панель чата",
+  "Captions, typed messages and the message box are one panel in the call view instead of a separate chat panel. Off brings back the separate chat panel.": "Субтитры, набранные сообщения и поле ввода — одна панель на экране звонка вместо отдельной панели чата. Выключено: отдельная панель чата."
 });
