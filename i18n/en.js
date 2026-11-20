@@ -6899,5 +6899,7 @@ SI18n.addPack("en", {
   "Test calls and the statistics list show how long each translated phrase took, from when you stop talking to the first translated sound. Off hides the numbers; timing keeps running.": "Test calls and the statistics list show how long each translated phrase took, from when you stop talking to the first translated sound. Off hides the numbers; timing keeps running.",
   "Live stream translation": "Live stream translation",
   "The call keeps a streaming Gemini Live session open, with a quiet keep-alive, and falls back to one phrase at a time if the stream fails. Off uses only the persistent session and goes to text if it fails.": "The call keeps a streaming Gemini Live session open, with a quiet keep-alive, and falls back to one phrase at a time if the stream fails. Off uses only the persistent session and goes to text if it fails.",
-  "One phrase at a time": "One phrase at a time"
+  "One phrase at a time": "One phrase at a time",
+  "Streamed playback and captions": "Streamed playback and captions",
+  "Translated sound starts as soon as the first audio chunk arrives, and captions appear word by word. Off waits the usual playout lead and shows each caption as a whole line.": "Translated sound starts as soon as the first audio chunk arrives, and captions appear word by word. Off waits the usual playout lead and shows each caption as a whole line."
 });

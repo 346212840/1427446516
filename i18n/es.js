@@ -6902,5 +6902,7 @@ SI18n.addPack("es", {
   "Test calls and the statistics list show how long each translated phrase took, from when you stop talking to the first translated sound. Off hides the numbers; timing keeps running.": "Las llamadas de prueba y la lista de estadísticas muestran cuánto tardó cada frase traducida, desde que dejas de hablar hasta el primer sonido traducido. Desactivado oculta los números; la medición sigue.",
   "Live stream translation": "Traducción en flujo continuo",
   "The call keeps a streaming Gemini Live session open, with a quiet keep-alive, and falls back to one phrase at a time if the stream fails. Off uses only the persistent session and goes to text if it fails.": "La llamada mantiene abierta una sesión Gemini Live en flujo, con un keep-alive silencioso, y si el flujo falla pasa a una frase cada vez. Desactivado: solo la sesión persistente, y texto si falla.",
-  "One phrase at a time": "Una frase cada vez"
+  "One phrase at a time": "Una frase cada vez",
+  "Streamed playback and captions": "Reproducción y subtítulos en flujo",
+  "Translated sound starts as soon as the first audio chunk arrives, and captions appear word by word. Off waits the usual playout lead and shows each caption as a whole line.": "El sonido traducido empieza en cuanto llega el primer trozo de audio, y los subtítulos aparecen palabra a palabra. Desactivado espera el margen de reproducción habitual y muestra cada subtítulo como una línea entera."
 });

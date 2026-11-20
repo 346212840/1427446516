@@ -6901,5 +6901,7 @@ SI18n.addPack("ru", {
   "Test calls and the statistics list show how long each translated phrase took, from when you stop talking to the first translated sound. Off hides the numbers; timing keeps running.": "Тестовые звонки и список статистики показывают, сколько заняла каждая переведённая фраза: от момента, когда вы замолчали, до первого звука перевода. Выключено: числа скрыты, замер продолжается.",
   "Live stream translation": "Потоковый перевод",
   "The call keeps a streaming Gemini Live session open, with a quiet keep-alive, and falls back to one phrase at a time if the stream fails. Off uses only the persistent session and goes to text if it fails.": "Звонок держит открытой потоковую сессию Gemini Live с тихим keep-alive и при сбое переходит на перевод по одной фразе. Выключено: только постоянная сессия, при сбое — текст.",
-  "One phrase at a time": "По одной фразе"
+  "One phrase at a time": "По одной фразе",
+  "Streamed playback and captions": "Потоковое воспроизведение и субтитры",
+  "Translated sound starts as soon as the first audio chunk arrives, and captions appear word by word. Off waits the usual playout lead and shows each caption as a whole line.": "Переведённый звук начинается, как только приходит первый фрагмент, а субтитры появляются слово за словом. Выключено: обычная задержка перед первым звуком и субтитр целиком."
 });

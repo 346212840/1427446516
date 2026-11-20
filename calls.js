@@ -4,7 +4,7 @@
    The real work is in shared/call-engine.js: WebRTC between the two
    phones and a Gemini Live Translate socket per listener. */
 import { guessLang, sameLang, PINNED_LANGS, CALL_LANGS, normalizeLang, detectLang, langName } from "./shared/call-langs.js";
-import { normalizeVolumes, VOLUME_KEYS, VOLUME_DEFAULTS, MIC_CONSTRAINTS, OPUS_MAX_BITRATE } from "./shared/call-audio.js";
+import { normalizeVolumes, VOLUME_KEYS, VOLUME_DEFAULTS, MIC_CONSTRAINTS, OPUS_MAX_BITRATE, transcriptWords } from "./shared/call-audio.js";
 import { normalizeMode, transmitOriginal, micOpen, noteRelease, noteShouldAutoplay, showOriginalSub, showTranslationSub, threadVisible, takeClauses, QUICK_PHRASES, guestFeature, NOTE_CANCEL_DX } from "./shared/call-mode.js";
 import { createVoiceMatch, PREBUILT_VOICES, DEFAULT_VOICE } from "./shared/call-voice.js";
 import { createHistory, recordLocal, swipeAction, toggleSet } from "./shared/call-history.js";
@@ -64,6 +64,14 @@ function convShown() {
   return oneChatFlagOn() && state.conv !== false;
 }
 
+
+/* Owner switch calls_stream_play, on unless the server list says off. */
+function streamPlayFlagOn() {
+  try {
+    const list = JSON.parse(localStorage.getItem("viktorychapp-server-off") || "[]");
+    return !(Array.isArray(list) && list.indexOf("calls_stream_play") >= 0);
+  } catch (err) { return true; }
+}
 
 /* Owner switch calls_live_stream, on unless the server list says off. */
 function liveStreamFlagOn() {
@@ -490,9 +498,13 @@ function bubbleHtml(row, opts) {
   const note = row.note ? `<button type="button" data-act="call-replay" data-id="${esc(row.id)}">${esc(tr("Replay"))}</button>` : "";
   const age = o.cap && row.at ? Date.now() - row.at : 0;
   const fade = o.cap && !o.live && age > CAP_FADE_MS ? " fading" : "";
+  const words = (text) => {
+    if (!o.live || !streamPlayFlagOn() || !text) return esc(text);
+    return transcriptWords(text).map((w, i, all) => `<span class="calls-word${i === all.length - 1 ? " now" : ""}">${esc(w)}</span>`).join("");
+  };
   return `<article class="calls-bubble${mine ? " mine" : ""}${o.live ? " partial" : ""}${fade}${o.cont ? " cont" : ""}" style="--who:${whoColor(who, mine)}">
     <div class="calls-ava xs">${esc(initialOf(who || "?"))}</div>
-    <div class="calls-bbody"><span class="calls-bname">${esc(who)}</span>${big ? `<p class="calls-bbig">${esc(big)}</p>` : ""}${small ? `<p class="calls-bsmall">${esc(small)}</p>` : ""}${note}</div>
+    <div class="calls-bbody"><span class="calls-bname">${esc(who)}</span>${big ? `<p class="calls-bbig">${words(big)}</p>` : ""}${small ? `<p class="calls-bsmall">${words(small)}</p>` : ""}${note}</div>
   </article>`;
 }
 /* The last bubbles over the stage: left for others, right for you; older ones fade out. */
@@ -1896,6 +1908,7 @@ function engineConfig(extra) {
     connection: () => navigator.connection || {},
     quietVoice: quietVoiceOn,
     liveStream: liveStreamFlagOn,
+    streamPlay: streamPlayFlagOn,
     otherPlaying: () => !!(state.test && state.test.hear && state.partner && state.partner.playing && state.partner.playing()),
     relayFirst: relayFirst,
     relayUrl: (tokenValue) => apiBase() + "/v1/calls/live?t=" + encodeURIComponent(tokenValue),

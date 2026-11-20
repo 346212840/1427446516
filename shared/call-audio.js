@@ -230,3 +230,37 @@ export function createTimeline(cap) {
     }
   };
 }
+
+/* Live transcription may arrive as a delta or as the whole line so far. */
+export function mergeTranscript(prev, next) {
+  const a = String(prev || "");
+  const b = String(next || "");
+  if (!b) return a;
+  if (!a) return b;
+  if (b.indexOf(a) === 0) return b;
+  if (a.indexOf(b) === 0) return a;
+  const max = Math.min(a.length, b.length);
+  for (let n = max; n > 0; n--) {
+    if (a.slice(-n) === b.slice(0, n)) return a + b.slice(n);
+  }
+  return a + b;
+}
+
+/* Split a live caption into words, keeping the spaces on the word they follow. */
+export function transcriptWords(text) {
+  const s = String(text || "");
+  if (!s) return [];
+  const out = [];
+  let buf = "";
+  for (let i = 0; i < s.length; i++) {
+    buf += s[i];
+    if (s[i] === " " || s[i] === "\t" || s[i] === "\n") {
+      if (i + 1 >= s.length || (s[i + 1] !== " " && s[i + 1] !== "\t" && s[i + 1] !== "\n")) {
+        out.push(buf);
+        buf = "";
+      }
+    }
+  }
+  if (buf) out.push(buf);
+  return out;
+}
