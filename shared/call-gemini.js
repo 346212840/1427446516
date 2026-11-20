@@ -69,6 +69,9 @@ function levelOf(samples) {
    strict = true (the translation or the other person is playing aloud, or
    the feature is off) puts the old fixed gate back, so the speaker's own
    echo never opens it. */
+export const HANG_MAX = 12;
+export const HANG_MIN = 5;
+export const CLEAR_SILENCE = 0.45;
 export const LOUD_GATE = 0.02;
 /* Test call with Hear my translation: the speakers play your translation, so only clearly louder speech may open the gate. */
 export const LOOP_GATE = 0.06;
@@ -104,6 +107,7 @@ export function createVad() {
   let gain = 1;
   let lastGate = LOUD_GATE;
   const pre = [];
+  let short = false;
   const api = {
     out: [],
     spoke: false,
@@ -127,8 +131,14 @@ export function createVad() {
       api.spoke = speech;
       const wasOpen = hang > 0;
       const keep = speech || hang > 0;
-      if (speech) hang = 12;
-      else if (hang > 0) hang -= 1;
+      if (speech) hang = HANG_MAX;
+      else if (hang > 0) {
+        /* Quiet, clearly below the gate: count down faster so a pause is
+           noticed sooner. Soft endings near the gate keep the full tail. */
+        const clear = short && !strict && level < gate * CLEAR_SILENCE;
+        hang -= clear ? 2 : 1;
+        if (hang < 0) hang = 0;
+      }
       if (strict) gain = 1;
       else if (speech) {
         const want = Math.min(MAX_BOOST, Math.max(1, BOOST_TARGET / Math.max(level, gate)));
@@ -151,8 +161,10 @@ export function createVad() {
       return keep;
     },
     stats() {
-      return { sentMs: sent, skippedMs: skipped, floor: floor, gate: lastGate, gain: gain };
-    }
+      return { sentMs: sent, skippedMs: skipped, floor: floor, gate: lastGate, gain: gain, hang: hang, short: short };
+    },
+    shortOn(on) { short = !!on; return short; },
+    hang() { return hang; }
   };
   return api;
 }

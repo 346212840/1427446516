@@ -6903,5 +6903,7 @@ SI18n.addPack("ru", {
   "The call keeps a streaming Gemini Live session open, with a quiet keep-alive, and falls back to one phrase at a time if the stream fails. Off uses only the persistent session and goes to text if it fails.": "Звонок держит открытой потоковую сессию Gemini Live с тихим keep-alive и при сбое переходит на перевод по одной фразе. Выключено: только постоянная сессия, при сбое — текст.",
   "One phrase at a time": "По одной фразе",
   "Streamed playback and captions": "Потоковое воспроизведение и субтитры",
-  "Translated sound starts as soon as the first audio chunk arrives, and captions appear word by word. Off waits the usual playout lead and shows each caption as a whole line.": "Переведённый звук начинается, как только приходит первый фрагмент, а субтитры появляются слово за словом. Выключено: обычная задержка перед первым звуком и субтитр целиком."
+  "Translated sound starts as soon as the first audio chunk arrives, and captions appear word by word. Off waits the usual playout lead and shows each caption as a whole line.": "Переведённый звук начинается, как только приходит первый фрагмент, а субтитры появляются слово за словом. Выключено: обычная задержка перед первым звуком и субтитр целиком.",
+  "Shorter end of speech": "Более короткое окончание речи",
+  "The call notices sooner that someone has stopped talking, especially in a quiet room, so the translation can start earlier. Off keeps the longer pause.": "Звонок быстрее замечает, что человек замолчал, особенно в тихой комнате, и перевод может начаться раньше. Выключено: прежняя длинная пауза."
 });

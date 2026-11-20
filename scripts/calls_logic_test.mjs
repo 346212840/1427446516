@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createLiveSession, directSocketUrl, proxiesAudio, MIC_WORKLET, CHUNK_SAMPLES, OUTPUT_RATE, needsResume, SESSION_REFRESH_MS, createVad, shouldKeepAlive, silenceFrame, pcmB64, createUtterance, KEEP_ALIVE_MS, SILENCE_SAMPLES } from "../shared/call-gemini.js";
+import { createLiveSession, directSocketUrl, proxiesAudio, MIC_WORKLET, CHUNK_SAMPLES, OUTPUT_RATE, needsResume, SESSION_REFRESH_MS, createVad, shouldKeepAlive, silenceFrame, pcmB64, createUtterance, KEEP_ALIVE_MS, SILENCE_SAMPLES, HANG_MAX, HANG_MIN } from "../shared/call-gemini.js";
 import { isCallLang, CALL_LANGS, detectLang, guessLang } from "../shared/call-langs.js";
 import { outputGains, createJitter, soakJitter, createMeter, createTimeline, normalizeVolumes, MIC_CONSTRAINTS, micConstraints, OPUS_MAX_BITRATE, mergeTranscript, transcriptWords } from "../shared/call-audio.js";
 import { callDecision, dndActive } from "../shared/call-privacy.js";
@@ -796,4 +796,26 @@ console.log("calls logic ok", JSON.stringify(report));
   /* nextAt 0.5 is behind t=1 by 0.5s, so this is a gap, not the first chunk. */
   assert.ok(later.start >= 1, "later chunks still use the lead");
   console.log("calls stream play helpers ok");
+
+  const silence = new Int16Array(1600);
+  const speech = new Int16Array(1600).fill(9000);
+  const defaultHang = createVad();
+  defaultHang.gate(speech, false);
+  let n = 0;
+  while (defaultHang.gate(silence, false)) n++;
+  assert.equal(n, HANG_MAX, "without the switch the hang is 1200 ms");
+  const quick = createVad();
+  quick.shortOn(true);
+  quick.gate(speech, false);
+  let q = 0;
+  while (quick.gate(silence, false)) q++;
+  assert.ok(q >= HANG_MIN && q <= 7, "clear silence ends in about 600 ms, got " + q);
+  assert.ok(q < n, "short end of speech is faster than the default hang");
+  const strictHang = createVad();
+  strictHang.shortOn(true);
+  strictHang.gate(speech, true);
+  let sh = 0;
+  while (strictHang.gate(silence, true)) sh++;
+  assert.equal(sh, HANG_MAX, "the strict gate keeps the full tail so a playing translation is not cut short");
+  console.log("calls short eos ok");
 }

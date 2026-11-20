@@ -715,6 +715,7 @@ export function createEngine(cfg) {
     /* In a test call these frames came out of this device's own microphone, so while its translation plays aloud they
        carry that sound back. Only clearly louder speech may open the gate then, or the call translates itself. */
     const loop = cfg.micLoop && rx && rx.playing && rx.playing() ? "loop" : quietOff();
+    shortEosOn();
     if ((!rx || !rx.ready) && !fallback.rx) { live.onSpeech(pcm, now(), loop); return; }
     if (heard && heard.overlap) return;
     const d = live.onSpeech(pcm, now(), loop);
@@ -729,7 +730,7 @@ export function createEngine(cfg) {
     } else {
       if (d.reason === "quota") { degrade("quota", true); return; }
       if (speaking) { speaking = false; emit("speaking", { who: "peer", on: false }); }
-      if (!rxFlushed && now() - lastSpeechAt > 1800) {
+      if (!rxFlushed && lastSpeechAt && (shortEosOn() || now() - lastSpeechAt > 1800)) {
         rxFlushed = true;
         if (fallback.rx) kickTurn(false, fallback.rxBuf.drain());
         else { rx.flush(); maybeSwapVoice(); }
@@ -778,9 +779,16 @@ export function createEngine(cfg) {
   /* Quiet-voice help is automatic: the gate follows the room's noise floor and soft speech is lifted. It is off for the
      owner switch calls_quiet_voice, and strict (the old fixed gate) while sound is playing aloud, so an echo never opens it. */
   function quietOff() { return !!(cfg.quietVoice && !cfg.quietVoice()); }
+  function shortEosOn() {
+    const on = !!(cfg.shortEos && cfg.shortEos());
+    live.vad.shortOn(on);
+    sendLive.vad.shortOn(on);
+    return on;
+  }
   function onOwnFrame(pcm) {
     const loop = !!(cfg.otherPlaying && cfg.otherPlaying());
     const aloud = speaking || (rx && rx.playing && rx.playing());
+    shortEosOn();
     const d = sendLive.onSpeech(pcm, now(), loop ? "loop" : (quietOff() || !!aloud));
     const on = !!d.send;
     if (on !== ownSpeaking) { ownSpeaking = on; emit("speaking", { who: "me", on: on }); }
@@ -792,7 +800,7 @@ export function createEngine(cfg) {
       else bits.forEach((c) => tx.send(c));
       lastTxSpeech = now();
       txFlushed = false;
-    } else if (!txFlushed && now() - lastTxSpeech > 1800) {
+    } else if (!txFlushed && lastTxSpeech && (shortEosOn() || now() - lastTxSpeech > 1800)) {
       txFlushed = true;
       if (fallback.tx) kickTurn(true, fallback.txBuf.drain());
       else tx.flush();
