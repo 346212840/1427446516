@@ -6887,5 +6887,7 @@ SI18n.addPack("es", {
   "QR code for the guest link": "Código QR del enlace de invitado",
   "Scan with a phone camera to join as a guest.": "Escanea con la cámara del teléfono para unirte como invitado.",
   "Invite QR code": "Código QR de invitación",
-  "Guests can scan a QR code in the Invite sheet and the waiting screen to join. Off shows only the link.": "Los invitados pueden escanear un código QR en la hoja Invitar y en la pantalla de espera. Desactivado muestra solo el enlace."
+  "Guests can scan a QR code in the Invite sheet and the waiting screen to join. Off shows only the link.": "Los invitados pueden escanear un código QR en la hoja Invitar y en la pantalla de espera. Desactivado muestra solo el enlace.",
+  "One chat panel": "Un solo panel de chat",
+  "Captions, typed messages and the message box are one panel in the call view instead of a separate chat panel. Off brings back the separate chat panel.": "Los subtítulos, los mensajes escritos y el cuadro de mensaje son un solo panel en la vista de llamada, en lugar de un panel de chat aparte. Desactivado devuelve el panel de chat aparte."
 });

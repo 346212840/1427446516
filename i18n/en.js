@@ -6884,5 +6884,7 @@ SI18n.addPack("en", {
   "QR code for the guest link": "QR code for the guest link",
   "Scan with a phone camera to join as a guest.": "Scan with a phone camera to join as a guest.",
   "Invite QR code": "Invite QR code",
-  "Guests can scan a QR code in the Invite sheet and the waiting screen to join. Off shows only the link.": "Guests can scan a QR code in the Invite sheet and the waiting screen to join. Off shows only the link."
+  "Guests can scan a QR code in the Invite sheet and the waiting screen to join. Off shows only the link.": "Guests can scan a QR code in the Invite sheet and the waiting screen to join. Off shows only the link.",
+  "One chat panel": "One chat panel",
+  "Captions, typed messages and the message box are one panel in the call view instead of a separate chat panel. Off brings back the separate chat panel.": "Captions, typed messages and the message box are one panel in the call view instead of a separate chat panel. Off brings back the separate chat panel."
 });

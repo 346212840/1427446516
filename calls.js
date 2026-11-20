@@ -52,6 +52,18 @@ function qrFlagOn() {
   } catch (err) { return true; }
 }
 
+/* Owner switch calls_onechat, on unless the server list says off. */
+function oneChatFlagOn() {
+  try {
+    const list = JSON.parse(localStorage.getItem("viktorychapp-server-off") || "[]");
+    return !(Array.isArray(list) && list.indexOf("calls_onechat") >= 0);
+  } catch (err) { return true; }
+}
+/* One conversation in the call view: captions, typed messages and the composer share a single panel. */
+function convShown() {
+  return oneChatFlagOn() && state.conv !== false;
+}
+
 /* Owner switch calls_bar, on unless the server list says off. */
 function barFlagOn() {
   try {
@@ -464,6 +476,22 @@ function subtitleBlock() {
 function bubble(line) {
   return bubbleHtml(line, {});
 }
+/* The conversation for the one-panel view: finished lines plus the line being said right now. */
+function convThread() {
+  const rows = state.lines.slice(-30).map(bubble);
+  const p = state.partial || {};
+  if ((p.original || p.translation) && !partialIsFinal(p, Date.now())) {
+    const mine = !!state.test;
+    const who = state.whoLabel || (mine ? tr("You") : (state.peerName || tr("Guest")));
+    rows.push(bubbleHtml({ who, mine, original: p.original || "", translation: p.translation || "" }, { live: true }));
+  }
+  return `<div class="calls-thread" data-size="${esc(state.capSize)}" aria-live="polite">${rows.join("")}</div>`;
+}
+function convBlock() {
+  const empty = state.lines.length || (state.partial && (state.partial.original || state.partial.translation)) ? "" : `<p class="calls-empty">${esc(tr("Messages and what was said show up here."))}</p>`;
+  return `<section class="calls-conv" aria-label="${esc(tr("Chat"))}"><div class="calls-convbody">${convThread()}${empty}</div>
+    <form class="calls-type calls-compose" data-act="call-type-form">${previewCard()}<input name="text" maxlength="500" aria-label="${esc(tr("Type to them"))}" placeholder="${esc(tr("Type to them"))}" autocomplete="off"><button type="submit" class="cb send" aria-label="${esc(tr("Send"))}">${ico("outgoing")}</button></form></section>`;
+}
 function threadBlock() {
   return `<div class="calls-thread" data-size="${esc(state.capSize)}">${state.lines.slice(-30).map(bubble).join("")}</div>`;
 }
@@ -607,7 +635,7 @@ function controlBar() {
     ${cbtn("call-speaker", state.speakerOn ? "speaker" : "speakerOff", tr("Speaker"), { pressed: state.speakerOn })}
     ${cbtn("call-set", "captions", tr("Captions"), { pressed: subsOn, data: { group: "subtitles", value: subsOn ? "off" : "translated" } })}
     ${cbtn("call-set", state.mode.send === "text" ? "text" : (state.mode.send === "note" ? "note" : "voice"), sendLabel(), { aria: tr("I send") + ": " + sendLabel(), data: { group: "send", value: nextSend() } })}
-    ${cbtn("call-panel", "chat", tr("Chat"), { pressed: state.panel === "chat", data: { value: state.panel === "chat" ? "" : "chat" } })}
+    ${chatBtn()}
     ${cbtn("call-set", "translate", tr("Translation"), { pressed: hears, data: { group: "receive", value: hears ? "text" : "voice" } })}
     ${earSupported() ? cbtn("call-ear", "ear", tr("Ear mode"), { pressed: state.ear.on }) : ""}
     ${cbtn("call-more", "more", tr("More"), { pressed: state.panel === "settings" })}
@@ -620,6 +648,10 @@ function controlBar() {
    that a swipe up (or the handle) opens. Nothing here is new behaviour: the
    sheets reuse the same controls the Settings panel has. */
 const POPS = ["mic", "lang", "subs", "sound", "invite", "tray"];
+function chatBtn() {
+  if (oneChatFlagOn()) return cbtn("call-conv", "chat", tr("Chat"), { pressed: state.conv !== false });
+  return cbtn("call-panel", "chat", tr("Chat"), { pressed: state.panel === "chat", data: { value: state.panel === "chat" ? "" : "chat" } });
+}
 function popBtn(pop, icon, label, opt) {
   const o = opt || {};
   const open = state.pop === pop;
@@ -638,7 +670,7 @@ function newBar() {
     ${popBtn("subs", "captions", tr("Captions"), { cls: subsOn ? "" : "dim" })}
     ${popBtn("sound", state.speakerOn ? "speaker" : "speakerOff", tr("Sound"), { extra: true })}
     ${earSupported() ? cbtn("call-ear", "ear", tr("Ear mode"), { pressed: state.ear.on }).replace('class="cb', 'class="cb cb-extra') : ""}
-    ${cbtn("call-panel", "chat", tr("Chat"), { pressed: state.panel === "chat", data: { value: state.panel === "chat" ? "" : "chat" } })}
+    ${chatBtn()}
     ${popBtn("invite", "link", tr("Invite"), { extra: true })}
     ${popBtn("tray", "more", tr("More"), { extra: true })}
     ${cbtn("call-end", "hangup", tr("Leave"), { cls: "end", aria: tr("End call") })}
@@ -762,8 +794,9 @@ function setPop(name) {
 }
 
 function panelBlock() {
+  if (state.panel === "chat" && oneChatFlagOn()) state.panel = "";
   if (!state.panel) return "";
-  const tabs = [["chat", tr("Chat")], ["settings", tr("Settings")]];
+  const tabs = oneChatFlagOn() ? [["settings", tr("Settings")]] : [["chat", tr("Chat")], ["settings", tr("Settings")]];
   if (state.test) tabs.push(["test", tr("Test partner")]);
   const head = `<header class="calls-phead"><div class="calls-tabs" role="tablist">${tabs.map((row) => `<button type="button" role="tab" class="calls-tab${state.panel === row[0] ? " on" : ""}" aria-selected="${state.panel === row[0] ? "true" : "false"}" data-act="call-panel" data-value="${row[0]}">${esc(row[1])}</button>`).join("")}</div><button type="button" class="calls-x" data-act="call-panel" data-value="" aria-label="${esc(tr("Close"))}">${ico("close")}</button></header>`;
   let body = "";
@@ -785,10 +818,11 @@ function callScreen() {
   const back = standalone() ? "" : "";
   const timer = state.startedAt ? clock(Date.now() - state.startedAt) : "";
   const noteBar = state.mode.send === "note" ? (state.review ? `<div class="calls-review"><button type="button" class="calls-go" data-act="call-note-send">${esc(tr("Send"))}</button><button type="button" data-act="call-note-cancel">${esc(tr("Cancel voice note"))}</button></div>` : `<button type="button" class="calls-talk" data-act="call-talk">${esc(state.recording ? tr("Slide to cancel") : tr("Hold to talk"))}</button>`) : "";
-  const typeBar = (state.mode.send === "text" || state.noMic) && state.panel !== "chat" ? `<form class="calls-type calls-float" data-act="call-type-form">${previewCard()}<input name="text" maxlength="500" aria-label="${esc(tr("Type to them"))}" placeholder="${esc(tr("Type to them"))}" autocomplete="off"><button type="submit" class="cb send" aria-label="${esc(tr("Send"))}">${ico("outgoing")}</button></form>` : "";
+  const conv = convShown();
+  const typeBar = !conv && (state.mode.send === "text" || state.noMic) && state.panel !== "chat" ? `<form class="calls-type calls-float" data-act="call-type-form">${previewCard()}<input name="text" maxlength="500" aria-label="${esc(tr("Type to them"))}" placeholder="${esc(tr("Type to them"))}" autocomplete="off"><button type="submit" class="cb send" aria-label="${esc(tr("Send"))}">${ico("outgoing")}</button></form>` : "";
   const nomic = state.noMic ? `<button type="button" class="calls-nomic" data-act="call-focus-type">${ico("micOff")}<span>${esc(tr("No mic, type to talk"))}</span></button>` : "";
   const hint = state.hintSeen ? "" : `<p class="calls-hint">${esc(tr("You can type instead of talking."))}</p>`;
-  return `<div class="calls-page live" data-call-active="1" data-video="0" data-phase="${esc(state.phase)}" data-panel="${state.panel ? "1" : "0"}">
+  return `<div class="calls-page live" data-call-active="1" data-video="0" data-phase="${esc(state.phase)}" data-panel="${state.panel ? "1" : "0"}" data-conv="${conv ? "1" : "0"}">
     <header class="calls-top">
       <div class="calls-brand"><span class="calls-logo">${ico("phone")}</span><b>${esc(state.test ? tr("Test call") : tr("Calls"))}</b></div>
       <div class="calls-meta"><span class="calls-status" data-translating="${state.translating ? "1" : "0"}">${esc(statusText())}</span><span class="calls-timer">${esc(timer)}</span></div>
@@ -796,12 +830,12 @@ function callScreen() {
     <main class="calls-stage">
       ${keyPanel()}
       ${invite}
-      ${testStrip()}
+      ${conv && !state.testInfo ? "" : testStrip()}
       <div class="calls-grid" >
         ${tile("peer", shown, peerLang(), state.speaking || state.translating)}
         ${tile("me", mine, myLang(), state.meSpeaking)}
       </div>
-      ${subtitleBlock()}
+      ${conv ? convBlock() : subtitleBlock()}
     </main>
     ${panelBlock()}
     ${nomic}${typeBar}${noteBar}${hint}
@@ -1451,6 +1485,9 @@ function paint() {
   const keep = focus && focus.name && el.contains(focus) ? { name: focus.name, value: focus.value } : null;
   const sheet = el.querySelector(".calls-sheet");
   const scroll = sheet ? sheet.scrollTop : 0;
+  const convBody = el.querySelector(".calls-convbody");
+  const convStick = !convBody || convBody.scrollHeight - convBody.scrollTop - convBody.clientHeight < 60;
+  const convTop = convBody ? convBody.scrollTop : 0;
   const popEl = el.querySelector(".calls-pop");
   const popScroll = popEl ? popEl.scrollTop : 0;
   el.outerHTML = page(state.route);
@@ -1461,6 +1498,8 @@ function paint() {
   }
   const sheetNow = fresh && fresh.querySelector(".calls-sheet");
   if (sheetNow) sheetNow.scrollTop = scroll;
+  const convNow = fresh && fresh.querySelector(".calls-convbody");
+  if (convNow) convNow.scrollTop = convStick ? convNow.scrollHeight : convTop;
   const popNow = fresh && fresh.querySelector(".calls-pop");
   if (popNow && popScroll) popNow.scrollTop = popScroll;
   bindSession(state.phase === "active");
@@ -1475,7 +1514,16 @@ function live() {
   earTick();
   const subs = el.querySelector(".calls-subs");
   if (subs) subs.outerHTML = subtitleBlock();
-  const thread = el.querySelector(".calls-thread");
+  const convThreadEl = el.querySelector(".calls-convbody .calls-thread");
+  if (convThreadEl) {
+    const body = convThreadEl.parentElement;
+    const stick = body.scrollHeight - body.scrollTop - body.clientHeight < 60;
+    convThreadEl.outerHTML = convThread();
+    const empty = body.querySelector(".calls-empty");
+    if (empty && (state.lines.length || (state.partial && (state.partial.original || state.partial.translation)))) empty.remove();
+    if (stick) body.scrollTop = body.scrollHeight;
+  }
+  const thread = convThreadEl ? null : el.querySelector(".calls-thread");
   if (thread && !thread.closest(".calls-test")) thread.outerHTML = threadBlock();
   const status = el.querySelector(".calls-status");
   if (status) { status.textContent = statusText(); status.dataset.translating = state.translating ? "1" : "0"; }
@@ -2327,7 +2375,8 @@ function setPanel(name) {
 function onAct(act, el) {
   if (act === "call-set") onSet(el.dataset.group, el.dataset.value);
   else if (act === "call-more") { state.pop = ""; setPanel(state.panel === "settings" ? "" : "settings"); }
-  else if (act === "call-panel") { state.pop = ""; setPanel(el.dataset.value || ""); }
+  else if (act === "call-panel") { state.pop = ""; if (el.dataset.value === "chat" && oneChatFlagOn()) { state.conv = state.conv === false; paint(); } else setPanel(el.dataset.value || ""); }
+  else if (act === "call-conv") { state.pop = ""; state.conv = state.conv === false; paint(); }
   else if (act === "call-pop") setPop(el.dataset.value || "");
   else if (act === "call-tab") { state.tab = el.dataset.value || "recent"; paint(); }
   else if (act === "hist-del") histRemove([el.dataset.id]);
@@ -2363,7 +2412,8 @@ function onAct(act, el) {
   else if (act === "call-pick-output") pickOutput();
   else if (act === "call-focus-type") {
     if (state.noMic) { openMicModal("call"); return; }
-    if (state.panel !== "chat" && !(state.mode.send === "text" || state.noMic)) setPanel("chat");
+    if (oneChatFlagOn()) { if (state.conv === false) { state.conv = true; paint(); } }
+    else if (state.panel !== "chat" && !(state.mode.send === "text" || state.noMic)) setPanel("chat");
     focusType();
     const chat = document.querySelector(".calls-compose input[name=text]");
     if (chat) chat.focus();
