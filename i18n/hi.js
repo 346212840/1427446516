@@ -6816,5 +6816,6 @@ SI18n.addPack("hi", {
   "ctImported.other": "{n} संपर्क आयात किए गए",
   "ctImported.few": "{n} संपर्क आयात किए गए",
   "ctImported.many": "{n} संपर्क आयात किए गए",
-  "Contacts are for signed-in accounts. Sign in to use them.": "संपर्क केवल साइन-इन खातों के लिए हैं। इनका उपयोग करने के लिए साइन इन करें।"
+  "Contacts are for signed-in accounts. Sign in to use them.": "संपर्क केवल साइन-इन खातों के लिए हैं। इनका उपयोग करने के लिए साइन इन करें।",
+  "Call someone, with live translation.": "लाइव अनुवाद के साथ किसी को कॉल करें।"
 });
