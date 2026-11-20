@@ -19,6 +19,12 @@ export const MIC_CONSTRAINTS = {
   autoGainControl: true,
   channelCount: 1
 };
+/* Browser noise suppression treats a whisper (no pitch, just breath) as noise and removes it before the call ever hears
+   it. With quiet voice on, suppression is left to the call itself: echo cancellation and gain control stay on, and the
+   adaptive floor and lift in createVad handle room noise. */
+export function micConstraints(quiet) {
+  return quiet ? Object.assign({}, MIC_CONSTRAINTS, { noiseSuppression: false }) : MIC_CONSTRAINTS;
+}
 export const OPUS_MAX_BITRATE = 510000;
 
 const PCM_MS = 100;

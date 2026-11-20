@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createLiveSession, directSocketUrl, proxiesAudio, MIC_WORKLET, CHUNK_SAMPLES, OUTPUT_RATE, needsResume, SESSION_REFRESH_MS, createVad } from "../shared/call-gemini.js";
 import { isCallLang, CALL_LANGS, detectLang, guessLang } from "../shared/call-langs.js";
-import { outputGains, createJitter, soakJitter, createMeter, normalizeVolumes, MIC_CONSTRAINTS, OPUS_MAX_BITRATE } from "../shared/call-audio.js";
+import { outputGains, createJitter, soakJitter, createMeter, normalizeVolumes, MIC_CONSTRAINTS, micConstraints, OPUS_MAX_BITRATE } from "../shared/call-audio.js";
 import { callDecision, dndActive } from "../shared/call-privacy.js";
 import {
   normalizeMode, transmitOriginal, micOpen, noteRelease, noteShouldAutoplay,
@@ -39,6 +39,10 @@ assert.equal(MIC_CONSTRAINTS.echoCancellation, true);
 assert.equal(MIC_CONSTRAINTS.noiseSuppression, true);
 assert.equal(MIC_CONSTRAINTS.autoGainControl, true);
 assert.equal("video" in MIC_CONSTRAINTS, false);
+assert.equal(micConstraints(true).noiseSuppression, false, "quiet voice keeps browser suppression from eating a whisper");
+assert.equal(micConstraints(true).echoCancellation, true);
+assert.equal(micConstraints(true).autoGainControl, true);
+assert.equal(micConstraints(false).noiseSuppression, true, "flag off restores the old constraints");
 assert.ok(OPUS_MAX_BITRATE >= 128000);
 assert.equal(normalizeVolumes({ mic: 2 }).mic, 1);
 
@@ -516,7 +520,7 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.equal(quiet.gate(frame(dbfs(-42), 5)), true, "a -42 dBFS whisper opens the gate (the old fixed gate was -34 dBFS)");
   assert.equal(quiet.out.length, 4, "the three frames before the gate opened go out first");
   const lifted = rmsOf(quiet.out[3]);
-  assert.ok(lifted > 0.04 && lifted < 0.2, "the whisper is lifted toward a normal level, got " + lifted);
+  assert.ok(lifted > 0.03 && lifted < 0.2, "the whisper is lifted toward a normal level, got " + lifted);
   assert.ok(quiet.out.every((c) => c.every((v) => Math.abs(v) < 32768 * 0.99)), "the limiter keeps it from clipping");
   // The old gate would not have opened.
   const old = createVad();
@@ -525,9 +529,9 @@ console.log("calls logic ok", JSON.stringify(report));
   // Normal speech is not boosted.
   const normal = createVad();
   for (let i = 0; i < 20; i++) normal.gate(frame(dbfs(-58), i + 7));
-  normal.gate(frame(0.08, 3));
-  assert.ok(Math.abs(rmsOf(normal.out[normal.out.length - 1]) - 0.08) < 0.01, "normal speech is left alone");
-  // A loud room: the gate rises with the floor but never past the old 0.02.
+  const talk = frame(0.08, 3);
+  normal.gate(talk);
+  assert.ok(Math.abs(rmsOf(normal.out[normal.out.length - 1]) - rmsOf(talk)) < 0.001, "normal speech is left alone");
   const loud = createVad();
   for (let i = 0; i < 60; i++) loud.gate(frame(0.012, i + 1));
   assert.ok(loud.stats().gate <= 0.02 && loud.stats().gate >= 0.0025);

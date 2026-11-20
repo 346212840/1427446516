@@ -6,7 +6,7 @@
    the listener plays that stream as is. Speech is sent in 100 ms frames,
    silence is skipped, and the Worker only mints the short-lived token. */
 import { sameLang, normalizeLang, detectLang } from "./call-langs.js";
-import { outputGains, reconnectDelay, MIC_CONSTRAINTS, normalizeVolumes } from "./call-audio.js";
+import { outputGains, reconnectDelay, MIC_CONSTRAINTS, micConstraints, normalizeVolumes } from "./call-audio.js";
 import { normalizeMode, transmitOriginal, playTranslatedVoice, noteShouldAutoplay } from "./call-mode.js";
 import { createVoiceMatch } from "./call-voice.js";
 import { lighterFor, cleanLexicon } from "./call-quality.js";
@@ -726,7 +726,7 @@ export function createEngine(cfg) {
     transToSend.connect(sendDest);
     /* No microphone, or permission denied: the call still starts and typed text still works. */
     try {
-      micStream = cfg.getMic ? await cfg.getMic() : await navigator.mediaDevices.getUserMedia({ audio: MIC_CONSTRAINTS, video: false });
+      micStream = cfg.getMic ? await cfg.getMic() : await navigator.mediaDevices.getUserMedia({ audio: micConstraints(!quietOff()), video: false });
     } catch (err) {
       micStream = null;
       const denied = err && (err.name === "NotAllowedError" || err.name === "SecurityError");

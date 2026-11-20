@@ -71,9 +71,10 @@ function levelOf(samples) {
    echo never opens it. */
 export const LOUD_GATE = 0.02;
 export const MIN_GATE = 0.0025;
-export const SPEECH_OVER_FLOOR = 3;
-export const BOOST_TARGET = 0.08;
-export const MAX_BOOST = 24;
+export const SPEECH_OVER_FLOOR = 2.5;
+export const FLOOR_WINDOW = 50;
+export const BOOST_TARGET = 0.04;
+export const MAX_BOOST = 6;
 export const PRE_ROLL = 3;
 
 function boosted(samples, gain) {
@@ -97,6 +98,7 @@ export function createVad() {
   let skipped = 0;
   let floor = 0.003;
   let seen = 0;
+  const recent = [];
   let gain = 1;
   let lastGate = LOUD_GATE;
   const pre = [];
@@ -106,11 +108,14 @@ export function createVad() {
       const level = levelOf(samples);
       let gate = LOUD_GATE;
       if (!strict) {
-        /* Quiet frames pull the floor down fast; louder ones raise it only slowly, so speech does not become the noise. */
+        /* The floor is the quietest frame of the last few seconds: speech has pauses, noise does not go away. It drops at
+           once and climbs slowly, so starting to talk right away never turns the first words into "noise". */
         seen += 1;
-        if (seen <= 20) floor += (level - floor) * 0.15;
-        else if (level < floor * 1.5) floor += (level - floor) * 0.05;
-        else floor += (level - floor) * 0.002;
+        recent.push(level);
+        if (recent.length > FLOOR_WINDOW) recent.shift();
+        const low = Math.min.apply(null, recent);
+        if (seen === 1) floor = low;
+        else floor += (low - floor) * (low < floor ? 0.5 : 0.1);
         floor = Math.min(0.03, Math.max(0.0004, floor));
         gate = Math.min(LOUD_GATE, Math.max(MIN_GATE, floor * SPEECH_OVER_FLOOR));
       }
