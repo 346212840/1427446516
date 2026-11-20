@@ -11,7 +11,7 @@ import { normalizeMode, transmitOriginal, playTranslatedVoice, noteShouldAutopla
 import { createVoiceMatch } from "./call-voice.js";
 import { lighterFor, cleanLexicon } from "./call-quality.js";
 import { pickBitrate, setAudioSession, createPlayoutLead } from "./call-mobile.js";
-import { createLiveSession, MIC_WORKLET, OUTPUT_RATE, CHUNK_MS } from "./call-gemini.js";
+import { createLiveSession, MIC_WORKLET, OUTPUT_RATE, CHUNK_MS, shouldKeepAlive, pcmB64, silenceFrame, createUtterance, KEEP_ALIVE_MS } from "./call-gemini.js";
 import { createDiarizer } from "./call-speakers.js";
 
 const IDLE_LINE_MS = 1500;
@@ -70,6 +70,8 @@ export function createPipe(env, opts) {
   let partial = { original: "", translation: "" };
   let sentSince = false;
   let connecting = false;
+  let lastAct = 0;
+  const touch = () => { lastAct = Date.now(); };
 
   function finishLine() {
     clearTimeout(idle);
@@ -77,6 +79,7 @@ export function createPipe(env, opts) {
     const line = { original: partial.original.trim(), translation: partial.translation.trim() };
     partial = { original: "", translation: "" };
     if (opts.onTurn) opts.onTurn(pipe);
+    if (pipe.oneShot && pipe.onShotDone) pipe.onShotDone(true);
     if (line.original || line.translation) opts.onLine(pipe, line);
   }
   function armIdle() {
@@ -119,13 +122,21 @@ export function createPipe(env, opts) {
       pipe.ready = true;
       pipe.openedAt = Date.now();
       attempt = 0;
+      touch();
       opts.onState(pipe, "ready");
+      if (pipe.pending && pipe.pending.length) {
+        const held = pipe.pending;
+        pipe.pending = null;
+        held.forEach((c) => pipe.send(c));
+        pipe.flush();
+      }
       return;
     }
     if (msg.goAway) { opts.onGoAway(pipe); return; }
     if (msg.sessionResumptionUpdate && msg.sessionResumptionUpdate.newHandle) pipe.handle = String(msg.sessionResumptionUpdate.newHandle);
     const sc = msg.serverContent;
     if (!sc) return;
+    touch();
     ((sc.modelTurn && sc.modelTurn.parts) || []).forEach((part) => {
       if (part.inlineData && part.inlineData.data) { if (opts.onByte) opts.onByte(pipe, "audio"); play(part.inlineData.data); }
     });
@@ -299,6 +310,7 @@ export function createPipe(env, opts) {
     try {
       ws.send(JSON.stringify({ realtimeInput: { audio: { data: toB64(new Uint8Array(pcm.buffer, pcm.byteOffset, pcm.byteLength)), mimeType: "audio/pcm;rate=16000" } } }));
       sentSince = true;
+      touch();
       if (opts.onSent) opts.onSent(pipe);
       return true;
     } catch (err) { return false; }
@@ -318,6 +330,17 @@ export function createPipe(env, opts) {
     if (socket) { try { socket.close(1000); } catch (err) { /* closed */ } }
   };
   pipe.finish = finishLine;
+  pipe.maybeKeepAlive = (t) => {
+    if (!opts.keepAlive || pipe.closed || !pipe.ready || !ws || ws.readyState !== 1 || sentSince) return false;
+    const at = t == null ? Date.now() : t;
+    if (!shouldKeepAlive(lastAct, at, false)) return false;
+    try {
+      ws.send(JSON.stringify({ realtimeInput: { audio: { data: pcmB64(silenceFrame()), mimeType: "audio/pcm;rate=16000" } } }));
+      lastAct = at;
+      if (opts.onKeepAlive) opts.onKeepAlive(pipe);
+      return true;
+    } catch (err) { return false; }
+  };
   return pipe;
 }
 
@@ -370,6 +393,8 @@ export function createEngine(cfg) {
   let speaking = false;
   let ownMic = true;
   const timeline = { rx: createTimeline(), tx: createTimeline() };
+  const fallback = { rx: false, tx: false, rxBuf: createUtterance(), txBuf: createUtterance(), rxBusy: false, txBusy: false };
+  const liveStreamOn = () => !!(cfg.liveStream && cfg.liveStream());
   const metrics = { firstAudio: null, endLag: null, speechStart: 0, lastLoud: 0, lastVoiced: 0, waiting: false, pendingEnd: false };
 
   const mode = () => normalizeMode(cfg.getMode());
@@ -576,7 +601,7 @@ export function createEngine(cfg) {
   }
   function makePipe(isTx, target, voice, out) {
     const cb = pipeCallbacks(isTx);
-    const p = createPipe(env, Object.assign({ id: (isTx ? "tx" : "rx") + Date.now(), target: target, voice: voice, out: out }, cb));
+    const p = createPipe(env, Object.assign({ id: (isTx ? "tx" : "rx") + Date.now(), target: target, voice: voice, out: out, keepAlive: liveStreamOn() }, cb));
     p.lead.floor(link.level);
     livePipes.add(p);
     return p;
@@ -584,7 +609,16 @@ export function createEngine(cfg) {
   function onPipeState(p, state, isTx) {
     if (state === "ready") { emit("status", { code: "translating-ready", mine: isTx }); applyGains(); }
     if (state === "nokey" || state === "badkey") { emit("needKey", { reason: state }); degrade("key"); return; }
-    if (state === "quota" || state === "text" || state === "failed") degrade(state === "failed" ? "network" : "quota");
+    if (state === "quota" || state === "text") { degrade("quota"); return; }
+    if (state === "failed") {
+      if (liveStreamOn() && !p.oneShot) {
+        fallback[isTx ? "tx" : "rx"] = true;
+        emit("fallback", { on: true, mine: isTx });
+        return;
+      }
+      degrade("network");
+      return;
+    }
     if (state === "lost") emit("status", { code: "translator-reconnecting" });
   }
   function currentSpeaker() {
@@ -681,19 +715,25 @@ export function createEngine(cfg) {
     /* In a test call these frames came out of this device's own microphone, so while its translation plays aloud they
        carry that sound back. Only clearly louder speech may open the gate then, or the call translates itself. */
     const loop = cfg.micLoop && rx && rx.playing && rx.playing() ? "loop" : quietOff();
-    if (!rx || !rx.ready) { live.onSpeech(pcm, now(), loop); return; }
+    if ((!rx || !rx.ready) && !fallback.rx) { live.onSpeech(pcm, now(), loop); return; }
     if (heard && heard.overlap) return;
     const d = live.onSpeech(pcm, now(), loop);
     if (d.send) {
       if (live.vad.spoke) timeline.rx.speech(now());
-      (d.chunks && d.chunks.length ? d.chunks : [pcm]).forEach((c) => rx.send(c));
+      const bits = d.chunks && d.chunks.length ? d.chunks : [pcm];
+      if (fallback.rx) bits.forEach((c) => fallback.rxBuf.push(c));
+      else bits.forEach((c) => rx.send(c));
       lastSpeechAt = now();
       rxFlushed = false;
       if (!speaking) { speaking = true; emit("speaking", { who: "peer", on: true }); }
     } else {
       if (d.reason === "quota") { degrade("quota", true); return; }
       if (speaking) { speaking = false; emit("speaking", { who: "peer", on: false }); }
-      if (!rxFlushed && now() - lastSpeechAt > 1800) { rx.flush(); rxFlushed = true; maybeSwapVoice(); }
+      if (!rxFlushed && now() - lastSpeechAt > 1800) {
+        rxFlushed = true;
+        if (fallback.rx) kickTurn(false, fallback.rxBuf.drain());
+        else { rx.flush(); maybeSwapVoice(); }
+      }
     }
   }
   function maybeSwapVoice() {
@@ -702,6 +742,37 @@ export function createEngine(cfg) {
       rx.voice = wantVoice;
       rotate(false);
     }
+  }
+  function kickTurn(isTx, chunks) {
+    if (!chunks || !chunks.length || ended) return;
+    const busy = isTx ? "txBusy" : "rxBusy";
+    if (fallback[busy]) return;
+    fallback[busy] = true;
+    const p = makePipe(isTx, isTx ? peer.lang : mineLang(), isTx ? cfg.voiceOverride() : (cfg.voiceOverride() || wantVoice), isTx ? transToSend : transOut);
+    p.oneShot = true;
+    p.pending = chunks;
+    if (isTx) tx = p; else rx = p;
+    const done = (ok) => {
+      if (p._shotDone) return;
+      p._shotDone = true;
+      fallback[busy] = false;
+      if (!ok) degrade("network");
+    };
+    const timer = setTimeout(() => { if (!p._shotDone) { p.close(); done(false); } }, 12000);
+    p.onShotDone = () => {
+      clearTimeout(timer);
+      const wait = () => {
+        if (p.playing && p.playing()) return false;
+        clearInterval(id);
+        p.close();
+        done(true);
+        return true;
+      };
+      const id = setInterval(wait, 200);
+      timers.push(id);
+      setTimeout(wait, 400);
+    };
+    p.open();
   }
   let ownSpeaking = false;
   /* Quiet-voice help is automatic: the gate follows the room's noise floor and soft speech is lifted. It is off for the
@@ -713,9 +784,19 @@ export function createEngine(cfg) {
     const d = sendLive.onSpeech(pcm, now(), loop ? "loop" : (quietOff() || !!aloud));
     const on = !!d.send;
     if (on !== ownSpeaking) { ownSpeaking = on; emit("speaking", { who: "me", on: on }); }
-    if (!tx || !tx.ready) return;
-    if (d.send) { if (sendLive.vad.spoke) timeline.tx.speech(now()); (d.chunks && d.chunks.length ? d.chunks : [pcm]).forEach((c) => tx.send(c)); lastTxSpeech = now(); txFlushed = false; }
-    else if (!txFlushed && now() - lastTxSpeech > 1800) { tx.flush(); txFlushed = true; }
+    if ((!tx || !tx.ready) && !fallback.tx) return;
+    if (d.send) {
+      if (sendLive.vad.spoke) timeline.tx.speech(now());
+      const bits = d.chunks && d.chunks.length ? d.chunks : [pcm];
+      if (fallback.tx) bits.forEach((c) => fallback.txBuf.push(c));
+      else bits.forEach((c) => tx.send(c));
+      lastTxSpeech = now();
+      txFlushed = false;
+    } else if (!txFlushed && now() - lastTxSpeech > 1800) {
+      txFlushed = true;
+      if (fallback.tx) kickTurn(true, fallback.txBuf.drain());
+      else tx.flush();
+    }
   }
 
   /* ---------- start / stop ---------- */
@@ -781,6 +862,7 @@ export function createEngine(cfg) {
     if (call.role === "host") dc = setupChannel(pc.createDataChannel("calls", { ordered: true }));
     else pc.ondatachannel = (event) => { dc = setupChannel(event.channel); };
     every(30000, () => { if (rx && rx.openedAt && Date.now() - rx.openedAt > ROTATE_MS) rotate(false); if (tx && tx.openedAt && Date.now() - tx.openedAt > ROTATE_MS) rotate(true); });
+    every(10000, () => { if (rx && rx.maybeKeepAlive) rx.maybeKeepAlive(); if (tx && tx.maybeKeepAlive) tx.maybeKeepAlive(); });
     every(120, () => {
       const t = translating();
       if (t !== lastTranslating) {
@@ -928,6 +1010,7 @@ export function createEngine(cfg) {
   }
   E.stats = () => ({ via: route.via, rx: !!rx && rx.ready, tx: !!tx && tx.ready, peer: peer, usage: live.quota(now()), speakers: ears.speakers() });
   E.mintInfo = () => E._mint || null;
+  E.turn = () => !!(fallback.rx || fallback.tx);
   E.timings = () => ({ rx: timeline.rx.list(), tx: timeline.tx.list(), rxSummary: timeline.rx.summary(), txSummary: timeline.tx.summary() });
   E.metrics = () => ({ firstAudio: metrics.firstAudio, endLag: metrics.endLag });
   E.micClone = () => {

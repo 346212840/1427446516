@@ -65,6 +65,14 @@ function convShown() {
 }
 
 
+/* Owner switch calls_live_stream, on unless the server list says off. */
+function liveStreamFlagOn() {
+  try {
+    const list = JSON.parse(localStorage.getItem("viktorychapp-server-off") || "[]");
+    return !(Array.isArray(list) && list.indexOf("calls_live_stream") >= 0);
+  } catch (err) { return true; }
+}
+
 /* Owner switch calls_latency, on unless the server list says off. Timing is always taken (it is a few numbers per phrase);
    the switch only shows it in the test chips and the statistics list. */
 function latencyFlagOn() {
@@ -888,6 +896,7 @@ function chipsHtml() {
   parts.push([tr("Jitter"), s ? ms(s.jitter) : "-"]);
   parts.push([tr("Packets lost"), s && s.lost != null ? String(s.lost) : "-"]);
   if (latencyFlagOn()) latencyRows(s).slice(0, 3).forEach((row) => parts.push(row));
+  if (s && s.turn) parts.push([tr("Translation"), tr("One phrase at a time")]);
   parts.push([tr("Route"), s ? (s.route === "relay" ? tr("Through our server") : tr("Direct")) : "-"]);
   parts.push([tr("Per minute"), s && s.perMinute != null ? tr("{n} s of 32", { n: s.perMinute }) : "-"]);
   parts.push([tr("Translation"), !info ? tr("Starting…") : (info.ok && info.mode === "token" ? tr("Ready") : (state.needKey ? tr("Needs a Gemini key") : tr("Text only")))]);
@@ -1886,6 +1895,7 @@ function engineConfig(extra) {
     speakerOn: () => state.speakerOn,
     connection: () => navigator.connection || {},
     quietVoice: quietVoiceOn,
+    liveStream: liveStreamFlagOn,
     otherPlaying: () => !!(state.test && state.test.hear && state.partner && state.partner.playing && state.partner.playing()),
     relayFirst: relayFirst,
     relayUrl: (tokenValue) => apiBase() + "/v1/calls/live?t=" + encodeURIComponent(tokenValue),
@@ -1897,6 +1907,7 @@ function engineConfig(extra) {
   }, extra || {});
 }
 function onEngineEvent(type, d) {
+  if (type === "fallback") { state.turnFallback = !!d.on; live(); return; }
   if (type === "status") {
     state.statusCode = d.code === "translating-ready" ? (state.statusCode || "connected") : d.code;
     if (d.code === "joined" || d.code === "connected") { state.phase = "active"; if (!state.startedAt) state.startedAt = Date.now(); ringStop(); }
@@ -2374,7 +2385,8 @@ async function updateStats() {
     rtt: net.rtt,
     speechSec: usage.speechMs != null ? Math.round(usage.speechMs / 100) / 10 : null,
     perMinute: usage.perMinute != null ? Math.round(usage.perMinute / 100) / 10 : null,
-    lat: lastTimings(p ? state.partner : eng)
+    lat: lastTimings(p ? state.partner : eng),
+    turn: !!(p ? (state.partner.turn && state.partner.turn()) : (eng.turn && eng.turn()))
   };
   paintStats();
 }

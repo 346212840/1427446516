@@ -271,3 +271,39 @@ export function createLiveSession() {
     vad: vad
   };
 }
+
+/* A quiet socket on a phone network is often dropped before the 10 minute
+   Live connection limit. A 20 ms silent frame (below the voice gate) is
+   enough traffic to keep it, and is only sent after a real turn has ended. */
+export const KEEP_ALIVE_MS = 45000;
+export const SILENCE_SAMPLES = 320;
+
+export function silenceFrame() {
+  return new Int16Array(SILENCE_SAMPLES);
+}
+
+export function pcmB64(samples) {
+  const data = samples && samples.buffer ? new Uint8Array(samples.buffer, samples.byteOffset, samples.byteLength) : new Uint8Array(0);
+  if (typeof Buffer !== "undefined" && Buffer.from) return Buffer.from(data).toString("base64");
+  let out = "";
+  for (let i = 0; i < data.length; i++) out += String.fromCharCode(data[i]);
+  return btoa(out);
+}
+
+export function shouldKeepAlive(lastActivity, now, talking, interval) {
+  if (talking) return false;
+  if (lastActivity == null) return false;
+  return (Number(now) || 0) - (Number(lastActivity) || 0) >= (interval || KEEP_ALIVE_MS);
+}
+
+/* Audio held between the end of speech and a one-shot Live turn, used when
+   the persistent socket has failed. */
+export function createUtterance() {
+  const frames = [];
+  return {
+    push(pcm) { if (pcm && pcm.length) frames.push(pcm); },
+    drain() { const out = frames.slice(); frames.length = 0; return out; },
+    empty() { return !frames.length; },
+    count() { return frames.length; }
+  };
+}

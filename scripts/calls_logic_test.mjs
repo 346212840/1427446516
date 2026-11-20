@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createLiveSession, directSocketUrl, proxiesAudio, MIC_WORKLET, CHUNK_SAMPLES, OUTPUT_RATE, needsResume, SESSION_REFRESH_MS, createVad } from "../shared/call-gemini.js";
+import { createLiveSession, directSocketUrl, proxiesAudio, MIC_WORKLET, CHUNK_SAMPLES, OUTPUT_RATE, needsResume, SESSION_REFRESH_MS, createVad, shouldKeepAlive, silenceFrame, pcmB64, createUtterance, KEEP_ALIVE_MS, SILENCE_SAMPLES } from "../shared/call-gemini.js";
 import { isCallLang, CALL_LANGS, detectLang, guessLang } from "../shared/call-langs.js";
 import { outputGains, createJitter, soakJitter, createMeter, createTimeline, normalizeVolumes, MIC_CONSTRAINTS, micConstraints, OPUS_MAX_BITRATE } from "../shared/call-audio.js";
 import { callDecision, dndActive } from "../shared/call-privacy.js";
@@ -738,5 +738,48 @@ console.log("calls logic ok", JSON.stringify(report));
     assert.deepEqual(seen, ["sent", "byte:audio", "play:100", "turn"]);
     pipe.close();
     console.log("calls pipe timing hooks ok");
+  }
+
+  /* Keep-alive and turn-buffer helpers for the live-stream fallback. */
+  assert.equal(shouldKeepAlive(0, KEEP_ALIVE_MS - 1, false), false);
+  assert.equal(shouldKeepAlive(0, KEEP_ALIVE_MS, false), true);
+  assert.equal(shouldKeepAlive(0, KEEP_ALIVE_MS + 10, true), false, "no keep-alive while talking");
+  assert.equal(shouldKeepAlive(null, KEEP_ALIVE_MS + 10, false), false, "no keep-alive before the socket is live");
+  assert.equal(silenceFrame().length, SILENCE_SAMPLES);
+  assert.equal(silenceFrame().every((x) => x === 0), true);
+  assert.equal(typeof pcmB64(silenceFrame()), "string");
+  assert.ok(pcmB64(silenceFrame()).length > 8);
+  const ut = createUtterance();
+  assert.equal(ut.empty(), true);
+  ut.push(new Int16Array(10)); ut.push(new Int16Array(10));
+  assert.equal(ut.count(), 2);
+  assert.equal(ut.drain().length, 2);
+  assert.equal(ut.empty(), true);
+  {
+    const sockets = [];
+    globalThis.WebSocket = class { constructor(url) { this.url = url; this.readyState = 0; sockets.push(this); setTimeout(() => { this.readyState = 1; this.onopen && this.onopen(); }, 1); } send(x) { this.sent = (this.sent || []).concat(x); } close() { this.readyState = 3; this.onclose && this.onclose(); } };
+    const ac = { get currentTime() { return 0; }, createBuffer: (n, len, rate) => ({ duration: len / rate, copyToChannel() {} }), createBufferSource: () => ({ connect() {}, start() {} }) };
+    const ka = [];
+    const pipe = createPipe({ ac, relayFirst: () => false, routeKnown: () => true, noteRoute() {}, relayUrls: null }, {
+      id: "k", target: "es", out: {}, source: "en", keepAlive: true,
+      token: async () => ({ mode: "token", url: "wss://fake/x", setup: {} }),
+      onState() {}, onGoAway() {}, onOut() {}, onPartial() {}, onLine() {},
+      onKeepAlive: () => ka.push(1)
+    });
+    pipe.open();
+    await new Promise((r) => setTimeout(r, 30));
+    const sock = sockets[0];
+    sock.onmessage({ data: JSON.stringify({ setupComplete: {} }) });
+    await new Promise((r) => setTimeout(r, 10));
+    assert.equal(pipe.maybeKeepAlive(1000), false, "too soon after setup");
+    assert.equal(pipe.maybeKeepAlive(Date.now() + KEEP_ALIVE_MS + 50), true);
+    assert.equal(ka.length, 1);
+    const msg = JSON.parse(sock.sent[sock.sent.length - 1]);
+    assert.equal(msg.realtimeInput.audio.mimeType, "audio/pcm;rate=16000");
+    assert.ok(msg.realtimeInput.audio.data.length > 8);
+    pipe.send(new Int16Array(1600));
+    assert.equal(pipe.maybeKeepAlive(Date.now() + KEEP_ALIVE_MS * 4), false, "no keep-alive in the middle of a turn");
+    pipe.close();
+    console.log("calls keep-alive ok");
   }
 }
