@@ -432,19 +432,53 @@
     return !!(row && row.capPaused);
   }
 
-  function orderLiveNow(rows, previous) {
+  /* Live accounts always come first. The sort chip picks the order inside them; accounts that are not live follow, most recently live first. */
+  var SORT_KEY = "viktorych_live_sort";
+  var SORTS = ["few", "most", "recent", "name"];
+  function liveSortMode() {
+    try {
+      var saved = localStorage.getItem(SORT_KEY);
+      if (SORTS.indexOf(saved) >= 0) return saved;
+    } catch (err) { /* private mode */ }
+    return "few";
+  }
+  function setLiveSortMode(mode) {
+    var next = SORTS.indexOf(mode) >= 0 ? mode : "few";
+    try { localStorage.setItem(SORT_KEY, next); } catch (err) { /* private mode */ }
+    return next;
+  }
+  function sortLabel(mode) {
+    if (mode === "most") return tr("Most viewers");
+    if (mode === "recent") return tr("Newest first");
+    if (mode === "name") return tr("A–Z");
+    return tr("Fewest viewers");
+  }
+  function orderLiveNow(rows, previous, mode) {
     var prior = Array.isArray(previous) ? previous.map(foldHandle) : [];
+    var how = SORTS.indexOf(mode) >= 0 ? mode : liveSortMode();
     return (rows || []).slice().sort(function (a, b) {
       var aLive = !!(a && a.live);
       var bLive = !!(b && b.live);
       if (aLive !== bLive) return aLive ? -1 : 1;
-      var dv = (Number(a && a.viewers) || 0) - (Number(b && b.viewers) || 0);
-      if (dv) return dv;
-      var ia = prior.indexOf(foldHandle(a && a.handle));
-      var ib = prior.indexOf(foldHandle(b && b.handle));
-      if (ia >= 0 && ib >= 0 && ia !== ib) return ia - ib;
       var left = foldHandle(a && a.handle);
       var right = foldHandle(b && b.handle);
+      if (aLive) {
+        if (how === "few" || how === "most") {
+          var dv = (Number(a && a.viewers) || 0) - (Number(b && b.viewers) || 0);
+          if (dv) return how === "most" ? -dv : dv;
+        } else if (how === "recent") {
+          /* newest live first, by when this device first saw it live */
+          var ds = (Number(b && b.since) || 0) - (Number(a && a.since) || 0);
+          if (ds) return ds;
+        }
+      } else if (how !== "name") {
+        var ra = Date.parse(a && a.lastLiveAt || "") || 0;
+        var rb = Date.parse(b && b.lastLiveAt || "") || 0;
+        if (ra !== rb) return rb - ra;
+      }
+      var ia = prior.indexOf(left);
+      var ib = prior.indexOf(right);
+      if (how !== "name" && ia >= 0 && ib >= 0 && ia !== ib) return ia - ib;
       if (left < right) return -1;
       if (left > right) return 1;
       return 0;
@@ -563,7 +597,8 @@
         detail: status.detail || "",
         avatar: (extra && extra.avatar) || status.avatar || avatarFor(handle, extra),
         name: (extra && extra.name) || "",
-        record: recordOf(handle)
+        record: recordOf(handle),
+        since: status.live ? sinceOf(handle) : 0
       });
     }
     if (isLocked()) {
@@ -773,7 +808,9 @@
     return '<div class="shorts-subtabs"><div class="tabs" role="tablist">' +
       '<a class="tab' + (pane === "past" ? "" : " on") + '" href="#/shorts/live/now" role="tab" aria-selected="' + (pane === "past" ? "false" : "true") + '"><span>' + hooks.esc(tr("Live now")) + "</span></a>" +
       '<a class="tab' + (pane === "past" ? " on" : "") + '" href="#/shorts/live/past" role="tab" aria-selected="' + (pane === "past" ? "true" : "false") + '"><span>' + hooks.esc(tr("Past lives")) + "</span>" + badge + "</a>" +
-      "</div></div>";
+      "</div>" +
+      (pane === "past" ? "" : '<button type="button" class="shorts-sort" data-shorts="sort" aria-label="' + hooks.esc(tr("Sort live accounts")) + '"><span>' + hooks.esc(sortLabel(liveSortMode())) + "</span></button>") +
+      "</div>";
   }
 
   function orderedNow() {
@@ -800,12 +837,13 @@
         '<a class="shorts-open" target="_blank" rel="noopener noreferrer" href="' + hooks.esc(profile) + '">' + hooks.esc(tr("Open on TikTok")) + "</a></div>";
     var viewers = on && row.viewers ? '<span class="shorts-viewers">' + hooks.esc(tn("watching", row.viewers || 0, { count: hooks.formatCount(row.viewers || 0, 1000) })) + "</span>" : "";
     var badge = on ? '<span class="shorts-live-tag">' + hooks.esc(tr("LIVE")) + "</span>" : "";
+    var sinceLine = on && !held ? '<span class="shorts-since">' + hooks.esc(sinceText(row.since)) + "</span>" : "";
     var recText = recordLabel(row);
     var recBadge = recText ? '<span class="shorts-rec-tag">' + hooks.esc(recText) + "</span>" : "";
     var capNote = held ? '<p class="shorts-over-note">' + hooks.esc(tr("Live paused: over {count} viewers", { count: String(row.cap != null ? row.cap : 20) })) + "</p>" : "";
     return '<article class="shorts-slide' + (held ? " is-over-cap" : "") + '" data-kind="live" data-live="' + (on && !held ? "1" : "0") + '" data-handle="' + hooks.esc(handle) + '">' +
       '<div class="shorts-stage">' + body +
-      '<div class="shorts-meta">' + badge + recBadge + viewers +
+      '<div class="shorts-meta">' + badge + recBadge + viewers + sinceLine +
       '<div><a class="shorts-author" href="' + hooks.esc(appProfile) + '">@' + hooks.esc(handle) + "</a></div>" +
       (row && row.title ? '<p class="shorts-caption">' + hooks.esc(row.title) + "</p>" : "") +
       capNote +
@@ -1744,6 +1782,7 @@
       cap: info && info.cap != null ? info.cap : (prev.cap != null ? prev.cap : 20)
     };
     cached.live[slot] = next;
+    trackSince(next.handle, next.live);
     if (quiet && next.live) {
       patchViewers(next.handle, next);
       if (next.capPaused) holdOverCap(next.handle, next);
@@ -1751,6 +1790,45 @@
       return;
     }
     schedulePaint();
+  }
+
+  /* When this device first saw an account live, kept while it stays live, so a card can say "Seen live for 12 min". */
+  var SINCE_KEY = "viktorych_live_since";
+  var sinceMap = null;
+  function sinceAll() {
+    if (sinceMap) return sinceMap;
+    try { sinceMap = JSON.parse(localStorage.getItem(SINCE_KEY) || "{}") || {}; } catch (err) { sinceMap = {}; }
+    return sinceMap;
+  }
+  function trackSince(handle, live) {
+    var key = foldHandle(handle);
+    if (!key) return;
+    var map = sinceAll();
+    var had = Object.prototype.hasOwnProperty.call(map, key);
+    if (live && !had) map[key] = Date.now();
+    else if (!live && had) delete map[key];
+    else return;
+    try { localStorage.setItem(SINCE_KEY, JSON.stringify(map)); } catch (err) { /* private mode */ }
+  }
+  function sinceOf(handle) {
+    var value = Number(sinceAll()[foldHandle(handle)]);
+    return value > 0 ? value : 0;
+  }
+  function sinceText(since) {
+    if (!since) return "";
+    var mins = Math.max(0, Math.floor((Date.now() - since) / 60000));
+    if (mins < 1) return tr("Just went live");
+    if (mins < 60) return tr("Seen live for {time}", { time: tr("{n} min", { n: mins }) });
+    return tr("Seen live for {time}", { time: tr("{h} h {m} min", { h: Math.floor(mins / 60), m: mins % 60 }) });
+  }
+  function patchSince() {
+    var feed = document.getElementById("shorts-feed");
+    if (!feed) return;
+    var slides = feed.querySelectorAll('.shorts-slide[data-kind="live"][data-live="1"]');
+    for (var i = 0; i < slides.length; i++) {
+      var slot = slides[i].querySelector(".shorts-since");
+      if (slot) slot.textContent = sinceText(sinceOf(slides[i].getAttribute("data-handle")));
+    }
   }
 
   function patchViewers(handle, row) {
@@ -1947,9 +2025,10 @@
       patchViewerLabels(rows);
       return;
     }
+    patchSince();
     var key = "now\n" + rows.map(function (row) {
       var rec = row.record || {};
-      return [row.handle, row.live ? 1 : 0, row.viewers || 0, row.lastLiveAt || "", row.title || "", rec.state || "", rec.key || ""].join("\n");
+      return [row.handle, row.live ? 1 : 0, row.viewers || 0, row.since || 0, row.lastLiveAt || "", row.title || "", rec.state || "", rec.key || ""].join("\n");
     }).join("\n");
     if (key === livePaintKey && feed.querySelector(".shorts-slide")) return;
     livePaintKey = key;
@@ -3857,6 +3936,13 @@
         var block = sheet.querySelector(".shorts-cap");
         if (block) block.outerHTML = capSettingsHtml();
       }
+    } else if (kind === "sort") {
+      event.preventDefault();
+      setLiveSortMode(SORTS[(SORTS.indexOf(liveSortMode()) + 1) % SORTS.length]);
+      var chip = document.querySelector(".shorts-sort span");
+      if (chip) chip.textContent = sortLabel(liveSortMode());
+      livePaintKey = "";
+      paintLive();
     } else if (kind === "toggle-lock") {
       event.preventDefault();
       toggleLock();
@@ -4145,6 +4231,9 @@
     showCaptcha: openCaptchaModal,
     closeCaptcha: closeCaptchaModal,
     orderLiveNow: orderLiveNow,
+    liveSortMode: liveSortMode,
+    setLiveSortMode: setLiveSortMode,
+    sinceText: sinceText,
     neighborHandle: neighborHandle,
     playbackSteps: playbackSteps,
     hlsFatalPlan: hlsFatalPlan,
