@@ -450,6 +450,7 @@
   .calls-setup .calls-vol { margin: 6px 0; gap: 4px; }
   .calls-setup .calls-joinform .calls-big.join { position: sticky; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 5; margin-top: 8px; }
   .calls-setup .calls-privacy { margin: 6px 0 0; font-size: 12px; }
+}
 
 /* ---- chat bubbles use the screen (calls_onechat) ---- */
 .calls-conv .calls-thread { gap: 6px; padding: 6px 0; }
