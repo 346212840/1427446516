@@ -6860,5 +6860,11 @@ SI18n.addPack("en", {
   "Calls use Cloudflare TURN only as a fallback, and stop at a monthly cap so it stays free. At the cap they use the free relay. Off lifts only the monthly cap.": "Calls use Cloudflare TURN only as a fallback, and stop at a monthly cap so it stays free. At the cap they use the free relay. Off lifts only the monthly cap.",
   "TURN is not set up yet. Calls use the free relay.": "TURN is not set up yet. Calls use the free relay.",
   "TURN this month: about {used} of {cap} ({percent}%), {calls} calls. This is an estimate.": "TURN this month: about {used} of {cap} ({percent}%), {calls} calls. This is an estimate.",
-  "The cap is reached, so calls use the free relay until next month.": "The cap is reached, so calls use the free relay until next month."
+  "The cap is reached, so calls use the free relay until next month.": "The cap is reached, so calls use the free relay until next month.",
+  "Check my microphone": "Check my microphone",
+  "Detecting…": "Detecting…",
+  "Microphone and sending": "Microphone and sending",
+  "More controls": "More controls",
+  "They speak": "They speak",
+  "This call has no guest link.": "This call has no guest link."
 });

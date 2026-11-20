@@ -44,6 +44,14 @@ function pipFlagOn() {
   } catch (err) { return true; }
 }
 
+/* Owner switch calls_bar, on unless the server list says off. */
+function barFlagOn() {
+  try {
+    const list = JSON.parse(localStorage.getItem("viktorychapp-server-off") || "[]");
+    return !(Array.isArray(list) && list.indexOf("calls_bar") >= 0);
+  } catch (err) { return true; }
+}
+
 /* Owner switch calls_preview, on unless the server list says off. */
 function previewFlagOn() {
   try {
@@ -126,6 +134,7 @@ async function api(path, init) {
 const hist = createHistory({ api: (path, init) => api(path, init), storage: { getItem: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, setItem: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } } }, signedIn: () => signedIn() });
 const state = {
   histSel: null,
+  pop: "",
   histUndo: null,
   phase: "idle",
   configured: true,
@@ -582,6 +591,7 @@ function sendLabel() {
   return state.mode.send === "text" ? tr("Text") : (state.mode.send === "note" ? tr("Tap to talk") : tr("Voice"));
 }
 function controlBar() {
+  if (barFlagOn()) return newBar();
   const subsOn = state.mode.subtitles !== "off";
   const hears = state.mode.receive !== "text";
   return `<div class="calls-controls" data-essentials="mute speaker hangup talk">
@@ -595,6 +605,147 @@ function controlBar() {
     ${cbtn("call-more", "more", tr("More"), { pressed: state.panel === "settings" })}
     ${cbtn("call-end", "hangup", tr("Leave"), { cls: "end", aria: tr("End call") })}
   </div>`;
+}
+/* ---------- bottom bar with popovers (calls_bar) ----------
+   Every in-call setting is a button on the bar. A button opens a small sheet
+   right above the bar; on phones five buttons fit and the rest wait in a tray
+   that a swipe up (or the handle) opens. Nothing here is new behaviour: the
+   sheets reuse the same controls the Settings panel has. */
+const POPS = ["mic", "lang", "subs", "sound", "invite", "tray"];
+function popBtn(pop, icon, label, opt) {
+  const o = opt || {};
+  const open = state.pop === pop;
+  return `<button type="button" class="cb${o.cls ? " " + o.cls : ""}${open ? " on" : ""}${o.extra ? " cb-extra" : ""}" data-act="call-pop" data-value="${pop}" aria-haspopup="dialog" aria-expanded="${open ? "true" : "false"}" aria-label="${esc(o.aria || label)}" title="${esc(o.aria || label)}">${ico(icon)}<span class="cb-l">${esc(label)}</span></button>`;
+}
+function newBar() {
+  const subsOn = state.mode.subtitles !== "off";
+  const micBtn = state.noMic
+    ? cbtn("call-focus-type", "micOff", tr("No mic"), { cls: "off", aria: tr("No mic, type to talk") })
+    : cbtn("call-mute", state.muted ? "micOff" : "mic", state.muted ? tr("Unmute") : tr("Mute"), { cls: state.muted ? "off" : "", aria: state.muted ? tr("Unmute microphone") : tr("Mute microphone") });
+  const caret = `<button type="button" class="cb-caret cb-extra" data-act="call-pop" data-value="mic" aria-haspopup="dialog" aria-expanded="${state.pop === "mic" ? "true" : "false"}" aria-label="${esc(tr("Microphone and sending"))}" title="${esc(tr("Microphone and sending"))}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14l5-5 5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+  return `<div class="calls-controls calls-bar" data-essentials="mute speaker hangup talk" data-bar="1">
+    <button type="button" class="calls-handle" data-act="call-pop" data-value="tray" aria-label="${esc(tr("More controls"))}" aria-expanded="${state.pop === "tray" ? "true" : "false"}"><i></i></button>
+    <span class="cb-split">${micBtn}${caret}</span>
+    ${popBtn("lang", "translate", tr("Languages"))}
+    ${popBtn("subs", "captions", tr("Captions"), { cls: subsOn ? "" : "dim" })}
+    ${popBtn("sound", state.speakerOn ? "speaker" : "speakerOff", tr("Sound"), { extra: true })}
+    ${earSupported() ? cbtn("call-ear", "ear", tr("Ear mode"), { pressed: state.ear.on }).replace('class="cb', 'class="cb cb-extra') : ""}
+    ${cbtn("call-panel", "chat", tr("Chat"), { pressed: state.panel === "chat", data: { value: state.panel === "chat" ? "" : "chat" } })}
+    ${popBtn("invite", "link", tr("Invite"), { extra: true })}
+    ${popBtn("tray", "more", tr("More"), { extra: true })}
+    ${cbtn("call-end", "hangup", tr("Leave"), { cls: "end", aria: tr("End call") })}
+  </div>`;
+}
+function popTitle(pop) {
+  return { mic: tr("Microphone and sending"), lang: tr("Languages"), subs: tr("Captions"), sound: tr("Sound"), invite: tr("Invite"), tray: tr("More") }[pop] || "";
+}
+function popLang() {
+  const t = state.test;
+  const theirs = peerLang();
+  return `<label class="calls-vol"><span>${esc(tr("I speak"))}</span><select data-act="call-lang">${langOptions(myLang())}</select></label>
+    <p class="calls-pop-row"><span>${esc(tr("They speak"))}</span><b>${esc(theirs ? langName(theirs) : tr("Detecting…"))}</b></p>
+    ${t ? `<label class="calls-vol"><span>${esc(tr("Translate me into"))}</span><select data-act="call-test-lang">${langOptions(t.lang)}</select></label>${hearSwitch(t)}` : ""}`;
+}
+function popSubs() {
+  return `<div class="calls-modes" role="group" aria-label="${esc(tr("Subtitles"))}">
+      ${pill("subtitles", "off", state.mode.subtitles, tr("Subtitles off"))}
+      ${pill("subtitles", "translated", state.mode.subtitles, tr("Translation subtitles"))}
+      ${pill("subtitles", "original", state.mode.subtitles, tr("Original subtitles"))}
+      ${pill("subtitles", "both", state.mode.subtitles, tr("Original and translation"))}
+    </div>
+    <h3>${esc(tr("Caption size"))}</h3>
+    <div class="calls-modes" role="group" aria-label="${esc(tr("Caption size"))}">
+      ${CAP_SIZES.map((z) => `<button type="button" class="calls-pill${state.capSize === z ? " on" : ""}" data-act="call-capsize" data-value="${z}" aria-pressed="${state.capSize === z ? "true" : "false"}">${esc(z === "s" ? tr("Small") : z === "m" ? tr("Medium") : z === "l" ? tr("Large") : tr("Extra large"))}</button>`).join("")}
+    </div>`;
+}
+function popSound() {
+  return `<div class="calls-modes">
+      <button type="button" class="calls-pill${state.speakerOn ? " on" : ""}" data-act="call-speaker" aria-pressed="${state.speakerOn ? "true" : "false"}">${esc(tr("Speaker"))}</button>
+    </div>
+    <h3>${esc(tr("I hear"))}</h3>
+    <div class="calls-modes" role="group" aria-label="${esc(tr("I hear"))}">
+      ${pill("receive", "voice", state.mode.receive, tr("Voice"))}
+      ${pill("receive", "text", state.mode.receive, tr("Text"))}
+      ${pill("receive", "both", state.mode.receive, tr("Both"))}
+    </div>
+    ${state.test ? hearSwitch(state.test) : ""}
+    ${slider("trvol", tr("Translation volume"))}
+    ${slider("original", tr("Original volume"))}
+    ${slider("overall", tr("Call volume"))}
+    ${earSupported() ? earSection() : ""}`;
+}
+function popMic() {
+  return `<div class="calls-modes">
+      ${state.noMic ? "" : `<button type="button" class="calls-pill${state.muted ? " on" : ""}" data-act="call-mute" aria-pressed="${state.muted ? "true" : "false"}">${esc(state.muted ? tr("Unmute") : tr("Mute"))}</button>`}
+      <button type="button" class="calls-pill" data-act="call-checkmic">${esc(tr("Check my microphone"))}</button>
+    </div>
+    <h3>${esc(tr("I send"))}</h3>
+    <div class="calls-modes" role="group" aria-label="${esc(tr("I send"))}">
+      ${pill("send", "voice", state.mode.send, tr("Voice"))}
+      ${pill("send", "text", state.mode.send, tr("Text"))}
+      ${pill("send", "note", state.mode.send, tr("Tap to talk"))}
+    </div>`;
+}
+function popInvite() {
+  const me = tr("You");
+  const them = state.peerName || tr("Guest");
+  const link = state.inviteUrl
+    ? `<div class="calls-invite"><input readonly value="${esc(state.inviteUrl)}" aria-label="${esc(tr("Guest link"))}" data-invite><button type="button" data-act="call-copy">${esc(tr("Copy link"))}</button>${navigator.share ? `<button type="button" data-act="call-share">${esc(tr("Share"))}</button>` : ""}</div>`
+    : `<p class="calls-privacy">${esc(tr("This call has no guest link."))}</p>`;
+  return `<ul class="calls-people"><li>${esc(me)}</li>${state.statusCode === "waiting" ? "" : `<li>${esc(them)}</li>`}</ul>${link}`;
+}
+function trayTile(act, icon, label, data, on) {
+  const d = data ? Object.keys(data).map((k) => ` data-${k}="${esc(data[k])}"`).join("") : "";
+  return `<button type="button" class="calls-tilebtn${on ? " on" : ""}" data-act="${act}"${d}>${ico(icon)}<span>${esc(label)}</span></button>`;
+}
+function popTray() {
+  const tiles = [
+    trayTile("call-pop", "mic", tr("Microphone and sending"), { value: "mic" }),
+    trayTile("call-pop", state.speakerOn ? "speaker" : "speakerOff", tr("Sound"), { value: "sound" }),
+    earSupported() ? trayTile("call-ear", "ear", tr("Ear mode")) : "",
+    state.test ? trayTile("call-test-hear", "voice", tr("Hear my translation"), null, state.test.hear) : "",
+    trayTile("call-pop", "link", tr("Invite"), { value: "invite" }),
+    trayTile("call-repeat", "note", tr("Repeat that")),
+    state.test ? trayTile("call-panel", "test", tr("Test partner"), { value: "test" }) : "",
+    state.test ? trayTile("call-test-info", "info", tr("Call details"), null, state.testInfo) : "",
+    trayTile("call-more", "settings", tr("All settings"))
+  ].join("");
+  return `<div class="calls-tiles">${tiles}</div>`;
+}
+function popBlock() {
+  if (!barFlagOn() || !state.pop || POPS.indexOf(state.pop) < 0) return "";
+  const body = { mic: popMic, lang: popLang, subs: popSubs, sound: popSound, invite: popInvite, tray: popTray }[state.pop]();
+  return `<div class="calls-pop${state.pop === "tray" ? " tray" : ""}${state.popAnim ? " fresh" : ""}" data-pop="${state.pop}" role="dialog" aria-label="${esc(popTitle(state.pop))}">
+    <header><b>${esc(popTitle(state.pop))}</b><button type="button" class="calls-x" data-act="call-pop" data-value="" aria-label="${esc(tr("Close"))}">${ico("close")}</button></header>
+    <div class="calls-pop-body">${body}</div>
+  </div>`;
+}
+/* A tap anywhere outside the open sheet and the bar closes the sheet. */
+function popOutside(e) {
+  if (!state.pop || !e.target || !e.target.closest) return;
+  if (e.target.closest(".calls-pop, .calls-controls")) return;
+  state.pop = "";
+  paint();
+}
+/* On phones a swipe up on the bar opens the tray, a swipe down closes it. */
+let barSwipe = null;
+function barDown(e) {
+  const bar = e.target && e.target.closest && e.target.closest(".calls-bar, .calls-pop.tray");
+  barSwipe = bar ? { y: e.clientY, tray: !!e.target.closest(".calls-pop.tray") } : null;
+}
+function barUp(e) {
+  const sw = barSwipe;
+  barSwipe = null;
+  if (!sw || !barFlagOn()) return;
+  const dy = e.clientY - sw.y;
+  if (dy < -36 && state.pop !== "tray") { state.pop = "tray"; swallowClickAt = Date.now(); paint(); }
+  else if (dy > 36 && state.pop) { state.pop = ""; swallowClickAt = Date.now(); paint(); }
+}
+function setPop(name) {
+  state.pop = state.pop === name ? "" : (POPS.indexOf(name) >= 0 ? name : "");
+  state.popAnim = !!state.pop;
+  paint();
+  state.popAnim = false;
 }
 
 function panelBlock() {
@@ -641,6 +792,7 @@ function callScreen() {
     </main>
     ${panelBlock()}
     ${nomic}${typeBar}${noteBar}${hint}
+    ${popBlock()}
     ${controlBar()}
   </div>`;
 }
@@ -1235,6 +1387,8 @@ function paint() {
   const keep = focus && focus.name && el.contains(focus) ? { name: focus.name, value: focus.value } : null;
   const sheet = el.querySelector(".calls-sheet");
   const scroll = sheet ? sheet.scrollTop : 0;
+  const popEl = el.querySelector(".calls-pop");
+  const popScroll = popEl ? popEl.scrollTop : 0;
   el.outerHTML = page(state.route);
   const fresh = host();
   if (keep && fresh) {
@@ -1243,6 +1397,8 @@ function paint() {
   }
   const sheetNow = fresh && fresh.querySelector(".calls-sheet");
   if (sheetNow) sheetNow.scrollTop = scroll;
+  const popNow = fresh && fresh.querySelector(".calls-pop");
+  if (popNow && popScroll) popNow.scrollTop = popScroll;
   bindSession(state.phase === "active");
   holdWake(state.phase === "active");
   if (state.phase === "active") startOrientation();
@@ -2099,8 +2255,9 @@ function setPanel(name) {
 }
 function onAct(act, el) {
   if (act === "call-set") onSet(el.dataset.group, el.dataset.value);
-  else if (act === "call-more") setPanel(state.panel === "settings" ? "" : "settings");
-  else if (act === "call-panel") setPanel(el.dataset.value || "");
+  else if (act === "call-more") { state.pop = ""; setPanel(state.panel === "settings" ? "" : "settings"); }
+  else if (act === "call-panel") { state.pop = ""; setPanel(el.dataset.value || ""); }
+  else if (act === "call-pop") setPop(el.dataset.value || "");
   else if (act === "call-tab") { state.tab = el.dataset.value || "recent"; paint(); }
   else if (act === "hist-del") histRemove([el.dataset.id]);
   else if (act === "hist-select") { state.histSel = new Set(); paint(); }
@@ -2420,6 +2577,9 @@ function mount(route) {
     target.addEventListener("pointermove", holdMove);
     target.addEventListener("pointerup", holdClear);
     target.addEventListener("click", holdClick, true);
+    target.addEventListener("click", popOutside);
+    target.addEventListener("pointerdown", barDown);
+    target.addEventListener("pointerup", barUp);
     target.addEventListener("contextmenu", onContext, true);
     target.addEventListener("input", onInput);
     target.addEventListener("change", onChange);

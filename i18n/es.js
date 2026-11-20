@@ -6863,5 +6863,11 @@ SI18n.addPack("es", {
   "Calls use Cloudflare TURN only as a fallback, and stop at a monthly cap so it stays free. At the cap they use the free relay. Off lifts only the monthly cap.": "Las llamadas usan Cloudflare TURN solo como respaldo y se detienen en un tope mensual para seguir gratis. Al llegar al tope usan el relé gratuito. Apagado quita solo el tope mensual.",
   "TURN is not set up yet. Calls use the free relay.": "TURN aún no está configurado. Las llamadas usan el relé gratuito.",
   "TURN this month: about {used} of {cap} ({percent}%), {calls} calls. This is an estimate.": "TURN este mes: unos {used} de {cap} ({percent}%), {calls} llamadas. Es una estimación.",
-  "The cap is reached, so calls use the free relay until next month.": "Se alcanzó el tope, así que las llamadas usan el relé gratuito hasta el mes próximo."
+  "The cap is reached, so calls use the free relay until next month.": "Se alcanzó el tope, así que las llamadas usan el relé gratuito hasta el mes próximo.",
+  "Check my microphone": "Comprobar mi micrófono",
+  "Detecting…": "Detectando…",
+  "Microphone and sending": "Micrófono y envío",
+  "More controls": "Más controles",
+  "They speak": "Hablan",
+  "This call has no guest link.": "Esta llamada no tiene enlace de invitado."
 });

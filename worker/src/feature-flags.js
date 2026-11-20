@@ -160,7 +160,8 @@ export const FEATURES = {
      soft monthly cap (see call-turn.js) and calls fall back to the free relay.
      Off lifts only the monthly cap; who may get credentials, the two hour
      lifetime and the rate limits stay. Client only, no paths. */
-  calls_turn_budget: { paths: [] }
+  calls_turn_budget: { paths: [] },
+  calls_bar: { paths: [] }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 
