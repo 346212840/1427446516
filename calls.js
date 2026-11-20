@@ -64,6 +64,13 @@ function convShown() {
   return oneChatFlagOn() && state.conv !== false;
 }
 
+/* Owner switch calls_onescreen, on unless the server list says off. */
+function onescreenFlagOn() {
+  try {
+    const list = JSON.parse(localStorage.getItem("viktorychapp-server-off") || "[]");
+    return !(Array.isArray(list) && list.indexOf("calls_onescreen") >= 0);
+  } catch (err) { return true; }
+}
 
 /* Owner switch calls_duck, on unless the server list says off. */
 function duckFlagOn() {
@@ -474,11 +481,20 @@ function waveBars() {
   return `<span class="calls-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>`;
 }
 function tile(kind, name, lang, speaking, extra) {
-  return `<div class="calls-tile" data-tile="${kind}" data-speaking="${speaking ? "1" : "0"}">
+  if (!onescreenFlagOn()) {
+    return `<div class="calls-tile" data-tile="${kind}" data-speaking="${speaking ? "1" : "0"}">
     <div class="calls-ava${kind === "me" ? " me" : ""}">${esc(initialOf(name))}</div>
     ${waveBars()}
     <div class="calls-tag"><span class="calls-tname">${esc(name)}</span>${extra || ""}</div>
     <div class="calls-tlang">${langBadge(lang)}</div>
+  </div>`;
+  }
+  const muted = kind === "me" && !!(state.muted || state.noMic);
+  const mute = muted ? `<span class="calls-tmute" title="${esc(state.noMic ? tr("No mic") : tr("Muted"))}">${ico("micOff")}</span>` : "";
+  return `<div class="calls-tile" data-tile="${kind}" data-speaking="${speaking ? "1" : "0"}"${muted ? " data-muted=\"1\"" : ""}>
+    <span class="calls-ava-wrap"><div class="calls-ava${kind === "me" ? " me" : ""}">${esc(initialOf(name))}</div>${mute}</span>
+    <div class="calls-tmeta"><span class="calls-tname">${esc(name)}</span>${langBadge(lang)}${extra || ""}</div>
+    ${waveBars()}
   </div>`;
 }
 function cbtn(act, icon, label, opt) {
@@ -903,7 +919,7 @@ function callScreen() {
   const typeBar = !conv && (state.mode.send === "text" || state.noMic) && state.panel !== "chat" ? `<form class="calls-type calls-float" data-act="call-type-form">${previewCard()}<input name="text" maxlength="500" aria-label="${esc(tr("Type to them"))}" placeholder="${esc(tr("Type to them"))}" autocomplete="off"><button type="submit" class="cb send" aria-label="${esc(tr("Send"))}">${ico("outgoing")}</button></form>` : "";
   const nomic = state.noMic ? `<button type="button" class="calls-nomic" data-act="call-focus-type">${ico("micOff")}<span>${esc(tr("No mic, type to talk"))}</span></button>` : "";
   const hint = state.hintSeen ? "" : `<p class="calls-hint">${esc(tr("You can type instead of talking."))}</p>`;
-  return `<div class="calls-page live" data-call-active="1" data-video="0" data-phase="${esc(state.phase)}" data-panel="${state.panel ? "1" : "0"}" data-conv="${conv ? "1" : "0"}">
+  return `<div class="calls-page live" data-call-active="1" data-video="0" data-phase="${esc(state.phase)}" data-panel="${state.panel ? "1" : "0"}" data-conv="${conv ? "1" : "0"}"${onescreenFlagOn() ? " data-onescreen=\"1\"" : ""}">
     <header class="calls-top">
       <div class="calls-brand"><span class="calls-logo">${ico("phone")}</span><b>${esc(state.test ? tr("Test call") : tr("Calls"))}</b></div>
       <div class="calls-meta"><span class="calls-status" data-translating="${state.translating ? "1" : "0"}">${esc(statusText())}</span><span class="calls-timer">${esc(timer)}</span></div>
@@ -911,11 +927,13 @@ function callScreen() {
     <main class="calls-stage">
       ${keyPanel()}
       ${invite}
-      ${conv && !state.testInfo ? "" : testStrip()}
+      ${onescreenFlagOn() ? "" : (conv && !state.testInfo ? "" : testStrip())}
       <div class="calls-grid" >
         ${tile("peer", shown, peerLang(), state.speaking || state.translating)}
         ${tile("me", mine, myLang(), state.meSpeaking)}
       </div>
+      ${onescreenFlagOn() ? stageChips() : ""}
+      ${onescreenFlagOn() && state.test && state.testInfo ? `<div class="calls-chips" data-testchips>${chipsHtml()}</div>` : ""}
       ${conv ? convBlock() : subtitleBlock()}
     </main>
     ${panelBlock()}
@@ -925,6 +943,33 @@ function callScreen() {
   </div>`;
 }
 
+function langPairLabel() {
+  const from = String(myLang() || "").split("-")[0].toUpperCase();
+  const toCode = peerLang() || (state.test && state.test.lang) || "";
+  const to = String(toCode || "").split("-")[0].toUpperCase();
+  return (from || "—") + " → " + (to || "…");
+}
+function stageChips() {
+  const subsOn = state.mode.subtitles !== "off";
+  const hearOn = state.test ? !!state.test.hear : state.mode.receive !== "text";
+  const hearLabel = state.test ? tr("Hear my translation") : tr("Hear translation");
+  const hearBtn = state.test
+    ? `<button type="button" class="calls-schip${hearOn ? " on" : ""}" role="switch" aria-checked="${hearOn ? "true" : "false"}" data-act="call-test-hear" title="${esc(tr("Hear my translation (use headphones)"))}">${ico("voice")}<span>${esc(hearLabel)}</span></button>`
+    : `<button type="button" class="calls-schip${hearOn ? " on" : ""}" role="switch" aria-checked="${hearOn ? "true" : "false"}" data-act="call-set" data-group="receive" data-value="${hearOn ? "text" : "voice"}" title="${esc(hearLabel)}">${ico("translate")}<span>${esc(hearLabel)}</span></button>`;
+  const ear = earSupported()
+    ? `<button type="button" class="calls-schip${state.ear.on ? " on" : ""}" data-act="call-ear" aria-pressed="${state.ear.on ? "true" : "false"}" title="${esc(tr("Ear mode"))}">${ico("ear")}<span>${esc(tr("Ear mode"))}</span></button>`
+    : "";
+  const details = state.test
+    ? `<button type="button" class="calls-schip${state.testInfo ? " on" : ""}" data-act="call-test-info" aria-pressed="${state.testInfo ? "true" : "false"}" title="${esc(tr("Call details"))}">${ico("info")}<span>${esc(tr("Call details"))}</span></button>`
+    : "";
+  return `<div class="calls-stagechips" role="toolbar" aria-label="${esc(tr("Call controls"))}">
+    <button type="button" class="calls-schip" data-act="call-pop" data-value="lang" aria-haspopup="dialog" aria-expanded="${state.pop === "lang" ? "true" : "false"}" title="${esc(tr("Languages"))}"><span class="calls-spair">${esc(langPairLabel())}</span></button>
+    <button type="button" class="calls-schip${subsOn ? " on" : ""}" data-act="call-pop" data-value="subs" aria-haspopup="dialog" aria-expanded="${state.pop === "subs" ? "true" : "false"}" title="${esc(tr("Captions"))}">${ico("captions")}<span>${esc(tr("Captions"))}</span></button>
+    ${hearBtn}
+    <button type="button" class="calls-schip${state.speakerOn ? " on" : ""}" data-act="call-speaker" aria-pressed="${state.speakerOn ? "true" : "false"}" title="${esc(tr("Speaker"))}">${ico(state.speakerOn ? "speaker" : "speakerOff")}<span>${esc(tr("Speaker"))}</span></button>
+    ${ear}${details}
+  </div>`;
+}
 function chipsHtml() {
   const s = state.stats;
   const info = (state.partner && state.partner.mintInfo && state.partner.mintInfo()) || (state.engine && state.engine.mintInfo && state.engine.mintInfo()) || null;

@@ -6910,5 +6910,9 @@ SI18n.addPack("es", {
   "Barge-in": "Interrupción",
   "When the other person starts talking, leftover translation playback is stopped so you hear them (and the new translation) at once. Off lets the previous phrase finish.": "Cuando la otra persona empieza a hablar, se detiene el resto de la traducción anterior para oírla (y la nueva traducción) de inmediato. Desactivado deja terminar la frase anterior.",
   "Duck original voice": "Bajar la voz original",
-  "While a translation is playing, their original voice stays quiet underneath it. Off leaves the original at the level you set, even during a translation.": "Mientras suena una traducción, su voz original se queda baja debajo. Desactivado deja la original en el nivel que elegiste, también durante la traducción."
+  "While a translation is playing, their original voice stays quiet underneath it. Off leaves the original at the level you set, even during a translation.": "Mientras suena una traducción, su voz original se queda baja debajo. Desactivado deja la original en el nivel que elegiste, también durante la traducción.",
+  "Even tiles and one call screen": "Baldosas iguales y una sola pantalla",
+  "The people in the call sit in equal tiles at the top, with language, captions, translation and speaker controls in one row, and the conversation continues underneath with no separate card. Off restores the old stacked tiles and framed chat panel.": "Las personas de la llamada están en baldosas iguales arriba, con idioma, subtítulos, traducción y altavoz en una fila, y la conversación sigue debajo sin una tarjeta aparte. Desactivado restaura las baldosas apiladas y el panel de chat con marco.",
+  "Hear translation": "Oír la traducción",
+  "Call controls": "Controles de la llamada"
 });

@@ -6897,5 +6897,9 @@ SI18n.addPack("hi", {
   "Barge-in": "बीच में रोकना",
   "When the other person starts talking, leftover translation playback is stopped so you hear them (and the new translation) at once. Off lets the previous phrase finish.": "जब दूसरा व्यक्ति बोलना शुरू करता है, पिछली अनुवादित आवाज़ रोक दी जाती है ताकि आप उसे और नया अनुवाद तुरंत सुन सकें। बंद: पिछला वाक्य पूरा चलता है।",
   "Duck original voice": "मूल आवाज़ धीमी",
-  "While a translation is playing, their original voice stays quiet underneath it. Off leaves the original at the level you set, even during a translation.": "अनुवाद चलते समय उनकी मूल आवाज़ नीचे धीमी रहती है। बंद: मूल आवाज़ आपके सेट स्तर पर रहती है, अनुवाद के दौरान भी।"
+  "While a translation is playing, their original voice stays quiet underneath it. Off leaves the original at the level you set, even during a translation.": "अनुवाद चलते समय उनकी मूल आवाज़ नीचे धीमी रहती है। बंद: मूल आवाज़ आपके सेट स्तर पर रहती है, अनुवाद के दौरान भी।",
+  "Even tiles and one call screen": "बराबर टाइल और एक कॉल स्क्रीन",
+  "The people in the call sit in equal tiles at the top, with language, captions, translation and speaker controls in one row, and the conversation continues underneath with no separate card. Off restores the old stacked tiles and framed chat panel.": "कॉल में लोग ऊपर बराबर टाइल में रहते हैं, भाषा, कैप्शन, अनुवाद और स्पीकर एक पंक्ति में होते हैं, और बातचीत नीचे बिना अलग कार्ड के चलती है। बंद: पुरानी झुकी टाइल और फ़्रेम वाला चैट पैनल वापस आता है।",
+  "Hear translation": "अनुवाद सुनें",
+  "Call controls": "कॉल नियंत्रण"
 });
