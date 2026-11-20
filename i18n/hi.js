@@ -6845,5 +6845,10 @@ SI18n.addPack("hi", {
   "Seen live for {time}": "{time} से लाइव देखा गया",
   "{h} h {m} min": "{h} घं {m} मिनट",
   "Mini player": "मिनी प्लेयर",
-  "Open full screen": "पूरी स्क्रीन पर खोलें"
+  "Open full screen": "पूरी स्क्रीन पर खोलें",
+  "TURN relay budget": "TURN रिले बजट",
+  "Calls use Cloudflare TURN only as a fallback, and stop at a monthly cap so it stays free. At the cap they use the free relay. Off lifts only the monthly cap.": "कॉल Cloudflare TURN का उपयोग केवल बैकअप के रूप में करती हैं और मासिक सीमा पर रुक जाती हैं ताकि यह मुफ़्त रहे। सीमा पर वे मुफ़्त रिले का उपयोग करती हैं। बंद करने पर केवल मासिक सीमा हटती है।",
+  "TURN is not set up yet. Calls use the free relay.": "TURN अभी सेट नहीं है। कॉल मुफ़्त रिले का उपयोग करती हैं।",
+  "TURN this month: about {used} of {cap} ({percent}%), {calls} calls. This is an estimate.": "इस महीने TURN: लगभग {cap} में से {used} ({percent}%), {calls} कॉल। यह एक अनुमान है।",
+  "The cap is reached, so calls use the free relay until next month.": "सीमा पूरी हो गई, इसलिए अगले महीने तक कॉल मुफ़्त रिले का उपयोग करेंगी।"
 });

@@ -6489,7 +6489,7 @@ async function route(request, env, ctx) {
     if (handled) return handled;
   }
   if (path === "/v1/calls" || path.startsWith("/v1/calls/")) {
-    const called = await handleCalls(request, env, path, url, { json, sessionAccount, readJson, rateHit, limited });
+    const called = await handleCalls(request, env, path, url, { json, sessionAccount, readJson, rateHit, limited, requireOwner });
     if (called) return called;
   }
   if (path === "/v1/packages" || path.startsWith("/v1/packages/")) {

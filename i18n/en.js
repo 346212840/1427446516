@@ -6855,5 +6855,10 @@ SI18n.addPack("en", {
   "Seen live for {time}": "Seen live for {time}",
   "{h} h {m} min": "{h} h {m} min",
   "Mini player": "Mini player",
-  "Open full screen": "Open full screen"
+  "Open full screen": "Open full screen",
+  "TURN relay budget": "TURN relay budget",
+  "Calls use Cloudflare TURN only as a fallback, and stop at a monthly cap so it stays free. At the cap they use the free relay. Off lifts only the monthly cap.": "Calls use Cloudflare TURN only as a fallback, and stop at a monthly cap so it stays free. At the cap they use the free relay. Off lifts only the monthly cap.",
+  "TURN is not set up yet. Calls use the free relay.": "TURN is not set up yet. Calls use the free relay.",
+  "TURN this month: about {used} of {cap} ({percent}%), {calls} calls. This is an estimate.": "TURN this month: about {used} of {cap} ({percent}%), {calls} calls. This is an estimate.",
+  "The cap is reached, so calls use the free relay until next month.": "The cap is reached, so calls use the free relay until next month."
 });

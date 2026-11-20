@@ -2240,7 +2240,7 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
   function friendsOffNow() {
     return !!(window.ViktorychFriendsPref && window.ViktorychFriendsPref.isOff());
   }
-const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "pills", "nostr", "regone_leaderboard", "regone_online", "regone_rooms", "regone_profile_stats", "nzlay_forum", "nzlay_forum_post", "nzlay_forum_regone", "nft", "bitchat", "feed_requests", "friends_off", "local_ai", "local_ai_setup", "ext_nicknames", "merged_profiles", "owner_inspector", "live_frame_grab", "app_repair", "auto_update", "swipe_tabs", "compact_header", "status_bar", "zoom_lock", "app_scale", "image_copy", "update_notice", "foryou_off", "status_icons", "side_panel", "ai_people", "gguf_models", "instant_limits", "ai_tools", "site_permissions", "notif_sounds", "owner_user_settings", "tiktok_auto_record", "ai_device_setup", "x_broadcast", "ai_auto_model", "article_reader", "storage_recordings", "home_live", "audio_convert", "telegram_account_send", "fish_audio", "local_voice", "calls", "calls_quiet_voice", "calls_pip", "calls_preview"];
+const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "pills", "nostr", "regone_leaderboard", "regone_online", "regone_rooms", "regone_profile_stats", "nzlay_forum", "nzlay_forum_post", "nzlay_forum_regone", "nft", "bitchat", "feed_requests", "friends_off", "local_ai", "local_ai_setup", "ext_nicknames", "merged_profiles", "owner_inspector", "live_frame_grab", "app_repair", "auto_update", "swipe_tabs", "compact_header", "status_bar", "zoom_lock", "app_scale", "image_copy", "update_notice", "foryou_off", "status_icons", "side_panel", "ai_people", "gguf_models", "instant_limits", "ai_tools", "site_permissions", "notif_sounds", "owner_user_settings", "tiktok_auto_record", "ai_device_setup", "x_broadcast", "ai_auto_model", "article_reader", "storage_recordings", "home_live", "audio_convert", "telegram_account_send", "fish_audio", "local_voice", "calls", "calls_quiet_voice", "calls_pip", "calls_preview", "calls_turn_budget"];
   function serverOffList() {
     try {
       const list = JSON.parse(localStorage.getItem(SERVER_OFF_KEY) || "[]");
@@ -2372,13 +2372,37 @@ const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "
       calls: [tr("Calls"), tr("Voice and text calls with live translation. Off until you turn it on. No camera.")],
       calls_quiet_voice: [tr("Quiet voice in Calls"), tr("Calls follow the room's noise and lift soft or whispered speech so it is translated. Off restores the fixed level.")],
       calls_pip: [tr("Floating call window"), tr("When you switch apps during a call, a small floating window keeps it on screen with mute and hang up. Off turns it off.")],
-      calls_preview: [tr("Typed message preview"), tr("While you type to someone on a call, a card shows what they will read and what it means. Off removes the card and sends at once.")]
+      calls_preview: [tr("Typed message preview"), tr("While you type to someone on a call, a card shows what they will read and what it means. Off removes the card and sends at once.")],
+      calls_turn_budget: [tr("TURN relay budget"), tr("Calls use Cloudflare TURN only as a fallback, and stop at a monthly cap so it stays free. At the cap they use the free relay. Off lifts only the monthly cap.")]
     };
     const rows = SERVER_FEATURES.map((name) => {
       const on = !off.includes(name);
-      return `<button class="tab-switch${on ? " on" : ""}" type="button" role="switch" aria-checked="${on ? "true" : "false"}" data-act="owner-feature" data-feature="${esc(name)}"><span>${esc(labels[name][0])}</span><i></i></button><p class="phandle">${esc(labels[name][1])}</p>`;
+      return `<button class="tab-switch${on ? " on" : ""}" type="button" role="switch" aria-checked="${on ? "true" : "false"}" data-act="owner-feature" data-feature="${esc(name)}"><span>${esc(labels[name][0])}</span><i></i></button><p class="phandle">${esc(labels[name][1])}</p>${name === "calls_turn_budget" ? turnStatusLine() : ""}`;
     }).join("");
+    loadTurnStatus();
     return `<section class="owner-features"><h2>${esc(tr("Server features"))}</h2><p class="phandle">${esc(tr("Owner only. Off stops the feature for everyone: no cron work, its endpoints answer empty, and apps load nothing for it."))}</p>${rows}</section>`;
+  }
+
+  let turnStatus = null;
+  let turnStatusAt = 0;
+  function turnStatusLine() {
+    const st = turnStatus;
+    if (!st) return "";
+    if (!st.configured) return `<p class="phandle">${esc(tr("TURN is not set up yet. Calls use the free relay."))}</p>`;
+    const gb = (n) => (n >= 1e9 ? (n / 1e9).toFixed(1) + " GB" : Math.max(0, Math.round(n / 1e6)) + " MB");
+    const line = tr("TURN this month: about {used} of {cap} ({percent}%), {calls} calls. This is an estimate.", { used: gb(st.usedBytes), cap: gb(st.capBytes), percent: String(st.percent), calls: String(st.calls) });
+    return `<p class="phandle">${esc(line)}${st.capped ? " " + esc(tr("The cap is reached, so calls use the free relay until next month.")) : ""}</p>`;
+  }
+  function loadTurnStatus() {
+    const api = accountsApi();
+    const token = accountToken();
+    if (!signedOwner() || !api || !token || Date.now() - turnStatusAt < 60000) return;
+    turnStatusAt = Date.now();
+    fetch(api + "/v1/calls/turn-status", { headers: { Authorization: "Bearer " + token }, cache: "no-store" }).then((res) => (res.ok ? res.json() : null)).then((body) => {
+      if (!body || typeof body.usedBytes !== "number") return;
+      turnStatus = body;
+      render();
+    }).catch(() => {});
   }
 
   function loadOwnerAccounts() {
