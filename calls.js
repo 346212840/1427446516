@@ -462,7 +462,7 @@ function bubbleHtml(row, opts) {
   const note = row.note ? `<button type="button" data-act="call-replay" data-id="${esc(row.id)}">${esc(tr("Replay"))}</button>` : "";
   const age = o.cap && row.at ? Date.now() - row.at : 0;
   const fade = o.cap && !o.live && age > CAP_FADE_MS ? " fading" : "";
-  return `<article class="calls-bubble${mine ? " mine" : ""}${o.live ? " partial" : ""}${fade}" style="--who:${whoColor(who, mine)}">
+  return `<article class="calls-bubble${mine ? " mine" : ""}${o.live ? " partial" : ""}${fade}${o.cont ? " cont" : ""}" style="--who:${whoColor(who, mine)}">
     <div class="calls-ava xs">${esc(initialOf(who || "?"))}</div>
     <div class="calls-bbody"><span class="calls-bname">${esc(who)}</span>${big ? `<p class="calls-bbig">${esc(big)}</p>` : ""}${small ? `<p class="calls-bsmall">${esc(small)}</p>` : ""}${note}</div>
   </article>`;
@@ -487,12 +487,16 @@ function bubble(line) {
 }
 /* The conversation for the one-panel view: finished lines plus the line being said right now. */
 function convThread() {
-  const rows = state.lines.slice(-30).map(bubble);
+  /* A run of bubbles from the same person shows the avatar once, so the text gets the width. */
+  let prev = "";
+  const key = (row) => (row.mine ? "1:" : "0:") + String(row.who || "");
+  const rows = state.lines.slice(-30).map((line) => { const k = key(line); const html = bubbleHtml(line, { cont: oneChatFlagOn() && k === prev }); prev = k; return html; });
   const p = state.partial || {};
   if ((p.original || p.translation) && !partialIsFinal(p, Date.now())) {
     const mine = !!state.test;
     const who = state.whoLabel || (mine ? tr("You") : (state.peerName || tr("Guest")));
-    rows.push(bubbleHtml({ who, mine, original: p.original || "", translation: p.translation || "" }, { live: true }));
+    const row = { who, mine, original: p.original || "", translation: p.translation || "" };
+    rows.push(bubbleHtml(row, { live: true, cont: key(row) === prev }));
   }
   return `<div class="calls-thread" data-size="${esc(state.capSize)}" aria-live="polite">${rows.join("")}</div>`;
 }
