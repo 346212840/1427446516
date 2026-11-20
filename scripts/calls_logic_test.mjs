@@ -632,6 +632,8 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.equal(s.recover(t), true, "voice returns once the last minute is quiet");
   assert.equal(s.onSpeech(speech, t + 100, false).send, true, "and the next turn is sent");
   console.log("calls echo loop ok", guarded.turns.join(","), "| unguarded", unguarded.turns.join(","));
+}
+
 {
   /* Typed preview: debounced, cached, stale answers dropped, and Send is never stuck. */
   const timers = []; let clock = 0; let id = 0;
