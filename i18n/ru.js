@@ -6828,5 +6828,6 @@ SI18n.addPack("ru", {
   "ctImported.other": "{n} контакта импортированы",
   "ctImported.few": "{n} контакта импортированы",
   "ctImported.many": "{n} контактов импортировано",
-  "Contacts are for signed-in accounts. Sign in to use them.": "Контакты доступны только для аккаунтов. Войдите, чтобы пользоваться ими."
+  "Contacts are for signed-in accounts. Sign in to use them.": "Контакты доступны только для аккаунтов. Войдите, чтобы пользоваться ими.",
+  "Call someone, with live translation.": "Позвонить кому-нибудь с живым переводом."
 });

@@ -1646,6 +1646,10 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
         parsed.initialized = true;
       } else mergeDefaultFollows(parsed, configured);
       repairUnintentionalExplore(parsed);
+      /* One time, with the v3 phone menu: a sidebar saved with Calls or Contacts hidden shows them again. */
+      if (!(parsed.drawerMenu && Number(parsed.drawerMenu.v) >= 3) && parsed.navCustom && Array.isArray(parsed.navCustom.hidden)) {
+        parsed.navCustom.hidden = parsed.navCustom.hidden.filter((id) => id !== "calls" && id !== "contacts");
+      }
       parsed.navCustom = cleanNavCustom(parsed.navCustom);
       parsed.drawerMenu = cleanDrawerMenu(parsed.drawerMenu);
       parsed.bottomNav = cleanBottomNav(parsed.bottomNav);
@@ -20334,6 +20338,7 @@ const here = parseRoute();
     }
     return settingsHead(tr("Settings"), "") + settingsSearchHtml() + lockedSettingsNote() + localAiEntryHtml() + `<div class="set-block set-main-note"${String(STATE.settingsQ || "").trim() ? " hidden" : ""}><p class="phandle">${esc(tr("Follows, Lists, custom tabs, likes, bookmarks, and history stay in this browser."))}</p></div><div class="set-list set-main-list"${String(STATE.settingsQ || "").trim() ? " hidden" : ""}>
       ${settingsRow("#/customize", tr("Customize"), tr("Theme, colour, text size, profile pictures and your feed, all in one place."))}
+      ${window.ViktorychServerFeature && window.ViktorychServerFeature("calls") ? settingsRow("#/calls", tr("Calls"), tr("Call someone, with live translation.")) : ""}
       ${settingsRow("#/settings/accessibility", tr("Accessibility, display and languages"), tr("Manage how {app} looks and which language it uses.", { app: productName("app") }))}
       ${settingsRow("#/settings/notifications", tr("Notifications"))}
       ${settingsRow("#/settings/x-posting", tr("Post to X"), tr("Direct posting stays off"))}
@@ -20388,7 +20393,7 @@ const here = parseRoute();
   };
 
   function defaultDrawerMenu() {
-    return { sections: [], order: DRAWER_PRIMARY.concat(DRAWER_EXTRA).filter((id) => id !== "settings" && id !== "logout"), hidden: [], popup: ["settings", "logout"], at: 0, v: 2 };
+    return { sections: [], order: DRAWER_PRIMARY.concat(DRAWER_EXTRA).filter((id) => id !== "settings" && id !== "logout"), hidden: [], popup: ["settings", "logout"], at: 0, v: 3 };
   }
 
   function cleanDrawerMenu(raw) {
@@ -20457,16 +20462,30 @@ const here = parseRoute();
       if (DRAWER_IDS.indexOf(id) < 0 || DRAWER_LOCKED.indexOf(id) >= 0 || hidden.indexOf(id) >= 0) return;
       hidden.push(id);
     });
-    /* Menus saved before v2 carry Calls and Contacts at the very end, where they ended up behind More. Bring them up under Notifications once. */
-    if (!(Number(raw.v) >= 2)) {
-      const lift = ["calls", "contacts"].filter((id) => order.indexOf(id) >= 0);
-      lift.forEach((id) => order.splice(order.indexOf(id), 1));
-      let at = order.indexOf("notifications") + 1;
-      if (!at) at = order.indexOf("explore") + 1;
-      if (!at) at = Math.min(1, order.length);
+    /* Menus saved before v3 may carry Calls and Contacts hidden, in the profile popup, inside a folder or at the very end behind More.
+       Once, make them visible in the main list: under Notifications, or after the first visible main item when Notifications is hidden.
+       A later hide in the editor is stamped v3 and stays. */
+    if (!(Number(raw.v) >= 3)) {
+      const lift = ["calls", "contacts"];
+      lift.forEach((id) => {
+        const h = hidden.indexOf(id);
+        if (h >= 0) hidden.splice(h, 1);
+        const pi = popup.indexOf(id);
+        if (pi >= 0) popup.splice(pi, 1);
+        sections.forEach((section) => { section.items = section.items.filter((item) => item !== id); });
+        const oi = order.indexOf(id);
+        if (oi >= 0) order.splice(oi, 1);
+      });
+      const shown = (id) => order.indexOf(id) >= 0 && hidden.indexOf(id) < 0;
+      let at = -1;
+      if (shown("notifications")) at = order.indexOf("notifications") + 1;
+      else {
+        const first = order.findIndex((entry) => String(entry).indexOf("section:") !== 0 && DRAWER_PRIMARY.indexOf(entry) >= 0 && hidden.indexOf(entry) < 0);
+        at = first >= 0 ? first + 1 : 0;
+      }
       lift.forEach((id, i) => order.splice(at + i, 0, id));
     }
-    return { sections: sections, order: order, hidden: hidden, popup: popup, at: Number(raw.at) || 0, v: 2 };
+    return { sections: sections, order: order, hidden: hidden, popup: popup, at: Number(raw.at) || 0, v: 3 };
   }
 
   function getDrawerMenu() {
