@@ -6862,5 +6862,11 @@ SI18n.addPack("ru", {
   "Calls use Cloudflare TURN only as a fallback, and stop at a monthly cap so it stays free. At the cap they use the free relay. Off lifts only the monthly cap.": "Звонки используют Cloudflare TURN только как запасной путь и останавливаются на месячном лимите, чтобы оставаться бесплатными. На лимите используется бесплатный ретранслятор. Выключение снимает только месячный лимит.",
   "TURN is not set up yet. Calls use the free relay.": "TURN ещё не настроен. Звонки используют бесплатный ретранслятор.",
   "TURN this month: about {used} of {cap} ({percent}%), {calls} calls. This is an estimate.": "TURN в этом месяце: около {used} из {cap} ({percent}%), звонков: {calls}. Это оценка.",
-  "The cap is reached, so calls use the free relay until next month.": "Лимит достигнут, поэтому до следующего месяца звонки используют бесплатный ретранслятор."
+  "The cap is reached, so calls use the free relay until next month.": "Лимит достигнут, поэтому до следующего месяца звонки используют бесплатный ретранслятор.",
+  "Check my microphone": "Проверить микрофон",
+  "Detecting…": "Определяется…",
+  "Microphone and sending": "Микрофон и отправка",
+  "More controls": "Ещё кнопки",
+  "They speak": "Собеседник говорит",
+  "This call has no guest link.": "У этого звонка нет гостевой ссылки."
 });

@@ -2240,7 +2240,7 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
   function friendsOffNow() {
     return !!(window.ViktorychFriendsPref && window.ViktorychFriendsPref.isOff());
   }
-const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "pills", "nostr", "regone_leaderboard", "regone_online", "regone_rooms", "regone_profile_stats", "nzlay_forum", "nzlay_forum_post", "nzlay_forum_regone", "nft", "bitchat", "feed_requests", "friends_off", "local_ai", "local_ai_setup", "ext_nicknames", "merged_profiles", "owner_inspector", "live_frame_grab", "app_repair", "auto_update", "swipe_tabs", "compact_header", "status_bar", "zoom_lock", "app_scale", "image_copy", "update_notice", "foryou_off", "status_icons", "side_panel", "ai_people", "gguf_models", "instant_limits", "ai_tools", "site_permissions", "notif_sounds", "owner_user_settings", "tiktok_auto_record", "ai_device_setup", "x_broadcast", "ai_auto_model", "article_reader", "storage_recordings", "home_live", "audio_convert", "telegram_account_send", "fish_audio", "local_voice", "calls", "calls_quiet_voice", "calls_pip", "calls_preview", "calls_turn_budget"];
+const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "pills", "nostr", "regone_leaderboard", "regone_online", "regone_rooms", "regone_profile_stats", "nzlay_forum", "nzlay_forum_post", "nzlay_forum_regone", "nft", "bitchat", "feed_requests", "friends_off", "local_ai", "local_ai_setup", "ext_nicknames", "merged_profiles", "owner_inspector", "live_frame_grab", "app_repair", "auto_update", "swipe_tabs", "compact_header", "status_bar", "zoom_lock", "app_scale", "image_copy", "update_notice", "foryou_off", "status_icons", "side_panel", "ai_people", "gguf_models", "instant_limits", "ai_tools", "site_permissions", "notif_sounds", "owner_user_settings", "tiktok_auto_record", "ai_device_setup", "x_broadcast", "ai_auto_model", "article_reader", "storage_recordings", "home_live", "audio_convert", "telegram_account_send", "fish_audio", "local_voice", "calls", "calls_quiet_voice", "calls_pip", "calls_preview", "calls_turn_budget", "calls_bar"];
   function serverOffList() {
     try {
       const list = JSON.parse(localStorage.getItem(SERVER_OFF_KEY) || "[]");
@@ -2373,7 +2373,8 @@ const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "
       calls_quiet_voice: [tr("Quiet voice in Calls"), tr("Calls follow the room's noise and lift soft or whispered speech so it is translated. Off restores the fixed level.")],
       calls_pip: [tr("Floating call window"), tr("When you switch apps during a call, a small floating window keeps it on screen with mute and hang up. Off turns it off.")],
       calls_preview: [tr("Typed message preview"), tr("While you type to someone on a call, a card shows what they will read and what it means. Off removes the card and sends at once.")],
-      calls_turn_budget: [tr("TURN relay budget"), tr("Calls use Cloudflare TURN only as a fallback, and stop at a monthly cap so it stays free. At the cap they use the free relay. Off lifts only the monthly cap.")]
+      calls_turn_budget: [tr("TURN relay budget"), tr("Calls use Cloudflare TURN only as a fallback, and stop at a monthly cap so it stays free. At the cap they use the free relay. Off lifts only the monthly cap.")],
+      calls_bar: [tr("Call controls bar"), tr("Every in-call setting is a button on the bottom bar that opens a small sheet above it. Off brings back the old bar and Settings panel.")]
     };
     const rows = SERVER_FEATURES.map((name) => {
       const on = !off.includes(name);
