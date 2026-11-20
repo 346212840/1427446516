@@ -467,3 +467,5 @@
   .calls-page[data-conv="1"] .calls-conv .calls-compose { padding: 8px 8px; }
   .calls-conv .calls-bubble { max-width: 88%; }
 }
+
+.calls-bubble.partial .calls-word.now { font-weight: 700; }
