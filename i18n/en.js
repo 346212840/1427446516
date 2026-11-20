@@ -6844,5 +6844,6 @@ SI18n.addPack("en", {
   "They will read": "They will read",
   "Means": "Means",
   "Typed message preview": "Typed message preview",
-  "While you type to someone on a call, a card shows what they will read and what it means. Off removes the card and sends at once.": "While you type to someone on a call, a card shows what they will read and what it means. Off removes the card and sends at once."
+  "While you type to someone on a call, a card shows what they will read and what it means. Off removes the card and sends at once.": "While you type to someone on a call, a card shows what they will read and what it means. Off removes the card and sends at once.",
+  "Couldn’t remove this account. It is back in the list.": "Couldn’t remove this account. It is back in the list."
 });

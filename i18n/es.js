@@ -6847,5 +6847,6 @@ SI18n.addPack("es", {
   "They will read": "Leerán",
   "Means": "Significa",
   "Typed message preview": "Vista previa de mensajes escritos",
-  "While you type to someone on a call, a card shows what they will read and what it means. Off removes the card and sends at once.": "Mientras escribes a alguien en una llamada, una tarjeta muestra lo que leerá y lo que significa. Apagado quita la tarjeta y envía al instante."
+  "While you type to someone on a call, a card shows what they will read and what it means. Off removes the card and sends at once.": "Mientras escribes a alguien en una llamada, una tarjeta muestra lo que leerá y lo que significa. Apagado quita la tarjeta y envía al instante.",
+  "Couldn’t remove this account. It is back in the list.": "No se pudo quitar esta cuenta. Vuelve a estar en la lista."
 });
