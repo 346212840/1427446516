@@ -6832,5 +6832,8 @@ SI18n.addPack("es", {
   "Contacts are for signed-in accounts. Sign in to use them.": "Los contactos son para cuentas con sesión iniciada. Inicia sesión para usarlos.",
   "Call someone, with live translation.": "Llama a alguien, con traducción en vivo.",
   "Quiet voice in Calls": "Voz baja en Llamadas",
-  "Calls follow the room's noise and lift soft or whispered speech so it is translated. Off restores the fixed level.": "Las llamadas siguen el ruido de la sala y refuerzan el habla suave o susurrada para que se traduzca. Desactivado, vuelve al nivel fijo."
+  "Calls follow the room's noise and lift soft or whispered speech so it is translated. Off restores the fixed level.": "Las llamadas siguen el ruido de la sala y refuerzan el habla suave o susurrada para que se traduzca. Desactivado, vuelve al nivel fijo.",
+  "Floating call window": "Ventana flotante de llamada",
+  "When you switch apps during a call, a small floating window keeps it on screen with mute and hang up. Off turns it off.": "Al cambiar de app durante una llamada, una ventana flotante la mantiene a la vista con silenciar y colgar. Desactivado la quita.",
+  "Translating": "Traduciendo"
 });

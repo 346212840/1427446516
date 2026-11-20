@@ -6831,5 +6831,8 @@ SI18n.addPack("ru", {
   "Contacts are for signed-in accounts. Sign in to use them.": "Контакты доступны только для аккаунтов. Войдите, чтобы пользоваться ими.",
   "Call someone, with live translation.": "Позвонить кому-нибудь с живым переводом.",
   "Quiet voice in Calls": "Тихий голос в звонках",
-  "Calls follow the room's noise and lift soft or whispered speech so it is translated. Off restores the fixed level.": "Звонки учитывают шум в помещении и усиливают тихую или шёпотом речь, чтобы её переводили. Выключено — прежний фиксированный порог."
+  "Calls follow the room's noise and lift soft or whispered speech so it is translated. Off restores the fixed level.": "Звонки учитывают шум в помещении и усиливают тихую или шёпотом речь, чтобы её переводили. Выключено — прежний фиксированный порог.",
+  "Floating call window": "Плавающее окно звонка",
+  "When you switch apps during a call, a small floating window keeps it on screen with mute and hang up. Off turns it off.": "Когда вы переключаетесь на другое приложение во время звонка, небольшое плавающее окно остаётся на экране с кнопками «Выключить звук» и «Завершить». Выключено — окна нет.",
+  "Translating": "Идёт перевод"
 });

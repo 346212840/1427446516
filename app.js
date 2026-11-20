@@ -2240,7 +2240,7 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
   function friendsOffNow() {
     return !!(window.ViktorychFriendsPref && window.ViktorychFriendsPref.isOff());
   }
-const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "pills", "nostr", "regone_leaderboard", "regone_online", "regone_rooms", "regone_profile_stats", "nzlay_forum", "nzlay_forum_post", "nzlay_forum_regone", "nft", "bitchat", "feed_requests", "friends_off", "local_ai", "local_ai_setup", "ext_nicknames", "merged_profiles", "owner_inspector", "live_frame_grab", "app_repair", "auto_update", "swipe_tabs", "compact_header", "status_bar", "zoom_lock", "app_scale", "image_copy", "update_notice", "foryou_off", "status_icons", "side_panel", "ai_people", "gguf_models", "instant_limits", "ai_tools", "site_permissions", "notif_sounds", "owner_user_settings", "tiktok_auto_record", "ai_device_setup", "x_broadcast", "ai_auto_model", "article_reader", "storage_recordings", "home_live", "audio_convert", "telegram_account_send", "fish_audio", "local_voice", "calls", "calls_quiet_voice"];
+const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "pills", "nostr", "regone_leaderboard", "regone_online", "regone_rooms", "regone_profile_stats", "nzlay_forum", "nzlay_forum_post", "nzlay_forum_regone", "nft", "bitchat", "feed_requests", "friends_off", "local_ai", "local_ai_setup", "ext_nicknames", "merged_profiles", "owner_inspector", "live_frame_grab", "app_repair", "auto_update", "swipe_tabs", "compact_header", "status_bar", "zoom_lock", "app_scale", "image_copy", "update_notice", "foryou_off", "status_icons", "side_panel", "ai_people", "gguf_models", "instant_limits", "ai_tools", "site_permissions", "notif_sounds", "owner_user_settings", "tiktok_auto_record", "ai_device_setup", "x_broadcast", "ai_auto_model", "article_reader", "storage_recordings", "home_live", "audio_convert", "telegram_account_send", "fish_audio", "local_voice", "calls", "calls_quiet_voice", "calls_pip"];
   function serverOffList() {
     try {
       const list = JSON.parse(localStorage.getItem(SERVER_OFF_KEY) || "[]");
@@ -2370,7 +2370,8 @@ const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "
       fish_audio: [tr("Type to voice"), tr("Fish Audio speech for the owner. Off until you turn it on. The API key stays on the server. Previews use the free sample.")],
       local_voice: [tr("Local voice (free)"), tr("On a desktop, Qwen3-TTS speaks English, Spanish and Russian. OmniVoice speaks Swedish and Catalan. Nothing is uploaded.")],
       calls: [tr("Calls"), tr("Voice and text calls with live translation. Off until you turn it on. No camera.")],
-      calls_quiet_voice: [tr("Quiet voice in Calls"), tr("Calls follow the room's noise and lift soft or whispered speech so it is translated. Off restores the fixed level.")]
+      calls_quiet_voice: [tr("Quiet voice in Calls"), tr("Calls follow the room's noise and lift soft or whispered speech so it is translated. Off restores the fixed level.")],
+      calls_pip: [tr("Floating call window"), tr("When you switch apps during a call, a small floating window keeps it on screen with mute and hang up. Off turns it off.")]
     };
     const rows = SERVER_FEATURES.map((name) => {
       const on = !off.includes(name);

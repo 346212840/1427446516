@@ -6829,5 +6829,8 @@ SI18n.addPack("en", {
   "Contacts are for signed-in accounts. Sign in to use them.": "Contacts are for signed-in accounts. Sign in to use them.",
   "Call someone, with live translation.": "Call someone, with live translation.",
   "Quiet voice in Calls": "Quiet voice in Calls",
-  "Calls follow the room's noise and lift soft or whispered speech so it is translated. Off restores the fixed level.": "Calls follow the room's noise and lift soft or whispered speech so it is translated. Off restores the fixed level."
+  "Calls follow the room's noise and lift soft or whispered speech so it is translated. Off restores the fixed level.": "Calls follow the room's noise and lift soft or whispered speech so it is translated. Off restores the fixed level.",
+  "Floating call window": "Floating call window",
+  "When you switch apps during a call, a small floating window keeps it on screen with mute and hang up. Off turns it off.": "When you switch apps during a call, a small floating window keeps it on screen with mute and hang up. Off turns it off.",
+  "Translating": "Translating"
 });

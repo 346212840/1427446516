@@ -147,7 +147,11 @@ export const FEATURES = {
   /* Quiet voice in Calls: the call page follows the room's noise floor, lifts
      soft speech and keeps a short pre-roll so whispers reach the translator.
      Client only, on by default. Off restores the fixed gate. */
-  calls_quiet_voice: { paths: [] }
+  calls_quiet_voice: { paths: [] },
+  /* Floating call window: while a call is live and the page goes to the
+     background, a small picture-in-picture card shows the call and its
+     mute and hang-up buttons. Client only, on by default. */
+  calls_pip: { paths: [] }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 

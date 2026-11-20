@@ -548,3 +548,46 @@ console.log("calls logic ok", JSON.stringify(report));
   sess2.ring(0); sess2.ready(1);
   assert.equal(sess2.onSpeech(frame(dbfs(-45), 9), 3100, true).send, false, "strict (sound playing aloud) ignores soft sound, so an echo cannot open it");
 }
+
+// Floating call window.
+{
+  const { createPip, pipSupported, cardLines } = await import("../shared/call-pip.js");
+  const mkDoc = (opts) => {
+    const o = opts || {};
+    const made = [];
+    const doc = {
+      pictureInPictureEnabled: o.enabled !== false,
+      pictureInPictureElement: null,
+      body: { appendChild(el) { el.parentNode = doc.body; }, removeChild() {} },
+      createElement(tag) {
+        if (tag === "canvas") return { width: 0, height: 0, captureStream: o.noStream ? undefined : () => ({}), getContext: () => ({ fillRect() {}, beginPath() {}, arc() {}, fill() {}, fillText() {} }) };
+        const el = { style: {}, attrs: {}, setAttribute(k, v) { el.attrs[k] = v; }, play: () => Promise.resolve(), pause() {}, parentNode: null,
+          requestPictureInPicture: o.noPip ? undefined : async () => { doc.pictureInPictureElement = el; made.push("pip"); } };
+        return el;
+      },
+      exitPictureInPicture: async () => { doc.pictureInPictureElement = null; made.push("exit"); }
+    };
+    doc.made = made;
+    return doc;
+  };
+  assert.equal(pipSupported(mkDoc()), true);
+  assert.equal(pipSupported(mkDoc({ enabled: false })), false, "browser says no PiP");
+  assert.equal(pipSupported(mkDoc({ noPip: true })), false);
+  assert.equal(pipSupported(mkDoc({ noStream: true })), false, "no canvas stream, no window");
+  assert.deepEqual(cardLines({ name: "Ana", time: "01:02", muted: true, mutedText: "Muted", liveText: "Live" }), { name: "Ana", time: "01:02", sub: "Muted" });
+  const doc = mkDoc();
+  const pip = createPip({ doc, info: () => ({ name: "Ana", time: "00:05", liveText: "Live" }) });
+  assert.equal(pip.start(), true);
+  assert.equal(pip.start(), false, "second start does nothing");
+  assert.equal(pip.active, true);
+  assert.equal(await pip.enter(), true);
+  assert.equal(pip.open, true);
+  assert.equal(await pip.exit(), true);
+  assert.equal(pip.open, false);
+  pip.stop();
+  assert.equal(pip.active, false);
+  assert.equal(await pip.enter(), false, "after stop it cannot open");
+  const none = createPip({ doc: mkDoc({ noPip: true }) });
+  assert.equal(none.start(), false);
+  console.log("calls pip ok");
+}
