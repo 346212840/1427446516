@@ -10,6 +10,7 @@ import { createVoiceMatch, PREBUILT_VOICES, DEFAULT_VOICE } from "./shared/call-
 import { createHistory, recordLocal, swipeAction, toggleSet } from "./shared/call-history.js";
 import { createRaiseDetector, earSinkId, createUnlocker, EAR_VOLUME_CAP } from "./shared/call-ear.js";
 import { createPip } from "./shared/call-pip.js";
+import { createPreview, PREVIEW_MIN } from "./shared/call-preview.js";
 import { lighterFor, pickSink, cleanLexicon, lexiconHint, rememberLine } from "./shared/call-quality.js";
 import { createAudioUnlock, createWakeFallback } from "./shared/call-mobile.js";
 import { createLiveSession, MIC_WORKLET, OUTPUT_RATE, CHUNK_SAMPLES, proxiesAudio } from "./shared/call-gemini.js";
@@ -40,6 +41,14 @@ function pipFlagOn() {
   try {
     const list = JSON.parse(localStorage.getItem("viktorychapp-server-off") || "[]");
     return !(Array.isArray(list) && list.indexOf("calls_pip") >= 0);
+  } catch (err) { return true; }
+}
+
+/* Owner switch calls_preview, on unless the server list says off. */
+function previewFlagOn() {
+  try {
+    const list = JSON.parse(localStorage.getItem("viktorychapp-server-off") || "[]");
+    return !(Array.isArray(list) && list.indexOf("calls_preview") >= 0);
   } catch (err) { return true; }
 }
 
@@ -598,7 +607,7 @@ function panelBlock() {
   else if (state.panel === "test" && state.test) body = `<div class="calls-sheet">${testPanel()}</div>`;
   else {
     body = `<div class="calls-sheet calls-chat">${threadBlock()}${state.lines.length ? "" : `<p class="calls-empty">${esc(tr("Messages and what was said show up here."))}</p>`}</div>
-      <form class="calls-type calls-compose" data-act="call-type-form"><input name="text" maxlength="500" aria-label="${esc(tr("Type to them"))}" placeholder="${esc(tr("Type to them"))}" autocomplete="off"><button type="submit" class="cb send" aria-label="${esc(tr("Send"))}">${ico("outgoing")}</button></form>`;
+      <form class="calls-type calls-compose" data-act="call-type-form">${previewCard()}<input name="text" maxlength="500" aria-label="${esc(tr("Type to them"))}" placeholder="${esc(tr("Type to them"))}" autocomplete="off"><button type="submit" class="cb send" aria-label="${esc(tr("Send"))}">${ico("outgoing")}</button></form>`;
   }
   return `<aside class="calls-panel${state.panelAnim ? " enter" : ""}" data-open="1" aria-label="${esc(tr(state.panel === "chat" ? "Chat" : "Settings"))}">${head}${body}</aside>`;
 }
@@ -612,7 +621,7 @@ function callScreen() {
   const back = standalone() ? "" : "";
   const timer = state.startedAt ? clock(Date.now() - state.startedAt) : "";
   const noteBar = state.mode.send === "note" ? (state.review ? `<div class="calls-review"><button type="button" class="calls-go" data-act="call-note-send">${esc(tr("Send"))}</button><button type="button" data-act="call-note-cancel">${esc(tr("Cancel voice note"))}</button></div>` : `<button type="button" class="calls-talk" data-act="call-talk">${esc(state.recording ? tr("Slide to cancel") : tr("Hold to talk"))}</button>`) : "";
-  const typeBar = (state.mode.send === "text" || state.noMic) && state.panel !== "chat" ? `<form class="calls-type calls-float" data-act="call-type-form"><input name="text" maxlength="500" aria-label="${esc(tr("Type to them"))}" placeholder="${esc(tr("Type to them"))}" autocomplete="off"><button type="submit" class="cb send" aria-label="${esc(tr("Send"))}">${ico("outgoing")}</button></form>` : "";
+  const typeBar = (state.mode.send === "text" || state.noMic) && state.panel !== "chat" ? `<form class="calls-type calls-float" data-act="call-type-form">${previewCard()}<input name="text" maxlength="500" aria-label="${esc(tr("Type to them"))}" placeholder="${esc(tr("Type to them"))}" autocomplete="off"><button type="submit" class="cb send" aria-label="${esc(tr("Send"))}">${ico("outgoing")}</button></form>` : "";
   const nomic = state.noMic ? `<button type="button" class="calls-nomic" data-act="call-focus-type">${ico("micOff")}<span>${esc(tr("No mic, type to talk"))}</span></button>` : "";
   const hint = state.hintSeen ? "" : `<p class="calls-hint">${esc(tr("You can type instead of talking."))}</p>`;
   return `<div class="calls-page live" data-call-active="1" data-video="0" data-phase="${esc(state.phase)}" data-panel="${state.panel ? "1" : "0"}">
@@ -1812,6 +1821,8 @@ async function teardown(silent) {
   ringStop();
   const engine = state.engine;
   const partner = state.partner;
+  if (state.preview) { state.preview.reset(); state.preview = null; }
+  state.previewBusy = false;
   if (engine && !signedIn() && !state.test && state.callId && state.phase !== "calling") {
     recordLocal({ getItem: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, setItem: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } } }, { id: state.callId, name: state.peerName || "", createdAt: state.startedAt || Date.now(), duration: state.startedAt ? Date.now() - state.startedAt : 0, incoming: false });
     hist.load().then(() => { state.history = hist.rows; });
@@ -2222,6 +2233,7 @@ function onInput(event) {
     return;
   }
   if (target && target.dataset && target.dataset.act === "call-pwa-name") setInstallName(target.value);
+  if (target && target.name === "text" && target.closest && target.closest("form[data-act='call-type-form']") && previewFlagOn() && state.callId) { previewer().input(target.value); return; }
   if (target && target.name === "handle" && target.closest && target.closest(".calls-start")) {
     const box = document.querySelector("[data-sugg]");
     if (box) box.innerHTML = suggestionsHtml(target.value);
@@ -2258,6 +2270,44 @@ function openByLink(text) {
   location.hash = "#" + target;
 }
 
+/* ---------- typed message preview ---------- */
+function previewHtml(st) {
+  if (!st || st.status === "idle") return "";
+  const lang = peerLang();
+  const who = lang ? langName(lang) : "";
+  if (st.status === "wait" || st.status === "loading") return `<span class="calls-prev-busy">${esc(tr("Translating a preview…"))}</span>`;
+  if (st.status === "error" || st.status === "late") return `<span class="calls-prev-busy">${esc(tr("No preview. It will still be sent."))}</span>`;
+  if (st.same || !st.translation) return `<span class="calls-prev-busy">${esc(tr("Sent as you wrote it."))}</span>`;
+  return `<small>${esc(who ? tr("They will read ({lang})", { lang: who }) : tr("They will read"))}</small><b dir="auto">${esc(st.translation)}</b>${st.back ? `<small class="calls-prev-back">${esc(tr("Means"))}: ${esc(st.back)}</small>` : ""}`;
+}
+function previewCard() {
+  if (!previewFlagOn() || !state.callId) return "";
+  return `<div class="calls-prev" data-prev aria-live="polite">${previewHtml(state.preview ? state.preview.state() : null)}</div>`;
+}
+function paintPreview(st) {
+  document.querySelectorAll("[data-prev]").forEach((box) => {
+    const html = previewHtml(st);
+    box.innerHTML = html;
+    box.classList.toggle("on", !!html);
+  });
+}
+function previewer() {
+  if (!state.preview) {
+    state.preview = createPreview({
+      onChange: paintPreview,
+      run: async (text) => {
+        const lang = peerLang();
+        if (!lang || !state.callId) return { translation: "", untranslated: true };
+        const res = await api("/v1/calls/" + state.callId + "/preview", { method: "POST", body: JSON.stringify({ text: text, target: lang, source: myLang(), key: localKey() || undefined, lexicon: cleanLexicon(state.lexicon) }) });
+        if (!res.ok || !res.data) return { error: "failed" };
+        if (res.data.reason === "nokey" || res.data.reason === "badkey" || res.data.reason === "ringing") return { translation: "", untranslated: true };
+        return res.data;
+      }
+    });
+  }
+  return state.preview;
+}
+
 function onSubmit(event) {
   const form = event.target.closest && event.target.closest("form[data-act], .calls-type");
   if (!form) return;
@@ -2266,10 +2316,27 @@ function onSubmit(event) {
   const input = form.querySelector("input");
   const text = input && input.value;
   if (act === "call-type-form") {
-    if (input) input.value = "";
-    const parts = takeClauses(String(text || ""));
-    const all = parts.ready.concat(parts.rest ? [parts.rest] : []);
-    if (state.engine) (all.length ? all : [String(text || "")]).forEach((piece) => state.engine.sendText(piece));
+    const send = () => {
+      const parts = takeClauses(String(text || ""));
+      const all = parts.ready.concat(parts.rest ? [parts.rest] : []);
+      if (state.engine) (all.length ? all : [String(text || "")]).forEach((piece) => state.engine.sendText(piece));
+    };
+    /* With the preview on, a message waits a moment for its preview so it can be read before it goes, but never longer than a second and a half. */
+    const gated = previewFlagOn() && state.callId && String(text || "").trim().length >= PREVIEW_MIN && state.preview && state.preview.state().status !== "ready";
+    if (gated) {
+      if (state.previewBusy) return;
+      state.previewBusy = true;
+      state.preview.settle(text).then(() => {
+        state.previewBusy = false;
+        if (input && input.value === text) input.value = "";
+        send();
+        if (state.preview) state.preview.reset();
+      });
+    } else {
+      if (input) input.value = "";
+      send();
+      if (state.preview) state.preview.reset();
+    }
     state.hintSeen = true;
   } else if (act === "call-link-form") {
     const slug = form.elements.slug.value;

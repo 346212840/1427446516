@@ -151,7 +151,11 @@ export const FEATURES = {
   /* Floating call window: while a call is live and the page goes to the
      background, a small picture-in-picture card shows the call and its
      mute and hang-up buttons. Client only, on by default. */
-  calls_pip: { paths: [] }
+  calls_pip: { paths: [] },
+  /* Typed message preview: while you type to the other person, a card shows
+     what they will read and what it means back in your language. Client only,
+     on by default. Off removes the card and sends at once. */
+  calls_preview: { paths: [] }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 

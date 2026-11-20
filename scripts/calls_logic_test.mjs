@@ -16,6 +16,7 @@ import { createHistory, loadLocal, recordLocal, removeRows, restoreRows, swipeAc
 import { createRaiseDetector, earSinkId, cheekLike, createUnlocker, EAR_VOLUME_CAP } from "../shared/call-ear.js";
 import { createPlayoutLead, LEAD_MIN, LEAD_MAX, pickBitrate, createAudioUnlock, setAudioSession, createWakeFallback, NOSLEEP_MP4, BITRATES } from "../shared/call-mobile.js";
 import { createPipe } from "../shared/call-engine.js";
+import { createPreview } from "../shared/call-preview.js";
 import { relayHint } from "../worker/src/calls.js";
 import pagesRelay from "./pages_relay_worker.js";
 import { readFileSync } from "node:fs";
@@ -631,4 +632,47 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.equal(s.recover(t), true, "voice returns once the last minute is quiet");
   assert.equal(s.onSpeech(speech, t + 100, false).send, true, "and the next turn is sent");
   console.log("calls echo loop ok", guarded.turns.join(","), "| unguarded", unguarded.turns.join(","));
+{
+  /* Typed preview: debounced, cached, stale answers dropped, and Send is never stuck. */
+  const timers = []; let clock = 0; let id = 0;
+  const fake = {
+    setTimeout: (fn, ms) => { const t = { id: ++id, at: clock + ms, fn }; timers.push(t); return t.id; },
+    clearTimeout: (h) => { const i = timers.findIndex((t) => t.id === h); if (i >= 0) timers.splice(i, 1); }
+  };
+  const advance = async (ms) => { clock += ms; for (;;) { const due = timers.filter((t) => t.at <= clock).sort((a, b) => a.at - b.at)[0]; if (!due) break; timers.splice(timers.indexOf(due), 1); due.fn(); } await Promise.resolve(); await Promise.resolve(); };
+  const seen = []; const calls = []; let gate = null;
+  const pv = createPreview({ ...fake, onChange: (st) => seen.push(st.status), run: async (text) => { calls.push(text); if (gate) await gate; return { translation: "ES:" + text, back: "EN:" + text }; } });
+  pv.input("hi"); assert.equal(pv.state().status, "idle", "two letters are not previewed");
+  pv.input("hello"); pv.input("hello w"); pv.input("hello wor");
+  assert.equal(calls.length, 0, "typing does not call the server before the pause");
+  await advance(700);
+  assert.deepEqual(calls, ["hello wor"], "one request for the last text");
+  assert.equal(pv.state().status, "ready");
+  assert.equal(pv.state().translation, "ES:hello wor");
+  pv.input("hello wor"); assert.equal(pv.state().status, "ready", "same text comes from the cache");
+  assert.equal(calls.length, 1);
+  /* a slow answer for old text must not overwrite newer text */
+  let release; gate = new Promise((r) => { release = r; });
+  pv.input("first text"); await advance(700);
+  assert.equal(pv.state().status, "loading");
+  pv.input("second text"); gate = null;
+  release(); await advance(700);
+  assert.equal(pv.state().text, "second text");
+  assert.equal(pv.state().translation, "ES:second text", "the stale first answer was dropped");
+  /* settle: Send asks for the preview of text that has none yet and gets it at once */
+  const got = await pv.settle("third message here"); assert.equal(got.status, "ready"); assert.equal(got.translation, "ES:third message here");
+  /* settle never blocks longer than the wait when the server hangs */
+  const hang = createPreview({ ...fake, run: () => new Promise(() => {}) });
+  const waited = hang.settle("never answers", 1500); await advance(1500);
+  assert.equal((await waited).status, "late", "Send goes ahead after the wait");
+  /* a failing server shows no preview but does not throw */
+  const bad = createPreview({ ...fake, run: async () => { throw new Error("offline"); } });
+  assert.equal((await bad.settle("will fail now")).status, "error");
+  /* an error object from the server is an error, not a translation */
+  const quota = createPreview({ ...fake, run: async () => ({ error: "quota" }) });
+  assert.equal((await quota.settle("over the quota")).status, "error");
+  const same = createPreview({ ...fake, run: async () => ({ translation: "x", untranslated: true }) });
+  assert.equal((await same.settle("no translation")).same, true);
+  pv.reset(); assert.equal(pv.state().status, "idle");
+  console.log("calls preview ok");
 }

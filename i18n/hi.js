@@ -6826,5 +6826,13 @@ SI18n.addPack("hi", {
   "When you switch apps during a call, a small floating window keeps it on screen with mute and hang up. Off turns it off.": "कॉल के दौरान ऐप बदलने पर एक छोटी फ़्लोटिंग विंडो कॉल को स्क्रीन पर रखती है, म्यूट और कॉल समाप्त करने के बटन के साथ। बंद करने पर यह नहीं दिखती।",
   "Translating": "अनुवाद हो रहा है",
   "The account list is full. Remove one first.": "खातों की सूची भर गई है। पहले कोई एक हटाएँ।",
-  "That doesn’t look like a TikTok account. Paste a tiktok.com link or @handle.": "यह TikTok खाता नहीं लगता। tiktok.com लिंक या @हैंडल चिपकाएँ।"
+  "That doesn’t look like a TikTok account. Paste a tiktok.com link or @handle.": "यह TikTok खाता नहीं लगता। tiktok.com लिंक या @हैंडल चिपकाएँ।",
+  "Translating a preview…": "पूर्वावलोकन का अनुवाद हो रहा है…",
+  "No preview. It will still be sent.": "पूर्वावलोकन नहीं है। संदेश फिर भी भेजा जाएगा।",
+  "Sent as you wrote it.": "जैसा लिखा वैसा ही भेजा जाएगा।",
+  "They will read ({lang})": "वे पढ़ेंगे ({lang})",
+  "They will read": "वे पढ़ेंगे",
+  "Means": "मतलब",
+  "Typed message preview": "टाइप किए संदेश का पूर्वावलोकन",
+  "While you type to someone on a call, a card shows what they will read and what it means. Off removes the card and sends at once.": "कॉल पर किसी को टाइप करते समय एक कार्ड दिखाता है कि वे क्या पढ़ेंगे और उसका मतलब क्या है। बंद करने पर कार्ड हट जाता है और संदेश तुरंत जाता है।"
 });

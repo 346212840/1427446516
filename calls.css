@@ -207,6 +207,14 @@
 .calls-panel .calls-chat { display: flex; flex-direction: column; }
 .calls-panel .calls-compose { margin: 0; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--c-line); }
 .calls-thread { width: 100%; text-align: left; }
+.calls-type { flex-wrap: wrap; }
+.calls-type input[name="text"] { flex: 1 1 0; min-width: 0; }
+.calls-prev { display: none; flex: 1 0 100%; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: 12px; background: var(--c-hover); border: 1px solid var(--c-line); font-size: 14px; line-height: 1.35; }
+.calls-prev.on { display: flex; }
+.calls-prev small { color: var(--c-dim, #8b98a5); font-size: 12px; }
+.calls-prev b { font-weight: 600; word-break: break-word; }
+.calls-prev-busy { color: var(--c-dim, #8b98a5); font-size: 13px; }
+.calls-prev-back { font-style: italic; }
 @media (min-width: 700px) {
   .calls-panel { top: 12px; right: 12px; bottom: 96px; width: 380px; border-radius: 20px; }
   .calls-page[data-panel="1"] .calls-stage { padding-right: 404px; }

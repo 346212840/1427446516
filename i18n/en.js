@@ -6836,5 +6836,13 @@ SI18n.addPack("en", {
   "When you switch apps during a call, a small floating window keeps it on screen with mute and hang up. Off turns it off.": "When you switch apps during a call, a small floating window keeps it on screen with mute and hang up. Off turns it off.",
   "Translating": "Translating",
   "The account list is full. Remove one first.": "The account list is full. Remove one first.",
-  "That doesn’t look like a TikTok account. Paste a tiktok.com link or @handle.": "That doesn’t look like a TikTok account. Paste a tiktok.com link or @handle."
+  "That doesn’t look like a TikTok account. Paste a tiktok.com link or @handle.": "That doesn’t look like a TikTok account. Paste a tiktok.com link or @handle.",
+  "Translating a preview…": "Translating a preview…",
+  "No preview. It will still be sent.": "No preview. It will still be sent.",
+  "Sent as you wrote it.": "Sent as you wrote it.",
+  "They will read ({lang})": "They will read ({lang})",
+  "They will read": "They will read",
+  "Means": "Means",
+  "Typed message preview": "Typed message preview",
+  "While you type to someone on a call, a card shows what they will read and what it means. Off removes the card and sends at once.": "While you type to someone on a call, a card shows what they will read and what it means. Off removes the card and sends at once."
 });
