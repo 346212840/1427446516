@@ -9,7 +9,7 @@ Follow `AGENTS.md` sections 3 to 5. Never print `GH_TOKEN` or any secret.
 
 1. **Branch.** `git fetch origin main` then `git worktree add ../wt-<topic> -b <topic> origin/main` (or `git switch -c <topic> origin/main`). Never `git stash`; use WIP commits.
 2. **Change.** Keep the PR to one feature or fix. New strings in `en`, `es`, `ru`, `hi`. New feature behind its own switch (`/add-feature-with-switch`). Do not edit `.github/`.
-3. **Stamp.** Only if cached front-end files changed: set `sw.js` line 7 to `// cache-bust: <current UTC ISO time>-<label>`, later than main's (`git show origin/main:sw.js | sed -n 7p`).
+3. **Stamp.** Leave `sw.js` line 7 as `// cache-bust: source`. Publish writes the commit sha into the copy both hosts serve. Do not hand-edit the line.
 4. **Check locally.**
    ```sh
    python3 scripts/check_i18n.py
