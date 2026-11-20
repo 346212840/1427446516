@@ -28,6 +28,9 @@
   var accountsLoaded = false;
   var livePaintKey = "";
   var recordingsState = "idle";
+  var loadBusy = null;
+  var recordingsInflight = null;
+  var lastMountLoad = 0;
   var mediaRootOverride = "";
   var healthCache = {};
   var previewObs = null;
@@ -679,8 +682,9 @@
 
   function refreshRecordings() {
     if (!ownerBases().length || !hooks.token() || !ownerHere()) return Promise.resolve(null);
+    if (recordingsInflight) return recordingsInflight;
     if (recordingsState !== "ready") recordingsState = "loading";
-    return ownerFetch("/v1/owner/tiktok/recordings", { headers: authHeaders(), cache: "no-store" }).then(function (res) {
+    var run = ownerFetch("/v1/owner/tiktok/recordings", { headers: authHeaders(), cache: "no-store" }).then(function (res) {
       if (!res || !res.ok) throw new Error("recordings");
       return res.json();
     }).then(function (body) {
@@ -695,6 +699,10 @@
       schedulePaint();
       return null;
     });
+    recordingsInflight = run;
+    var clear = function () { if (recordingsInflight === run) recordingsInflight = null; };
+    run.then(clear, clear);
+    return run;
   }
 
   function pastSource() {
@@ -3957,24 +3965,38 @@
       if (target) target.scrollIntoView();
     }
     playActive();
-    loadResume();
-    Promise.all([pull(), loadAccounts()]).then(function () {
-      accountsLoaded = true;
-      if (onLiveRoute()) {
-        paintLive();
-        refreshRecordings();
-      } else {
-        paintForYou();
+    /* The app calls mount on every render, ten times in the first two seconds on a cold open. The page is re-bound each time, but the owner lists are only fetched when no load is running and the last one is older than ten seconds. */
+    var ready = !!(apiBase() && hooks.token() && ownerHere());
+    var warm = ready && (!!loadBusy || (accountsLoaded && Date.now() - lastMountLoad < 10000));
+    if (warm) {
+      if (!loadBusy) {
+        if (onLiveRoute()) paintLive();
+        else paintForYou();
+        renderAdded();
       }
-      renderAdded();
-    });
+    } else {
+      if (ready) lastMountLoad = Date.now();
+      loadResume();
+      var loading = Promise.all([pull(), loadAccounts()]).then(function () {
+        if (loadBusy === loading) loadBusy = null;
+        accountsLoaded = true;
+        if (onLiveRoute()) {
+          paintLive();
+          refreshRecordings();
+        } else {
+          paintForYou();
+        }
+        renderAdded();
+      }, function () { if (loadBusy === loading) loadBusy = null; });
+      if (ready) loadBusy = loading;
+    }
     if (route && route.live) {
       poll = setInterval(function () {
         if (document.visibilityState !== "visible") return;
         refreshRecordings();
       }, 60 * 1000);
       if (routePane() !== "past") {
-        pullBoard();
+        if (!warm) pullBoard();
         armBoard();
       }
       var watchQuery = (route && route.query) || new URLSearchParams((location.hash.split("?")[1]) || "");
