@@ -415,6 +415,7 @@ jobs:
       contents: read
       pages: write
       id-token: write
+      actions: read
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
@@ -474,7 +475,9 @@ jobs:
 
       # The upload can finish before the run's artifact list shows the new
       # name. deploy-pages reads that list once, so wait until this name is
-      # actually there. Ten tries, three seconds apart, then fail.
+      # actually there. A 403 is the token, not a missing artifact, so it
+      # stops immediately. A name that is not listed yet is tried ten times,
+      # three seconds apart.
       - name: Wait until the version artifact is listed
         if: steps.fresh.outputs.go != 'false'
         env:
@@ -482,12 +485,23 @@ jobs:
           ARTIFACT_NAME: app-shell-version-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           url="repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts"
+          errfile="${RUNNER_TEMP:-/tmp}/artifact-list.err"
           for i in 1 2 3 4 5 6 7 8 9 10; do
-            if gh api --paginate "$url" --jq '.artifacts[].name' | grep -Fx "$ARTIFACT_NAME"; then
+            code=0
+            names=$(gh api --paginate "$url" --jq '.artifacts[].name' 2>"$errfile") || code=$?
+            if [ "$code" != 0 ]; then
+              err=$(cat "$errfile")
+              if printf '%s\n' "$err" | grep -Eiq '403|forbidden|resource not accessible|permission'; then
+                echo "cannot list artifacts: the token was refused. ${err}" >&2
+                exit 1
+              fi
+              echo "attempt ${i}: listing artifacts failed (${code}). ${err}"
+            elif printf '%s\n' "$names" | grep -Fx "$ARTIFACT_NAME"; then
               echo "listed ${ARTIFACT_NAME}"
               exit 0
+            else
+              echo "attempt ${i}: ${ARTIFACT_NAME} is not listed yet"
             fi
-            echo "attempt ${i}: ${ARTIFACT_NAME} is not listed yet"
             if [ "$i" = 10 ]; then
               echo "artifact ${ARTIFACT_NAME} was not listed after 10 tries" >&2
               exit 1
