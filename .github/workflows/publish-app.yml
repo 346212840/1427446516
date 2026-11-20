@@ -470,6 +470,29 @@ jobs:
           path: _site
           include-hidden-files: true
 
+      # The upload can finish before the run's artifact list shows the new
+      # name. deploy-pages reads that list once, so wait until this name is
+      # actually there. Ten tries, three seconds apart, then fail.
+      - name: Wait until the version artifact is listed
+        if: steps.fresh.outputs.go != 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_NAME: app-shell-version-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          url="repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts"
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            if gh api --paginate "$url" --jq '.artifacts[].name' | grep -Fx "$ARTIFACT_NAME"; then
+              echo "listed ${ARTIFACT_NAME}"
+              exit 0
+            fi
+            echo "attempt ${i}: ${ARTIFACT_NAME} is not listed yet"
+            if [ "$i" = 10 ]; then
+              echo "artifact ${ARTIFACT_NAME} was not listed after 10 tries" >&2
+              exit 1
+            fi
+            sleep 3
+          done
+
       - name: Deploy the version manifest
         id: deploy
         if: steps.fresh.outputs.go != 'false'
