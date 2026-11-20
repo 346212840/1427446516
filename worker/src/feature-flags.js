@@ -170,7 +170,12 @@ export const FEATURES = {
   calls_stream_play: { paths: [] },
   calls_short_eos: { paths: [] },
   calls_barge: { paths: [] },
-  calls_duck: { paths: [] }
+  calls_duck: { paths: [] },
+  /* Even tiles and one continuous call screen: two equal people tiles at the
+     top, on-screen chips for language, captions, translation and speaker,
+     and the conversation flowing underneath with no separate card. Client
+     only, on by default. Off restores the old stacked tiles and framed chat. */
+  calls_onescreen: { paths: [] }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 

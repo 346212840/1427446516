@@ -887,3 +887,26 @@ console.log("calls logic ok", JSON.stringify(report));
     console.log("calls barge cut ok");
   }
 }
+
+
+{
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const root = path.join(path.dirname(new URL(import.meta.url).pathname), "..");
+  const js = fs.readFileSync(path.join(root, "calls.js"), "utf8");
+  const css = fs.readFileSync(path.join(root, "calls.css"), "utf8");
+  const flags = fs.readFileSync(path.join(root, "worker/src/feature-flags.js"), "utf8");
+  const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
+  assert.ok(flags.includes("calls_onescreen"), "the switch is listed with the other Calls flags");
+  assert.ok(app.includes('"calls_onescreen"'), "the owner list includes the switch");
+  assert.ok(js.includes("function onescreenFlagOn"), "the call page reads the switch");
+  assert.ok(js.includes("function stageChips"), "language, captions, translation and speaker are on-screen chips");
+  assert.ok(js.includes("data-onescreen"), "the live screen marks the new layout");
+  assert.ok(js.includes("data-muted"), "a muted tile is marked");
+  assert.ok(css.includes('data-onescreen="1"'), "the new layout has its own rules");
+  assert.ok(css.includes("grid-template-columns: 1fr 1fr"), "the two people tiles sit side by side");
+  const onscreen = css.split("calls_onescreen")[1] || "";
+  assert.ok(onscreen.includes("position: static") || onscreen.includes("position: relative"), "the self tile is not a corner overlay in the new layout");
+  assert.ok(!/\[data-onescreen="1"\][\s\S]{0,1200}\[data-tile="me"\][^{]{0,80}\{[^}]*display:\s*none/.test(css), "the new layout does not hide the self waveform");
+  console.log("calls onescreen layout ok");
+}

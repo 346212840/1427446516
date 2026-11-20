@@ -6909,5 +6909,9 @@ SI18n.addPack("ru", {
   "Barge-in": "Перебивание",
   "When the other person starts talking, leftover translation playback is stopped so you hear them (and the new translation) at once. Off lets the previous phrase finish.": "Когда собеседник начинает говорить, оставшийся перевод предыдущей фразы останавливается, чтобы сразу слышать его и новый перевод. Выключено: предыдущая фраза доигрывается.",
   "Duck original voice": "Приглушать исходный голос",
-  "While a translation is playing, their original voice stays quiet underneath it. Off leaves the original at the level you set, even during a translation.": "Пока играет перевод, исходный голос остаётся тихим под ним. Выключено: исходный голос остаётся на выбранной громкости и во время перевода."
+  "While a translation is playing, their original voice stays quiet underneath it. Off leaves the original at the level you set, even during a translation.": "Пока играет перевод, исходный голос остаётся тихим под ним. Выключено: исходный голос остаётся на выбранной громкости и во время перевода.",
+  "Even tiles and one call screen": "Ровные плитки и один экран звонка",
+  "The people in the call sit in equal tiles at the top, with language, captions, translation and speaker controls in one row, and the conversation continues underneath with no separate card. Off restores the old stacked tiles and framed chat panel.": "Участники звонка в одинаковых плитках сверху, язык, субтитры, перевод и динамик в одном ряду, а переписка продолжается ниже без отдельной карточки. Выключено: прежние наложенные плитки и чат в рамке.",
+  "Hear translation": "Слушать перевод",
+  "Call controls": "Управление звонком"
 });

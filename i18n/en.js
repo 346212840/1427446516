@@ -6907,5 +6907,9 @@ SI18n.addPack("en", {
   "Barge-in": "Barge-in",
   "When the other person starts talking, leftover translation playback is stopped so you hear them (and the new translation) at once. Off lets the previous phrase finish.": "When the other person starts talking, leftover translation playback is stopped so you hear them (and the new translation) at once. Off lets the previous phrase finish.",
   "Duck original voice": "Duck original voice",
-  "While a translation is playing, their original voice stays quiet underneath it. Off leaves the original at the level you set, even during a translation.": "While a translation is playing, their original voice stays quiet underneath it. Off leaves the original at the level you set, even during a translation."
+  "While a translation is playing, their original voice stays quiet underneath it. Off leaves the original at the level you set, even during a translation.": "While a translation is playing, their original voice stays quiet underneath it. Off leaves the original at the level you set, even during a translation.",
+  "Even tiles and one call screen": "Even tiles and one call screen",
+  "The people in the call sit in equal tiles at the top, with language, captions, translation and speaker controls in one row, and the conversation continues underneath with no separate card. Off restores the old stacked tiles and framed chat panel.": "The people in the call sit in equal tiles at the top, with language, captions, translation and speaker controls in one row, and the conversation continues underneath with no separate card. Off restores the old stacked tiles and framed chat panel.",
+  "Hear translation": "Hear translation",
+  "Call controls": "Call controls"
 });

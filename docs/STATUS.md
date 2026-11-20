@@ -8,6 +8,8 @@ Voice and text calls (`calls`, off until the owner turns it on) are in `#/calls`
 
 Typed messages in a call, including a test call, are shown at once. A still-loading translation preview does not delay or drop Send. If signalling is down the message is queued and retried, and a failed send shows Retry on the bubble. `ViktorychCalls.debug().lastSendVisibleMs` is the time from Send to the bubble.
 
+The in-call people tiles are even and side by side (`calls_onescreen`, on by default). Names, a speaking ring, a waveform and a mute icon sit inside each tile. Language, captions, hearing the translation, and speaker or ear mode are one-tap chips under the tiles, and the conversation continues on the same screen with no separate card. Off restores the old stacked tiles and framed chat panel.
+
 ## How to work on this repo
 
 Any person or agent can take over from this section. Rules for shipping, checks and merges are here. Longer history is in `docs/HANDOFF.md`. The agent guide is `AGENTS.md`.

@@ -75,3 +75,7 @@ The original-voice slider is the quiet level under a translation. Between phrase
 ## Typed messages
 
 Send shows the bubble at once. The translation preview that appears while you type is only a preview: it never delays or drops the send. In a test call, the translated echo still attaches to that same bubble once the test partner receives it. If the message could not go out, the bubble says it was not sent and offers Retry.
+
+## Even tiles and one call screen (calls_onescreen)
+
+With this switch on (the default), the two people in the call sit in equal tiles at the top of the call screen, including on a phone and in a test call. Each tile has the name inside it, a language mark, a speaking ring and a waveform, and a mute icon when your microphone is off. Language, captions, hearing the translation, and speaker or ear mode are one-tap chips under the tiles. The conversation continues directly underneath, with no separate card. Off restores the old stacked tiles (a small self view in the corner) and the framed chat panel. The bottom bar stays.
