@@ -2445,7 +2445,7 @@ const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "
     }).then((res) => res.json().then((body) => ({ ok: res.ok, status: res.status, body })).catch(() => ({ ok: res.ok, status: res.status, body: null }))).then((result) => {
       ownerAdding = false;
       if (!result.ok || !result.body || !result.body.account || !result.body.account.handle) {
-        toast(result.status === 400 ? tr("That doesn’t look like a TikTok account.") : tr("Couldn’t save this account."));
+        toast(result.status === 400 ? (result.body && result.body.error === "full" ? tr("The account list is full. Remove one first.") : tr("That doesn’t look like a TikTok account. Paste a tiktok.com link or @handle."))  : tr("Couldn’t save this account."));
         return;
       }
       const form = document.querySelector("form.add-account");

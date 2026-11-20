@@ -3721,7 +3721,7 @@
     }).then(function (result) {
       addingAccount = false;
       if (!result.ok) {
-        accountsNote(result.status === 400 ? tr("That doesn’t look like a TikTok account.") : tr("Couldn’t save this account."));
+        accountsNote(result.status === 400 ? (result.body && result.body.error === "full" ? tr("The account list is full. Remove one first.") : tr("That doesn’t look like a TikTok account. Paste a tiktok.com link or @handle."))  : tr("Couldn’t save this account."));
         return;
       }
       var accountRow = result.body && result.body.account;

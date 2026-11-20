@@ -6837,5 +6837,7 @@ SI18n.addPack("es", {
   "Calls follow the room's noise and lift soft or whispered speech so it is translated. Off restores the fixed level.": "Las llamadas siguen el ruido de la sala y refuerzan el habla suave o susurrada para que se traduzca. Desactivado, vuelve al nivel fijo.",
   "Floating call window": "Ventana flotante de llamada",
   "When you switch apps during a call, a small floating window keeps it on screen with mute and hang up. Off turns it off.": "Al cambiar de app durante una llamada, una ventana flotante la mantiene a la vista con silenciar y colgar. Desactivado la quita.",
-  "Translating": "Traduciendo"
+  "Translating": "Traduciendo",
+  "The account list is full. Remove one first.": "La lista de cuentas está llena. Quita una primero.",
+  "That doesn’t look like a TikTok account. Paste a tiktok.com link or @handle.": "Eso no parece una cuenta de TikTok. Pega un enlace de tiktok.com o un @usuario."
 });
