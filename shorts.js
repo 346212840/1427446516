@@ -846,12 +846,12 @@
       var row = JSON.parse(localStorage.getItem(CAP_KEY) || "{}");
       if (row && (row.cap === "off" || row.cap === 0 || row.cap === "0")) cap = "off";
       else if (row && Number(row.cap) >= 1) cap = Math.floor(Number(row.cap));
-      autoRestart = !!(row && row.autoRestart === true);
+      autoRestart = false; /* restarting a server recording is not offered; recording here is on this device only */
     } catch (err) { cap = 20; }
     return { cap: cap, autoRestart: autoRestart };
   }
   function saveCapPrefs(next) {
-    var row = { cap: next.cap === "off" ? "off" : Number(next.cap) || 20, autoRestart: next.autoRestart === true };
+    var row = { cap: next.cap === "off" ? "off" : Number(next.cap) || 20, autoRestart: false };
     try { localStorage.setItem(CAP_KEY, JSON.stringify(row)); } catch (err) { /* the server copy still applies */ }
     var base = apiBase();
     if (!base || !hooks.token()) return;
@@ -871,8 +871,7 @@
     return '<div class="shorts-cap"><b>' + hooks.esc(tr("Viewer cap")) + "</b>" +
       "<small>" + hooks.esc(tr("Pause a live, including playback, when more people than this are watching. Off leaves every live playing.")) + "</small>" +
       '<div class="shorts-cap-choices">' + buttons + "</div>" +
-      '<button type="button" class="shorts-cap-restart' + (prefs.autoRestart ? " on" : "") + '" data-shorts="cap-restart" aria-pressed="' + (prefs.autoRestart ? "true" : "false") + '">' +
-      hooks.esc(tr("Restart recording when the count drops")) + "</button></div>";
+      "</div>";
   }
 
   function accountSheet() {
@@ -2830,19 +2829,13 @@
   function recordPrefs() {
     try {
       var row = JSON.parse(localStorage.getItem("viktorych_live_record") || "{}");
-      return { auto: row.auto === true, server: row.server === true };
+      return { auto: row.auto === true, server: false };
     } catch (err) { return { auto: false, server: false }; }
   }
+  /* On-device only. Nothing here reaches /v1/owner/live-record: server recording is not driven from Shorts. */
   function saveRecordPrefs(next) {
-    var row = { auto: next.auto === true, server: next.server === true };
+    var row = { auto: next.auto === true, server: false };
     try { localStorage.setItem("viktorych_live_record", JSON.stringify(row)); } catch (err) { /* the tap still records */ }
-    var base = apiBase();
-    if (!base || !hooks.token()) return;
-    fetch(base + "/v1/owner/live-record", {
-      method: "POST",
-      headers: Object.assign({ "content-type": "application/json" }, authHeaders()),
-      body: JSON.stringify({ server: row.server, auto: false })
-    }).catch(function () {});
   }
   function frameGrabOn() {
     if (!ownerHere()) return false;
@@ -3826,13 +3819,6 @@
         var block = sheet.querySelector(".shorts-cap");
         if (block) block.outerHTML = capSettingsHtml();
       }
-    } else if (kind === "cap-restart") {
-      event.preventDefault();
-      var again = capPrefs();
-      again.autoRestart = !again.autoRestart;
-      saveCapPrefs(again);
-      button.classList.toggle("on", again.autoRestart);
-      button.setAttribute("aria-pressed", again.autoRestart ? "true" : "false");
     } else if (kind === "toggle-lock") {
       event.preventDefault();
       toggleLock();
