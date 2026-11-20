@@ -6830,5 +6830,7 @@ SI18n.addPack("es", {
   "ctImported.few": "{n} contactos importados",
   "ctImported.many": "{n} contactos importados",
   "Contacts are for signed-in accounts. Sign in to use them.": "Los contactos son para cuentas con sesión iniciada. Inicia sesión para usarlos.",
-  "Call someone, with live translation.": "Llama a alguien, con traducción en vivo."
+  "Call someone, with live translation.": "Llama a alguien, con traducción en vivo.",
+  "Quiet voice in Calls": "Voz baja en Llamadas",
+  "Calls follow the room's noise and lift soft or whispered speech so it is translated. Off restores the fixed level.": "Las llamadas siguen el ruido de la sala y refuerzan el habla suave o susurrada para que se traduzca. Desactivado, vuelve al nivel fijo."
 });

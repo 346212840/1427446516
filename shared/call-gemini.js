@@ -52,11 +52,41 @@ function levelOf(samples) {
   const data = samples && samples.length ? samples : [];
   if (!data.length) return 0;
   let energy = 0;
+  /* PCM16 is always scaled. Guessing per sample counted a quiet input's 0, 1 and -1 steps as full scale. */
+  const pcm16 = data instanceof Int16Array;
   for (let i = 0; i < data.length; i++) {
-    const x = data[i] > 1 || data[i] < -1 ? data[i] / 32768 : data[i];
+    const x = pcm16 ? data[i] / 32768 : (data[i] > 1 || data[i] < -1 ? data[i] / 32768 : data[i]);
     energy += x * x;
   }
   return Math.sqrt(energy / data.length);
+}
+
+/* The old gate was a fixed level (about -34 dBFS), so a whisper or a soft
+   voice never reached the translator. The detector now follows the room:
+   it tracks the noise floor, opens a little above it, boosts quiet speech
+   toward a normal level with a limiter, and keeps 300 ms before the gate
+   opened so a soft word start is not clipped. Nothing for the person to set.
+   strict = true (the translation or the other person is playing aloud, or
+   the feature is off) puts the old fixed gate back, so the speaker's own
+   echo never opens it. */
+export const LOUD_GATE = 0.02;
+export const MIN_GATE = 0.0025;
+export const SPEECH_OVER_FLOOR = 2.5;
+export const FLOOR_WINDOW = 50;
+export const BOOST_TARGET = 0.04;
+export const MAX_BOOST = 6;
+export const PRE_ROLL = 3;
+
+function boosted(samples, gain) {
+  const out = new Int16Array(samples.length);
+  for (let i = 0; i < samples.length; i++) {
+    let v = samples[i] / 32768 * gain;
+    /* Soft limiter: linear to 0.7, then a smooth knee that never passes 0.98. */
+    const a = v < 0 ? -v : v;
+    if (a > 0.7) v = (v < 0 ? -1 : 1) * (0.7 + 0.28 * Math.tanh((a - 0.7) / 0.28));
+    out[i] = v < 0 ? v * 32768 : v * 32767;
+  }
+  return out;
 }
 
 /* Keep a tail after speech: Live Translate finishes the last words about
@@ -66,20 +96,61 @@ export function createVad() {
   let hang = 0;
   let sent = 0;
   let skipped = 0;
-  return {
-    gate(samples) {
-      const speech = levelOf(samples) >= 0.02;
+  let floor = 0.003;
+  let seen = 0;
+  const recent = [];
+  let gain = 1;
+  let lastGate = LOUD_GATE;
+  const pre = [];
+  const api = {
+    out: [],
+    gate(samples, strict) {
+      const level = levelOf(samples);
+      let gate = LOUD_GATE;
+      if (!strict) {
+        /* The floor is the quietest frame of the last few seconds: speech has pauses, noise does not go away. It drops at
+           once and climbs slowly, so starting to talk right away never turns the first words into "noise". */
+        seen += 1;
+        recent.push(level);
+        if (recent.length > FLOOR_WINDOW) recent.shift();
+        const low = Math.min.apply(null, recent);
+        if (seen === 1) floor = low;
+        else floor += (low - floor) * (low < floor ? 0.5 : 0.1);
+        floor = Math.min(0.03, Math.max(0.0004, floor));
+        gate = Math.min(LOUD_GATE, Math.max(MIN_GATE, floor * SPEECH_OVER_FLOOR));
+      }
+      lastGate = gate;
+      const speech = level >= gate;
+      const wasOpen = hang > 0;
       const keep = speech || hang > 0;
       if (speech) hang = 12;
       else if (hang > 0) hang -= 1;
-      if (keep) sent += CHUNK_MS;
-      else skipped += CHUNK_MS;
+      if (strict) gain = 1;
+      else if (speech) {
+        const want = Math.min(MAX_BOOST, Math.max(1, BOOST_TARGET / Math.max(level, gate)));
+        gain = want < gain || !wasOpen ? want : gain + (want - gain) * 0.35;
+      }
+      api.out = [];
+      if (keep) {
+        sent += CHUNK_MS;
+        const g = strict ? 1 : gain;
+        if (!wasOpen) pre.forEach((old) => api.out.push(g > 1.05 ? boosted(old, g) : old));
+        pre.length = 0;
+        api.out.push(g > 1.05 ? boosted(samples, g) : samples);
+      } else {
+        skipped += CHUNK_MS;
+        if (!strict) {
+          pre.push(samples);
+          if (pre.length > PRE_ROLL) pre.shift();
+        } else pre.length = 0;
+      }
       return keep;
     },
     stats() {
-      return { sentMs: sent, skippedMs: skipped };
+      return { sentMs: sent, skippedMs: skipped, floor: floor, gate: lastGate, gain: gain };
     }
   };
+  return api;
 }
 
 /* Estimated speech tokens, not a bill. Crossing the local budget
@@ -150,9 +221,9 @@ export function createLiveSession() {
     warm() {
       return phase === "ready" || phase === "live";
     },
-    onSpeech(samples, now) {
+    onSpeech(samples, now, strict) {
       if (phase === "text") return { send: false, reason: "text" };
-      if (!vad.gate(samples)) return { send: false, reason: "vad" };
+      if (!vad.gate(samples, strict)) return { send: false, reason: "vad" };
       quota.add(CHUNK_MS, now);
       const usage = quota.report(now, openedAt || warmedAt || now);
       if (usage.degraded) {
@@ -160,7 +231,7 @@ export function createLiveSession() {
         return { send: false, reason: "quota", usage: usage };
       }
       if (phase === "ready") phase = "live";
-      return { send: true, reason: "speech", usage: usage, bytes: CHUNK_SAMPLES * 2 };
+      return { send: true, reason: "speech", usage: usage, bytes: CHUNK_SAMPLES * 2, chunks: vad.out };
     },
     resumeHandle(value) {
       if (typeof value === "string" && value.length < 400) handle = value;

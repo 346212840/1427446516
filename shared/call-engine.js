@@ -6,7 +6,7 @@
    the listener plays that stream as is. Speech is sent in 100 ms frames,
    silence is skipped, and the Worker only mints the short-lived token. */
 import { sameLang, normalizeLang, detectLang } from "./call-langs.js";
-import { outputGains, reconnectDelay, MIC_CONSTRAINTS, normalizeVolumes } from "./call-audio.js";
+import { outputGains, reconnectDelay, MIC_CONSTRAINTS, micConstraints, normalizeVolumes } from "./call-audio.js";
 import { normalizeMode, transmitOriginal, playTranslatedVoice, noteShouldAutoplay } from "./call-mode.js";
 import { createVoiceMatch } from "./call-voice.js";
 import { lighterFor, cleanLexicon } from "./call-quality.js";
@@ -281,6 +281,8 @@ export function createPipe(env, opts) {
     setTimeout(connect, reconnectDelay(attempt));
   }
   pipe.open = connect;
+  /* True while translated speech is still playing aloud on this device. */
+  pipe.playing = () => !!(env.ac && nextAt > env.ac.currentTime);
   /* The network came back or changed: do not wait out the back-off. */
   pipe.nudge = () => {
     if (pipe.closed || connecting) return;
@@ -666,11 +668,11 @@ export function createEngine(cfg) {
     const diarVoice = heard && heard.speaker && ears.speakers().length > 1 ? heard.speaker.voice : "";
     const picked = cfg.voiceOverride() || diarVoice || (match.source === "pitch" ? match.voice : "");
     if (picked) wantVoice = picked;
-    if (!rx || !rx.ready) { live.onSpeech(pcm, now()); return; }
+    if (!rx || !rx.ready) { live.onSpeech(pcm, now(), quietOff()); return; }
     if (heard && heard.overlap) return;
-    const d = live.onSpeech(pcm, now());
+    const d = live.onSpeech(pcm, now(), quietOff());
     if (d.send) {
-      rx.send(pcm);
+      (d.chunks && d.chunks.length ? d.chunks : [pcm]).forEach((c) => rx.send(c));
       lastSpeechAt = now();
       rxFlushed = false;
       if (!speaking) { speaking = true; emit("speaking", { who: "peer", on: true }); }
@@ -688,12 +690,16 @@ export function createEngine(cfg) {
     }
   }
   let ownSpeaking = false;
+  /* Quiet-voice help is automatic: the gate follows the room's noise floor and soft speech is lifted. It is off for the
+     owner switch calls_quiet_voice, and strict (the old fixed gate) while sound is playing aloud, so an echo never opens it. */
+  function quietOff() { return !!(cfg.quietVoice && !cfg.quietVoice()); }
   function onOwnFrame(pcm) {
-    const d = sendLive.onSpeech(pcm, now());
+    const aloud = speaking || (rx && rx.playing && rx.playing());
+    const d = sendLive.onSpeech(pcm, now(), quietOff() || !!aloud);
     const on = !!d.send;
     if (on !== ownSpeaking) { ownSpeaking = on; emit("speaking", { who: "me", on: on }); }
     if (!tx || !tx.ready) return;
-    if (d.send) { tx.send(pcm); lastTxSpeech = now(); txFlushed = false; }
+    if (d.send) { (d.chunks && d.chunks.length ? d.chunks : [pcm]).forEach((c) => tx.send(c)); lastTxSpeech = now(); txFlushed = false; }
     else if (!txFlushed && now() - lastTxSpeech > 1800) { tx.flush(); txFlushed = true; }
   }
 
@@ -720,7 +726,7 @@ export function createEngine(cfg) {
     transToSend.connect(sendDest);
     /* No microphone, or permission denied: the call still starts and typed text still works. */
     try {
-      micStream = cfg.getMic ? await cfg.getMic() : await navigator.mediaDevices.getUserMedia({ audio: MIC_CONSTRAINTS, video: false });
+      micStream = cfg.getMic ? await cfg.getMic() : await navigator.mediaDevices.getUserMedia({ audio: micConstraints(!quietOff()), video: false });
     } catch (err) {
       micStream = null;
       const denied = err && (err.name === "NotAllowedError" || err.name === "SecurityError");

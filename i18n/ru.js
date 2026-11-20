@@ -6829,5 +6829,7 @@ SI18n.addPack("ru", {
   "ctImported.few": "{n} контакта импортированы",
   "ctImported.many": "{n} контактов импортировано",
   "Contacts are for signed-in accounts. Sign in to use them.": "Контакты доступны только для аккаунтов. Войдите, чтобы пользоваться ими.",
-  "Call someone, with live translation.": "Позвонить кому-нибудь с живым переводом."
+  "Call someone, with live translation.": "Позвонить кому-нибудь с живым переводом.",
+  "Quiet voice in Calls": "Тихий голос в звонках",
+  "Calls follow the room's noise and lift soft or whispered speech so it is translated. Off restores the fixed level.": "Звонки учитывают шум в помещении и усиливают тихую или шёпотом речь, чтобы её переводили. Выключено — прежний фиксированный порог."
 });
