@@ -6880,5 +6880,9 @@ SI18n.addPack("en", {
   "Tap the icon left of the address bar, then Permissions.": "Tap the icon left of the address bar, then Permissions.",
   "The phone is blocking the microphone for this app. Allow it in Settings, then come back here.": "The phone is blocking the microphone for this app. Allow it in Settings, then come back here.",
   "Waiting for permission…": "Waiting for permission…",
-  "You closed the permission prompt. Tap Allow microphone and choose Allow.": "You closed the permission prompt. Tap Allow microphone and choose Allow."
+  "You closed the permission prompt. Tap Allow microphone and choose Allow.": "You closed the permission prompt. Tap Allow microphone and choose Allow.",
+  "QR code for the guest link": "QR code for the guest link",
+  "Scan with a phone camera to join as a guest.": "Scan with a phone camera to join as a guest.",
+  "Invite QR code": "Invite QR code",
+  "Guests can scan a QR code in the Invite sheet and the waiting screen to join. Off shows only the link.": "Guests can scan a QR code in the Invite sheet and the waiting screen to join. Off shows only the link."
 });

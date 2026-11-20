@@ -6870,5 +6870,9 @@ SI18n.addPack("hi", {
   "Tap the icon left of the address bar, then Permissions.": "पता बार के बाईं ओर के आइकन पर टैप करें, फिर अनुमतियाँ।",
   "The phone is blocking the microphone for this app. Allow it in Settings, then come back here.": "फ़ोन इस ऐप के लिए माइक्रोफ़ोन रोक रहा है। उसे सेटिंग में अनुमति दें और यहाँ लौटें।",
   "Waiting for permission…": "अनुमति की प्रतीक्षा…",
-  "You closed the permission prompt. Tap Allow microphone and choose Allow.": "आपने अनुमति का संदेश बंद कर दिया। माइक्रोफ़ोन की अनुमति दें पर टैप करें और अनुमति दें चुनें।"
+  "You closed the permission prompt. Tap Allow microphone and choose Allow.": "आपने अनुमति का संदेश बंद कर दिया। माइक्रोफ़ोन की अनुमति दें पर टैप करें और अनुमति दें चुनें।",
+  "QR code for the guest link": "अतिथि लिंक का QR कोड",
+  "Scan with a phone camera to join as a guest.": "अतिथि के रूप में जुड़ने के लिए फ़ोन कैमरे से स्कैन करें।",
+  "Invite QR code": "आमंत्रण QR कोड",
+  "Guests can scan a QR code in the Invite sheet and the waiting screen to join. Off shows only the link.": "अतिथि आमंत्रण शीट और प्रतीक्षा स्क्रीन में QR कोड स्कैन करके जुड़ सकते हैं। बंद करने पर केवल लिंक दिखता है।"
 });

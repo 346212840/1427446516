@@ -6882,5 +6882,9 @@ SI18n.addPack("ru", {
   "Tap the icon left of the address bar, then Permissions.": "Нажмите значок слева от адресной строки, затем «Разрешения».",
   "The phone is blocking the microphone for this app. Allow it in Settings, then come back here.": "Телефон блокирует микрофон для этого приложения. Разрешите его в настройках и вернитесь сюда.",
   "Waiting for permission…": "Ожидание разрешения…",
-  "You closed the permission prompt. Tap Allow microphone and choose Allow.": "Вы закрыли запрос разрешения. Нажмите «Разрешить микрофон» и выберите «Разрешить»."
+  "You closed the permission prompt. Tap Allow microphone and choose Allow.": "Вы закрыли запрос разрешения. Нажмите «Разрешить микрофон» и выберите «Разрешить».",
+  "QR code for the guest link": "QR-код гостевой ссылки",
+  "Scan with a phone camera to join as a guest.": "Наведите камеру телефона, чтобы войти как гость.",
+  "Invite QR code": "QR-код приглашения",
+  "Guests can scan a QR code in the Invite sheet and the waiting screen to join. Off shows only the link.": "Гости могут отсканировать QR-код в окне «Пригласить» и на экране ожидания. Выключено: только ссылка."
 });

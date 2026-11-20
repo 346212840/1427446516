@@ -44,6 +44,14 @@ function pipFlagOn() {
   } catch (err) { return true; }
 }
 
+/* Owner switch calls_qr, on unless the server list says off. */
+function qrFlagOn() {
+  try {
+    const list = JSON.parse(localStorage.getItem("viktorychapp-server-off") || "[]");
+    return !(Array.isArray(list) && list.indexOf("calls_qr") >= 0);
+  } catch (err) { return true; }
+}
+
 /* Owner switch calls_bar, on unless the server list says off. */
 function barFlagOn() {
   try {
@@ -694,7 +702,7 @@ function popInvite() {
   const me = tr("You");
   const them = state.peerName || tr("Guest");
   const link = state.inviteUrl
-    ? `<div class="calls-invite"><input readonly value="${esc(state.inviteUrl)}" aria-label="${esc(tr("Guest link"))}" data-invite><button type="button" data-act="call-copy">${esc(tr("Copy link"))}</button>${navigator.share ? `<button type="button" data-act="call-share">${esc(tr("Share"))}</button>` : ""}</div>`
+    ? `${qrBlock(state.inviteUrl)}${qrFlagOn() ? `<p class="calls-privacy calls-qrhint">${esc(tr("Scan with a phone camera to join as a guest."))}</p>` : ""}<div class="calls-invite"><input readonly value="${esc(state.inviteUrl)}" aria-label="${esc(tr("Guest link"))}" data-invite><button type="button" data-act="call-copy">${esc(tr("Copy link"))}</button>${navigator.share ? `<button type="button" data-act="call-share">${esc(tr("Share"))}</button>` : ""}</div>`
     : `<p class="calls-privacy">${esc(tr("This call has no guest link."))}</p>`;
   return `<ul class="calls-people"><li>${esc(me)}</li>${state.statusCode === "waiting" ? "" : `<li>${esc(them)}</li>`}</ul>${link}`;
 }
@@ -773,7 +781,7 @@ function callScreen() {
   const name = state.peerName || (waiting ? "" : tr("Guest"));
   const shown = name || (state.statusCode === "waiting" ? tr("Waiting for them to join…") : tr("Calling…"));
   const mine = state.test ? tr("You") : tr("You");
-  const invite = state.inviteUrl && state.statusCode === "waiting" ? `<div class="calls-invite"><input readonly value="${esc(state.inviteUrl)}" aria-label="${esc(tr("Guest link"))}" data-invite><button type="button" data-act="call-copy">${esc(tr("Copy link"))}</button>${navigator.share ? `<button type="button" data-act="call-share">${esc(tr("Share"))}</button>` : ""}</div>` : "";
+  const invite = state.inviteUrl && state.statusCode === "waiting" ? `${qrBlock(state.inviteUrl)}<div class="calls-invite"><input readonly value="${esc(state.inviteUrl)}" aria-label="${esc(tr("Guest link"))}" data-invite><button type="button" data-act="call-copy">${esc(tr("Copy link"))}</button>${navigator.share ? `<button type="button" data-act="call-share">${esc(tr("Share"))}</button>` : ""}</div>` : "";
   const back = standalone() ? "" : "";
   const timer = state.startedAt ? clock(Date.now() - state.startedAt) : "";
   const noteBar = state.mode.send === "note" ? (state.review ? `<div class="calls-review"><button type="button" class="calls-go" data-act="call-note-send">${esc(tr("Send"))}</button><button type="button" data-act="call-note-cancel">${esc(tr("Cancel voice note"))}</button></div>` : `<button type="button" class="calls-talk" data-act="call-talk">${esc(state.recording ? tr("Slide to cancel") : tr("Hold to talk"))}</button>`) : "";
@@ -2133,9 +2141,16 @@ function loadQr() {
   state.qrLoading = true;
   const el = document.createElement("script");
   el.src = new URL("vendor/qrcode-1.4.4.js", document.baseURI).href;
-  el.onload = () => { state.qrLoading = false; if (state.testPrep) paint(); };
+  el.onload = () => { state.qrLoading = false; if (state.testPrep || state.inviteUrl) paint(); };
   el.onerror = () => { state.qrLoading = false; };
   document.head.appendChild(el);
+}
+/* A scannable code for a guest link, or nothing while the encoder loads (it repaints once ready). */
+function qrBlock(url) {
+  if (!url || !qrFlagOn()) return "";
+  loadQr();
+  const svg = qrSvg(url);
+  return svg ? `<div class="calls-qr" role="img" aria-label="${esc(tr("QR code for the guest link"))}">${svg}</div>` : "";
 }
 function qrSvg(text) {
   try {
