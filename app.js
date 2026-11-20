@@ -23679,13 +23679,29 @@ if (STATE.histClear) {
       const store = hscrollStore();
       let clipped = false;
       document.querySelectorAll(".ptabs").forEach((el) => {
-        const next = revealSelectedTab(el, false);
-        if (el.scrollTo) el.scrollTo({ left: el.scrollLeft, behavior: "auto" });
         const id = el.dataset.hscrollKey || hscrollId(el, root);
         el.dataset.hscrollKey = id;
+        const active = hscrollActive(el);
+        const prev = hscrollActiveMem[id] || "";
+        const saved = store[id];
+        /* An arrow scroll is the person's place in the strip. A paint that
+           follows it used to measure the selected tab and jump back to the
+           start, so the first click looked like it did nothing. Keep that
+           place unless the selected tab itself changed. */
+        const selectionChanged = !!(profileTabHold || (prev && active && prev !== active));
+        if (!selectionChanged && typeof saved === "number" && saved > 1) {
+          const max = Math.max(0, el.scrollWidth - el.clientWidth);
+          if (max > 1) el.scrollLeft = Math.min(saved, max);
+          else clipped = true;
+          if (active) hscrollActiveMem[id] = active;
+          return;
+        }
+        const next = revealSelectedTab(el, false);
+        if (el.scrollTo) el.scrollTo({ left: el.scrollLeft, behavior: "auto" });
         if (typeof next === "number") store[id] = next;
         el.dataset.hscrollRevealed = "1";
         if (profileTabClipped(el)) clipped = true;
+        if (active) hscrollActiveMem[id] = active;
       });
       syncTabArrows();
       return clipped;
@@ -23810,10 +23826,14 @@ if (STATE.histClear) {
     const max = scroller.scrollWidth - scroller.clientWidth;
     const canLeft = max > 2 && scroller.scrollLeft > 2;
     const canRight = max > 2 && scroller.scrollLeft < max - 2;
+    const kept = scroller.scrollLeft || 0;
     // Hiding the focused arrow makes the browser drop focus and jump the
     // strip back to the start, so a key that reaches the end keeps its button.
+    // A paint replaces that button, so it is no longer focused, and hiding
+    // the new one jumps a scroll the person just made. Put that place back.
     left.hidden = !canLeft && document.activeElement !== left;
     right.hidden = !canRight && document.activeElement !== right;
+    if (kept > 1 && (scroller.scrollLeft || 0) + 1 < kept) scroller.scrollLeft = kept;
     bar.classList.toggle("is-fade-left", canLeft);
     bar.classList.toggle("is-fade-right", canRight);
     if (!(scroller.scrollLeft === 0 && max <= 1 && tabScrollLeft > 1)) {
@@ -24297,8 +24317,19 @@ if (STATE.histClear) {
   function wrapLive(app) {
     const root = document.createElement("div");
     root.className = "view-slot";
+    /* Moving a scroller into the slot resets its scrollLeft. Remember the
+       rows the person has moved, including the profile tabs, and put them
+       back after the move. */
+    const saved = [];
+    if (app.querySelectorAll) {
+      app.querySelectorAll(HSCROLL_SELECTOR).forEach((el) => {
+        const left = el.scrollLeft || 0;
+        if (left > 1) saved.push([el, left]);
+      });
+    }
     while (app.firstChild) root.appendChild(app.firstChild);
     app.appendChild(root);
+    saved.forEach((pair) => { pair[0].scrollLeft = pair[1]; });
     return root;
   }
   function parkLiveView() {
@@ -25834,10 +25865,24 @@ if (route.name === "music" && window.SIntelMusic && window.SIntelMusic.titleFor)
       if (!scroller) return;
       const dir = Number(el.dataset.dir) || 1;
       const max = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+      /* The strip can be clicked in the same turn it was painted, before the
+         tabs have a width. A zero max would record a scroll of 0 and the
+         click would be lost. Try again on the next frames, then stop. */
+      if (max <= 2 && el.isConnected) {
+        const tries = Number(el.dataset.scrollTries || 0);
+        if (tries < 8) {
+          el.dataset.scrollTries = String(tries + 1);
+          const schedule = window.requestAnimationFrame || ((fn) => setTimeout(fn, 16));
+          schedule(() => { if (el.isConnected) onAct(el); });
+          return;
+        }
+      }
+      if (el.dataset) el.dataset.scrollTries = "0";
       const amount = scroller.clientWidth || 240;
       const next = Math.max(0, Math.min(max, scroller.scrollLeft + dir * amount));
       const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const profile = scroller.classList && scroller.classList.contains("ptabs");
+      if (profile) profileTabHold = "";
       tabScrollLeft = next;
       tabScrollRoute = routeScrollKey();
       if (profile || reduced || !scroller.scrollTo) scroller.scrollLeft = next;

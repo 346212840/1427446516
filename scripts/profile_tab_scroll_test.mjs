@@ -132,6 +132,19 @@ async function main() {
     const before = await desk.page.evaluate(() => document.querySelector(".ptabs").scrollLeft);
     await desk.page.locator(".ptabs-bar .tab-arrow.right").click();
     await scrolled(desk.page, 1, before, 20);
+    /* A paint that follows the click used to measure the selected tab and
+       put the strip back at 0. The scroll has to still be there. */
+    await desk.page.evaluate(() => window.ViktorychAccounts.requestRender("tab-scroll"));
+    await desk.page.waitForFunction(() => {
+      const el = document.querySelector(".ptabs");
+      return !!(el && el.scrollLeft > 0);
+    }, null, { timeout: 3000 }).catch(async () => {
+      const now = await desk.page.evaluate(() => {
+        const el = document.querySelector(".ptabs");
+        return el ? { at: el.scrollLeft || 0, max: el.scrollWidth - el.clientWidth } : null;
+      });
+      throw new Error("profile tabs lost the arrow scroll after a paint " + JSON.stringify(now));
+    });
     const mid = await desk.page.evaluate(() => {
       const scroller = document.querySelector(".ptabs");
       const left = document.querySelector(".ptabs-bar .tab-arrow.left");
