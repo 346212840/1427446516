@@ -985,6 +985,7 @@ function chipsHtml() {
   parts.push([tr("Route"), s ? (s.route === "relay" ? tr("Through our server") : tr("Direct")) : "-"]);
   parts.push([tr("Per minute"), s && s.perMinute != null ? tr("{n} s of 32", { n: s.perMinute }) : "-"]);
   parts.push([tr("Translation"), !info ? tr("Starting…") : (info.ok && info.mode === "token" ? tr("Ready") : (state.needKey ? tr("Needs a Gemini key") : tr("Text only")))]);
+  if (info && info.path) parts.push([tr("Path"), info.path === "live" ? tr("Live interpreter") : tr("Live Translate")]);
   if (info && info.source) parts.push([tr("Key"), info.source === "owner" ? tr("Owner") : tr("Yours")]);
   return parts.map((row) => `<span class="calls-chip"><i>${esc(row[0])}</i>${esc(row[1])}</span>`).join("");
 }

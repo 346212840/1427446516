@@ -79,3 +79,7 @@ Send shows the bubble at once. The translation preview that appears while you ty
 ## Even tiles and one call screen (calls_onescreen)
 
 With this switch on (the default), the two people in the call sit in equal tiles at the top of the call screen, including on a phone and in a test call. Each tile has the name inside it, a language mark, a speaking ring and a waveform, and a mute icon when your microphone is off. Language, captions, hearing the translation, and speaker or ear mode are one-tap chips under the tiles. The conversation continues directly underneath, with no separate card. Off restores the old stacked tiles (a small self view in the corner) and the framed chat panel. The bottom bar stays.
+
+## Live Translate model (calls_live_translate)
+
+With this switch on (the default), the call mints a Gemini Live Translate session (`translationConfig`, model `gemini-3.5-live-translate-preview`). If minting or setup fails, it automatically uses the earlier Live interpreter path: the same model and socket, with a system instruction and no `translationConfig`. Off uses only that Live path. The short-lived token is still minted on the Worker; the API key is never returned or logged. Test-call details show which path was used. Phrase timings stay in `ViktorychCalls.debug().timings`.

@@ -175,7 +175,13 @@ export const FEATURES = {
      top, on-screen chips for language, captions, translation and speaker,
      and the conversation flowing underneath with no separate card. Client
      only, on by default. Off restores the old stacked tiles and framed chat. */
-  calls_onescreen: { paths: [] }
+  calls_onescreen: { paths: [] },
+  /* Official Gemini Live Translate (translationConfig). On by default.
+     If minting or the session fails, the call automatically uses the earlier
+     Live interpreter path (system instruction, no translationConfig). Off
+     uses only that Live path. Client only in the UI; the Worker also reads
+     the switch when minting. Keys are never logged. */
+  calls_live_translate: { paths: [] }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 

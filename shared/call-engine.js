@@ -180,7 +180,11 @@ export function createPipe(env, opts) {
     const order = hinted || env.relayFirst() ? ["relay", "direct"] : ["direct", "relay"];
     const known = hinted || env.relayFirst() || env.routeKnown();
     const won = await race(order, minted, known);
-    if (won) return;
+    if (won) {
+      pipe.path = minted.path || "translate";
+      return;
+    }
+    if (minted.path !== "live" && opts.onTranslateFail) opts.onTranslateFail();
     scheduleRetry();
   }
   /* The first route starts at once. If it is slow the second starts beside
@@ -596,6 +600,7 @@ export function createEngine(cfg) {
       token: (p) => mintToken(p),
       onState: (p, state) => onPipeState(p, state, isTx),
       onGoAway: (p) => rotate(isTx),
+      onTranslateFail: () => { liveFallback = true; },
       onOut: (p, level) => {
         if (level > 0.008) {
           translatingUntil = now() + 450;
@@ -614,16 +619,19 @@ export function createEngine(cfg) {
       source: isTx ? mineLang() : peer.lang
     };
   }
+  let liveFallback = false;
   async function mintToken(p) {
     const res = await cfg.api("/v1/calls/" + call.id + "/translate", {
       method: "POST",
-      body: JSON.stringify({ target: p.target, source: p.source || undefined, voice: p.voice || undefined, resume: p.resume || undefined, key: (cfg.getKey && cfg.getKey()) || undefined, lexicon: cleanLexicon(cfg.getLexicon()) })
+      body: JSON.stringify({ target: p.target, source: p.source || undefined, voice: p.voice || undefined, resume: p.resume || undefined, key: (cfg.getKey && cfg.getKey()) || undefined, lexicon: cleanLexicon(cfg.getLexicon()), fallback: liveFallback || undefined })
     });
     if (!res || !res.ok) {
-      E._mint = { ok: false, status: res ? res.status : 0, reason: res && res.status === 429 ? "quota" : "http", source: "", at: now() };
+      E._mint = { ok: false, status: res ? res.status : 0, reason: res && res.status === 429 ? "quota" : "http", source: "", path: "", at: now() };
       return { mode: "text", reason: res && res.status === 429 ? "quota" : "" };
     }
-    E._mint = { ok: true, status: res.status, reason: String((res.data && res.data.reason) || ""), source: String((res.data && res.data.keySource) || ""), mode: String((res.data && res.data.mode) || ""), at: now() };
+    const path = String((res.data && res.data.path) || "");
+    if (path === "live") liveFallback = true;
+    E._mint = { ok: true, status: res.status, reason: String((res.data && res.data.reason) || ""), source: String((res.data && res.data.keySource) || ""), mode: String((res.data && res.data.mode) || ""), path: path, at: now() };
     return res.data;
   }
   function makePipe(isTx, target, voice, out) {

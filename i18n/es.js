@@ -6914,5 +6914,10 @@ SI18n.addPack("es", {
   "Even tiles and one call screen": "Baldosas iguales y una sola pantalla",
   "The people in the call sit in equal tiles at the top, with language, captions, translation and speaker controls in one row, and the conversation continues underneath with no separate card. Off restores the old stacked tiles and framed chat panel.": "Las personas de la llamada están en baldosas iguales arriba, con idioma, subtítulos, traducción y altavoz en una fila, y la conversación sigue debajo sin una tarjeta aparte. Desactivado restaura las baldosas apiladas y el panel de chat con marco.",
   "Hear translation": "Oír la traducción",
-  "Call controls": "Controles de la llamada"
+  "Call controls": "Controles de la llamada",
+  "Live Translate model": "Modelo Live Translate",
+  "Calls use Gemini Live Translate. If that path fails, they fall back to the earlier Live interpreter automatically. Off uses only the earlier Live path.": "Las llamadas usan Gemini Live Translate. Si falla, pasan solas al intérprete Live anterior. Desactivado usa solo esa vía Live.",
+  "Live Translate": "Traducción en vivo",
+  "Live interpreter": "Intérprete Live",
+  "Path": "Vía"
 });

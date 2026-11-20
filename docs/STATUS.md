@@ -10,6 +10,8 @@ Typed messages in a call, including a test call, are shown at once. A still-load
 
 The in-call people tiles are even and side by side (`calls_onescreen`, on by default). Names, a speaking ring, a waveform and a mute icon sit inside each tile. Language, captions, hearing the translation, and speaker or ear mode are one-tap chips under the tiles, and the conversation continues on the same screen with no separate card. Off restores the old stacked tiles and framed chat panel.
 
+Calls use Gemini Live Translate (`calls_live_translate`, on by default). If that path fails, the earlier Live interpreter is used automatically. Off uses only the earlier Live path. Keys stay on the Worker and are never logged.
+
 ## How to work on this repo
 
 Any person or agent can take over from this section. Rules for shipping, checks and merges are here. Longer history is in `docs/HANDOFF.md`. The agent guide is `AGENTS.md`.

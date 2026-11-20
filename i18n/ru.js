@@ -6913,5 +6913,10 @@ SI18n.addPack("ru", {
   "Even tiles and one call screen": "Ровные плитки и один экран звонка",
   "The people in the call sit in equal tiles at the top, with language, captions, translation and speaker controls in one row, and the conversation continues underneath with no separate card. Off restores the old stacked tiles and framed chat panel.": "Участники звонка в одинаковых плитках сверху, язык, субтитры, перевод и динамик в одном ряду, а переписка продолжается ниже без отдельной карточки. Выключено: прежние наложенные плитки и чат в рамке.",
   "Hear translation": "Слушать перевод",
-  "Call controls": "Управление звонком"
+  "Call controls": "Управление звонком",
+  "Live Translate model": "Модель Live Translate",
+  "Calls use Gemini Live Translate. If that path fails, they fall back to the earlier Live interpreter automatically. Off uses only the earlier Live path.": "Звонки используют Gemini Live Translate. Если этот путь не срабатывает, автоматически включается прежний Live-переводчик. Выключено: только прежний Live-путь.",
+  "Live Translate": "Live-перевод",
+  "Live interpreter": "Live-переводчик",
+  "Path": "Путь"
 });

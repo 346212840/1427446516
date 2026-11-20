@@ -6911,5 +6911,10 @@ SI18n.addPack("en", {
   "Even tiles and one call screen": "Even tiles and one call screen",
   "The people in the call sit in equal tiles at the top, with language, captions, translation and speaker controls in one row, and the conversation continues underneath with no separate card. Off restores the old stacked tiles and framed chat panel.": "The people in the call sit in equal tiles at the top, with language, captions, translation and speaker controls in one row, and the conversation continues underneath with no separate card. Off restores the old stacked tiles and framed chat panel.",
   "Hear translation": "Hear translation",
-  "Call controls": "Call controls"
+  "Call controls": "Call controls",
+  "Live Translate model": "Live Translate model",
+  "Calls use Gemini Live Translate. If that path fails, they fall back to the earlier Live interpreter automatically. Off uses only the earlier Live path.": "Calls use Gemini Live Translate. If that path fails, they fall back to the earlier Live interpreter automatically. Off uses only the earlier Live path.",
+  "Live Translate": "Live Translate",
+  "Live interpreter": "Live interpreter",
+  "Path": "Path"
 });

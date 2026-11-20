@@ -6901,5 +6901,10 @@ SI18n.addPack("hi", {
   "Even tiles and one call screen": "बराबर टाइल और एक कॉल स्क्रीन",
   "The people in the call sit in equal tiles at the top, with language, captions, translation and speaker controls in one row, and the conversation continues underneath with no separate card. Off restores the old stacked tiles and framed chat panel.": "कॉल में लोग ऊपर बराबर टाइल में रहते हैं, भाषा, कैप्शन, अनुवाद और स्पीकर एक पंक्ति में होते हैं, और बातचीत नीचे बिना अलग कार्ड के चलती है। बंद: पुरानी झुकी टाइल और फ़्रेम वाला चैट पैनल वापस आता है।",
   "Hear translation": "अनुवाद सुनें",
-  "Call controls": "कॉल नियंत्रण"
+  "Call controls": "कॉल नियंत्रण",
+  "Live Translate model": "लाइव ट्रांसलेट मॉडल",
+  "Calls use Gemini Live Translate. If that path fails, they fall back to the earlier Live interpreter automatically. Off uses only the earlier Live path.": "कॉल Gemini Live Translate इस्तेमाल करती हैं। अगर वह रास्ता विफल हो तो पहले वाला Live दुभाषिया अपने आप चलता है। बंद: केवल वही पुराना Live रास्ता।",
+  "Live Translate": "लाइव ट्रांसलेट",
+  "Live interpreter": "लाइव दुभाषिया",
+  "Path": "रास्ता"
 });
