@@ -6914,5 +6914,9 @@ SI18n.addPack("es", {
   "Even tiles and one call screen": "Baldosas iguales y una sola pantalla",
   "The people in the call sit in equal tiles at the top, with language, captions, translation and speaker controls in one row, and the conversation continues underneath with no separate card. Off restores the old stacked tiles and framed chat panel.": "Las personas de la llamada están en baldosas iguales arriba, con idioma, subtítulos, traducción y altavoz en una fila, y la conversación sigue debajo sin una tarjeta aparte. Desactivado restaura las baldosas apiladas y el panel de chat con marco.",
   "Hear translation": "Oír la traducción",
-  "Call controls": "Controles de la llamada"
+  "Call controls": "Controles de la llamada",
+  "Sliding call controls": "Controles deslizantes de la llamada",
+  "The call bar has a visible handle. Swipe up or tap the handle to slide it open and see every control; swipe down or tap again to close it. Off keeps the compact bar and the old tray.": "La barra de la llamada tiene un asa visible. Desliza hacia arriba o toca el asa para abrirla y ver todos los controles; desliza hacia abajo o toca de nuevo para cerrarla. Desactivado deja la barra compacta y la bandeja anterior.",
+  "Show all controls": "Mostrar todos los controles",
+  "Hide call controls": "Ocultar los controles de la llamada"
 });

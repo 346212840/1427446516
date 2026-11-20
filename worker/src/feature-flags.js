@@ -175,7 +175,12 @@ export const FEATURES = {
      top, on-screen chips for language, captions, translation and speaker,
      and the conversation flowing underneath with no separate card. Client
      only, on by default. Off restores the old stacked tiles and framed chat. */
-  calls_onescreen: { paths: [] }
+  calls_onescreen: { paths: [] },
+  /* The in-call bar slides up like a bottom sheet. A visible handle,
+     swipe or tap opens every remaining control; swipe down or tap again
+     closes it. Client only, on by default. Off keeps the compact bar
+     and the existing tray popover. */
+  calls_bar_sheet: { paths: [] }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 

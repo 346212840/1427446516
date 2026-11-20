@@ -6901,5 +6901,9 @@ SI18n.addPack("hi", {
   "Even tiles and one call screen": "बराबर टाइल और एक कॉल स्क्रीन",
   "The people in the call sit in equal tiles at the top, with language, captions, translation and speaker controls in one row, and the conversation continues underneath with no separate card. Off restores the old stacked tiles and framed chat panel.": "कॉल में लोग ऊपर बराबर टाइल में रहते हैं, भाषा, कैप्शन, अनुवाद और स्पीकर एक पंक्ति में होते हैं, और बातचीत नीचे बिना अलग कार्ड के चलती है। बंद: पुरानी झुकी टाइल और फ़्रेम वाला चैट पैनल वापस आता है।",
   "Hear translation": "अनुवाद सुनें",
-  "Call controls": "कॉल नियंत्रण"
+  "Call controls": "कॉल नियंत्रण",
+  "Sliding call controls": "कॉल नियंत्रण स्लाइड करके खुलते हैं",
+  "The call bar has a visible handle. Swipe up or tap the handle to slide it open and see every control; swipe down or tap again to close it. Off keeps the compact bar and the old tray.": "कॉल बार पर एक दिखने वाला हैंडल है। ऊपर स्वाइप करें या हैंडल टैप करें, ताकि यह खुलकर हर नियंत्रण दिखे; नीचे स्वाइप करें या फिर टैप करें तो यह बंद हो जाए। बंद: पुरानी छोटी बार और ट्रे ही रहती है।",
+  "Show all controls": "सभी नियंत्रण दिखाएँ",
+  "Hide call controls": "कॉल नियंत्रण छिपाएँ"
 });

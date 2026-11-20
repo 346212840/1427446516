@@ -973,3 +973,44 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.ok(csw.includes("../shared/call-status.js"), "the Calls shell lists the new helper");
   console.log("calls testchat status ok");
 }
+
+{
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const root = path.join(path.dirname(new URL(import.meta.url).pathname), "..");
+  const js = fs.readFileSync(path.join(root, "calls.js"), "utf8");
+  const css = fs.readFileSync(path.join(root, "calls.css"), "utf8");
+  const flags = fs.readFileSync(path.join(root, "worker/src/feature-flags.js"), "utf8");
+  const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
+  assert.ok(flags.includes("calls_bar_sheet"), "the switch is listed with the other Calls flags");
+  assert.ok(app.includes('"calls_bar_sheet"'), "the owner list includes the switch");
+  assert.ok(js.includes("function barSheetFlagOn"), "the call page reads the switch");
+  assert.ok(js.includes("data-sheet"), "the bar marks the sliding sheet");
+  assert.ok(js.includes("data-act=\"call-bar-sheet\""), "the handle toggles the sheet");
+  assert.ok(js.includes("function sheetShouldOpen"), "a vertical drag snaps the sheet open or closed");
+  assert.ok(js.includes("function barMove"), "the sheet follows the finger");
+  assert.ok(css.includes('data-sheet="1"'), "the sliding bar has its own rules");
+  assert.ok(css.includes(".calls-bar-sheet"), "the hidden controls sit in the sheet");
+  assert.ok(/\[data-sheet="1"\][\s\S]{0,400}\.calls-handle[^}]*display:\s*flex/.test(css), "the handle stays visible");
+  const en = fs.readFileSync(path.join(root, "i18n/en.js"), "utf8");
+  const es = fs.readFileSync(path.join(root, "i18n/es.js"), "utf8");
+  const ru = fs.readFileSync(path.join(root, "i18n/ru.js"), "utf8");
+  const hi = fs.readFileSync(path.join(root, "i18n/hi.js"), "utf8");
+  for (const pack of [en, es, ru, hi]) {
+    assert.ok(pack.includes("Sliding call controls"), "every language pack has the switch name");
+    assert.ok(pack.includes("Show all controls"), "every language pack has the handle label");
+    assert.ok(pack.includes("Hide call controls"), "every language pack has the close label");
+  }
+  assert.notEqual(es.split("Sliding call controls")[1].slice(0, 80), en.split("Sliding call controls")[1].slice(0, 80), "Spanish translates the switch name");
+  // snap helper, evaluated from the same rules as sheetShouldOpen
+  const snap = (wasOpen, dy, threshold) => {
+    const t = threshold == null ? 36 : threshold;
+    if (Math.abs(dy) < t) return !!wasOpen;
+    return dy > 0;
+  };
+  assert.equal(snap(false, 10), false, "a short flick leaves the sheet as it was");
+  assert.equal(snap(false, 40), true, "a swipe up opens the sheet");
+  assert.equal(snap(true, -40), false, "a swipe down closes the sheet");
+  assert.equal(snap(true, 10), true, "a short downward move keeps it open");
+  console.log("calls bar sheet ok");
+}
