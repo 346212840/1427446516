@@ -6868,5 +6868,19 @@ SI18n.addPack("ru", {
   "Microphone and sending": "Микрофон и отправка",
   "More controls": "Ещё кнопки",
   "They speak": "Собеседник говорит",
-  "This call has no guest link.": "У этого звонка нет гостевой ссылки."
+  "This call has no guest link.": "У этого звонка нет гостевой ссылки.",
+  "Another app may be using the microphone, or it could not start. Close other apps that use it, then try again.": "Возможно, микрофон занят другим приложением или не запустился. Закройте другие приложения, которые его используют, и повторите.",
+  "Choose Ask or Allow.": "Выберите «Спрашивать» или «Разрешить».",
+  "Microphone is busy": "Микрофон занят",
+  "Microphone works. Say something to see the bar move.": "Микрофон работает. Скажите что-нибудь, чтобы полоса двигалась.",
+  "No microphone is on for this call. You can still type to talk.": "В этом звонке микрофон не включён. Вы всё равно можете печатать, чтобы говорить.",
+  "No prompt appeared? The permission may be blocked. Follow the steps below.": "Запрос не появился? Возможно, разрешение заблокировано. Выполните шаги ниже.",
+  "Open Settings, then Safari, then Microphone.": "Откройте «Настройки», затем Safari, затем «Микрофон».",
+  "Press and hold the app icon, then tap App info.": "Нажмите и удерживайте значок приложения, затем выберите «О приложении».",
+  "Reopen this app, then tap Try again.": "Откройте приложение снова и нажмите «Повторить».",
+  "Tap Permissions, then Microphone, and choose Allow.": "Нажмите «Разрешения», затем «Микрофон» и выберите «Разрешить».",
+  "Tap the icon left of the address bar, then Permissions.": "Нажмите значок слева от адресной строки, затем «Разрешения».",
+  "The phone is blocking the microphone for this app. Allow it in Settings, then come back here.": "Телефон блокирует микрофон для этого приложения. Разрешите его в настройках и вернитесь сюда.",
+  "Waiting for permission…": "Ожидание разрешения…",
+  "You closed the permission prompt. Tap Allow microphone and choose Allow.": "Вы закрыли запрос разрешения. Нажмите «Разрешить микрофон» и выберите «Разрешить»."
 });

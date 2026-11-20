@@ -14,7 +14,7 @@ import { createDiarizer, overlappingPitches } from "../shared/call-speakers.js";
 import { liveSetup, rejectsClone } from "../shared/call-setup.js";
 import { createHistory, loadLocal, recordLocal, removeRows, restoreRows, swipeAction, toggleSet } from "../shared/call-history.js";
 import { createRaiseDetector, earSinkId, cheekLike, createUnlocker, EAR_VOLUME_CAP } from "../shared/call-ear.js";
-import { createPlayoutLead, LEAD_MIN, LEAD_MAX, pickBitrate, createAudioUnlock, setAudioSession, createWakeFallback, NOSLEEP_MP4, BITRATES } from "../shared/call-mobile.js";
+import { createPlayoutLead, LEAD_MIN, LEAD_MAX, pickBitrate, createAudioUnlock, setAudioSession, createWakeFallback, NOSLEEP_MP4, BITRATES, micFailure, micPlatform } from "../shared/call-mobile.js";
 import { createPipe } from "../shared/call-engine.js";
 import { createPreview } from "../shared/call-preview.js";
 import { relayHint } from "../worker/src/calls.js";
@@ -677,4 +677,19 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.equal((await same.settle("no translation")).same, true);
   pv.reset(); assert.equal(pv.state().status, "idle");
   console.log("calls preview ok");
+  /* Allow microphone popup: why getUserMedia failed decides what the popup says. */
+  const E = (name, message) => ({ name, message: message || "" });
+  assert.deepEqual(micFailure(E("NotAllowedError", "Permission dismissed"), "prompt"), { kind: "prompt", dismissed: true, os: false }, "a closed prompt asks again");
+  assert.deepEqual(micFailure(E("NotAllowedError", "Permission denied"), "denied"), { kind: "denied", dismissed: false, os: false });
+  assert.deepEqual(micFailure(E("NotAllowedError", "Permission denied"), "prompt"), { kind: "denied", dismissed: false, os: false }, "a prompt that fails at once is a block");
+  assert.deepEqual(micFailure(E("NotAllowedError", "x"), "granted"), { kind: "denied", dismissed: false, os: true }, "browser allowed but the phone blocks it");
+  assert.equal(micFailure(E("NotReadableError"), "granted").kind, "busy");
+  assert.equal(micFailure(E("NotFoundError"), "prompt").kind, "none");
+  assert.equal(micFailure(null, "prompt").kind, "none");
+  const px = "Mozilla/5.0 (Linux; Android 14; Pixel 6a) AppleWebKit/537.36 Chrome/130 Mobile Safari/537.36";
+  assert.equal(micPlatform(px, true), "android-app");
+  assert.equal(micPlatform(px, false), "android");
+  assert.equal(micPlatform("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605 Version/17 Mobile/15E148 Safari/604.1", true), "ios");
+  assert.equal(micPlatform("Mozilla/5.0 (X11; Linux x86_64) Chrome/130", false), "desktop");
+  console.log("calls mic failures ok");
 }
