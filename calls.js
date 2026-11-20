@@ -44,7 +44,6 @@ function pipFlagOn() {
   } catch (err) { return true; }
 }
 
-<<<<<<< HEAD
 /* Owner switch calls_qr, on unless the server list says off. */
 function qrFlagOn() {
   try {
@@ -52,7 +51,7 @@ function qrFlagOn() {
     return !(Array.isArray(list) && list.indexOf("calls_qr") >= 0);
   } catch (err) { return true; }
 }
-=======
+
 /* Owner switch calls_onechat, on unless the server list says off. */
 function oneChatFlagOn() {
   try {
@@ -64,7 +63,6 @@ function oneChatFlagOn() {
 function convShown() {
   return oneChatFlagOn() && state.conv !== false;
 }
->>>>>>> e82dd03d (Calls: one conversation panel in the call view (captions, typed messages, composer with preview); flag calls_onechat)
 
 /* Owner switch calls_bar, on unless the server list says off. */
 function barFlagOn() {
