@@ -6687,6 +6687,8 @@ SI18n.addPack("en", {
   "The microphone is blocked. Allow it in the browser to join.": "The microphone is blocked. Allow it in the browser to join.",
   "Translate me into": "Translate me into",
   "Hear it": "Hear it",
+  "Hear my translation": "Hear my translation",
+  "Hear my translation (use headphones)": "Hear my translation (use headphones)",
   "Speak and you hear your own words translated, with captions. Use headphones to avoid echo.": "Speak and you hear your own words translated, with captions. Use headphones to avoid echo.",
   "Starting…": "Starting…",
   "Needs a Gemini key": "Needs a Gemini key",

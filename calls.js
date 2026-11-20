@@ -648,7 +648,7 @@ function testStrip() {
   const t = state.test;
   return `<div class="calls-teststrip" data-teststrip>
     <label class="calls-tl"><span>${esc(tr("Translate me into"))}</span><select data-act="call-test-lang">${langOptions(t.lang)}</select></label>
-    <button type="button" class="calls-pill${t.hear ? " on" : ""}" data-act="call-test-hear" aria-pressed="${t.hear ? "true" : "false"}">${ico("speaker")}<span>${esc(tr("Hear it"))}</span></button>
+    <button type="button" class="calls-pill${t.hear ? " on" : ""}" data-act="call-test-hear" aria-pressed="${t.hear ? "true" : "false"}" title="${esc(tr("Hear my translation (use headphones)"))}">${ico("speaker")}<span>${esc(tr("Hear my translation"))}</span></button>
     <button type="button" class="cb sm calls-info${state.testInfo ? " on" : ""}" data-act="call-test-info" aria-pressed="${state.testInfo ? "true" : "false"}" aria-label="${esc(tr("Call details"))}" title="${esc(tr("Call details"))}">${ico("info")}</button>
     <div class="calls-chips" data-testchips${state.testInfo ? "" : " hidden"}>${chipsHtml()}</div>
     <p class="calls-privacy">${esc(tr("Speak and you hear your own words translated, with captions. Use headphones to avoid echo."))}</p>
