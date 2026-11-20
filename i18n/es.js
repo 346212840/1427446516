@@ -6839,5 +6839,13 @@ SI18n.addPack("es", {
   "When you switch apps during a call, a small floating window keeps it on screen with mute and hang up. Off turns it off.": "Al cambiar de app durante una llamada, una ventana flotante la mantiene a la vista con silenciar y colgar. Desactivado la quita.",
   "Translating": "Traduciendo",
   "The account list is full. Remove one first.": "La lista de cuentas está llena. Quita una primero.",
-  "That doesn’t look like a TikTok account. Paste a tiktok.com link or @handle.": "Eso no parece una cuenta de TikTok. Pega un enlace de tiktok.com o un @usuario."
+  "That doesn’t look like a TikTok account. Paste a tiktok.com link or @handle.": "Eso no parece una cuenta de TikTok. Pega un enlace de tiktok.com o un @usuario.",
+  "Translating a preview…": "Traduciendo una vista previa…",
+  "No preview. It will still be sent.": "Sin vista previa. Se enviará igualmente.",
+  "Sent as you wrote it.": "Se envía tal como lo escribiste.",
+  "They will read ({lang})": "Leerán ({lang})",
+  "They will read": "Leerán",
+  "Means": "Significa",
+  "Typed message preview": "Vista previa de mensajes escritos",
+  "While you type to someone on a call, a card shows what they will read and what it means. Off removes the card and sends at once.": "Mientras escribes a alguien en una llamada, una tarjeta muestra lo que leerá y lo que significa. Apagado quita la tarjeta y envía al instante."
 });

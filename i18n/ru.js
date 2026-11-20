@@ -6838,5 +6838,13 @@ SI18n.addPack("ru", {
   "When you switch apps during a call, a small floating window keeps it on screen with mute and hang up. Off turns it off.": "Когда вы переключаетесь на другое приложение во время звонка, небольшое плавающее окно остаётся на экране с кнопками «Выключить звук» и «Завершить». Выключено — окна нет.",
   "Translating": "Идёт перевод",
   "The account list is full. Remove one first.": "Список аккаунтов заполнен. Сначала удалите один.",
-  "That doesn’t look like a TikTok account. Paste a tiktok.com link or @handle.": "Это не похоже на аккаунт TikTok. Вставьте ссылку tiktok.com или @имя."
+  "That doesn’t look like a TikTok account. Paste a tiktok.com link or @handle.": "Это не похоже на аккаунт TikTok. Вставьте ссылку tiktok.com или @имя.",
+  "Translating a preview…": "Перевожу для предпросмотра…",
+  "No preview. It will still be sent.": "Предпросмотра нет. Сообщение всё равно уйдёт.",
+  "Sent as you wrote it.": "Уйдёт так, как вы написали.",
+  "They will read ({lang})": "Они прочтут ({lang})",
+  "They will read": "Они прочтут",
+  "Means": "Значит",
+  "Typed message preview": "Предпросмотр набранных сообщений",
+  "While you type to someone on a call, a card shows what they will read and what it means. Off removes the card and sends at once.": "Пока вы пишете собеседнику в звонке, карточка показывает, что он прочтёт и что это значит. Выключено: карточки нет, сообщение уходит сразу."
 });

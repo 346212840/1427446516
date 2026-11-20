@@ -158,6 +158,15 @@ test("calls stay off until the owner turns them on, then privacy is enforced", a
   assert.equal(speakCovered.status, 200);
   assert.equal(speakCovered.body.video, false);
   assert.notEqual(speakCovered.body.reason, "nokey");
+  const previewed = await call("/v1/calls/" + invite.body.call.id + "/preview", { method: "POST", guest: guest.body.guestToken, body: { text: " Hold on a second ", target: "es", source: "en" } });
+  assert.equal(previewed.status, 200);
+  assert.equal(previewed.body.text, "Hold on a second", "the preview echoes the trimmed text");
+  assert.equal(typeof previewed.body.translation, "string");
+  assert.equal(typeof previewed.body.back, "string");
+  assert.notEqual(previewed.body.reason, "nokey");
+  assert.equal((await call("/v1/calls/" + invite.body.call.id + "/preview", { method: "POST", guest: guest.body.guestToken, body: { text: "Hi there", target: "xx" } })).status, 400, "an unknown language is refused");
+  assert.equal((await call("/v1/calls/" + invite.body.call.id + "/preview", { method: "POST", guest: guest.body.guestToken, body: { text: "   ", target: "es" } })).status, 400, "an empty message is refused");
+  assert.equal((await call("/v1/calls/" + invite.body.call.id + "/preview", { method: "GET", guest: guest.body.guestToken })).status === 200, false, "preview is POST only");
   /* Bea has no key and is not the host, so Ada's saved key covers her only as the host's guest. */
   const calleeNoKey = await call("/v1/calls/" + created.body.call.id + "/translate", { method: "POST", token: bea.token, body: { target: "en" } });
   assert.equal(calleeNoKey.body.keySource, "host");

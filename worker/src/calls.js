@@ -808,7 +808,7 @@ export async function handleCalls(request, env, path, url, deps) {
     return deps.json(200, { call: viewCall(await env.DB.prepare("SELECT * FROM call_sessions WHERE id = ?").bind(row.id).first()), guestId: guestId, guestToken: guestToken, name: cleanName(body && body.name) || "Guest", ticket: ticket.ticket, iceServers: await callIceServers(env), video: false });
   }
 
-  const one = path.match(/^\/v1\/calls\/([a-f0-9]{32})(\/answer|\/decline|\/end|\/ticket|\/translate|\/speak|\/signal|\/return|\/state)?$/);
+  const one = path.match(/^\/v1\/calls\/([a-f0-9]{32})(\/answer|\/decline|\/end|\/ticket|\/translate|\/speak|\/preview|\/signal|\/return|\/state)?$/);
   if (!one) return null;
   const id = one[1];
   const action = one[2] || "";
@@ -889,6 +889,29 @@ export async function handleCalls(request, env, path, url, deps) {
     const packed = JSON.stringify(minted);
     if (packed.includes(picked.key)) return deps.json(500, { error: "unavailable" });
     return deps.json(200, minted);
+  }
+  if (action === "/preview" && request.method === "POST") {
+    const paced = await deps.rateHit(env, "callprev:" + self, 90, 10 * 60 * 1000);
+    if (!paced.ok) return deps.limited(paced);
+    const body = await deps.readJson(request, 8000);
+    if (body.error || rejectsClone(body)) return deps.json(400, { error: "clone" });
+    const target = normalizeLang(body.target);
+    const source = normalizeLang(body.source);
+    if (!target) return deps.json(400, { error: "lang" });
+    const text = String(body.text || "").trim().slice(0, 500);
+    if (!text) return deps.json(400, { error: "text" });
+    const picked = await pickKey(env, row, who, self, body);
+    if (!picked.key) return deps.json(200, { text: text, translation: text, back: "", lang: target, reason: picked.source === "ringing" ? "ringing" : "nokey", untranslated: true });
+    const hint = lexiconHint(body.lexicon);
+    const said = await translateText(env, picked.key, text, target, hint);
+    if (said.error === "quota") return deps.json(429, { error: "quota" });
+    if (said.error === "badkey") return deps.json(200, { text: text, translation: text, back: "", lang: target, reason: "badkey", untranslated: true });
+    let back = "";
+    if (source && !said.untranslated && said.translation && said.translation !== text) {
+      const again = await translateText(env, picked.key, said.translation, source, "");
+      if (!again.error && !again.untranslated) back = String(again.translation || "").slice(0, 800);
+    }
+    return deps.json(200, { text: text, translation: said.translation, back: back, lang: target, untranslated: !!said.untranslated });
   }
   if (action === "/speak" && request.method === "POST") {
     const paced = await deps.rateHit(env, "callsay:" + self, 40, 10 * 60 * 1000);
