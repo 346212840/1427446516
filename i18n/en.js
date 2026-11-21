@@ -6965,5 +6965,16 @@ SI18n.addPack("en", {
   "Practice partner": "Practice partner",
   "The practice partner replies on its own after you speak or type.": "The practice partner replies on its own after you speak or type.",
   "The practice partner is busy. Try again in a moment.": "The practice partner is busy. Try again in a moment.",
-  "A Practice with AI button on the Calls home screen starts a call with a partner that replies on its own, so you can practice a translated call without a second person. Off hides the button.": "A Practice with AI button on the Calls home screen starts a call with a partner that replies on its own, so you can practice a translated call without a second person. Off hides the button."
+  "A Practice with AI button on the Calls home screen starts a call with a partner that replies on its own, so you can practice a translated call without a second person. Off hides the button.": "A Practice with AI button on the Calls home screen starts a call with a partner that replies on its own, so you can practice a translated call without a second person. Off hides the button.",
+  "Transcript": "Transcript",
+  "Open call details": "Open call details",
+  "Corrected": "Corrected",
+  "Original": "Original",
+  "Save correction": "Save correction",
+  "Name in your history": "Name in your history",
+  "Loading the transcript…": "Loading the transcript…",
+  "No transcript was saved for this call.": "No transcript was saved for this call.",
+  "A rename, a note, or a correction is only for you. The other person keeps theirs.": "A rename, a note, or a correction is only for you. The other person keeps theirs.",
+  "Edit call history": "Edit call history",
+  "Tap a call in history to rename it, add a note, or correct a transcript line. Changes are only for you. Off hides the editor.": "Tap a call in history to rename it, add a note, or correct a transcript line. Changes are only for you. Off hides the editor."
 });

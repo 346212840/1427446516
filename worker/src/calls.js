@@ -21,6 +21,7 @@ import { signalAdmit } from "../../shared/call-status.js";
 import { handleCallSchedule, sweepSchedules, CALL_SCHEDULE_SCHEMA } from "./call-schedule.js";
 import { handleCallRotateQr, CALL_ROTATE_QR_SCHEMA } from "./call-rotate-qr.js";
 import { handleCallPractice, startPracticeSession } from "./call-practice.js";
+import { handleCallHistoryEdit, attachHistoryMeta, CALL_HISTORY_EDIT_SCHEMA } from "./call-history-edit.js";
 
 const ACCOUNT = /^\d{12}$/;
 const ID = /^[a-f0-9]{32}$/;
@@ -102,7 +103,7 @@ export const CALLS_SCHEMA = [
     guest_id TEXT NOT NULL,
     expires_at INTEGER NOT NULL
   )`
-].concat(TURN_SCHEMA, CALL_SCHEDULE_SCHEMA, CALL_ROTATE_QR_SCHEMA);
+].concat(TURN_SCHEMA, CALL_SCHEDULE_SCHEMA, CALL_ROTATE_QR_SCHEMA, CALL_HISTORY_EDIT_SCHEMA);
 
 let schema = null;
 function ensure(env) {
@@ -591,6 +592,9 @@ export async function handleCalls(request, env, path, url, deps) {
   });
   if (practice) return practice;
 
+  const histEdit = await handleCallHistoryEdit(request, env, path, url, deps, { member });
+  if (histEdit) return histEdit;
+
   if (path === "/v1/calls/live" && request.method === "GET") return relayLive(request, env, url, deps);
 
   if (path === "/v1/calls/key") {
@@ -669,7 +673,7 @@ export async function handleCalls(request, env, path, url, deps) {
       item.duration = row.answered_at && row.ended_at ? Math.max(0, row.ended_at - row.answered_at) : 0;
       return item;
     });
-    return deps.json(200, { calls: calls });
+    return deps.json(200, { calls: await attachHistoryMeta(env, me, calls) });
   }
 
   /* Editing your call history only hides rows for you. The other person's history and the call itself stay. */

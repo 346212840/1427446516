@@ -191,6 +191,14 @@ function practiceFlagOn() {
   } catch (err) { return true; }
 }
 
+/* Owner switch calls_hist_edit, on unless the server list says off. */
+function histEditFlagOn() {
+  try {
+    const list = JSON.parse(localStorage.getItem("viktorychapp-server-off") || "[]");
+    return !(Array.isArray(list) && list.indexOf("calls_hist_edit") >= 0);
+  } catch (err) { return true; }
+}
+
 /* Owner switch calls_preview, on unless the server list says off. */
 function previewFlagOn() {
   try {
@@ -273,6 +281,7 @@ async function api(path, init) {
 const hist = createHistory({ api: (path, init) => api(path, init), storage: { getItem: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, setItem: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } } }, signedIn: () => signedIn() });
 const state = {
   histSel: null,
+  histEdit: null,
   pop: "",
   barOpen: false,
   histUndo: null,
@@ -1188,22 +1197,128 @@ function historyRows(tab) {
     ? `<div class="calls-histbar sel"><button type="button" class="calls-link" data-act="hist-cancel">${esc(tr("Cancel"))}</button><span class="calls-histn">${esc(trn("callsSelected", sel.size))}</span><button type="button" class="calls-link" data-act="hist-all">${esc(tr("Select all"))}</button><button type="button" class="calls-pill danger" data-act="hist-delete"${sel.size ? "" : " disabled"}>${ico("trash", "tiny")}${esc(tr("Delete"))}</button></div>`
     : `<div class="calls-histbar"><button type="button" class="calls-link" data-act="hist-select">${esc(tr("Select"))}</button><button type="button" class="calls-link" data-act="hist-clear">${esc(tr("Clear all"))}</button></div>`;
   const rows = list.slice(0, 30).map((row) => {
-    const label = row.name || (row.handle ? "@" + row.handle : tr("Guest"));
+    const label = (histEditFlagOn() && row.title) ? row.title : (row.name || (row.handle ? "@" + row.handle : tr("Guest")));
     const kind = row.missed ? tr("Missed call") : (row.incoming ? tr("Incoming call") : tr("Outgoing call"));
     const dur = row.duration ? " · " + clock(row.duration) : "";
+    const noteMark = histEditFlagOn() && row.note ? " · " + tr("Note") : "";
+    const transMark = histEditFlagOn() && (row.hasTranscript || (row.lines && row.lines.length)) ? " · " + tr("Transcript") : "";
     const picked = sel && sel.has(row.id);
     const lead = sel
       ? `<button type="button" class="calls-check${picked ? " on" : ""}" data-act="hist-pick" data-id="${esc(row.id)}" role="checkbox" aria-checked="${picked ? "true" : "false"}" aria-label="${esc(label)}">${picked ? ico("check", "tiny") : ""}</button>`
       : "";
+    const open = !sel && histEditFlagOn() ? `<button type="button" class="calls-rowbody" data-act="hist-open" data-id="${esc(row.id)}" aria-label="${esc(tr("Open call details"))}"><div class="calls-ava sm">${esc(initialOf(label))}</div><div class="calls-rt"><b>${esc(label)}</b><span>${ico(row.incoming ? "incoming" : "outgoing", "tiny")}${esc(kind)} · ${esc(when(row.createdAt))}${esc(dur)}${esc(noteMark)}${esc(transMark)}</span></div></button>` : `<div class="calls-ava sm">${esc(initialOf(label))}</div><div class="calls-rt"><b>${esc(label)}</b><span>${ico(row.incoming ? "incoming" : "outgoing", "tiny")}${esc(kind)} · ${esc(when(row.createdAt))}${esc(dur)}</span></div>`;
     const back = !sel && row.handle ? `<button type="button" class="cb sm" data-act="call-back" data-handle="${esc(row.handle)}" aria-label="${esc(tr("Call back"))}" title="${esc(tr("Call back"))}">${ico("phone")}</button>` : "";
     const del = !sel ? `<button type="button" class="calls-rowx" data-act="hist-del" data-id="${esc(row.id)}" aria-label="${esc(tr("Remove from history"))}" title="${esc(tr("Remove from history"))}">${ico("close", "tiny")}</button>` : "";
-    return `<li class="calls-row${row.missed ? " missed" : ""}${picked ? " picked" : ""}" data-id="${esc(row.id)}">${lead}<div class="calls-ava sm">${esc(initialOf(label))}</div><div class="calls-rt"><b>${esc(label)}</b><span>${ico(row.incoming ? "incoming" : "outgoing", "tiny")}${esc(kind)} · ${esc(when(row.createdAt))}${esc(dur)}</span></div>${back}${del}</li>`;
+    return `<li class="calls-row${row.missed ? " missed" : ""}${picked ? " picked" : ""}" data-id="${esc(row.id)}">${lead}${open}${back}${del}</li>`;
   }).join("");
   return bar + `<ul class="calls-list">${rows}</ul>`;
 }
 
+function histEditSheet() {
+  const ed = state.histEdit;
+  if (!histEditFlagOn() || !ed) return "";
+  const err = ed.error ? `<p class="calls-error" role="alert">${esc(ed.error)}</p>` : "";
+  const lines = (ed.lines || []).map((line, i) => {
+    const lid = esc(line.id || String(i));
+    return `<article class="calls-bubble${line.mine ? " mine" : ""}" data-line="${lid}">
+      <b>${esc(line.who || (line.mine ? tr("You") : tr("Guest")))}${line.corrected ? ` · ${esc(tr("Corrected"))}` : ""}</b>
+      <label class="calls-vol"><span>${esc(tr("Original"))}</span><textarea data-hist-orig="${lid}" rows="2" maxlength="500">${esc(line.original || "")}</textarea></label>
+      <label class="calls-vol"><span>${esc(tr("Translation"))}</span><textarea data-hist-trn="${lid}" rows="2" maxlength="500">${esc(line.translation || "")}</textarea></label>
+      <button type="button" class="calls-link" data-act="hist-correct" data-id="${lid}">${esc(tr("Save correction"))}</button>
+    </article>`;
+  }).join("");
+  return `<section class="calls-histedit" data-histedit>
+    <header class="calls-side-head"><h2>${esc(tr("Call details"))}</h2><button type="button" class="calls-x" data-act="hist-close" aria-label="${esc(tr("Close"))}">${ico("close")}</button></header>
+    ${err}
+    <p class="calls-privacy">${esc(ed.name || "")}</p>
+    <label class="calls-vol"><span>${esc(tr("Name in your history"))}</span><input id="calls-hist-title" maxlength="80" value="${esc(ed.title || "")}"></label>
+    <label class="calls-vol"><span>${esc(tr("Note"))}</span><textarea id="calls-hist-note" rows="3" maxlength="500">${esc(ed.note || "")}</textarea></label>
+    <button type="button" class="calls-go" data-act="hist-save">${esc(tr("Save"))}</button>
+    <h3>${esc(tr("Transcript"))}</h3>
+    ${ed.loading ? `<p class="calls-empty">${esc(tr("Loading the transcript…"))}</p>` : (lines || `<p class="calls-empty">${esc(tr("No transcript was saved for this call."))}</p>`)}
+    <p class="calls-privacy">${esc(tr("A rename, a note, or a correction is only for you. The other person keeps theirs."))}</p>
+  </section>`;
+}
+async function openHistEdit(id) {
+  if (!histEditFlagOn() || !id) return;
+  const row = (state.history || []).find((item) => item.id === id) || { id: id, name: "", title: "", note: "", lines: [] };
+  state.histEdit = { id: id, name: row.name || (row.handle ? "@" + row.handle : ""), title: row.title || "", note: row.note || "", lines: Array.isArray(row.lines) ? row.lines.slice() : [], loading: !!signedIn(), error: "" };
+  paint();
+  if (!signedIn()) return;
+  const res = await api("/v1/calls/history/" + encodeURIComponent(id) + "/transcript").catch(() => null);
+  if (!state.histEdit || state.histEdit.id !== id) return;
+  if (res && res.status === 204) { state.histEdit.loading = false; paint(); return; }
+  if (!res || !res.ok) { state.histEdit.loading = false; state.histEdit.error = errorFor(res); paint(); return; }
+  state.histEdit.title = res.data.title != null ? res.data.title : state.histEdit.title;
+  state.histEdit.note = res.data.note != null ? res.data.note : state.histEdit.note;
+  state.histEdit.lines = Array.isArray(res.data.lines) ? res.data.lines : state.histEdit.lines;
+  state.histEdit.loading = false;
+  paint();
+}
+async function saveHistMeta() {
+  const ed = state.histEdit;
+  if (!ed) return;
+  const title = ((document.getElementById("calls-hist-title") || {}).value || "").trim().slice(0, 80);
+  const note = ((document.getElementById("calls-hist-note") || {}).value || "").trim().slice(0, 500);
+  ed.title = title;
+  ed.note = note;
+  if (signedIn()) {
+    const res = await api("/v1/calls/history/edit", { method: "POST", body: JSON.stringify({ id: ed.id, title: title, note: note }) }).catch(() => null);
+    if (!res || !res.ok) { ed.error = errorFor(res); paint(); return; }
+  } else {
+    const rows = state.history.map((row) => row.id === ed.id ? Object.assign({}, row, { title: title, note: note }) : row);
+    state.history = rows;
+    try { localStorage.setItem("viktorych_calls_local_v1", JSON.stringify(rows.slice(0, 60))); } catch (err) { /* private mode */ }
+  }
+  const row = (state.history || []).find((item) => item.id === ed.id);
+  if (row) { row.title = title; row.note = note; }
+  paint();
+}
+async function saveHistCorrect(lineId) {
+  const ed = state.histEdit;
+  if (!ed || !lineId) return;
+  const origEl = document.querySelector('[data-hist-orig="' + CSS.escape(lineId) + '"]');
+  const trnEl = document.querySelector('[data-hist-trn="' + CSS.escape(lineId) + '"]');
+  const original = origEl ? String(origEl.value || "").trim().slice(0, 500) : "";
+  const translation = trnEl ? String(trnEl.value || "").trim().slice(0, 500) : "";
+  if (signedIn()) {
+    const res = await api("/v1/calls/history/" + encodeURIComponent(ed.id) + "/correct", { method: "POST", body: JSON.stringify({ lineId: lineId, original: original, translation: translation }) }).catch(() => null);
+    if (!res || !res.ok) { ed.error = errorFor(res); paint(); return; }
+    const next = res.data && res.data.line ? res.data.line : { id: lineId, original: original, translation: translation, corrected: true };
+    ed.lines = (ed.lines || []).map((line) => line.id === lineId ? Object.assign({}, line, next) : line);
+  } else {
+    ed.lines = (ed.lines || []).map((line) => line.id === lineId ? Object.assign({}, line, { original: original, translation: translation, corrected: true }) : line);
+    const rows = state.history.map((row) => row.id === ed.id ? Object.assign({}, row, { lines: ed.lines }) : row);
+    state.history = rows;
+    try { localStorage.setItem("viktorych_calls_local_v1", JSON.stringify(rows.slice(0, 60))); } catch (err) { /* private mode */ }
+  }
+  paint();
+}
+async function saveHistTranscript(id, lines) {
+  if (!histEditFlagOn() || !id || !lines || !lines.length) return;
+  const packed = lines.slice(-80).map((line) => ({
+    id: String(line.id || ("l" + line.at + line.original)).slice(0, 64),
+    at: Number(line.at) || Date.now(),
+    who: String(line.who || ""),
+    mine: !!line.mine,
+    original: String(line.original || "").slice(0, 500),
+    translation: String(line.translation || "").slice(0, 500)
+  })).filter((line) => line.id && (line.original || line.translation));
+  if (!packed.length) return;
+  if (signedIn()) {
+    await api("/v1/calls/history/transcript", { method: "POST", body: JSON.stringify({ id: id, lines: packed }) }).catch(() => null);
+  } else {
+    try {
+      const raw = JSON.parse(localStorage.getItem("viktorych_calls_local_v1") || "[]");
+      const rows = (Array.isArray(raw) ? raw : []).map((row) => row && row.id === id ? Object.assign({}, row, { lines: packed, hasTranscript: true }) : row);
+      localStorage.setItem("viktorych_calls_local_v1", JSON.stringify(rows.slice(0, 60)));
+    } catch (err) { /* private mode */ }
+  }
+}
+
 /* ---- editing call history: one row, many rows, or all of it, with an undo ---- */
 function histToast(text, token) {
+
   clearTimeout(state.histTimer);
   state.histUndo = token || null;
   let el = document.querySelector(".calls-undo");
@@ -1599,6 +1714,7 @@ function homeScreen(opts) {
     ${o.toast ? incomingToast() : (state.schedToast && scheduleFlagOn() && state.phase === "idle" ? scheduleToast() : "")}
     ${side}
     <section class="calls-main">
+      ${histEditFlagOn() && state.histEdit ? histEditSheet() : ""}
       ${notSet}${err}${start}
       <label class="calls-vol calls-homelang"><span>${esc(tr("I speak"))}</span><select data-act="call-lang">${langOptions(myLang())}</select></label>
       ${installBlock()}
@@ -2668,7 +2784,10 @@ async function teardown(silent) {
   state.guestToken = state.guestToken;
 }
 async function hangUp() {
+  const endedId = state.callId;
+  const endedLines = (state.lines || []).slice();
   await teardown(false);
+  if (endedId && endedLines.length) await saveHistTranscript(endedId, endedLines);
   state.barOpen = false;
   state.statusCode = standalone() && state.route && state.route.name === "callguest" ? "ended" : "";
   paint();
@@ -2991,6 +3110,10 @@ function onAct(act, el) {
   else if (act === "hist-all") { state.histSel = new Set(state.history.filter((r) => (state.tab || "recent") !== "missed" || r.missed).slice(0, 30).map((r) => r.id)); paint(); }
   else if (act === "hist-delete") { if (state.histSel && state.histSel.size) histRemove(Array.from(state.histSel)); }
   else if (act === "hist-clear") histConfirm();
+  else if (act === "hist-open") openHistEdit(el.dataset.id);
+  else if (act === "hist-close") { state.histEdit = null; paint(); }
+  else if (act === "hist-save") saveHistMeta();
+  else if (act === "hist-correct") saveHistCorrect(el.dataset.id);
   else if (act === "call-allowmic") openMicModal("call");
   else if (act === "call-checkmic") checkMic();
   else if (act === "call-checkspk") checkSpeaker();

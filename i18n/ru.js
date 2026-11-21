@@ -6967,5 +6967,16 @@ SI18n.addPack("ru", {
   "Practice partner": "Партнёр для практики",
   "The practice partner replies on its own after you speak or type.": "Партнёр для практики отвечает сам, после того как вы скажете или напишете.",
   "The practice partner is busy. Try again in a moment.": "Партнёр для практики сейчас занят. Попробуйте ещё раз через минуту.",
-  "A Practice with AI button on the Calls home screen starts a call with a partner that replies on its own, so you can practice a translated call without a second person. Off hides the button.": "Кнопка «Практика с ИИ» на главном экране «Звонки» начинает звонок с партнёром, который отвечает сам, чтобы вы могли практиковать перевод без второго человека. Выключено: кнопка скрыта."
+  "A Practice with AI button on the Calls home screen starts a call with a partner that replies on its own, so you can practice a translated call without a second person. Off hides the button.": "Кнопка «Практика с ИИ» на главном экране «Звонки» начинает звонок с партнёром, который отвечает сам, чтобы вы могли практиковать перевод без второго человека. Выключено: кнопка скрыта.",
+  "Transcript": "Расшифровка",
+  "Open call details": "Открыть сведения о звонке",
+  "Corrected": "Исправлено",
+  "Original": "Оригинал",
+  "Save correction": "Сохранить исправление",
+  "Name in your history": "Имя в вашей истории",
+  "Loading the transcript…": "Загрузка расшифровки…",
+  "No transcript was saved for this call.": "Для этого звонка расшифровка не сохранена.",
+  "A rename, a note, or a correction is only for you. The other person keeps theirs.": "Новое имя, заметка или исправление видны только вам. У собеседника остаётся своя история.",
+  "Edit call history": "Правка истории звонков",
+  "Tap a call in history to rename it, add a note, or correct a transcript line. Changes are only for you. Off hides the editor.": "Нажмите звонок в истории, чтобы переименовать его, добавить заметку или исправить строку расшифровки. Изменения только для вас. Выключено: редактор скрыт."
 });

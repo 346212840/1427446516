@@ -837,3 +837,11 @@
 
 /* Practice partner uses the test-call panel, without canned replies. */
 .calls-practice .calls-privacy { margin-top: 8px; }
+
+/* History detail: rename, note, and transcript corrections, one tap from a row. */
+.calls-rowbody { display: flex; flex: 1; align-items: center; gap: 8px; min-width: 0; background: none; border: 0; padding: 0; text-align: left; color: inherit; cursor: pointer; }
+.calls-histedit { margin: 0 0 16px; padding: 12px; border: 1px solid var(--c-line, #2f3336); border-radius: 16px; }
+.calls-histedit h2, .calls-histedit h3 { margin: 0 0 8px; font-size: 16px; }
+.calls-histedit .calls-side-head { display: flex; align-items: center; justify-content: space-between; }
+.calls-histedit textarea { width: 100%; resize: vertical; }
+.calls-histedit .calls-go { margin: 8px 0 12px; }
