@@ -6957,5 +6957,11 @@ SI18n.addPack("es", {
   "{name} declined your scheduled call": "{name} rechazó tu llamada programada",
   "Original voice volume": "Volumen de la voz original",
   "The original-voice volume slider sits on the call screen, next to a one-tap switch to hear their original voice. Off leaves the slider only in Settings and the Sound sheet.": "El control de volumen de la voz original está en la pantalla de la llamada, junto a un interruptor de un toque para oír su voz original. Desactivado deja el control solo en Ajustes y en la hoja de Sonido.",
-  "Original voice": "Voz original"
+  "Original voice": "Voz original",
+  "Scan to call me": "Escanea para llamarme",
+  "Rotating QR code to call me": "Código QR rotativo para llamarme",
+  "This code refreshes every two minutes. When someone scans it, it rings you like an incoming call.": "Este código se actualiza cada dos minutos. Cuando alguien lo escanea, te suena como una llamada entrante.",
+  "Loading the QR code…": "Cargando el código QR…",
+  "Rotating call QR": "QR rotativo para llamar",
+  "A QR code on the Calls home screen refreshes every two minutes. When someone scans it, it rings you like an incoming call. Off hides the code.": "Un código QR en la pantalla de inicio de Llamadas se actualiza cada dos minutos. Cuando alguien lo escanea, te suena como una llamada entrante. Desactivado oculta el código."
 });

@@ -6944,5 +6944,11 @@ SI18n.addPack("hi", {
   "{name} declined your scheduled call": "{name} ने आपकी शेड्यूल की गई कॉल अस्वीकार की",
   "Original voice volume": "मूल आवाज़ का वॉल्यूम",
   "The original-voice volume slider sits on the call screen, next to a one-tap switch to hear their original voice. Off leaves the slider only in Settings and the Sound sheet.": "मूल आवाज़ का वॉल्यूम स्लाइडर कॉल स्क्रीन पर रहता है, मूल आवाज़ सुनने के एक-टैप स्विच के साथ। बंद करने पर स्लाइडर केवल सेटिंग्स और साउंड शीट में रहता है।",
-  "Original voice": "मूल आवाज़"
+  "Original voice": "मूल आवाज़",
+  "Scan to call me": "कॉल करने के लिए स्कैन करें",
+  "Rotating QR code to call me": "मुझे कॉल करने के लिए बदलता QR कोड",
+  "This code refreshes every two minutes. When someone scans it, it rings you like an incoming call.": "यह कोड हर दो मिनट में बदलता है। कोई इसे स्कैन करे तो आपको आने वाली कॉल की तरह रिंग आएगी।",
+  "Loading the QR code…": "QR कोड लोड हो रहा है…",
+  "Rotating call QR": "कॉल के लिए बदलता QR",
+  "A QR code on the Calls home screen refreshes every two minutes. When someone scans it, it rings you like an incoming call. Off hides the code.": "कॉल्स होम स्क्रीन पर QR कोड हर दो मिनट में बदलता है। कोई इसे स्कैन करे तो आपको आने वाली कॉल की तरह रिंग आएगी। बंद करने पर कोड छिप जाता है।"
 });

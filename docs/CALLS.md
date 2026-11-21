@@ -92,3 +92,7 @@ With this switch on (the default), the Calls page has a Schedule a call button o
 
 With this switch on (the default), the original-voice volume slider sits on the call screen, next to a one-tap switch to hear their original voice. The same slider in Settings and the Sound sheet still works. Off leaves the slider only in those panels.
 
+## Rotating call QR (calls_rotate_qr)
+
+With this switch on (the default), a QR code sits on the signed-in Calls home screen (not only after Get call link). It refreshes every two minutes, and the previous code stays valid until it expires so a mid-scan still works. Scanning it starts a new call that rings the host like an incoming call (Answer or Decline). Guest links use a short-lived `cr1.` token. Off hides the code. Permanent call-me links and Get call link are unchanged.
+

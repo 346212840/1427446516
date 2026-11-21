@@ -6956,5 +6956,11 @@ SI18n.addPack("ru", {
   "{name} declined your scheduled call": "{name} отклонил(а) ваш запланированный звонок",
   "Original voice volume": "Громкость оригинального голоса",
   "The original-voice volume slider sits on the call screen, next to a one-tap switch to hear their original voice. Off leaves the slider only in Settings and the Sound sheet.": "Ползунок громкости оригинального голоса находится на экране звонка, рядом с переключателем «слышать оригинальный голос» в одно касание. Выключено: ползунок остаётся только в настройках и в панели «Звук».",
-  "Original voice": "Оригинальный голос"
+  "Original voice": "Оригинальный голос",
+  "Scan to call me": "Отсканируйте, чтобы позвонить мне",
+  "Rotating QR code to call me": "Обновляемый QR-код, чтобы позвонить мне",
+  "This code refreshes every two minutes. When someone scans it, it rings you like an incoming call.": "Этот код обновляется каждые две минуты. Если его отсканируют, вам придёт входящий звонок.",
+  "Loading the QR code…": "Загрузка QR-кода…",
+  "Rotating call QR": "Обновляемый QR для звонка",
+  "A QR code on the Calls home screen refreshes every two minutes. When someone scans it, it rings you like an incoming call. Off hides the code.": "QR-код на главном экране «Звонки» обновляется каждые две минуты. Если его отсканируют, вам придёт входящий звонок. Выключено: код скрыт."
 });
