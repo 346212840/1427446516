@@ -1,6 +1,6 @@
 # Status snapshot
 
-Written 2026-11-21 (UTC). The Pages directory is the repository name, read from the address on github.io and from `GITHUB_REPOSITORY` when the site is published. The Cloudflare mirror stays `https://viktorychapp.pages.dev/`. Latest D1 migration is `0137_call_rotate_qr.sql`. Telegram expiry is a column added at runtime, not a new migration. This is a snapshot: check `gh pr list` and `git log origin/main` before acting on it. Update this file at the end of every PR.
+Written 2026-11-21 (UTC). The Pages directory is the repository name, read from the address on github.io and from `GITHUB_REPOSITORY` when the site is published. The Cloudflare mirror stays `https://viktorychapp.pages.dev/`. Latest D1 migration is `0138_call_history_edit.sql`. Telegram expiry is a column added at runtime, not a new migration. This is a snapshot: check `gh pr list` and `git log origin/main` before acting on it. Update this file at the end of every PR.
 
 ## Calls
 
@@ -19,6 +19,8 @@ The original-voice volume slider (`calls_orig_vol`, on by default) sits on the c
 A rotating QR code (`calls_rotate_qr`, on by default) sits on the Calls home screen and refreshes every two minutes. Scanning it rings you like an incoming call. The previous code stays valid until it expires so a mid-scan still works. Off hides the code.
 
 A Practice with AI button (`calls_practice`, on by default) on the Calls home screen starts a call with a partner that replies on its own, so you can practice a translated call without a second person. Off hides the button.
+
+Tap a call in history (`calls_hist_edit`, on by default) to rename it, add a note, or correct a transcript line. A finished call saves its transcript for you. Changes are only for you. Off hides the editor.
 
 ## How to work on this repo
 

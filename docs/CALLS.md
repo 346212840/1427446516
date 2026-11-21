@@ -100,3 +100,7 @@ With this switch on (the default), a QR code sits on the signed-in Calls home sc
 
 With this switch on (the default), a Practice with AI button sits on the signed-in Calls home screen, next to Test call. One tap starts a call with a partner that replies on its own after you speak or type, in the language you pick, so you can practice a translated call without a second person. Off hides the button. Test call is unchanged.
 
+## Edit call history (calls_hist_edit)
+
+With this switch on (the default), tap a call in history to rename it, add a note, or correct a transcript line. When a call ends, the transcript from that call is saved for you. A rename, a note, or a correction is only for you; the other person keeps theirs. Off hides the editor.
+

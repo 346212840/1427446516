@@ -6955,5 +6955,16 @@ SI18n.addPack("hi", {
   "Practice partner": "अभ्यास साथी",
   "The practice partner replies on its own after you speak or type.": "आप बोलने या टाइप करने के बाद अभ्यास साथी खुद जवाब देता है।",
   "The practice partner is busy. Try again in a moment.": "अभ्यास साथी व्यस्त है। थोड़ी देर बाद फिर कोशिश करें।",
-  "A Practice with AI button on the Calls home screen starts a call with a partner that replies on its own, so you can practice a translated call without a second person. Off hides the button.": "कॉल्स होम स्क्रीन पर «AI के साथ अभ्यास» बटन एक ऐसे साथी के साथ कॉल शुरू करता है जो खुद जवाब देता है, ताकि बिना दूसरे व्यक्ति के अनुवादित कॉल का अभ्यास किया जा सके। बंद करने पर बटन छिप जाता है।"
+  "A Practice with AI button on the Calls home screen starts a call with a partner that replies on its own, so you can practice a translated call without a second person. Off hides the button.": "कॉल्स होम स्क्रीन पर «AI के साथ अभ्यास» बटन एक ऐसे साथी के साथ कॉल शुरू करता है जो खुद जवाब देता है, ताकि बिना दूसरे व्यक्ति के अनुवादित कॉल का अभ्यास किया जा सके। बंद करने पर बटन छिप जाता है।",
+  "Transcript": "ट्रांस्क्रिप्ट",
+  "Open call details": "कॉल की जानकारी खोलें",
+  "Corrected": "सुधारा गया",
+  "Original": "मूल",
+  "Save correction": "सुधार सहेजें",
+  "Name in your history": "आपके इतिहास में नाम",
+  "Loading the transcript…": "ट्रांस्क्रिप्ट लोड हो रही है…",
+  "No transcript was saved for this call.": "इस कॉल की ट्रांस्क्रिप्ट सहेजी नहीं गई।",
+  "A rename, a note, or a correction is only for you. The other person keeps theirs.": "नाम, नोट या सुधार केवल आपके लिए है। दूसरे व्यक्ति का इतिहास वैसा ही रहता है।",
+  "Edit call history": "कॉल इतिहास संपादित करें",
+  "Tap a call in history to rename it, add a note, or correct a transcript line. Changes are only for you. Off hides the editor.": "इतिहास में किसी कॉल पर टैप करके उसका नाम बदलें, नोट जोड़ें, या ट्रांस्क्रिप्ट की पंक्ति सुधारें। बदलाव केवल आपके लिए हैं। बंद करने पर संपादक छिप जाता है।"
 });

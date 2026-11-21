@@ -498,3 +498,60 @@ test("a practice partner can be started and replies on its own", async () => {
   const on = await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls_practice", off: false } });
   assert.equal(on.status, 200);
 });
+
+test("a caller can rename a history row, add a note, and correct a transcript", async () => {
+  const ownerToken = globalThis.__callsOwnerToken;
+  assert.ok(ownerToken, "the first test turned Calls on");
+  const pip = await signup(101, "Pip Example", "pip_example");
+  const quin = await signup(102, "Quin Example", "quin_example");
+  await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls", off: false } });
+  await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls_hist_edit", off: false } });
+
+  const made = await call("/v1/calls", { method: "POST", token: pip.token, body: { handle: "quin_example" } });
+  assert.equal(made.status, 201, JSON.stringify(made.body));
+  const id = made.body.call.id;
+  await call("/v1/calls/" + id + "/end", { method: "POST", token: pip.token });
+
+  const edited = await call("/v1/calls/history/edit", { method: "POST", token: pip.token, body: { id, title: "Weekly catch-up", note: "Ask about the draft." } });
+  assert.equal(edited.status, 200, JSON.stringify(edited.body));
+  assert.equal(edited.body.title, "Weekly catch-up");
+  assert.equal(edited.body.note, "Ask about the draft.");
+
+  const listed = await call("/v1/calls/history", { token: pip.token });
+  const row = (listed.body.calls || []).find((item) => item.id === id);
+  assert.ok(row, "the call is in history");
+  assert.equal(row.title, "Weekly catch-up");
+  assert.equal(row.note, "Ask about the draft.");
+
+  const theirs = await call("/v1/calls/history", { token: quin.token });
+  const other = (theirs.body.calls || []).find((item) => item.id === id);
+  assert.ok(other, "the other person still has the call");
+  assert.equal(other.title || "", "", "a rename is only for the person who saved it");
+
+  const saved = await call("/v1/calls/history/transcript", { method: "POST", token: pip.token, body: { id, lines: [{ id: "l1", at: Date.now(), who: "Pip", mine: true, original: "Hello there", translation: "Hola" }] } });
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  assert.equal(saved.body.saved, 1);
+
+  const got = await call("/v1/calls/history/" + id + "/transcript", { token: pip.token });
+  assert.equal(got.status, 200, JSON.stringify(got.body));
+  assert.equal(got.body.lines[0].original, "Hello there");
+  const fixed = await call("/v1/calls/history/" + id + "/correct", { method: "POST", token: pip.token, body: { lineId: "l1", original: "Hello there.", translation: "Hola." } });
+  assert.equal(fixed.status, 200, JSON.stringify(fixed.body));
+  assert.equal(fixed.body.line.original, "Hello there.");
+  assert.equal(fixed.body.line.corrected, true);
+
+  const again = await call("/v1/calls/history/transcript", { method: "POST", token: pip.token, body: { id, lines: [{ id: "l1", original: "should not overwrite", translation: "no" }] } });
+  assert.equal(again.status, 200);
+  const kept = await call("/v1/calls/history/" + id + "/transcript", { token: pip.token });
+  assert.equal(kept.body.lines[0].original, "Hello there.", "a later save does not overwrite a correction");
+
+  assert.equal((await call("/v1/calls/history/edit", { method: "POST", token: quin.token, body: { id, title: "Nope" } })).status, 200);
+  assert.equal((await call("/v1/calls/history/" + id + "/correct", { method: "POST", token: quin.token, body: { lineId: "l1", original: "x" } })).status, 404);
+  assert.equal((await call("/v1/calls/history/edit", { method: "POST", body: { id, title: "x" } })).status, 401);
+
+  const off = await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls_hist_edit", off: true } });
+  assert.equal(off.status, 200);
+  assert.equal((await call("/v1/calls/history/edit", { method: "POST", token: pip.token, body: { id, title: "Hidden" } })).status, 404);
+  const on = await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls_hist_edit", off: false } });
+  assert.equal(on.status, 200);
+});

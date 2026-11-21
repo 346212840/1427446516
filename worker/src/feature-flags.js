@@ -203,7 +203,10 @@ export const FEATURES = {
   /* Optional AI practice partner on the Calls home screen. One tap
      starts a call with a partner that replies on its own. On by
      default. Off hides the button. */
-  calls_practice: { paths: [] }
+  calls_practice: { paths: [] },
+  /* Rename a call in history, add a note, and correct a transcript
+     line. On by default. Off hides the editor. */
+  calls_hist_edit: { paths: [] }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 

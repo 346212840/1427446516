@@ -1185,3 +1185,35 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.notEqual(es.split("Practice with AI")[1].slice(0, 80), en.split("Practice with AI")[1].slice(0, 80), "Spanish translates the button");
   console.log("calls practice ok");
 }
+
+{
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const root = path.join(path.dirname(new URL(import.meta.url).pathname), "..");
+  const js = fs.readFileSync(path.join(root, "calls.js"), "utf8");
+  const css = fs.readFileSync(path.join(root, "calls.css"), "utf8");
+  const flags = fs.readFileSync(path.join(root, "worker/src/feature-flags.js"), "utf8");
+  const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
+  const worker = fs.readFileSync(path.join(root, "worker/src/call-history-edit.js"), "utf8");
+  const callsWorker = fs.readFileSync(path.join(root, "worker/src/calls.js"), "utf8");
+  assert.ok(flags.includes("calls_hist_edit"), "the switch is listed with the other Calls flags");
+  assert.ok(app.includes('"calls_hist_edit"'), "the owner list includes the switch");
+  assert.ok(js.includes("function histEditFlagOn"), "the call page reads the switch");
+  assert.ok(js.includes("function histEditSheet"), "tapping a row opens the editor");
+  assert.ok(js.includes('data-act="hist-open"'), "a history row opens details in one tap");
+  assert.ok(js.includes("saveHistTranscript"), "a finished call saves its transcript");
+  assert.ok(js.includes("Save correction"), "a transcript line can be corrected");
+  assert.ok(worker.includes("call_history_meta") && worker.includes("call_transcripts"), "titles, notes and lines are stored per account");
+  assert.ok(callsWorker.includes("attachHistoryMeta") && callsWorker.includes("CALL_HISTORY_EDIT_SCHEMA"), "history lists include the saved title and note");
+  assert.ok(css.includes(".calls-histedit"), "the editor has its own rules");
+  const en = fs.readFileSync(path.join(root, "i18n/en.js"), "utf8");
+  const es = fs.readFileSync(path.join(root, "i18n/es.js"), "utf8");
+  const ru = fs.readFileSync(path.join(root, "i18n/ru.js"), "utf8");
+  const hi = fs.readFileSync(path.join(root, "i18n/hi.js"), "utf8");
+  for (const pack of [en, es, ru, hi]) {
+    assert.ok(pack.includes("Edit call history"), "every language pack has the switch name");
+    assert.ok(pack.includes("Name in your history"), "every language pack has the rename field");
+  }
+  assert.notEqual(es.split("Edit call history")[1].slice(0, 80), en.split("Edit call history")[1].slice(0, 80), "Spanish translates the switch name");
+  console.log("calls hist edit ok");
+}

@@ -17,7 +17,20 @@ export function saveLocal(storage, rows) {
 export function recordLocal(storage, row) {
   if (!row || !row.id) return loadLocal(storage);
   const rows = loadLocal(storage).filter((r) => r.id !== row.id);
-  rows.unshift({ id: String(row.id), name: String(row.name || ""), handle: "", createdAt: Number(row.createdAt) || Date.now(), duration: Number(row.duration) || 0, incoming: !!row.incoming, missed: !!row.missed, local: true });
+  rows.unshift({
+    id: String(row.id),
+    name: String(row.name || ""),
+    handle: "",
+    createdAt: Number(row.createdAt) || Date.now(),
+    duration: Number(row.duration) || 0,
+    incoming: !!row.incoming,
+    missed: !!row.missed,
+    local: true,
+    title: String(row.title || ""),
+    note: String(row.note || ""),
+    lines: Array.isArray(row.lines) ? row.lines.slice(0, 80) : [],
+    hasTranscript: !!(row.hasTranscript || (row.lines && row.lines.length))
+  });
   saveLocal(storage, rows);
   return rows;
 }

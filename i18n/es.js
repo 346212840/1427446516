@@ -6968,5 +6968,16 @@ SI18n.addPack("es", {
   "Practice partner": "Compañero de práctica",
   "The practice partner replies on its own after you speak or type.": "El compañero de práctica responde solo después de que hables o escribas.",
   "The practice partner is busy. Try again in a moment.": "El compañero de práctica está ocupado. Prueba de nuevo en un momento.",
-  "A Practice with AI button on the Calls home screen starts a call with a partner that replies on its own, so you can practice a translated call without a second person. Off hides the button.": "El botón Practicar con la IA en la pantalla de inicio de Llamadas inicia una llamada con un compañero que responde solo, para que puedas practicar una llamada traducida sin una segunda persona. Desactivado oculta el botón."
+  "A Practice with AI button on the Calls home screen starts a call with a partner that replies on its own, so you can practice a translated call without a second person. Off hides the button.": "El botón Practicar con la IA en la pantalla de inicio de Llamadas inicia una llamada con un compañero que responde solo, para que puedas practicar una llamada traducida sin una segunda persona. Desactivado oculta el botón.",
+  "Transcript": "Transcripción",
+  "Open call details": "Abrir los detalles de la llamada",
+  "Corrected": "Corregido",
+  "Original": "Original",
+  "Save correction": "Guardar corrección",
+  "Name in your history": "Nombre en tu historial",
+  "Loading the transcript…": "Cargando la transcripción…",
+  "No transcript was saved for this call.": "No se guardó una transcripción de esta llamada.",
+  "A rename, a note, or a correction is only for you. The other person keeps theirs.": "Un nombre, una nota o una corrección son solo para ti. La otra persona conserva los suyos.",
+  "Edit call history": "Editar el historial de llamadas",
+  "Tap a call in history to rename it, add a note, or correct a transcript line. Changes are only for you. Off hides the editor.": "Toca una llamada del historial para cambiarle el nombre, añadir una nota o corregir una línea de la transcripción. Los cambios son solo para ti. Desactivado oculta el editor."
 });
