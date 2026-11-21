@@ -924,7 +924,7 @@ console.log("calls logic ok", JSON.stringify(report));
 {
   const {
     applyStatusCode, holdStatus, shouldRemountOnStatus, shouldRemountOnPeer,
-    signalOpenRestores, iceAlreadyUp, signalAdmit, RECONNECT_HOLD_MS,
+    signalOpenRestores, iceAlreadyUp, iceClearlyDown, iceConfigWithServers, signalAdmit, RECONNECT_HOLD_MS,
     shouldRefreshLivePipe, micTrackLive, FOREGROUND_PIPE_MS, LIVE_PIPE_IDLE_MS
   } = await import("../shared/call-status.js");
   const fs = await import("node:fs");
@@ -955,8 +955,19 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.equal(shouldRemountOnPeer({ name: "Maria", degraded: false }, { name: "Maria", degraded: true }), true);
 
   assert.equal(iceAlreadyUp("completed"), true);
-  assert.equal(signalOpenRestores("checking", true), true, "signaling back up after the peer joined restores Connected");
+  assert.equal(iceClearlyDown("failed"), true);
+  assert.equal(iceClearlyDown("disconnected"), true);
+  assert.equal(iceClearlyDown("closed"), true);
+  assert.equal(iceClearlyDown("checking"), false);
+  assert.equal(signalOpenRestores("checking", true), true, "signaling back up after the peer joined restores Connected while ICE is still negotiating");
   assert.equal(signalOpenRestores("new", false), false);
+  assert.equal(signalOpenRestores("failed", true), false, "signaling back up must not show Connected while ICE is down");
+  assert.equal(signalOpenRestores("disconnected", true), false);
+  assert.equal(signalOpenRestores("closed", true), false);
+  const iced = iceConfigWithServers({ bundlePolicy: "max-bundle", iceServers: [] }, [{ urls: "stun:example.test" }]);
+  assert.equal(iced.bundlePolicy, "max-bundle");
+  assert.equal(iced.iceServers[0].urls, "stun:example.test");
+  assert.equal(iceConfigWithServers({ bundlePolicy: "max-bundle" }, []), null);
 
   assert.equal(shouldRefreshLivePipe(0, 1000, 2000), false, "a brief glance away does not refresh a live pipe");
   assert.equal(shouldRefreshLivePipe(FOREGROUND_PIPE_MS, 1000, 1000 + FOREGROUND_PIPE_MS), true, "coming back from the lock screen refreshes the Live socket");
@@ -978,6 +989,10 @@ console.log("calls logic ok", JSON.stringify(report));
   const eng = fs.readFileSync(path.join(root, "shared/call-engine.js"), "utf8");
   assert.ok(eng.includes("quietCloseSig"), "a new signaling socket closes the previous one first");
   assert.ok(eng.includes("signalOpenRestores"), "signaling open restores Connected when the peer is already in");
+  assert.ok(eng.includes("pendingIceRestart") && eng.includes("flushIceRestart"), "an ICE restart is queued when an offer is already in flight");
+  assert.ok(eng.includes("requestIceRestart") && eng.includes("applyFreshIceServers"), "the guest can request a restart and new ICE servers are applied");
+  assert.ok(eng.includes("retryConnection"), "a lost connection can be retried from the call screen");
+  assert.ok(!eng.includes("keep current ICE servers"), "a later ticket's ICE servers are no longer ignored");
   assert.ok(eng.includes("recoverMic") && eng.includes("shouldRefreshLivePipe"), "coming back from the background wakes the mic and the Live socket");
   assert.ok(eng.includes("remoteEl.play"), "coming back retries the remote audio element");
   assert.ok(!eng.includes("The addresses may have changed even though the old path still reads connected"), "nudge does not ICE-restart a healthy path");
@@ -1283,4 +1298,14 @@ console.log("calls logic ok", JSON.stringify(report));
   }
   assert.notEqual(es.split("Retry translation")[1].slice(0, 80), en.split("Retry translation")[1].slice(0, 80), "Spanish translates the retry control");
   console.log("calls translate retry ok");
+}
+
+{
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const root = path.join(path.dirname(new URL(import.meta.url).pathname), "..");
+  const js = fs.readFileSync(path.join(root, "calls.js"), "utf8");
+  assert.ok(js.includes("function reconnectChip") && js.includes('data-act="call-reconnect"'), "Try again is one tap on the call screen when the connection is lost");
+  assert.ok(js.includes("syncReconnectChip"), "Try again appears without rebuilding the call screen");
+  console.log("calls ice restart ok");
 }

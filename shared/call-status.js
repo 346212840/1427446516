@@ -44,8 +44,21 @@ export function iceAlreadyUp(state) {
   return state === "connected" || state === "completed";
 }
 
+/* ICE is clearly down; a signaling reopen must not show Connected. */
+export function iceClearlyDown(state) {
+  return state === "failed" || state === "disconnected" || state === "closed";
+}
+
 export function signalOpenRestores(iceState, peerJoined) {
+  if (iceClearlyDown(iceState)) return false;
   return !!(peerJoined || iceAlreadyUp(iceState));
+}
+
+/* Fresh TURN / STUN from a later ticket replace the current set. */
+export function iceConfigWithServers(current, iceServers) {
+  if (!Array.isArray(iceServers) || !iceServers.length) return null;
+  const base = current && typeof current === "object" ? Object.assign({}, current) : { bundlePolicy: "max-bundle" };
+  return Object.assign({}, base, { iceServers: iceServers });
 }
 
 /* Distinct peers cap the room at two. A reconnect from the same peer

@@ -26,6 +26,9 @@ Live translation is routed through the Worker (`calls_eu_proxy`, on by default).
 
 If the live translation stream drops, the call keeps going one phrase at a time, the person sees Retry translation on the call screen, and the stream is opened again by itself. A drop is not described as a quota problem.
 
+If the voice path drops, an ICE restart is queued until the previous offer finishes, the guest also asks for a restart, a new ticket's ICE servers are applied, and Connected is not shown while ICE is down. After signaling gives up, Try again is on the call screen.
+
+
 ## How to work on this repo
 
 Any person or agent can take over from this section. Rules for shipping, checks and merges are here. Longer history is in `docs/HANDOFF.md`. The agent guide is `AGENTS.md`.
