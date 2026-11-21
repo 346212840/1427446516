@@ -96,3 +96,7 @@ With this switch on (the default), the original-voice volume slider sits on the 
 
 With this switch on (the default), a QR code sits on the signed-in Calls home screen (not only after Get call link). It refreshes every two minutes, and the previous code stays valid until it expires so a mid-scan still works. Scanning it starts a new call that rings the host like an incoming call (Answer or Decline). Guest links use a short-lived `cr1.` token. Off hides the code. Permanent call-me links and Get call link are unchanged.
 
+## Practice partner (calls_practice)
+
+With this switch on (the default), a Practice with AI button sits on the signed-in Calls home screen, next to Test call. One tap starts a call with a partner that replies on its own after you speak or type, in the language you pick, so you can practice a translated call without a second person. Off hides the button. Test call is unchanged.
+

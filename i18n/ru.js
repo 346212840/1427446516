@@ -6962,5 +6962,10 @@ SI18n.addPack("ru", {
   "This code refreshes every two minutes. When someone scans it, it rings you like an incoming call.": "Этот код обновляется каждые две минуты. Если его отсканируют, вам придёт входящий звонок.",
   "Loading the QR code…": "Загрузка QR-кода…",
   "Rotating call QR": "Обновляемый QR для звонка",
-  "A QR code on the Calls home screen refreshes every two minutes. When someone scans it, it rings you like an incoming call. Off hides the code.": "QR-код на главном экране «Звонки» обновляется каждые две минуты. Если его отсканируют, вам придёт входящий звонок. Выключено: код скрыт."
+  "A QR code on the Calls home screen refreshes every two minutes. When someone scans it, it rings you like an incoming call. Off hides the code.": "QR-код на главном экране «Звонки» обновляется каждые две минуты. Если его отсканируют, вам придёт входящий звонок. Выключено: код скрыт.",
+  "Practice with AI": "Практика с ИИ",
+  "Practice partner": "Партнёр для практики",
+  "The practice partner replies on its own after you speak or type.": "Партнёр для практики отвечает сам, после того как вы скажете или напишете.",
+  "The practice partner is busy. Try again in a moment.": "Партнёр для практики сейчас занят. Попробуйте ещё раз через минуту.",
+  "A Practice with AI button on the Calls home screen starts a call with a partner that replies on its own, so you can practice a translated call without a second person. Off hides the button.": "Кнопка «Практика с ИИ» на главном экране «Звонки» начинает звонок с партнёром, который отвечает сам, чтобы вы могли практиковать перевод без второго человека. Выключено: кнопка скрыта."
 });

@@ -6960,5 +6960,10 @@ SI18n.addPack("en", {
   "This code refreshes every two minutes. When someone scans it, it rings you like an incoming call.": "This code refreshes every two minutes. When someone scans it, it rings you like an incoming call.",
   "Loading the QR code…": "Loading the QR code…",
   "Rotating call QR": "Rotating call QR",
-  "A QR code on the Calls home screen refreshes every two minutes. When someone scans it, it rings you like an incoming call. Off hides the code.": "A QR code on the Calls home screen refreshes every two minutes. When someone scans it, it rings you like an incoming call. Off hides the code."
+  "A QR code on the Calls home screen refreshes every two minutes. When someone scans it, it rings you like an incoming call. Off hides the code.": "A QR code on the Calls home screen refreshes every two minutes. When someone scans it, it rings you like an incoming call. Off hides the code.",
+  "Practice with AI": "Practice with AI",
+  "Practice partner": "Practice partner",
+  "The practice partner replies on its own after you speak or type.": "The practice partner replies on its own after you speak or type.",
+  "The practice partner is busy. Try again in a moment.": "The practice partner is busy. Try again in a moment.",
+  "A Practice with AI button on the Calls home screen starts a call with a partner that replies on its own, so you can practice a translated call without a second person. Off hides the button.": "A Practice with AI button on the Calls home screen starts a call with a partner that replies on its own, so you can practice a translated call without a second person. Off hides the button."
 });

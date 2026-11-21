@@ -183,6 +183,14 @@ function rotateQrFlagOn() {
   } catch (err) { return true; }
 }
 
+/* Owner switch calls_practice, on unless the server list says off. */
+function practiceFlagOn() {
+  try {
+    const list = JSON.parse(localStorage.getItem("viktorychapp-server-off") || "[]");
+    return !(Array.isArray(list) && list.indexOf("calls_practice") >= 0);
+  } catch (err) { return true; }
+}
+
 /* Owner switch calls_preview, on unless the server list says off. */
 function previewFlagOn() {
   try {
@@ -739,16 +747,17 @@ function statusText() {
 function testPanel() {
   if (!state.test) return "";
   const t = state.test;
-  const replies = (PARTNER_REPLIES[t.lang] || PARTNER_REPLIES.en).map((text) => `<button type="button" data-act="call-test-reply" data-text="${esc(text)}">${esc(text)}</button>`).join("");
+  const practice = !!t.practice;
+  const replies = practice ? "" : (PARTNER_REPLIES[t.lang] || PARTNER_REPLIES.en).map((text) => `<button type="button" data-act="call-test-reply" data-text="${esc(text)}">${esc(text)}</button>`).join("");
   const lines = t.lines.slice(-6).map((line) => `<article class="calls-bubble${line.mine ? " mine" : ""}"><b>${esc(line.who)}</b>${line.original ? `<p>${esc(line.original)}</p>` : ""}${line.translation ? `<p class="calls-trn">${esc(line.translation)}</p>` : ""}</article>`).join("");
-  return `<section class="calls-test" data-test>
-    <h3>${esc(tr("Test partner"))}</h3>
+  return `<section class="calls-test${practice ? " calls-practice" : ""}" data-test>
+    <h3>${esc(practice ? tr("Practice partner") : tr("Test partner"))}</h3>
     <label class="calls-vol"><span>${esc(tr("Partner speaks"))}</span><select data-act="call-test-lang">${langOptions(t.lang)}</select></label>
     ${hearSwitch(t)}
     <div class="calls-thread">${lines}</div>
-    <div class="calls-quick">${replies}</div>
+    ${practice ? `<p class="calls-privacy">${esc(tr("The practice partner replies on its own after you speak or type."))}</p>` : `<div class="calls-quick">${replies}</div>
     <form class="calls-type" data-act="call-test-form"><input name="text" maxlength="500" aria-label="${esc(tr("Reply as the partner"))}" placeholder="${esc(tr("Reply as the partner"))}" autocomplete="off"></form>
-    <p class="calls-privacy">${esc(tr("This test uses a real call: your voice goes to a partner in this page and is translated by Gemini."))}</p>
+    <p class="calls-privacy">${esc(tr("This test uses a real call: your voice goes to a partner in this page and is translated by Gemini."))}</p>`}
   </section>`;
 }
 
@@ -1572,6 +1581,7 @@ function homeScreen(opts) {
       <div class="calls-hero-row">
         <button type="button" class="calls-big" data-act="call-invite">${ico("link")}<span>${esc(tr("Get call link"))}</span></button>
         <button type="button" class="calls-big ghost" data-act="call-test">${ico("test")}<span>${esc(tr("Test call"))}</span></button>
+        ${practiceFlagOn() ? `<button type="button" class="calls-big ghost" data-act="call-practice">${ico("voice")}<span>${esc(tr("Practice with AI"))}</span></button>` : ""}
         ${scheduleFlagOn() ? `<button type="button" class="calls-big ghost" data-act="call-sched-open">${ico("link")}<span>${esc(tr("Schedule a call"))}</span></button>` : ""}
       </div>
       <div class="calls-modes" role="group" aria-label="${esc(tr("Link lasts"))}">${pill("ttl", "60", String(state.inviteTtl), tr("1 hour"))}${pill("ttl", "1440", String(state.inviteTtl), tr("24 hours"))}</div>
@@ -2797,7 +2807,8 @@ function testPrepScreen() {
 }
 async function startPartner(invite) {
   const t = state.test;
-  const joined = await api("/v1/calls/join/" + encodeURIComponent(invite), { method: "POST", body: JSON.stringify({ name: tr("Test partner") }) }).catch(() => null);
+  const partnerLabel = state.test && state.test.practice ? tr("Practice partner") : tr("Test partner");
+  const joined = await api("/v1/calls/join/" + encodeURIComponent(invite), { method: "POST", body: JSON.stringify({ name: partnerLabel }) }).catch(() => null);
   if (!joined || !joined.ok) { state.error = errorFor(joined); paint(); return; }
   const guestToken = joined.data.guestToken;
   const partnerMode = { send: "text", receive: "both", original: false, translationOnly: false, subtitles: "both" };
@@ -2807,7 +2818,7 @@ async function startPartner(invite) {
     micLoop: true,
     getVolumes: () => normalizeVolumes({ overall: state.test && state.test.hear ? 1 : 0, translation: state.test && state.test.hear ? 0.9 : 0, tts: 0 }),
     getLang: () => (state.test ? state.test.lang : "en"),
-    getName: () => tr("Test partner"),
+    getName: () => (state.test && state.test.practice ? tr("Practice partner") : tr("Test partner")),
     voiceOverride: () => "",
     getMic: async () => {
       const mic = state.engine && state.engine.micClone && state.engine.micClone();
@@ -2816,7 +2827,7 @@ async function startPartner(invite) {
     onEvent: (type, d) => {
       if (!state.test) return;
       if (type === "line") {
-        if (d.mine) state.test.lines.push({ who: tr("Test partner"), mine: false, original: d.original });
+        if (d.mine) state.test.lines.push({ who: state.test.practice ? tr("Practice partner") : tr("Test partner"), mine: false, original: d.original });
         else {
           state.test.lines.push({ who: tr("You"), mine: true, original: d.original, translation: d.translation });
           state.partial = { original: "", translation: "" };
@@ -2828,6 +2839,7 @@ async function startPartner(invite) {
           if (state.lines.length > 40) state.lines.shift();
           /* What the test partner hears is also spoken, so typing with no microphone is a full test. */
           if (d.typed && state.test.hear) speakText(d.translation || d.original, state.test.lang, true);
+          if (state.test.practice) practiceReply(d.original || d.translation);
         }
         live();
       } else if (type === "partial" && !d.mine) {
@@ -2849,6 +2861,48 @@ function testReply(text) {
   const clean = String(text || "").trim();
   if (!clean || !state.partner) return;
   state.partner.sendText(clean);
+}
+async function startPractice() {
+  if (!practiceFlagOn() || !signedIn()) return;
+  state.error = "";
+  const res = await api("/v1/calls", { method: "POST", body: JSON.stringify({ practice: true }) }).catch(() => null);
+  if (!res || !res.ok) { state.error = errorFor(res); paint(); return; }
+  state.test = { lang: myLang() === "en" ? "es" : "en", hear: true, lines: [], partial: { original: "", translation: "" }, practice: true, turns: [] };
+  state.statusCode = "waiting";
+  state.peerName = tr("Practice partner");
+  const ok = await begin({ id: res.data.call.id, ticket: res.data.ticket, iceServers: res.data.iceServers }, "host");
+  if (!ok) return;
+  await startPartner(res.data.invite);
+  state.statsTimer = setInterval(updateStats, 1000);
+}
+async function practiceReply(heard) {
+  const t = state.test;
+  if (!t || !t.practice || !state.partner) return;
+  const text = String(heard || "").replace(/\s+/g, " ").trim();
+  if (!text) return;
+  if (t.practiceBusy) return;
+  t.practiceBusy = true;
+  const res = await api("/v1/calls/practice", { method: "POST", body: JSON.stringify({ id: state.callId, text: text, lang: t.lang, turns: t.turns }) }).catch(() => null);
+  t.practiceBusy = false;
+  if (!state.test || !state.test.practice) return;
+  if (!res || !res.ok) {
+    const code = res && res.data && res.data.error;
+    if (code === "nokey" || (res && res.data && res.data.reason === "nokey")) state.needKey = "nokey";
+    else if (res && res.data && res.data.reason === "badkey") state.needKey = "badkey";
+    else if (res && res.data && res.data.reason === "quota") state.error = tr("The practice partner is busy. Try again in a moment.");
+    if (host()) paint();
+    return;
+  }
+  const reply = String((res.data && res.data.reply) || "").trim();
+  if (!reply) {
+    if (res.data && res.data.reason === "nokey") state.needKey = "nokey";
+    else if (res.data && res.data.reason === "badkey") state.needKey = "badkey";
+    else if (res.data && res.data.reason === "quota") state.error = tr("The practice partner is busy. Try again in a moment.");
+    if (host()) paint();
+    return;
+  }
+  t.turns = (t.turns || []).concat([{ role: "you", text: text }, { role: "partner", text: reply }]).slice(-8);
+  state.partner.sendText(reply);
 }
 /* In a test call the partner engine hears this device, so its heard-side timeline is the one that matters. */
 function lastTimings(owner) {
@@ -2957,6 +3011,7 @@ function onAct(act, el) {
   else if (act === "call-open") { state.pendingTo = el.dataset.handle || ""; }
   else if (act === "call-invite") startInvite();
   else if (act === "call-test") prepareTest();
+  else if (act === "call-practice") startPractice();
   else if (act === "call-capsize") { if (CAP_SIZES.indexOf(el.dataset.value) >= 0) { state.capSize = el.dataset.value; saveDevice(); paint(); } }
   else if (act === "call-ear") enterEar(false);
   else if (act === "call-ear-raise") { toggleEarRaise(); }

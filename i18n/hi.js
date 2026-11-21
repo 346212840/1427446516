@@ -6950,5 +6950,10 @@ SI18n.addPack("hi", {
   "This code refreshes every two minutes. When someone scans it, it rings you like an incoming call.": "यह कोड हर दो मिनट में बदलता है। कोई इसे स्कैन करे तो आपको आने वाली कॉल की तरह रिंग आएगी।",
   "Loading the QR code…": "QR कोड लोड हो रहा है…",
   "Rotating call QR": "कॉल के लिए बदलता QR",
-  "A QR code on the Calls home screen refreshes every two minutes. When someone scans it, it rings you like an incoming call. Off hides the code.": "कॉल्स होम स्क्रीन पर QR कोड हर दो मिनट में बदलता है। कोई इसे स्कैन करे तो आपको आने वाली कॉल की तरह रिंग आएगी। बंद करने पर कोड छिप जाता है।"
+  "A QR code on the Calls home screen refreshes every two minutes. When someone scans it, it rings you like an incoming call. Off hides the code.": "कॉल्स होम स्क्रीन पर QR कोड हर दो मिनट में बदलता है। कोई इसे स्कैन करे तो आपको आने वाली कॉल की तरह रिंग आएगी। बंद करने पर कोड छिप जाता है।",
+  "Practice with AI": "AI के साथ अभ्यास",
+  "Practice partner": "अभ्यास साथी",
+  "The practice partner replies on its own after you speak or type.": "आप बोलने या टाइप करने के बाद अभ्यास साथी खुद जवाब देता है।",
+  "The practice partner is busy. Try again in a moment.": "अभ्यास साथी व्यस्त है। थोड़ी देर बाद फिर कोशिश करें।",
+  "A Practice with AI button on the Calls home screen starts a call with a partner that replies on its own, so you can practice a translated call without a second person. Off hides the button.": "कॉल्स होम स्क्रीन पर «AI के साथ अभ्यास» बटन एक ऐसे साथी के साथ कॉल शुरू करता है जो खुद जवाब देता है, ताकि बिना दूसरे व्यक्ति के अनुवादित कॉल का अभ्यास किया जा सके। बंद करने पर बटन छिप जाता है।"
 });

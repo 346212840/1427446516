@@ -6963,5 +6963,10 @@ SI18n.addPack("es", {
   "This code refreshes every two minutes. When someone scans it, it rings you like an incoming call.": "Este código se actualiza cada dos minutos. Cuando alguien lo escanea, te suena como una llamada entrante.",
   "Loading the QR code…": "Cargando el código QR…",
   "Rotating call QR": "QR rotativo para llamar",
-  "A QR code on the Calls home screen refreshes every two minutes. When someone scans it, it rings you like an incoming call. Off hides the code.": "Un código QR en la pantalla de inicio de Llamadas se actualiza cada dos minutos. Cuando alguien lo escanea, te suena como una llamada entrante. Desactivado oculta el código."
+  "A QR code on the Calls home screen refreshes every two minutes. When someone scans it, it rings you like an incoming call. Off hides the code.": "Un código QR en la pantalla de inicio de Llamadas se actualiza cada dos minutos. Cuando alguien lo escanea, te suena como una llamada entrante. Desactivado oculta el código.",
+  "Practice with AI": "Practicar con la IA",
+  "Practice partner": "Compañero de práctica",
+  "The practice partner replies on its own after you speak or type.": "El compañero de práctica responde solo después de que hables o escribas.",
+  "The practice partner is busy. Try again in a moment.": "El compañero de práctica está ocupado. Prueba de nuevo en un momento.",
+  "A Practice with AI button on the Calls home screen starts a call with a partner that replies on its own, so you can practice a translated call without a second person. Off hides the button.": "El botón Practicar con la IA en la pantalla de inicio de Llamadas inicia una llamada con un compañero que responde solo, para que puedas practicar una llamada traducida sin una segunda persona. Desactivado oculta el botón."
 });

@@ -20,6 +20,7 @@ import { isOwnerViewer } from "./owner-view.js";
 import { signalAdmit } from "../../shared/call-status.js";
 import { handleCallSchedule, sweepSchedules, CALL_SCHEDULE_SCHEMA } from "./call-schedule.js";
 import { handleCallRotateQr, CALL_ROTATE_QR_SCHEMA } from "./call-rotate-qr.js";
+import { handleCallPractice, startPracticeSession } from "./call-practice.js";
 
 const ACCOUNT = /^\d{12}$/;
 const ID = /^[a-f0-9]{32}$/;
@@ -381,6 +382,36 @@ async function translateText(env, key, text, target, hint) {
   return { text: clipped, translation: clipped, lang: lang, fallback: "speech", untranslated: true };
 }
 
+/* Short free-form reply for the practice partner. Reuses the same models and
+   mock path as translateText, without asking for a translation. */
+async function generateText(env, key, prompt) {
+  const clipped = String(prompt || "").slice(0, 2000);
+  if (!clipped) return { text: "", translation: "" };
+  if (mockKey(env, key)) {
+    return { text: clipped, translation: "Yes, I can hear you. How is your day going?" };
+  }
+  let hardError = "";
+  for (const model of TEXT_MODELS) {
+    try {
+      const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + encodeURIComponent(key), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ contents: [{ parts: [{ text: clipped }] }] })
+      });
+      if (response.status === 429) return { error: "quota" };
+      if (response.status === 401 || response.status === 403) return { error: "badkey" };
+      if (response.status === 400) { hardError = "badkey"; continue; }
+      if (!response.ok) continue;
+      const data = await response.json().catch(() => ({}));
+      const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+      const out = (parts || []).map((part) => (part && part.text) || "").join("").trim();
+      if (out) return { text: clipped, translation: out.slice(0, 400) };
+    } catch (err) { /* try the next model */ }
+  }
+  if (hardError) return { error: hardError };
+  return { text: clipped, translation: "", error: "unavailable" };
+}
+
 function viewCall(row) {
   return {
     id: row.id,
@@ -555,6 +586,11 @@ export async function handleCalls(request, env, path, url, deps) {
   });
   if (rotateQr) return rotateQr;
 
+  const practice = await handleCallPractice(request, env, path, url, deps, {
+    member, mintTicket, callIceServers, sha256Hex, b64url, hex, viewCall, cleanName, pickKey, generateText, normalizeLang
+  });
+  if (practice) return practice;
+
   if (path === "/v1/calls/live" && request.method === "GET") return relayLive(request, env, url, deps);
 
   if (path === "/v1/calls/key") {
@@ -688,6 +724,9 @@ export async function handleCalls(request, env, path, url, deps) {
     if (!paced.ok) return deps.limited(paced);
     const body = await deps.readJson(request, 4000);
     if (body.error || rejectsClone(body)) return deps.json(400, { error: "bad_call" });
+    if (body.practice === true) {
+      return startPracticeSession(env, request, deps, { member, mintTicket, callIceServers, sha256Hex, b64url, hex });
+    }
     const now = Date.now();
     const id = hex(crypto.getRandomValues(new Uint8Array(16)));
     if (body.invite === true) {
@@ -824,7 +863,7 @@ export async function handleCalls(request, env, path, url, deps) {
     const row = await env.DB.prepare("SELECT * FROM call_sessions WHERE id = ?").bind(saved.call_id).first();
     if (!row || row.state === "ended" || row.state === "missed") return deps.json(404, { error: "not_found" });
     const hostPrefs = await loadPrefs(env, row.host_id);
-    if (!hostPrefs.guests) return deps.json(403, { error: "guests" });
+    if (!hostPrefs.guests && row.kind !== "practice") return deps.json(403, { error: "guests" });
     const open = await env.DB.prepare("SELECT COUNT(*) AS n FROM call_guests WHERE call_id = ? AND expires_at > ?").bind(row.id, Date.now()).first();
     if (Number(open && open.n) >= 1 && row.kind === "invite") {
       /* One guest at a time keeps the call 1:1. */

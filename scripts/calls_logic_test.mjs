@@ -1150,3 +1150,38 @@ console.log("calls logic ok", JSON.stringify(report));
   console.log("calls rotate qr ok");
 }
 
+
+{
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const root = path.join(path.dirname(new URL(import.meta.url).pathname), "..");
+  const { practiceTalk, PRACTICE_LIMIT } = await import("../shared/call-practice.js");
+  const js = fs.readFileSync(path.join(root, "calls.js"), "utf8");
+  const flags = fs.readFileSync(path.join(root, "worker/src/feature-flags.js"), "utf8");
+  const worker = fs.readFileSync(path.join(root, "worker/src/call-practice.js"), "utf8");
+  const callsWorker = fs.readFileSync(path.join(root, "worker/src/calls.js"), "utf8");
+  const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
+  assert.ok(flags.includes("calls_practice"), "the switch is listed with the other Calls flags");
+  assert.ok(app.includes('"calls_practice"'), "the owner list includes the switch");
+  assert.ok(js.includes("function practiceFlagOn"), "the call page reads the switch");
+  assert.ok(js.includes("Practice with AI"), "the home screen has the practice button");
+  assert.ok(js.includes("function startPractice"), "one tap starts a practice call");
+  assert.ok(js.includes("function practiceReply"), "the partner asks the Worker for a reply");
+  assert.ok(worker.includes("/v1/calls/practice") && callsWorker.includes("startPracticeSession"), "the Worker starts a practice session and answers");
+  assert.ok(js.includes("calls-practice"), "the in-call panel marks a practice call");
+  assert.equal(PRACTICE_LIMIT, 80);
+  const prompt = practiceTalk("Hello there", "es", [{ role: "you", text: "Hi" }]);
+  assert.ok(prompt.includes("es"), "the prompt asks for the partner language");
+  assert.ok(prompt.includes("Hello there"), "the prompt includes what you just said");
+  assert.equal(practiceTalk("  ", "en"), "", "an empty line does not build a prompt");
+  const en = fs.readFileSync(path.join(root, "i18n/en.js"), "utf8");
+  const es = fs.readFileSync(path.join(root, "i18n/es.js"), "utf8");
+  const ru = fs.readFileSync(path.join(root, "i18n/ru.js"), "utf8");
+  const hi = fs.readFileSync(path.join(root, "i18n/hi.js"), "utf8");
+  for (const pack of [en, es, ru, hi]) {
+    assert.ok(pack.includes("Practice with AI"), "every language pack has the home button");
+    assert.ok(pack.includes("Practice partner"), "every language pack has the partner name");
+  }
+  assert.notEqual(es.split("Practice with AI")[1].slice(0, 80), en.split("Practice with AI")[1].slice(0, 80), "Spanish translates the button");
+  console.log("calls practice ok");
+}
