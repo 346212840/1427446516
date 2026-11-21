@@ -6982,5 +6982,8 @@ SI18n.addPack("ru", {
   "EU translation route": "Маршрут перевода в ЕС",
   "Translation goes through the Worker, the API key is sent only as a header, and the key is never shown or logged. Off uses the earlier path that can open Google from the browser.": "Перевод идёт через Worker, ключ API передаётся только в заголовке и никогда не показывается и не пишется в журналы. Выключено: прежний путь, который может открыть Google из браузера.",
   "Routed in the EU": "Через ЕС",
-  "Translation goes through the Worker. The API key stays off this page and is never logged.": "Перевод идёт через Worker. Ключ API не остаётся на этой странице и не записывается в журналы."
+  "Translation goes through the Worker. The API key stays off this page and is never logged.": "Перевод идёт через Worker. Ключ API не остаётся на этой странице и не записывается в журналы.",
+  "Retry translation": "Повторить перевод",
+  "Translation dropped. Trying again…": "Перевод прервался. Пробуем снова…",
+  "Live translation dropped. This call is translating one phrase at a time.": "Поток перевода прервался. Сейчас фразы переводятся по одной."
 });

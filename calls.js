@@ -446,6 +446,7 @@ function rememberRoute(via) {
 function quotaLine() {
   if (state.needKey) return state.needKey === "badkey" ? tr("That Gemini key was not accepted. Paste a new one.") : tr("Translation needs a free Gemini key. Nobody in this call has added one yet.");
   if (state.quota) return tr("Translation quota is tight. This call continues as text.");
+  if (state.turnFallback) return tr("Live translation dropped. This call is translating one phrase at a time.");
   return "";
 }
 /* A key pasted on this device (guests, or when the server cannot store it).
@@ -754,6 +755,7 @@ function statusText() {
   if (code === "calling") return tr("Calling…");
   if (code === "waiting") return tr("Waiting for them to join…");
   if (code === "reconnecting") return tr("Reconnecting…");
+  if (state.turnFallback && (code === "connected" || code === "joined" || code === "translating-ready" || !code)) return tr("Translation dropped. Trying again…");
   if (code === "left") return tr("They left the call.");
   if (code === "lost") return tr("The connection was lost.");
   if (state.translating) return tr("Translating…");
@@ -1122,8 +1124,12 @@ function stageChips() {
     <button type="button" class="calls-schip${subsOn ? " on" : ""}" data-act="call-pop" data-value="subs" aria-haspopup="dialog" aria-expanded="${state.pop === "subs" ? "true" : "false"}" title="${esc(tr("Captions"))}">${ico("captions")}<span>${esc(tr("Captions"))}</span></button>
     ${hearBtn}
     <button type="button" class="calls-schip${state.speakerOn ? " on" : ""}" data-act="call-speaker" aria-pressed="${state.speakerOn ? "true" : "false"}" title="${esc(tr("Speaker"))}">${ico(state.speakerOn ? "speaker" : "speakerOff")}<span>${esc(tr("Speaker"))}</span></button>
-    ${ear}${details}${euProxyChip()}
+    ${ear}${details}${euProxyChip()}${translateRetryChip()}
   </div>`;
+}
+function translateRetryChip() {
+  if (!state.turnFallback || (state.phase !== "active" && state.phase !== "calling" && !state.test)) return "";
+  return `<button type="button" class="calls-schip on" data-act="call-translate-retry" title="${esc(tr("Live translation dropped. This call is translating one phrase at a time."))}">${esc(tr("Retry translation"))}</button>`;
 }
 function euProxyChip() {
   if (!euProxyFlagOn() || (state.phase !== "active" && state.phase !== "calling" && !state.test)) return "";
@@ -2532,7 +2538,13 @@ function onEngineEvent(type, d) {
   if (type === "chat-sent") { if (markLine(d.id, { status: "sent", sent: true })) live(); return; }
   if (type === "chat-failed") { if (markLine(d.id, { status: "failed", sent: false })) live(); return; }
   if (type === "chat-sending") { if (markLine(d.id, { status: "sending", sent: false })) live(); return; }
-  if (type === "fallback") { state.turnFallback = !!d.on; live(); return; }
+  if (type === "fallback") {
+    const was = !!state.turnFallback;
+    state.turnFallback = !!d.on;
+    if (state.turnFallback !== was) paint();
+    else live();
+    return;
+  }
   if (type === "status") {
     const wasActive = state.phase === "active";
     const held = holdStatus(state.statusCode, d.code, Date.now(), state.reconnectHeldAt);
@@ -2590,9 +2602,11 @@ function onEngineEvent(type, d) {
     state.needKey = d.reason === "badkey" ? "badkey" : "nokey";
     paint();
   } else if (type === "quota") {
-    if (d.reason !== "key") state.quota = true;
-    state.mode = normalizeMode(Object.assign({}, state.mode, { send: "text" }));
-    saveDevice();
+    if (d.reason === "quota") {
+      state.quota = true;
+      state.mode = normalizeMode(Object.assign({}, state.mode, { send: "text" }));
+      saveDevice();
+    }
     paint();
   } else if (type === "route") {
     state.route = state.route;
@@ -3136,6 +3150,11 @@ function onAct(act, el) {
   else if (act === "hist-save") saveHistMeta();
   else if (act === "hist-correct") saveHistCorrect(el.dataset.id);
   else if (act === "call-allowmic") openMicModal("call");
+  else if (act === "call-translate-retry") {
+    state.turnFallback = false;
+    if (state.engine && state.engine.retryTranslation) state.engine.retryTranslation();
+    paint();
+  }
   else if (act === "call-checkmic") checkMic();
   else if (act === "call-checkspk") checkSpeaker();
   else if (act === "call-switch") {

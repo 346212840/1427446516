@@ -672,17 +672,35 @@ export function createEngine(cfg) {
     livePipes.add(p);
     return p;
   }
+  let streamRetry = { rx: 0, tx: 0 };
+  let streamTries = 0;
+  function streamRetryDelay(n) {
+    return Math.min(30000, 3000 * Math.pow(2, Math.max(0, (Number(n) || 1) - 1)));
+  }
+  function reopenStream(isTx) {
+    if (ended) return;
+    fallback[isTx ? "tx" : "rx"] = false;
+    if (isTx) { if (tx) { tx.close(); tx = null; } ensureTx(); }
+    else { if (rx) { rx.close(); rx = null; } ensureRx(); }
+    emit("fallback", { on: !!(fallback.rx || fallback.tx) });
+  }
+  function scheduleStreamRetry(isTx) {
+    const key = isTx ? "tx" : "rx";
+    if (ended || streamRetry[key]) return;
+    streamTries += 1;
+    streamRetry[key] = setTimeout(() => {
+      streamRetry[key] = 0;
+      reopenStream(isTx);
+    }, streamRetryDelay(streamTries));
+  }
   function onPipeState(p, state, isTx) {
-    if (state === "ready") { emit("status", { code: "translating-ready", mine: isTx }); applyGains(); }
+    if (state === "ready") { streamTries = 0; emit("status", { code: "translating-ready", mine: isTx }); applyGains(); }
     if (state === "nokey" || state === "badkey") { emit("needKey", { reason: state }); degrade("key"); return; }
     if (state === "quota" || state === "text") { degrade("quota"); return; }
     if (state === "failed") {
-      if (liveStreamOn() && !p.oneShot) {
-        fallback[isTx ? "tx" : "rx"] = true;
-        emit("fallback", { on: true, mine: isTx });
-        return;
-      }
-      degrade("network");
+      fallback[isTx ? "tx" : "rx"] = true;
+      emit("fallback", { on: true, mine: isTx, reason: "network" });
+      scheduleStreamRetry(isTx);
       return;
     }
     if (state === "lost") emit("status", { code: "translator-reconnecting" });
@@ -827,7 +845,11 @@ export function createEngine(cfg) {
       if (p._shotDone) return;
       p._shotDone = true;
       fallback[busy] = false;
-      if (!ok) degrade("network");
+      if (!ok) {
+        fallback[isTx ? "tx" : "rx"] = true;
+        emit("fallback", { on: true, mine: isTx, reason: "network" });
+        scheduleStreamRetry(isTx);
+      }
     };
     const timer = setTimeout(() => { if (!p._shotDone) { p.close(); done(false); } }, 12000);
     p.onShotDone = () => {
@@ -1111,12 +1133,20 @@ export function createEngine(cfg) {
   E.playing = () => !!(rx && rx.playing && rx.playing());
   /* After a key is saved: try translation again without ending the call. */
   E.retryTranslation = () => {
-    if (!degraded || ended) { ensureRx(); ensureTx(); return; }
+    if (ended) return;
+    ["rx", "tx"].forEach((key) => { if (streamRetry[key]) { clearTimeout(streamRetry[key]); streamRetry[key] = 0; } });
+    streamTries = 0;
+    fallback.rx = false;
+    fallback.tx = false;
     degraded = false;
+    localPause = false;
     announce();
+    if (rx) { rx.close(); rx = null; }
+    if (tx) { tx.close(); tx = null; }
     ensureRx();
     ensureTx();
     applyGains();
+    emit("fallback", { on: false });
   };
   let localPause = false;
   function degrade(reason, local) {

@@ -6980,5 +6980,8 @@ SI18n.addPack("en", {
   "EU translation route": "EU translation route",
   "Translation goes through the Worker, the API key is sent only as a header, and the key is never shown or logged. Off uses the earlier path that can open Google from the browser.": "Translation goes through the Worker, the API key is sent only as a header, and the key is never shown or logged. Off uses the earlier path that can open Google from the browser.",
   "Routed in the EU": "Routed in the EU",
-  "Translation goes through the Worker. The API key stays off this page and is never logged.": "Translation goes through the Worker. The API key stays off this page and is never logged."
+  "Translation goes through the Worker. The API key stays off this page and is never logged.": "Translation goes through the Worker. The API key stays off this page and is never logged.",
+  "Retry translation": "Retry translation",
+  "Translation dropped. Trying again…": "Translation dropped. Trying again…",
+  "Live translation dropped. This call is translating one phrase at a time.": "Live translation dropped. This call is translating one phrase at a time."
 });

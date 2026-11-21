@@ -6970,5 +6970,8 @@ SI18n.addPack("hi", {
   "EU translation route": "EU अनुवाद मार्ग",
   "Translation goes through the Worker, the API key is sent only as a header, and the key is never shown or logged. Off uses the earlier path that can open Google from the browser.": "अनुवाद Worker के माध्यम से जाता है, API कुंजी केवल हेडर के रूप में भेजी जाती है, और कुंजी कभी दिखाई या लॉग नहीं होती। बंद करने पर पहले वाला पथ चलता है, जो ब्राउज़र से Google खोल सकता है।",
   "Routed in the EU": "EU में रूट किया गया",
-  "Translation goes through the Worker. The API key stays off this page and is never logged.": "अनुवाद Worker के माध्यम से जाता है। API कुंजी इस पेज पर नहीं रहती और कभी लॉग नहीं होती।"
+  "Translation goes through the Worker. The API key stays off this page and is never logged.": "अनुवाद Worker के माध्यम से जाता है। API कुंजी इस पेज पर नहीं रहती और कभी लॉग नहीं होती।",
+  "Retry translation": "अनुवाद फिर से आज़माएँ",
+  "Translation dropped. Trying again…": "अनुवाद रुक गया। फिर कोशिश हो रही है…",
+  "Live translation dropped. This call is translating one phrase at a time.": "लाइव अनुवाद रुक गया। इस कॉल में अब एक-एक वाक्य का अनुवाद हो रहा है।"
 });

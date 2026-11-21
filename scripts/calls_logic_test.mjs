@@ -1260,3 +1260,27 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.notEqual(es.split("EU translation route")[1].slice(0, 80), en.split("EU translation route")[1].slice(0, 80), "Spanish translates the switch name");
   console.log("calls eu proxy ok");
 }
+
+{
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const root = path.join(path.dirname(new URL(import.meta.url).pathname), "..");
+  const js = fs.readFileSync(path.join(root, "calls.js"), "utf8");
+  const eng = fs.readFileSync(path.join(root, "worker/src/calls.js"), "utf8");
+  const engine = fs.readFileSync(path.join(root, "shared/call-engine.js"), "utf8");
+  assert.ok(js.includes("function translateRetryChip") && js.includes("Retry translation"), "the call screen has a Retry translation control");
+  assert.ok(js.includes('data-act="call-translate-retry"'), "Retry translation is one tap on the call screen");
+  assert.ok(js.includes("if (d.reason === \"quota\")"), "a network drop is not treated as a quota problem");
+  assert.ok(engine.includes("scheduleStreamRetry") && engine.includes("reopenStream"), "a dropped Live stream is opened again by itself");
+  assert.equal(engine.includes("degrade(\"network\")"), false, "a failed stream no longer ends translation as a quota problem");
+  const en = fs.readFileSync(path.join(root, "i18n/en.js"), "utf8");
+  const es = fs.readFileSync(path.join(root, "i18n/es.js"), "utf8");
+  const ru = fs.readFileSync(path.join(root, "i18n/ru.js"), "utf8");
+  const hi = fs.readFileSync(path.join(root, "i18n/hi.js"), "utf8");
+  for (const pack of [en, es, ru, hi]) {
+    assert.ok(pack.includes("Retry translation"), "every language pack has the retry control");
+    assert.ok(pack.includes("Live translation dropped. This call is translating one phrase at a time."), "every language pack has the drop message");
+  }
+  assert.notEqual(es.split("Retry translation")[1].slice(0, 80), en.split("Retry translation")[1].slice(0, 80), "Spanish translates the retry control");
+  console.log("calls translate retry ok");
+}
