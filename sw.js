@@ -310,7 +310,30 @@ const SHELL_FILES = [
   "./peer-pool.js",
   "./shared/peer-pool.js",
   "./shared/pool-scheduler.js",
-  "./shared/device-performance.js"
+  "./shared/device-performance.js",
+  "./calls.js",
+  "./calls.css",
+  "./shared/call-langs.js",
+  "./shared/call-audio.js",
+  "./shared/call-mode.js",
+  "./shared/call-voice.js",
+  "./shared/call-setup.js",
+  "./shared/call-privacy.js",
+  "./shared/call-quality.js",
+  "./shared/call-mobile.js",
+  "./shared/call-ear.js",
+  "./shared/call-history.js",
+  "./shared/call-gemini.js",
+  "./shared/call-chat.js",
+  "./shared/call-status.js",
+  "./shared/call-schedule.js",
+  "./shared/call-rotate-qr.js",
+  "./shared/call-engine.js",
+  "./shared/call-speakers.js",
+  "./shared/call-pip.js",
+  "./shared/call-preview.js",
+  "./shared/call-practice.js",
+  "./calls-speaker-worker.js"
 ];
 /* The first visit activates after these files. The rest of SHELL_FILES is
    cached when the page asks, once the browser is idle. */
@@ -1714,7 +1737,7 @@ const FEATURE_FILES = {
   stories: ["./stories.js", "./stories.css"],
   forYou: ["./shared/for-you.js"],
   xBroadcast: ["./shared/x-broadcast.js"],
-  calls: ["./calls.js", "./calls.css", "./shared/call-langs.js", "./shared/call-audio.js", "./shared/call-mode.js", "./shared/call-voice.js", "./shared/call-setup.js", "./shared/call-privacy.js", "./shared/call-quality.js", "./shared/call-ear.js", "./shared/call-history.js", "./shared/call-gemini.js", "./shared/call-chat.js", "./shared/call-status.js", "./shared/call-schedule.js", "./shared/call-rotate-qr.js", "./shared/call-engine.js", "./shared/call-speakers.js", "./calls-speaker-worker.js"]
+  calls: ["./calls.js", "./calls.css", "./shared/call-langs.js", "./shared/call-audio.js", "./shared/call-mode.js", "./shared/call-voice.js", "./shared/call-setup.js", "./shared/call-privacy.js", "./shared/call-quality.js", "./shared/call-mobile.js", "./shared/call-ear.js", "./shared/call-history.js", "./shared/call-gemini.js", "./shared/call-chat.js", "./shared/call-status.js", "./shared/call-schedule.js", "./shared/call-rotate-qr.js", "./shared/call-engine.js", "./shared/call-speakers.js", "./shared/call-pip.js", "./shared/call-preview.js", "./shared/call-practice.js", "./calls-speaker-worker.js"]
 };
 async function offFeatureFiles() {
   try {

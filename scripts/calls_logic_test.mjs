@@ -1389,3 +1389,23 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.ok(engine.includes("E.recoverMic"), "the call page can ask the engine to restore the mic");
   console.log("calls mid-call mic ok");
 }
+
+{
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const root = path.join(path.dirname(new URL(import.meta.url).pathname), "..");
+  const sw = fs.readFileSync(path.join(root, "sw.js"), "utf8");
+  const standalone = fs.readFileSync(path.join(root, "calls/sw.js"), "utf8");
+  const needed = ["./shared/call-mobile.js", "./shared/call-pip.js", "./shared/call-preview.js", "./shared/call-practice.js"];
+  const start = sw.indexOf("calls: [");
+  const list = sw.slice(start, sw.indexOf("];", start));
+  const shellStart = sw.indexOf("const SHELL_FILES = [");
+  const shell = sw.slice(shellStart, sw.indexOf("];", shellStart));
+  for (const file of needed) {
+    assert.ok(list.includes(file), "FEATURE_FILES.calls includes " + file);
+    assert.ok(shell.includes(file), "the main shell precaches " + file);
+  }
+  assert.ok(standalone.includes("viktorych-calls-shell-v6"), "the stand-alone Calls cache is bumped");
+  assert.ok(standalone.includes("../shared/call-pip.js") && standalone.includes("../shared/call-preview.js"), "the stand-alone Calls page caches pip and preview");
+  console.log("calls feature files ok");
+}
