@@ -6953,5 +6953,8 @@ SI18n.addPack("ru", {
   "Your call with {name} starts in 15 minutes": "Ваш звонок с {name} начнётся через 15 минут",
   "Your call with {name} is starting": "Ваш звонок с {name} начинается",
   "{name} cancelled a scheduled call": "{name} отменил(а) запланированный звонок",
-  "{name} declined your scheduled call": "{name} отклонил(а) ваш запланированный звонок"
+  "{name} declined your scheduled call": "{name} отклонил(а) ваш запланированный звонок",
+  "Original voice volume": "Громкость оригинального голоса",
+  "The original-voice volume slider sits on the call screen, next to a one-tap switch to hear their original voice. Off leaves the slider only in Settings and the Sound sheet.": "Ползунок громкости оригинального голоса находится на экране звонка, рядом с переключателем «слышать оригинальный голос» в одно касание. Выключено: ползунок остаётся только в настройках и в панели «Звук».",
+  "Original voice": "Оригинальный голос"
 });

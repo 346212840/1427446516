@@ -166,6 +166,14 @@ function scheduleFlagOn() {
   } catch (err) { return true; }
 }
 
+/* Owner switch calls_orig_vol, on unless the server list says off. */
+function origVolFlagOn() {
+  try {
+    const list = JSON.parse(localStorage.getItem("viktorychapp-server-off") || "[]");
+    return !(Array.isArray(list) && list.indexOf("calls_orig_vol") >= 0);
+  } catch (err) { return true; }
+}
+
 /* Owner switch calls_preview, on unless the server list says off. */
 function previewFlagOn() {
   try {
@@ -1031,6 +1039,7 @@ function callScreen() {
         ${tile("me", mine, myLang(), state.meSpeaking)}
       </div>
       ${onescreenFlagOn() ? stageChips() : ""}
+      ${origVolRow()}
       ${onescreenFlagOn() && state.test && state.testInfo ? `<div class="calls-chips" data-testchips>${chipsHtml()}</div>` : ""}
       ${conv ? convBlock() : subtitleBlock()}
     </main>
@@ -1047,6 +1056,17 @@ function langPairLabel() {
   const to = String(toCode || "").split("-")[0].toUpperCase();
   return (from || "—") + " → " + (to || "…");
 }
+function origVolRow() {
+  if (!origVolFlagOn()) return "";
+  const on = !!state.mode.original;
+  const name = "original";
+  const value = Math.round((state.volumes[name] == null ? VOLUME_DEFAULTS[name] : state.volumes[name]) * 100);
+  return `<div class="calls-origvol${on ? " on" : ""}" data-origvol="1">
+    <button type="button" class="calls-schip${on ? " on" : ""}" role="switch" aria-checked="${on ? "true" : "false"}" data-act="call-set" data-group="original" data-value="${on ? "0" : "1"}" title="${esc(tr("Hear their original voice, quietly"))}">${ico("speaker")}<span>${esc(tr("Original voice"))}</span></button>
+    <label class="calls-origvol-s"><span>${esc(tr("Original volume"))}</span><input type="range" min="0" max="100" value="${value}" data-vol="original" aria-label="${esc(tr("Original volume"))}"><b data-origpct>${esc(String(value) + "%")}</b></label>
+  </div>`;
+}
+
 function stageChips() {
   const subsOn = state.mode.subtitles !== "off";
   const hearOn = state.test ? !!state.test.hear : state.mode.receive !== "text";
@@ -2999,6 +3019,10 @@ function onInput(event) {
     saveDevice();
     if (state.engine) state.engine.refresh();
     if (state.partner) state.partner.refresh();
+    if (key === "original") {
+      const label = target.closest && target.closest(".calls-origvol") && target.closest(".calls-origvol").querySelector("[data-origpct]");
+      if (label) label.textContent = Math.round(state.volumes.original * 100) + "%";
+    }
     return;
   }
   if (target && target.dataset && target.dataset.act === "call-pwa-name") setInstallName(target.value);

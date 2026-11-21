@@ -1078,3 +1078,30 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.notEqual(es.split("Scheduled call invites")[1].slice(0, 80), en.split("Scheduled call invites")[1].slice(0, 80), "Spanish translates the switch name");
   console.log("calls schedule ok");
 }
+
+{
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const root = path.join(path.dirname(new URL(import.meta.url).pathname), "..");
+  const js = fs.readFileSync(path.join(root, "calls.js"), "utf8");
+  const css = fs.readFileSync(path.join(root, "calls.css"), "utf8");
+  const flags = fs.readFileSync(path.join(root, "worker/src/feature-flags.js"), "utf8");
+  const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
+  assert.ok(flags.includes("calls_orig_vol"), "the switch is listed with the other Calls flags");
+  assert.ok(app.includes('"calls_orig_vol"'), "the owner list includes the switch");
+  assert.ok(js.includes("function origVolFlagOn"), "the call page reads the switch");
+  assert.ok(js.includes("function origVolRow"), "the call screen builds the on-screen slider");
+  assert.ok(js.includes('data-origvol="1"'), "the original volume control is marked on the call screen");
+  assert.ok(js.includes('data-act="call-set"') && js.includes('data-group="original"'), "a one-tap switch hears the original voice");
+  assert.ok(css.includes(".calls-origvol"), "the on-screen slider has its own rules");
+  const en = fs.readFileSync(path.join(root, "i18n/en.js"), "utf8");
+  const es = fs.readFileSync(path.join(root, "i18n/es.js"), "utf8");
+  const ru = fs.readFileSync(path.join(root, "i18n/ru.js"), "utf8");
+  const hi = fs.readFileSync(path.join(root, "i18n/hi.js"), "utf8");
+  for (const pack of [en, es, ru, hi]) {
+    assert.ok(pack.includes("Original voice volume"), "every language pack has the switch name");
+    assert.ok(pack.includes("Original voice"), "every language pack has the on-screen switch");
+  }
+  assert.notEqual(es.split("Original voice volume")[1].slice(0, 80), en.split("Original voice volume")[1].slice(0, 80), "Spanish translates the switch name");
+  console.log("calls orig vol ok");
+}

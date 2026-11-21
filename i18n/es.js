@@ -6954,5 +6954,8 @@ SI18n.addPack("es", {
   "Your call with {name} starts in 15 minutes": "Tu llamada con {name} empieza en 15 minutos",
   "Your call with {name} is starting": "Tu llamada con {name} está empezando",
   "{name} cancelled a scheduled call": "{name} canceló una llamada programada",
-  "{name} declined your scheduled call": "{name} rechazó tu llamada programada"
+  "{name} declined your scheduled call": "{name} rechazó tu llamada programada",
+  "Original voice volume": "Volumen de la voz original",
+  "The original-voice volume slider sits on the call screen, next to a one-tap switch to hear their original voice. Off leaves the slider only in Settings and the Sound sheet.": "El control de volumen de la voz original está en la pantalla de la llamada, junto a un interruptor de un toque para oír su voz original. Desactivado deja el control solo en Ajustes y en la hoja de Sonido.",
+  "Original voice": "Voz original"
 });

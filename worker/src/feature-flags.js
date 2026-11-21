@@ -191,7 +191,11 @@ export const FEATURES = {
      guest invite (cs1.), calendar file, RSVP, and reminders 15 minutes
      before and at the start. On by default. Off hides the Schedule
      button and the Scheduled tab list, and skips the reminder cron. */
-  calls_schedule: { paths: [] }
+  calls_schedule: { paths: [] },
+  /* Original-voice volume on the call screen, with a one-tap switch
+     to hear their original voice. On by default. Off leaves the
+     slider only in Settings and the Sound sheet. */
+  calls_orig_vol: { paths: [] }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 
