@@ -840,7 +840,7 @@ function controlBar() {
   const subsOn = state.mode.subtitles !== "off";
   const hears = state.mode.receive !== "text";
   return `<div class="calls-controls" data-essentials="mute speaker hangup talk">
-    ${state.noMic ? cbtn("call-focus-type", "micOff", tr("No mic"), { cls: "off", aria: tr("No mic, type to talk") }) : cbtn("call-mute", state.muted ? "micOff" : "mic", state.muted ? tr("Unmute") : tr("Mute"), { cls: state.muted ? "off" : "", aria: state.muted ? tr("Unmute microphone") : tr("Mute microphone") })}
+    ${state.noMic ? cbtn("call-allowmic", "micOff", tr("Allow microphone"), { cls: "off", aria: tr("Allow microphone") }) : cbtn("call-mute", state.muted ? "micOff" : "mic", state.muted ? tr("Unmute") : tr("Mute"), { cls: state.muted ? "off" : "", aria: state.muted ? tr("Unmute microphone") : tr("Mute microphone") })}
     ${cbtn("call-speaker", state.speakerOn ? "speaker" : "speakerOff", tr("Speaker"), { pressed: state.speakerOn })}
     ${cbtn("call-set", "captions", tr("Captions"), { pressed: subsOn, data: { group: "subtitles", value: subsOn ? "off" : "translated" } })}
     ${cbtn("call-set", state.mode.send === "text" ? "text" : (state.mode.send === "note" ? "note" : "voice"), sendLabel(), { aria: tr("I send") + ": " + sendLabel(), data: { group: "send", value: nextSend() } })}
@@ -871,7 +871,7 @@ function newBar() {
   const sheet = barSheetFlagOn();
   const open = !!(sheet && state.barOpen);
   const micBtn = state.noMic
-    ? cbtn("call-focus-type", "micOff", tr("No mic"), { cls: "off", aria: tr("No mic, type to talk") })
+    ? cbtn("call-allowmic", "micOff", tr("Allow microphone"), { cls: "off", aria: tr("Allow microphone") })
     : cbtn("call-mute", state.muted ? "micOff" : "mic", state.muted ? tr("Unmute") : tr("Mute"), { cls: state.muted ? "off" : "", aria: state.muted ? tr("Unmute microphone") : tr("Mute microphone") });
   const caret = sheet ? "" : `<button type="button" class="cb-caret cb-extra" data-act="call-pop" data-value="mic" aria-haspopup="dialog" aria-expanded="${state.pop === "mic" ? "true" : "false"}" aria-label="${esc(tr("Microphone and sending"))}" title="${esc(tr("Microphone and sending"))}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14l5-5 5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
   const handleLabel = sheet ? (open ? tr("Hide call controls") : tr("Show all controls")) : tr("More controls");
@@ -1102,7 +1102,7 @@ function callScreen() {
   const noteBar = state.mode.send === "note" ? (state.review ? `<div class="calls-review"><button type="button" class="calls-go" data-act="call-note-send">${esc(tr("Send"))}</button><button type="button" data-act="call-note-cancel">${esc(tr("Cancel voice note"))}</button></div>` : `<button type="button" class="calls-talk" data-act="call-talk">${esc(state.recording ? tr("Slide to cancel") : tr("Hold to talk"))}</button>`) : "";
   const conv = convShown();
   const typeBar = !conv && (state.mode.send === "text" || state.noMic) && state.panel !== "chat" ? `<form class="calls-type calls-float" data-act="call-type-form">${previewCard()}<input name="text" maxlength="500" aria-label="${esc(tr("Type to them"))}" placeholder="${esc(tr("Type to them"))}" autocomplete="off"><button type="submit" class="cb send" aria-label="${esc(tr("Send"))}">${ico("outgoing")}</button></form>` : "";
-  const nomic = state.noMic ? `<button type="button" class="calls-nomic" data-act="call-focus-type">${ico("micOff")}<span>${esc(tr("No mic, type to talk"))}</span></button>` : "";
+  const nomic = state.noMic ? `<button type="button" class="calls-nomic" data-act="call-allowmic">${ico("micOff")}<span>${esc(tr("Allow microphone"))}</span></button>` : "";
   const hint = state.hintSeen ? "" : `<p class="calls-hint">${esc(tr("You can type instead of talking."))}</p>`;
   return `<div class="calls-page live" data-call-active="1" data-video="0" data-phase="${esc(state.phase)}" data-panel="${state.panel ? "1" : "0"}" data-conv="${conv ? "1" : "0"}"${onescreenFlagOn() ? " data-onescreen=\"1\"" : ""}">
     <header class="calls-top">
@@ -2022,9 +2022,15 @@ function micMount(holder) {
 }
 /* Back from the phone's Settings (or another tab): if the microphone is allowed now, carry on by itself. */
 function micRecheck() {
+  if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
   const m = micModal;
-  if (!m || !m.el || m.pending || (typeof document !== "undefined" && document.visibilityState === "hidden")) return;
-  micPermission().then((perm) => { if (micModal === m && perm === "granted" && !m.pending) micAsk(); });
+  if (m && m.el && !m.pending) {
+    micPermission().then((perm) => { if (micModal === m && perm === "granted" && !m.pending) micAsk(); });
+    return;
+  }
+  if ((state.phase === "active" || state.phase === "calling") && state.noMic && state.engine && state.engine.recoverMic) {
+    state.engine.recoverMic();
+  }
 }
 async function openMicModal(src, err) {
   if (typeof document === "undefined") return;
@@ -2641,7 +2647,7 @@ function onEngineEvent(type, d) {
     state.muted = true;
     state.mode = normalizeMode(Object.assign({}, state.mode, { send: "text" }));
     paint();
-    focusType();
+    if (state.phase !== "active" && state.phase !== "calling") focusType();
   } else if (type === "partial") {
     if (d.mine) return;
     state.partial = { original: d.original || "", translation: d.translation || "" };

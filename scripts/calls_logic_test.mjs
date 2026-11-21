@@ -925,7 +925,7 @@ console.log("calls logic ok", JSON.stringify(report));
   const {
     applyStatusCode, holdStatus, shouldRemountOnStatus, shouldRemountOnPeer,
     signalOpenRestores, iceAlreadyUp, iceClearlyDown, iceConfigWithServers, signalAdmit, RECONNECT_HOLD_MS,
-    shouldRefreshLivePipe, micTrackLive, FOREGROUND_PIPE_MS, LIVE_PIPE_IDLE_MS,
+    shouldRefreshLivePipe, micTrackLive, micTrackCapturing, FOREGROUND_PIPE_MS, LIVE_PIPE_IDLE_MS,
     guestSessionRecord, guestSessionLive, guestSessionForRoute, GUEST_SESSION_MS, callErrorKind
   } = await import("../shared/call-status.js");
   const fs = await import("node:fs");
@@ -985,6 +985,9 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.equal(micTrackLive({ getAudioTracks: () => [{ readyState: "live" }] }), true);
   assert.equal(micTrackLive({ getAudioTracks: () => [{ readyState: "ended" }] }), false);
   assert.equal(micTrackLive(null), false);
+  assert.equal(micTrackCapturing({ getAudioTracks: () => [{ readyState: "live", muted: false }] }), true);
+  assert.equal(micTrackCapturing({ getAudioTracks: () => [{ readyState: "live", muted: true }] }), false, "an OS-muted track is not capturing");
+  assert.equal(micTrackCapturing({ getAudioTracks: () => [{ readyState: "ended", muted: false }] }), false);
 
   const replace = signalAdmit([{ peer: "111111111111", ws: 1 }, { peer: "222222222222", ws: 2 }], "111111111111");
   assert.equal(replace.ok, true, "the same peer may replace its socket in a full room");
@@ -1372,4 +1375,17 @@ console.log("calls logic ok", JSON.stringify(report));
   }
   assert.notEqual(es.split("The call service is temporarily unavailable. Try again in a moment.")[1].slice(0, 80), en.split("The call service is temporarily unavailable. Try again in a moment.")[1].slice(0, 80), "Spanish translates the outage line");
   console.log("calls clear errors ok");
+}
+
+{
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const root = path.join(path.dirname(new URL(import.meta.url).pathname), "..");
+  const js = fs.readFileSync(path.join(root, "calls.js"), "utf8");
+  const engine = fs.readFileSync(path.join(root, "shared/call-engine.js"), "utf8");
+  assert.ok(js.includes('data-act="call-allowmic"') && js.includes("calls-nomic"), "Allow microphone is on the call screen when the mic drops");
+  assert.ok(js.includes("state.engine.recoverMic"), "coming back from Settings retries the mic without the modal");
+  assert.ok(engine.includes("track.onmute") && engine.includes("track.onunmute"), "an iOS interruption that mutes the track is watched");
+  assert.ok(engine.includes("E.recoverMic"), "the call page can ask the engine to restore the mic");
+  console.log("calls mid-call mic ok");
 }

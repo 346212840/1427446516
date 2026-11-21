@@ -32,6 +32,8 @@ If a guest's phone reloads mid-call, the same guest session is kept on that phon
 
 Call start and join errors use the Worker's error, so a cancelled scheduled call, a finished call, or a service outage is not described as a network problem.
 
+If the microphone drops mid-call, Allow microphone stays on the call screen, and coming back from Settings or another app tries to restore it without opening the type box.
+
 
 ## How to work on this repo
 
