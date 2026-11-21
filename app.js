@@ -2240,7 +2240,7 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
   function friendsOffNow() {
     return !!(window.ViktorychFriendsPref && window.ViktorychFriendsPref.isOff());
   }
-const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "pills", "nostr", "regone_leaderboard", "regone_online", "regone_rooms", "regone_profile_stats", "nzlay_forum", "nzlay_forum_post", "nzlay_forum_regone", "nft", "bitchat", "feed_requests", "friends_off", "local_ai", "local_ai_setup", "ext_nicknames", "merged_profiles", "owner_inspector", "live_frame_grab", "app_repair", "auto_update", "swipe_tabs", "compact_header", "status_bar", "zoom_lock", "app_scale", "image_copy", "update_notice", "foryou_off", "status_icons", "side_panel", "ai_people", "gguf_models", "instant_limits", "ai_tools", "site_permissions", "notif_sounds", "owner_user_settings", "tiktok_auto_record", "ai_device_setup", "x_broadcast", "ai_auto_model", "article_reader", "storage_recordings", "home_live", "audio_convert", "telegram_account_send", "fish_audio", "local_voice", "calls", "calls_quiet_voice", "calls_pip", "calls_preview", "calls_turn_budget", "calls_bar", "calls_qr", "calls_onechat", "calls_setup", "calls_latency", "calls_live_stream", "calls_stream_play", "calls_short_eos", "calls_barge", "calls_duck", "calls_onescreen", "calls_bar_sheet", "calls_live_translate"];
+const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "pills", "nostr", "regone_leaderboard", "regone_online", "regone_rooms", "regone_profile_stats", "nzlay_forum", "nzlay_forum_post", "nzlay_forum_regone", "nft", "bitchat", "feed_requests", "friends_off", "local_ai", "local_ai_setup", "ext_nicknames", "merged_profiles", "owner_inspector", "live_frame_grab", "app_repair", "auto_update", "swipe_tabs", "compact_header", "status_bar", "zoom_lock", "app_scale", "image_copy", "update_notice", "foryou_off", "status_icons", "side_panel", "ai_people", "gguf_models", "instant_limits", "ai_tools", "site_permissions", "notif_sounds", "owner_user_settings", "tiktok_auto_record", "ai_device_setup", "x_broadcast", "ai_auto_model", "article_reader", "storage_recordings", "home_live", "audio_convert", "telegram_account_send", "fish_audio", "local_voice", "calls", "calls_quiet_voice", "calls_pip", "calls_preview", "calls_turn_budget", "calls_bar", "calls_qr", "calls_onechat", "calls_setup", "calls_latency", "calls_live_stream", "calls_stream_play", "calls_short_eos", "calls_barge", "calls_duck", "calls_onescreen", "calls_bar_sheet", "calls_live_translate", "calls_schedule"];
   function serverOffList() {
     try {
       const list = JSON.parse(localStorage.getItem(SERVER_OFF_KEY) || "[]");
@@ -2386,7 +2386,8 @@ const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "
       calls_duck: [tr("Duck original voice"), tr("While a translation is playing, their original voice stays quiet underneath it. Off leaves the original at the level you set, even during a translation.")],
       calls_onescreen: [tr("Even tiles and one call screen"), tr("The people in the call sit in equal tiles at the top, with language, captions, translation and speaker controls in one row, and the conversation continues underneath with no separate card. Off restores the old stacked tiles and framed chat panel.")],
       calls_bar_sheet: [tr("Sliding call controls"), tr("The call bar has a visible handle. Swipe up or tap the handle to slide it open and see every control; swipe down or tap again to close it. Off keeps the compact bar and the old tray.")],
-      calls_live_translate: [tr("Live Translate model"), tr("Calls use Gemini Live Translate. If that path fails, they fall back to the earlier Live interpreter automatically. Off uses only the earlier Live path.")]
+      calls_live_translate: [tr("Live Translate model"), tr("Calls use Gemini Live Translate. If that path fails, they fall back to the earlier Live interpreter automatically. Off uses only the earlier Live path.")],
+      calls_schedule: [tr("Scheduled call invites"), tr("Schedule a call from the Calls page: pick a time, invite someone or share a guest link, add it to your calendar, and get a reminder 15 minutes before and at the start. Off hides scheduling and skips the reminders.")]
     };
     const rows = SERVER_FEATURES.map((name) => {
       const on = !off.includes(name);
@@ -11173,7 +11174,10 @@ const here = parseRoute();
     }
     if (parts[0] === "contacts") return { name: "contacts", sub: parts[1] || "", query };
     if (parts[0] === "calls") return { name: "calls", id: parts[1] || "", query };
-    if (parts[0] === "call" && parts[1]) return { name: "callguest", token: parts[1], query };
+    if (parts[0] === "call" && parts[1]) {
+      if (/^cs1\.[A-Za-z0-9_-]{8,80}$/.test(parts[1])) return { name: "callschedule", token: parts[1], query };
+      return { name: "callguest", token: parts[1], query };
+    }
     if (parts[0] === "vault") return { name: "vault", tab: parts[1] || "my", query };
     if (parts[0] === "packages") return { name: "packages", tab: parts[1] || "active", query };
     if (parts[0] === "communitynotes") return { name: "communitynotes", tab: parts[1] || "", query };
@@ -11392,7 +11396,7 @@ const here = parseRoute();
       case "contacts":
         return { id: "contacts", href: "#/contacts", icon: "phone", label: tr("Contacts"), active: (r) => r.name === "contacts", visible: () => featureOn("contacts") };
       case "calls":
-        return { id: "calls", href: "#/calls", icon: "calls", label: tr("Calls"), active: (r) => r.name === "calls" || r.name === "callguest", visible: () => !!(window.ViktorychServerFeature && window.ViktorychServerFeature("calls")) };
+        return { id: "calls", href: "#/calls", icon: "calls", label: tr("Calls"), active: (r) => r.name === "calls" || r.name === "callguest" || r.name === "callschedule", visible: () => !!(window.ViktorychServerFeature && window.ViktorychServerFeature("calls")) };
       case "shorts":
         return { id: "shorts", href: "#/shorts", icon: "shorts", label: tr("Shorts"), active: (r) => r.name === "shorts", visible: () => shortsEnabled() && !!(window.ViktorychShorts && window.ViktorychShorts.visible()) };
       case "games":
@@ -22835,7 +22839,7 @@ if (STATE.histClear) {
       ensureLazy("contacts");
       return lazySkeleton(tr("Contacts"));
     }
-    if (route.name === "calls" || route.name === "callguest") {
+    if (route.name === "calls" || route.name === "callguest" || route.name === "callschedule") {
       if (window.ViktorychServerFeature && !window.ViktorychServerFeature("calls")) return pageHead(tr("Calls")) + emptyBlock(tr("Calls"), tr("Calls is turned off right now."));
       if (window.ViktorychCalls) return window.ViktorychCalls.page(route);
       ensureLazy("calls");
@@ -24745,7 +24749,7 @@ if (STATE.histClear) {
         else if (window.ViktorychContacts.unmount) window.ViktorychContacts.unmount();
       }
       if (window.ViktorychCalls) {
-        if (route.name === "calls" || route.name === "callguest") window.ViktorychCalls.mount(route);
+        if (route.name === "calls" || route.name === "callguest" || route.name === "callschedule") window.ViktorychCalls.mount(route);
         else if (window.ViktorychCalls.unmount) window.ViktorychCalls.unmount();
       }
       if (window.ViktorychShorts) {

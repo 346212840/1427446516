@@ -186,7 +186,12 @@ export const FEATURES = {
      Live interpreter path (system instruction, no translationConfig). Off
      uses only that Live path. Client only in the UI; the Worker also reads
      the switch when minting. Keys are never logged. */
-  calls_live_translate: { paths: [] }
+  calls_live_translate: { paths: [] },
+  /* Schedule a call from inside the app: a time, an optional person, a
+     guest invite (cs1.), calendar file, RSVP, and reminders 15 minutes
+     before and at the start. On by default. Off hides the Schedule
+     button and the Scheduled tab list, and skips the reminder cron. */
+  calls_schedule: { paths: [] }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 

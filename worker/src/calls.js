@@ -18,6 +18,7 @@ import { directSocketUrl } from "../../shared/call-gemini.js";
 import { encryptMaterial, decryptMaterial } from "../../shared/owner-keys.js";
 import { isOwnerViewer } from "./owner-view.js";
 import { signalAdmit } from "../../shared/call-status.js";
+import { handleCallSchedule, sweepSchedules, CALL_SCHEDULE_SCHEMA } from "./call-schedule.js";
 
 const ACCOUNT = /^\d{12}$/;
 const ID = /^[a-f0-9]{32}$/;
@@ -99,7 +100,7 @@ export const CALLS_SCHEMA = [
     guest_id TEXT NOT NULL,
     expires_at INTEGER NOT NULL
   )`
-].concat(TURN_SCHEMA);
+].concat(TURN_SCHEMA, CALL_SCHEDULE_SCHEMA);
 
 let schema = null;
 function ensure(env) {
@@ -535,12 +536,18 @@ export async function sweepCalls(env, at) {
     await env.DB.prepare("DELETE FROM call_tickets WHERE expires_at <= ?").bind(now).run();
     await env.DB.prepare("DELETE FROM call_guests WHERE expires_at <= ?").bind(now).run();
   } catch (err) { /* the next minute tries again */ }
+  try { await sweepSchedules(env, now); } catch (err) { /* the next minute tries again */ }
 }
 
 export async function handleCalls(request, env, path, url, deps) {
   if (!env.DB) return deps.json(503, { error: "not_configured" });
   await ensure(env);
   if (path === "/v1/calls/status" && request.method === "GET") return deps.json(200, statusBody(env));
+
+  const scheduled = await handleCallSchedule(request, env, path, url, deps, {
+    member, mintTicket, callIceServers, sha256Hex, b64url, hex, viewCall, cleanName, callerMayCall
+  });
+  if (scheduled) return scheduled;
 
   if (path === "/v1/calls/live" && request.method === "GET") return relayLive(request, env, url, deps);
 

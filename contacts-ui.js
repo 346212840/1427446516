@@ -734,6 +734,15 @@
       case "ct-schedule": {
         const c = byId(id);
         if (!c) return;
+        let scheduleOn = true;
+        try {
+          const list = JSON.parse(localStorage.getItem("viktorychapp-server-off") || "[]");
+          scheduleOn = !(Array.isArray(list) && list.indexOf("calls_schedule") >= 0);
+        } catch (err) { scheduleOn = true; }
+        if (scheduleOn && c.handle) {
+          location.hash = "#/calls?schedule=1&with=" + encodeURIComponent(c.handle);
+          return;
+        }
         const d = new Date(Date.now() + 3600000);
         d.setMinutes(0, 0, 0);
         const pad = (n) => String(n).padStart(2, "0");
