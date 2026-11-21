@@ -16,7 +16,7 @@ import { createAudioUnlock, createWakeFallback, micFailure, micPlatform } from "
 import { createLiveSession, MIC_WORKLET, OUTPUT_RATE, CHUNK_SAMPLES, proxiesAudio } from "./shared/call-gemini.js";
 import { createDiarizer } from "./shared/call-speakers.js";
 import { createEngine } from "./shared/call-engine.js";
-import { holdStatus, shouldRemountOnStatus, shouldRemountOnPeer } from "./shared/call-status.js";
+import { holdStatus, shouldRemountOnStatus, shouldRemountOnPeer, GUEST_SESSION_KEY, guestSessionRecord, guestSessionLive, guestSessionForRoute } from "./shared/call-status.js";
 import { SCHEDULE_TOKEN, icsForSchedule, clipDuration, DEFAULT_DURATION } from "./shared/call-schedule.js";
 import { ROTATE_TOKEN, ROTATE_REFRESH_MS } from "./shared/call-rotate-qr.js";
 
@@ -237,6 +237,46 @@ function readJson(key) {
 function writeJson(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); }
   catch (err) { /* private mode */ }
+}
+function readSessionJson(key) {
+  try { return JSON.parse(sessionStorage.getItem(key) || "null"); }
+  catch (err) { return null; }
+}
+function writeSessionJson(key, value) {
+  try { sessionStorage.setItem(key, JSON.stringify(value)); }
+  catch (err) { /* private mode */ }
+}
+function readStoredGuestSession() {
+  const now = Date.now();
+  let row = readSessionJson(GUEST_SESSION_KEY);
+  if (!guestSessionLive(row, now)) row = readJson(GUEST_SESSION_KEY);
+  return guestSessionLive(row, now) ? row : null;
+}
+function writeStoredGuestSession(input) {
+  const rec = guestSessionRecord(input, Date.now());
+  if (!rec) return;
+  writeSessionJson(GUEST_SESSION_KEY, rec);
+  writeJson(GUEST_SESSION_KEY, rec);
+}
+function clearGuestSession() {
+  try { sessionStorage.removeItem(GUEST_SESSION_KEY); } catch (err) { /* private mode */ }
+  try { localStorage.removeItem(GUEST_SESSION_KEY); } catch (err) { /* private mode */ }
+}
+function guestInviteKey(route) {
+  if (!route) return "";
+  if (route.token) return String(route.token);
+  if (route.slug) return "link:" + route.slug;
+  return "";
+}
+function rememberGuestSession(expiresAt) {
+  if (!state.guestToken || !state.callId) return;
+  writeStoredGuestSession({
+    token: state.guestToken,
+    callId: state.callId,
+    invite: guestInviteKey(state.route),
+    name: state.name,
+    expiresAt: Number(expiresAt) || 0
+  });
 }
 function standalone() {
   return window.VIKTORYCH_CALLS_STANDALONE === true;
@@ -1644,6 +1684,7 @@ async function beginScheduled(res, fallbackName) {
   state.statusCode = "calling";
   const role = res.data.guestToken || res.data.guestId ? "guest" : "host";
   const ok = await begin({ id: res.data.call.id, ticket: res.data.ticket, iceServers: res.data.iceServers }, role);
+  if (ok && role === "guest") rememberGuestSession(res.data.guestExpiresAt);
   if (ok && state.engine && role === "host") state.engine.prewarm();
 }
 async function joinScheduled(id) {
@@ -1658,6 +1699,7 @@ async function joinScheduledGuest() {
   state.name = String(typed || state.name || tr("Guest")).slice(0, 40);
   saveDevice();
   state.error = "";
+  if (await maybeUseStoredGuest({ name: "callschedule", token: token })) return;
   const res = await api("/v1/calls/schedule/guest/start", { method: "POST", body: JSON.stringify({ token: token, name: state.name }) }).catch(() => null);
   await beginScheduled(res, state.schedGuest && (state.schedGuest.hostName || state.schedGuest.hostHandle));
 }
@@ -1697,6 +1739,7 @@ async function joinRotateQr(tokenValue) {
   const typed = (document.getElementById("calls-name") || {}).value;
   state.name = String(typed || state.name || tr("Guest")).slice(0, 40);
   saveDevice();
+  if (await maybeUseStoredGuest({ name: "callguest", token: tokenValue })) return;
   const res = await api("/v1/calls/qr/join", { method: "POST", body: JSON.stringify({ token: tokenValue, name: state.name }) }).catch(() => null);
   if (!res || !res.ok) { state.error = errorFor(res); paint(); return; }
   state.guestToken = res.data.guestToken || "";
@@ -1704,6 +1747,7 @@ async function joinRotateQr(tokenValue) {
   state.peerName = (res.data && res.data.name) || "";
   const ok = await begin({ id: res.data.call.id, ticket: res.data.ticket, iceServers: res.data.iceServers }, "guest");
   if (!ok) return;
+  rememberGuestSession(res.data.guestExpiresAt);
   if (state.engine) state.engine.prewarm();
   const id = res.data.call.id;
   state.ringPoll = setInterval(async () => {
@@ -1719,6 +1763,8 @@ function homeScreen(opts) {
   const err = state.error ? `<p class="calls-error" role="alert">${esc(state.error)}</p>` : "";
   const notSet = state.configured ? "" : `<p class="calls-empty">${esc(tr("Calls are not set up yet"))}</p>`;
   const signed = signedIn();
+  const savedGuest = !signed && guestSessionLive(readStoredGuestSession()) ? readStoredGuestSession() : null;
+  const rejoin = savedGuest ? `<button type="button" class="calls-big join" data-act="call-rejoin">${ico("phone")}<span>${esc(state.resuming ? tr("Rejoining…") : tr("Rejoin this call"))}</span></button>` : "";
   const tab = state.tab || "recent";
   const tabs = [["recent", tr("Recent")], ["missed", tr("Missed")], ["scheduled", tr("Scheduled")]];
   const list = tab === "scheduled" ? scheduleRows() : historyRows(tab);
@@ -1753,7 +1799,7 @@ function homeScreen(opts) {
     ${side}
     <section class="calls-main">
       ${histEditFlagOn() && state.histEdit ? histEditSheet() : ""}
-      ${notSet}${err}${start}
+      ${notSet}${err}${rejoin}${start}
       <label class="calls-vol calls-homelang"><span>${esc(tr("I speak"))}</span><select data-act="call-lang">${langOptions(myLang())}</select></label>
       ${installBlock()}
     </section>
@@ -1795,10 +1841,11 @@ function joinScreen(route) {
       <div class="calls-joinform">
         <h1>${esc(title)}</h1>
         ${ended}${closed}${err}
+        ${state.resuming ? `<p class="calls-privacy" role="status">${esc(tr("Rejoining…"))}</p>` : ""}
         <label class="calls-vol"><span>${esc(tr("Your name"))}</span><input id="calls-name" maxlength="40" value="${esc(state.name)}" autocomplete="name"></label>
         <label class="calls-vol"><span>${esc(tr("I speak"))}</span><select data-act="call-lang">${langOptions(myLang())}</select></label>
         <div class="calls-vol"><span>${esc(tr("I hear"))}</span><div class="calls-modes" role="group" aria-label="${esc(tr("I hear"))}">${pill("receive", "voice", state.mode.receive, tr("Voice"))}${pill("receive", "text", state.mode.receive, tr("Text"))}${pill("receive", "both", state.mode.receive, tr("Both"))}</div></div>
-        <button type="button" class="calls-big join" data-act="call-join"${info && info.open === false ? " disabled" : ""}>${ico("phone")}<span>${esc(info ? tr("Call") : tr("Join now"))}</span></button>
+        <button type="button" class="calls-big join" data-act="call-join"${info && info.open === false || state.resuming ? " disabled" : ""}>${ico("phone")}<span>${esc(guestSessionForRoute(readStoredGuestSession(), route) ? tr("Rejoin this call") : (info ? tr("Call") : tr("Join now")))}</span></button>
         <p class="calls-privacy">${esc(tr("No account needed. Your microphone is used only during the call."))}</p>
         ${standalone() ? installBlock() : ""}
       </div>
@@ -2643,12 +2690,63 @@ function errorFor(res) {
   if (code === "not_configured") return tr("Calls are not set up yet");
   if (code === "calls_closed") return tr("This person is not taking calls right now.");
   if (code === "not_found") return tr("That call link does not work any more.");
+  if (code === "ended") return tr("The call has ended.");
+  if (code === "in_call") return tr("Someone is already in this call.");
   if (code === "guests") return tr("This person turned guest links off.");
   if (res && res.status === 429) return tr("Too many calls. Try again later.");
   if (res && res.status === 401) return tr("Sign in to start a call, or open a guest link to join one.");
   return tr("The call could not start. Check your connection and try again.");
 }
+async function resumeGuest(row) {
+  if (!row || !row.token || !row.callId) return false;
+  state.guestToken = row.token;
+  state.callId = row.callId;
+  if (row.name) state.name = row.name;
+  const st = await api("/v1/calls/" + row.callId + "/state").catch(() => null);
+  if (!st || !st.ok || !st.data || st.data.ended) {
+    clearGuestSession();
+    state.guestToken = "";
+    state.error = tr("The call has ended.");
+    return false;
+  }
+  const res = await api("/v1/calls/" + row.callId + "/ticket", { method: "POST", body: "{}" }).catch(() => null);
+  if (!res || !res.ok) {
+    clearGuestSession();
+    state.guestToken = "";
+    const code = res && res.data && res.data.error;
+    state.error = (code === "ended" || code === "not_found" || (res && (res.status === 401 || res.status === 410))) ? tr("The call has ended.") : errorFor(res);
+    return false;
+  }
+  state.statusCode = st.data.state === "ringing" ? "calling" : "joined";
+  const ok = await begin({ id: row.callId, ticket: res.data.ticket, iceServers: res.data.iceServers }, "guest");
+  if (ok) {
+    rememberGuestSession(row.expiresAt);
+    if (state.engine && state.statusCode === "calling") state.engine.prewarm();
+  }
+  return ok;
+}
+let resumeTried = false;
+async function maybeResumeGuest() {
+  if (resumeTried || state.phase !== "idle" || signedIn()) return;
+  const route = state.route || {};
+  const row = guestSessionForRoute(readStoredGuestSession(), route);
+  if (!row) return;
+  const auto = route.name === "callguest" || route.name === "calllink" || route.name === "callschedule" || (standalone() && route.name === "calls");
+  if (!auto) return;
+  resumeTried = true;
+  state.resuming = true;
+  paint();
+  const ok = await resumeGuest(row);
+  state.resuming = false;
+  if (!ok) paint();
+}
+async function maybeUseStoredGuest(route) {
+  const row = guestSessionForRoute(readStoredGuestSession(), route);
+  if (!row) return false;
+  return resumeGuest(row);
+}
 async function begin(info, role, extra) {
+
   state.error = "";
   stopMicCheck();
   state.panel = state.test ? "test" : "";
@@ -2712,18 +2810,21 @@ async function joinAsGuest(tokenValue) {
   const typed = (document.getElementById("calls-name") || {}).value;
   state.name = String(typed || state.name || tr("Guest")).slice(0, 40);
   saveDevice();
+  if (await maybeUseStoredGuest({ name: "callguest", token: tokenValue })) return;
   const res = await api("/v1/calls/join/" + encodeURIComponent(tokenValue), { method: "POST", body: JSON.stringify({ name: state.name }) }).catch(() => null);
   if (!res || !res.ok) { state.error = errorFor(res); paint(); return; }
   state.guestToken = res.data.guestToken;
   state.statusCode = "joined";
   state.peerName = "";
-  await begin({ id: res.data.call.id, ticket: res.data.ticket, iceServers: res.data.iceServers }, "guest");
+  const ok = await begin({ id: res.data.call.id, ticket: res.data.ticket, iceServers: res.data.iceServers }, "guest");
+  if (ok) rememberGuestSession(res.data.guestExpiresAt);
 }
 async function joinLink(slug) {
   state.error = "";
   const typed = (document.getElementById("calls-name") || {}).value;
   state.name = String(typed || state.name || tr("Guest")).slice(0, 40);
   saveDevice();
+  if (await maybeUseStoredGuest({ name: "calllink", slug: slug })) return;
   const res = await api("/v1/calls/link/" + encodeURIComponent(slug) + "/join", { method: "POST", body: JSON.stringify({ name: state.name }) }).catch(() => null);
   if (!res || !res.ok) { state.error = errorFor(res); paint(); return; }
   state.guestToken = res.data.guestToken || "";
@@ -2731,6 +2832,7 @@ async function joinLink(slug) {
   state.peerName = (state.linkInfo && state.linkInfo.name) || "";
   const ok = await begin({ id: res.data.call.id, ticket: res.data.ticket, iceServers: res.data.iceServers }, "guest");
   if (!ok) return;
+  rememberGuestSession(res.data.guestExpiresAt);
   state.engine.prewarm();
   const id = res.data.call.id;
   state.ringPoll = setInterval(async () => {
@@ -2839,6 +2941,8 @@ async function teardown(silent) {
 async function hangUp() {
   const endedId = state.callId;
   const endedLines = (state.lines || []).slice();
+  clearGuestSession();
+  state.guestToken = "";
   await teardown(false);
   if (endedId && endedLines.length) await saveHistTranscript(endedId, endedLines);
   state.barOpen = false;
@@ -3224,6 +3328,10 @@ function onAct(act, el) {
     else if (ROTATE_TOKEN.test((state.route && state.route.token) || "")) joinRotateQr(state.route.token);
     else joinAsGuest((state.route && state.route.token) || "");
   }
+  else if (act === "call-rejoin") {
+    const row = readStoredGuestSession();
+    if (row) resumeGuest(row);
+  }
   else if (act === "call-rotate-copy") {
     const url = state.rotateQr && state.rotateQr.token ? guestUrl(state.rotateQr.token) : "";
     try { navigator.clipboard.writeText(url); } catch (err) { /* the field can be copied by hand */ }
@@ -3585,6 +3693,7 @@ function mount(route) {
     else checkIncoming("");
   }
   if (state.phase === "active") { bindSession(true); holdWake(true); routeOutput(); startOrientation(); }
+  maybeResumeGuest();
 }
 /* Leaving the Calls page in the app (a link, the sidebar, the back button) ends a live call the same way the Leave button does:
    tracks stop, the sockets close, the history row is written. The standalone guest page has no other page to go to. */

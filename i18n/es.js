@@ -6986,5 +6986,8 @@ SI18n.addPack("es", {
   "Translation goes through the Worker. The API key stays off this page and is never logged.": "La traducción pasa por el Worker. La clave de API no queda en esta página y nunca se registra.",
   "Retry translation": "Reintentar la traducción",
   "Translation dropped. Trying again…": "La traducción se interrumpió. Reintentando…",
-  "Live translation dropped. This call is translating one phrase at a time.": "La traducción en vivo se interrumpió. Esta llamada traduce una frase cada vez."
+  "Live translation dropped. This call is translating one phrase at a time.": "La traducción en vivo se interrumpió. Esta llamada traduce una frase cada vez.",
+  "Rejoin this call": "Volver a esta llamada",
+  "Rejoining…": "Reincorporándose…",
+  "Someone is already in this call.": "Ya hay alguien en esta llamada."
 });

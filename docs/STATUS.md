@@ -28,6 +28,8 @@ If the live translation stream drops, the call keeps going one phrase at a time,
 
 If the voice path drops, an ICE restart is queued until the previous offer finishes, the guest also asks for a restart, a new ticket's ICE servers are applied, and Connected is not shown while ICE is down. After signaling gives up, Try again is on the call screen.
 
+If a guest's phone reloads mid-call, the same guest session is kept on that phone only and they can rejoin. Leaving the call forgets it, and a second person cannot take over the link.
+
 
 ## How to work on this repo
 

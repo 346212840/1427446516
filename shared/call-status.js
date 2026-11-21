@@ -92,3 +92,48 @@ export function micTrackLive(stream) {
   if (!stream || typeof stream.getAudioTracks !== "function") return false;
   return stream.getAudioTracks().some((track) => track && track.readyState === "live");
 }
+
+/* A guest session lives only on this tab or this device. The raw token is
+   never sent to another machine. It expires, and hanging up deletes it. */
+export const GUEST_SESSION_KEY = "viktorych-calls-guest-session-v1";
+export const GUEST_SESSION_MS = 2 * 60 * 60 * 1000;
+
+export function guestSessionRecord(input, now) {
+  const src = input || {};
+  const token = String(src.token || "");
+  const callId = String(src.callId || "");
+  if (!token.startsWith("cg1.") || token.length > 80) return null;
+  if (!/^[a-f0-9]{32}$/.test(callId)) return null;
+  const expiresAt = Number(src.expiresAt) || (Number(now) || Date.now()) + GUEST_SESSION_MS;
+  if (expiresAt <= (Number(now) || Date.now())) return null;
+  return {
+    token: token,
+    callId: callId,
+    invite: String(src.invite || "").slice(0, 80),
+    name: String(src.name || "").slice(0, 40),
+    expiresAt: expiresAt,
+    at: Number(src.at) || (Number(now) || Date.now())
+  };
+}
+
+export function guestSessionLive(row, now) {
+  if (!row || !row.token || !row.callId) return false;
+  if (!String(row.token).startsWith("cg1.") || !/^[a-f0-9]{32}$/.test(String(row.callId))) return false;
+  return Number(row.expiresAt) > (Number(now) || Date.now());
+}
+
+export function guestSessionForRoute(row, route, now) {
+  if (!guestSessionLive(row, now)) return null;
+  const r = route || {};
+  if (r.name === "callguest" || r.name === "callschedule") {
+    if (r.token && row.invite && row.invite !== r.token) return null;
+    return row;
+  }
+  if (r.name === "calllink") {
+    const key = r.slug ? "link:" + r.slug : "";
+    if (r.slug && row.invite && row.invite !== r.slug && row.invite !== key) return null;
+    return row;
+  }
+  if (r.name === "calls" || !r.name) return row;
+  return row;
+}

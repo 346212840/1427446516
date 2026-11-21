@@ -591,3 +591,29 @@ test("the EU proxy prefers the Worker relay and never puts the API key on a URL 
   const on = await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls_eu_proxy", off: false } });
   assert.equal(on.status, 200);
 });
+
+test("a guest can resume the same call after a reload, and leaving revokes the token", async () => {
+  const ownerToken = globalThis.__callsOwnerToken;
+  const host = await signup(81, "Host Rejoin", "host_rejoin");
+  await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls", off: false } });
+  const invite = await call("/v1/calls", { method: "POST", token: host.token, body: { invite: true } });
+  assert.equal(invite.status, 201, JSON.stringify(invite.body));
+  const first = await call("/v1/calls/join/" + invite.body.invite, { method: "POST", body: { name: "Guest" } });
+  assert.equal(first.status, 200, JSON.stringify(first.body));
+  assert.ok(first.body.guestToken && first.body.guestExpiresAt);
+  const id = first.body.call.id;
+  const again = await call("/v1/calls/join/" + invite.body.invite, { method: "POST", guest: first.body.guestToken, body: { name: "Guest" } });
+  assert.equal(again.status, 200, JSON.stringify(again.body));
+  assert.equal(again.body.guestId, first.body.guestId);
+  assert.ok(again.body.ticket);
+  const taken = await call("/v1/calls/join/" + invite.body.invite, { method: "POST", ip: "198.51.100.30", body: { name: "Other" } });
+  assert.equal(taken.status, 409);
+  assert.equal(taken.body.error, "in_call");
+  const ticket = await call("/v1/calls/" + id + "/ticket", { method: "POST", guest: first.body.guestToken, body: {} });
+  assert.equal(ticket.status, 200, JSON.stringify(ticket.body));
+  assert.ok(ticket.body.ticket);
+  const ended = await call("/v1/calls/" + id + "/end", { method: "POST", guest: first.body.guestToken, body: {} });
+  assert.equal(ended.status, 200, JSON.stringify(ended.body));
+  const after = await call("/v1/calls/" + id + "/ticket", { method: "POST", guest: first.body.guestToken, body: {} });
+  assert.ok(after.status === 401 || after.status === 410, "the guest token is no longer valid after leaving");
+});

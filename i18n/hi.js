@@ -6973,5 +6973,8 @@ SI18n.addPack("hi", {
   "Translation goes through the Worker. The API key stays off this page and is never logged.": "अनुवाद Worker के माध्यम से जाता है। API कुंजी इस पेज पर नहीं रहती और कभी लॉग नहीं होती।",
   "Retry translation": "अनुवाद फिर से आज़माएँ",
   "Translation dropped. Trying again…": "अनुवाद रुक गया। फिर कोशिश हो रही है…",
-  "Live translation dropped. This call is translating one phrase at a time.": "लाइव अनुवाद रुक गया। इस कॉल में अब एक-एक वाक्य का अनुवाद हो रहा है।"
+  "Live translation dropped. This call is translating one phrase at a time.": "लाइव अनुवाद रुक गया। इस कॉल में अब एक-एक वाक्य का अनुवाद हो रहा है।",
+  "Rejoin this call": "इस कॉल में फिर शामिल हों",
+  "Rejoining…": "फिर से जुड़ रहे हैं…",
+  "Someone is already in this call.": "इस कॉल में पहले से कोई है।"
 });

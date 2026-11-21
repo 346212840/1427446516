@@ -226,6 +226,7 @@ async function startExisting(env, deps, h, call, joiner, row) {
     ticket: ticket.ticket,
     iceServers: await h.callIceServers(env, deps, { id: call.id, self: self, state: fresh.state }),
     guestToken: guestToken,
+    guestExpiresAt: guestToken ? endsAt(row.starts_at, row.duration_min) + JOIN_EARLY_MS : 0,
     guestId: role === "guest" ? self : "",
     video: false
   });
@@ -305,6 +306,7 @@ async function createAndJoin(env, deps, h, row, joiner) {
     ticket: ticket.ticket,
     iceServers: await h.callIceServers(env, deps, { id: id, self: self, state: "ringing" }),
     guestToken: guestToken,
+    guestExpiresAt: guestToken ? exp : 0,
     guestId: role === "guest" ? self : "",
     video: false
   });
