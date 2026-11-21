@@ -36,6 +36,8 @@ If the microphone drops mid-call, Allow microphone stays on the call screen, and
 
 The main app service worker precaches the Calls files and can skip them when Calls is off, including the microphone, picture-in-picture, preview, and practice modules. The stand-alone Calls page caches the modules that page loads.
 
+If a guest's connection drops, their phone can ask the host to restart it, and the Worker forwards that request so the voice path can recover.
+
 ## How to work on this repo
 
 Any person or agent can take over from this section. Rules for shipping, checks and merges are here. Longer history is in `docs/HANDOFF.md`. The agent guide is `AGENTS.md`.

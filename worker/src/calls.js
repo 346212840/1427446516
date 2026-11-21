@@ -17,7 +17,7 @@ import { lexiconHint } from "../../shared/call-quality.js";
 import { directSocketUrl, GEMINI_REST, geminiHeaders, redactSecret, euProxyHint } from "../../shared/call-gemini.js";
 import { encryptMaterial, decryptMaterial } from "../../shared/owner-keys.js";
 import { isOwnerViewer } from "./owner-view.js";
-import { signalAdmit } from "../../shared/call-status.js";
+import { signalAdmit, isCallSignalKind } from "../../shared/call-status.js";
 import { handleCallSchedule, sweepSchedules, CALL_SCHEDULE_SCHEMA } from "./call-schedule.js";
 import { handleCallRotateQr, CALL_ROTATE_QR_SCHEMA } from "./call-rotate-qr.js";
 import { handleCallPractice, startPracticeSession } from "./call-practice.js";
@@ -532,8 +532,6 @@ export function callFetch(room, request) {
   return new Response(null, { status: 101, webSocket: pair[0] });
 }
 
-const SIGNAL_KINDS = { offer: 1, answer: 1, ice: 1, mode: 1, chat: 1, typing: 1, note: 1 };
-
 export function callMessage(room, ws, message) {
   if (typeof message !== "string" || message.length > 12000) {
     try { ws.close(1009, "size"); } catch (err) { /* already closed */ }
@@ -543,7 +541,7 @@ export function callMessage(room, ws, message) {
   try { msg = JSON.parse(message); }
   catch (err) { return; }
   if (!msg || msg.op !== "signal" || !msg.data || typeof msg.data !== "object") return;
-  if (!SIGNAL_KINDS[String(msg.data.kind || "")]) return;
+  if (!isCallSignalKind(msg.data.kind)) return;
   if (rejectsClone(msg.data)) return;
   const from = attachment(ws).peer;
   socketsOf(room).forEach((other) => {

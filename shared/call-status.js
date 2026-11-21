@@ -76,6 +76,13 @@ export function signalAdmit(open, peer) {
   return { ok: true, stale: stale, others: others };
 }
 
+/* Kinds the signaling room will forward to the other peer. */
+export const CALL_SIGNAL_KINDS = { offer: 1, answer: 1, ice: 1, restart: 1, mode: 1, chat: 1, typing: 1, note: 1 };
+
+export function isCallSignalKind(kind) {
+  return !!CALL_SIGNAL_KINDS[String(kind || "")];
+}
+
 /* After the phone was locked or backgrounded, a Live socket can still look
    open (readyState 1) while it is dead. Refresh it when the tab was hidden
    long enough, or when it has been idle longer than a keep-alive. */
