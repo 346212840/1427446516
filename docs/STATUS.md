@@ -14,6 +14,8 @@ Calls use Gemini Live Translate (`calls_live_translate`, on by default). If that
 
 Scheduled call invites (`calls_schedule`, on by default) are created from the Calls home screen. A time, an optional username, or a guest link (`cs1.`), a calendar file with 15-minute and at-start alarms, RSVP, and Worker reminders 15 minutes before and at the start. Off hides scheduling and skips the reminders.
 
+The original-voice volume slider (`calls_orig_vol`, on by default) sits on the call screen, next to a one-tap switch to hear their original voice. Off leaves the slider only in Settings and the Sound sheet.
+
 ## How to work on this repo
 
 Any person or agent can take over from this section. Rules for shipping, checks and merges are here. Longer history is in `docs/HANDOFF.md`. The agent guide is `AGENTS.md`.

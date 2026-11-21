@@ -88,3 +88,7 @@ With this switch on (the default), the call mints a Gemini Live Translate sessio
 
 With this switch on (the default), the Calls page has a Schedule a call button on the home screen (not only under a menu). You pick a time, optionally invite a username, or share a guest link (`cs1.`). The Scheduled tab lists upcoming calls with Join, RSVP, cancel, copy link, and Add to calendar (a `.ics` file with alarms 15 minutes before and at the start). The Worker sends a reminder 15 minutes before and at the start when both people have accounts. Guests rely on the calendar file; on iPhone, install the app to get a reminder if the event is not in the calendar. You can join from 10 minutes before the start until the duration ends. Off hides scheduling and skips the reminders.
 
+## Original voice volume (calls_orig_vol)
+
+With this switch on (the default), the original-voice volume slider sits on the call screen, next to a one-tap switch to hear their original voice. The same slider in Settings and the Sound sheet still works. Off leaves the slider only in those panels.
+

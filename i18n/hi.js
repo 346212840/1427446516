@@ -6941,5 +6941,8 @@ SI18n.addPack("hi", {
   "Your call with {name} starts in 15 minutes": "{name} के साथ आपकी कॉल 15 मिनट में शुरू होगी",
   "Your call with {name} is starting": "{name} के साथ आपकी कॉल शुरू हो रही है",
   "{name} cancelled a scheduled call": "{name} ने एक शेड्यूल की गई कॉल रद्द की",
-  "{name} declined your scheduled call": "{name} ने आपकी शेड्यूल की गई कॉल अस्वीकार की"
+  "{name} declined your scheduled call": "{name} ने आपकी शेड्यूल की गई कॉल अस्वीकार की",
+  "Original voice volume": "मूल आवाज़ का वॉल्यूम",
+  "The original-voice volume slider sits on the call screen, next to a one-tap switch to hear their original voice. Off leaves the slider only in Settings and the Sound sheet.": "मूल आवाज़ का वॉल्यूम स्लाइडर कॉल स्क्रीन पर रहता है, मूल आवाज़ सुनने के एक-टैप स्विच के साथ। बंद करने पर स्लाइडर केवल सेटिंग्स और साउंड शीट में रहता है।",
+  "Original voice": "मूल आवाज़"
 });

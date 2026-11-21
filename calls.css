@@ -817,3 +817,14 @@
 .calls-row .calls-sched-actions { margin-top: 4px; }
 .calls-row.due { outline: 1px solid var(--c-accent, #1d9bf0); }
 .calls-toast.sched .calls-toast-text span { display: block; }
+
+/* Original-voice volume on the call screen (one tap, not buried in Settings). */
+.calls-origvol { display: flex; align-items: center; gap: 10px; margin: 6px 12px 4px; }
+.calls-origvol .calls-schip { flex: 0 0 auto; }
+.calls-origvol-s { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; font-size: 13px; color: var(--c-muted, #8b98a5); }
+.calls-origvol-s input[type="range"] { flex: 1; min-width: 80px; accent-color: var(--c-blue, #1d9bf0); }
+.calls-origvol-s b { font-variant-numeric: tabular-nums; min-width: 3ch; text-align: right; color: var(--c-text, #e7e9ea); }
+.calls-page[data-onescreen="1"] .calls-origvol { margin: 4px 8px 2px; }
+@media (min-width: 720px) {
+  .calls-page[data-onescreen="1"] .calls-origvol { margin: 6px 16px 4px; }
+}

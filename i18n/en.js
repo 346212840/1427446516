@@ -6951,5 +6951,8 @@ SI18n.addPack("en", {
   "Your call with {name} starts in 15 minutes": "Your call with {name} starts in 15 minutes",
   "Your call with {name} is starting": "Your call with {name} is starting",
   "{name} cancelled a scheduled call": "{name} cancelled a scheduled call",
-  "{name} declined your scheduled call": "{name} declined your scheduled call"
+  "{name} declined your scheduled call": "{name} declined your scheduled call",
+  "Original voice volume": "Original voice volume",
+  "The original-voice volume slider sits on the call screen, next to a one-tap switch to hear their original voice. Off leaves the slider only in Settings and the Sound sheet.": "The original-voice volume slider sits on the call screen, next to a one-tap switch to hear their original voice. Off leaves the slider only in Settings and the Sound sheet.",
+  "Original voice": "Original voice"
 });
