@@ -93,6 +93,13 @@ export function micTrackLive(stream) {
   return stream.getAudioTracks().some((track) => track && track.readyState === "live");
 }
 
+/* A live track can still be silent after an iOS interruption (Siri, a phone
+   call). track.muted is the OS mute, not the in-call Mute button (enabled). */
+export function micTrackCapturing(stream) {
+  if (!stream || typeof stream.getAudioTracks !== "function") return false;
+  return stream.getAudioTracks().some((track) => track && track.readyState === "live" && track.muted !== true);
+}
+
 /* A guest session lives only on this tab or this device. The raw token is
    never sent to another machine. It expires, and hanging up deletes it. */
 export const GUEST_SESSION_KEY = "viktorych-calls-guest-session-v1";

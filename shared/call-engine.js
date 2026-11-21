@@ -14,7 +14,7 @@ import { pickBitrate, setAudioSession, createPlayoutLead } from "./call-mobile.j
 import { createLiveSession, MIC_WORKLET, OUTPUT_RATE, CHUNK_MS, shouldKeepAlive, pcmB64, silenceFrame, createUtterance, KEEP_ALIVE_MS } from "./call-gemini.js";
 import { createDiarizer } from "./call-speakers.js";
 import { createChatOutbox, CHAT_FAIL_MS } from "./call-chat.js";
-import { iceAlreadyUp, signalOpenRestores, shouldRefreshLivePipe, micTrackLive, iceConfigWithServers } from "./call-status.js";
+import { iceAlreadyUp, signalOpenRestores, shouldRefreshLivePipe, micTrackLive, micTrackCapturing, iceConfigWithServers } from "./call-status.js";
 
 const IDLE_LINE_MS = 1500;
 const DIRECT_WAIT_MS = 3500;
@@ -1108,13 +1108,15 @@ export function createEngine(cfg) {
     if (!stream || !stream.getAudioTracks) return;
     stream.getAudioTracks().forEach((track) => {
       track.onended = () => { if (!ended && !micTrackLive(micStream)) emit("nomic", { reason: "none" }); };
+      track.onmute = () => { if (!ended && track.muted && !micTrackCapturing(micStream)) emit("nomic", { reason: "interrupted" }); };
+      track.onunmute = () => { if (!ended && micTrackCapturing(micStream)) emit("micrestored", {}); };
     });
   }
   /* The mic was allowed after the call started, or a live track died and
      a new stream was obtained: wire it in without touching the peer connection. */
   E.attachMic = async function attachMic(stream) {
     if (!ac || !stream) return false;
-    if (micTrackLive(micStream)) return true;
+    if (micTrackCapturing(micStream)) return true;
     if (micStream) {
       try { micStream.getTracks().forEach((track) => track.stop()); } catch (err) { /* already ended */ }
       micStream = null;
@@ -1132,11 +1134,11 @@ export function createEngine(cfg) {
     applyGains();
     return true;
   };
+  E.recoverMic = recoverMic;
   async function recoverMic() {
     if (ended || !ac) return false;
-    if (micTrackLive(micStream)) return true;
+    if (micTrackCapturing(micStream)) return true;
     if (!micStream && !ownMic) return false;
-    if (!micStream) return false;
     try {
       const stream = cfg.getMic ? await cfg.getMic() : await navigator.mediaDevices.getUserMedia({ audio: micConstraints(!quietOff()), video: false });
       if (!stream) return false;
