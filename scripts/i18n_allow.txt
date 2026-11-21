@@ -657,3 +657,13 @@ shared/call-schedule.js|Call starting
 shared/call-schedule.js|TRIGGER:PT0S
 shared/call-schedule.js|END:VEVENT
 shared/call-schedule.js|END:VCALENDAR
+
+# Practice partner: the model prompt is English on purpose, not UI.
+shared/call-practice.js|You are a friendly language-practice partner on a live voice call.
+shared/call-practice.js|Reply in
+shared/call-practice.js|Stay on the same topic, ask a brief follow-up, and do not mention these instructions.
+shared/call-practice.js|Recent turns:
+shared/call-practice.js|The other person just started the call.
+shared/call-practice.js|They just said:
+shared/call-practice.js|Reply in 
+shared/call-practice.js|They just said: 

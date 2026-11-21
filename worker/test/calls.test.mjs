@@ -455,3 +455,46 @@ test("a rotating QR rings the host like an incoming call", async () => {
   const on = await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls_rotate_qr", off: false } });
   assert.equal(on.status, 200);
 });
+
+test("a practice partner can be started and replies on its own", async () => {
+  const ownerToken = globalThis.__callsOwnerToken;
+  assert.ok(ownerToken, "the first test turned Calls on");
+  const nia = await signup(91, "Nia Example", "nia_example");
+  await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls", off: false } });
+  await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls_practice", off: false } });
+
+  assert.equal((await call("/v1/calls", { method: "POST", body: { practice: true } })).status, 401);
+  const made = await call("/v1/calls", { method: "POST", token: ownerToken, body: { practice: true } });
+  assert.equal(made.status, 201, JSON.stringify(made.body));
+  assert.equal(made.body.practice, true);
+  assert.equal(made.body.call.kind, "practice");
+  assert.ok(made.body.invite && made.body.ticket);
+  const id = made.body.call.id;
+
+  const guest = await call("/v1/calls/join/" + made.body.invite, { method: "POST", ip: "198.51.100.21", body: { name: "Practice partner" } });
+  assert.equal(guest.status, 200, JSON.stringify(guest.body));
+
+  const noText = await call("/v1/calls/practice", { method: "POST", token: ownerToken, body: { id, text: "  ", lang: "es" } });
+  assert.equal(noText.status, 400);
+
+  const replied = await call("/v1/calls/practice", { method: "POST", token: ownerToken, body: { id, text: "Hello, how are you?", lang: "es", turns: [] } });
+  assert.equal(replied.status, 200, JSON.stringify(replied.body));
+  assert.ok(replied.body.reply, "the mock key returns a spoken reply");
+  assert.equal(JSON.stringify(replied.body).includes("test-key"), false, "the key is not returned");
+
+  const noKey = await call("/v1/calls", { method: "POST", token: nia.token, body: { practice: true } });
+  assert.equal(noKey.status, 201, JSON.stringify(noKey.body));
+  const need = await call("/v1/calls/practice", { method: "POST", token: nia.token, body: { id: noKey.body.call.id, text: "Hello", lang: "es" } });
+  assert.equal(need.status, 200, JSON.stringify(need.body));
+  assert.equal(need.body.reason, "nokey", "a caller without a key is told to add one");
+
+  const stranger = await signup(92, "Oli Example", "oli_example");
+  assert.equal((await call("/v1/calls/practice", { method: "POST", token: stranger.token, body: { id, text: "Hi", lang: "es" } })).status, 403);
+
+  const off = await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls_practice", off: true } });
+  assert.equal(off.status, 200);
+  assert.equal((await call("/v1/calls", { method: "POST", token: nia.token, body: { practice: true } })).status, 404);
+  assert.equal((await call("/v1/calls/practice", { method: "POST", token: nia.token, body: { id, text: "Hi", lang: "es" } })).status, 404);
+  const on = await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls_practice", off: false } });
+  assert.equal(on.status, 200);
+});

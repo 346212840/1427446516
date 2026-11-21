@@ -18,6 +18,8 @@ The original-voice volume slider (`calls_orig_vol`, on by default) sits on the c
 
 A rotating QR code (`calls_rotate_qr`, on by default) sits on the Calls home screen and refreshes every two minutes. Scanning it rings you like an incoming call. The previous code stays valid until it expires so a mid-scan still works. Off hides the code.
 
+A Practice with AI button (`calls_practice`, on by default) on the Calls home screen starts a call with a partner that replies on its own, so you can practice a translated call without a second person. Off hides the button.
+
 ## How to work on this repo
 
 Any person or agent can take over from this section. Rules for shipping, checks and merges are here. Longer history is in `docs/HANDOFF.md`. The agent guide is `AGENTS.md`.

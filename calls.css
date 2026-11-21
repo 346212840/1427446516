@@ -834,3 +834,6 @@
 .calls-rotateqr h3 { margin: 0 0 8px; font-size: 16px; }
 .calls-rotateqr .calls-qr { width: min(220px, 70vw); margin: 8px auto; }
 .calls-rotateqr .calls-qr svg { width: 100%; height: auto; background: #fff; border-radius: 8px; }
+
+/* Practice partner uses the test-call panel, without canned replies. */
+.calls-practice .calls-privacy { margin-top: 8px; }
