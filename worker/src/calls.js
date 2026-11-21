@@ -850,7 +850,7 @@ export async function handleCalls(request, env, path, url, deps) {
       }
       const ticket = await mintTicket(env, id, peerId, "guest");
       try { await publishToAccount(env, owner, "calls", { op: "ring", id: id, name: displayName, handle: visitor ? String(visitor.handle || "") : "", avatar: "", guest: !visitor }, id); } catch (err) { /* history still shows it */ }
-      return deps.json(200, { call: { id: id, hostId: owner, peerId: peerId, kind: "link", state: "ringing", video: false }, guestId: peerId, guestToken: guestToken, name: displayName, ticket: ticket.ticket, iceServers: await callIceServers(env, deps, { id: id, self: peerId, state: "ringing" }), ringing: true, video: false });
+      return deps.json(200, { call: { id: id, hostId: owner, peerId: peerId, kind: "link", state: "ringing", video: false }, guestId: peerId, guestToken: guestToken, guestExpiresAt: guestToken ? now + 2 * 60 * 60 * 1000 : 0, name: displayName, ticket: ticket.ticket, iceServers: await callIceServers(env, deps, { id: id, self: peerId, state: "ringing" }), ringing: true, video: false });
     }
     return deps.json(405, { error: "method" });
   }
@@ -868,19 +868,24 @@ export async function handleCalls(request, env, path, url, deps) {
     if (!row || row.state === "ended" || row.state === "missed") return deps.json(404, { error: "not_found" });
     const hostPrefs = await loadPrefs(env, row.host_id);
     if (!hostPrefs.guests && row.kind !== "practice") return deps.json(403, { error: "guests" });
-    const open = await env.DB.prepare("SELECT COUNT(*) AS n FROM call_guests WHERE call_id = ? AND expires_at > ?").bind(row.id, Date.now()).first();
+    const now = Date.now();
+    const who = await member(env, request, deps);
+    if (who.guest && who.guest.callId === row.id) {
+      const ticket = await mintTicket(env, row.id, who.guest.guestId, "guest");
+      return deps.json(200, { call: viewCall(await env.DB.prepare("SELECT * FROM call_sessions WHERE id = ?").bind(row.id).first()), guestId: who.guest.guestId, guestToken: String(request.headers.get("x-call-guest") || ""), guestExpiresAt: Number(saved.expires_at), name: cleanName(body && body.name) || "Guest", ticket: ticket.ticket, iceServers: await callIceServers(env, deps, { id: row.id, self: who.guest.guestId, state: row.state === "ended" ? "ended" : "active" }), video: false });
+    }
+    const open = await env.DB.prepare("SELECT COUNT(*) AS n FROM call_guests WHERE call_id = ? AND expires_at > ?").bind(row.id, now).first();
     if (Number(open && open.n) >= 1 && row.kind === "invite") {
-      /* One guest at a time keeps the call 1:1. */
+      return deps.json(409, { error: "in_call" });
     }
     const guestId = "g" + hex(crypto.getRandomValues(new Uint8Array(8)));
     const guestToken = "cg1." + b64url(crypto.getRandomValues(new Uint8Array(18)));
-    const now = Date.now();
     await env.DB.prepare("INSERT INTO call_guests (token_hash, call_id, guest_id, expires_at) VALUES (?, ?, ?, ?)").bind(await sha256Hex(guestToken), row.id, guestId, Number(saved.expires_at)).run();
     if (row.state === "ringing") {
       await env.DB.prepare("UPDATE call_sessions SET state = 'active', answered_at = ?, peer_id = ? WHERE id = ?").bind(now, guestId, row.id).run();
     }
     const ticket = await mintTicket(env, row.id, guestId, "guest");
-    return deps.json(200, { call: viewCall(await env.DB.prepare("SELECT * FROM call_sessions WHERE id = ?").bind(row.id).first()), guestId: guestId, guestToken: guestToken, name: cleanName(body && body.name) || "Guest", ticket: ticket.ticket, iceServers: await callIceServers(env, deps, { id: row.id, self: guestId, state: "active" }), video: false });
+    return deps.json(200, { call: viewCall(await env.DB.prepare("SELECT * FROM call_sessions WHERE id = ?").bind(row.id).first()), guestId: guestId, guestToken: guestToken, guestExpiresAt: Number(saved.expires_at), name: cleanName(body && body.name) || "Guest", ticket: ticket.ticket, iceServers: await callIceServers(env, deps, { id: row.id, self: guestId, state: "active" }), video: false });
   }
 
   const one = path.match(/^\/v1\/calls\/([a-f0-9]{32})(\/answer|\/decline|\/end|\/ticket|\/translate|\/speak|\/preview|\/signal|\/return|\/state)?$/);
@@ -932,10 +937,12 @@ export async function handleCalls(request, env, path, url, deps) {
     const now = Date.now();
     const missed = !row.answered_at;
     await env.DB.prepare("UPDATE call_sessions SET state = ?, ended_at = ? WHERE id = ?").bind(missed ? "missed" : "ended", now, id).run();
+    await env.DB.prepare("DELETE FROM call_guests WHERE call_id = ?").bind(id).run();
     await settleTurn(env, id, row.answered_at ? now - row.answered_at : 0, now).catch(() => {});
     return deps.json(200, { ok: true, duration: row.answered_at ? Math.max(0, now - row.answered_at) : 0 });
   }
   if (action === "/ticket" && request.method === "POST") {
+    if (row.state === "ended" || row.state === "missed") return deps.json(410, { error: "ended" });
     const ticket = await mintTicket(env, id, self, self === row.host_id ? "host" : "guest");
     return deps.json(200, { ticket: ticket.ticket, iceServers: await callIceServers(env, deps, { id: id, self: self, state: row.state }), video: false });
   }

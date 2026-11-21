@@ -137,6 +137,7 @@ export async function handleCallRotateQr(request, env, path, url, deps, h) {
       call: { id: id, hostId: owner, peerId: peerId, kind: "qr", state: "ringing", video: false },
       guestId: peerId,
       guestToken: guestToken,
+      guestExpiresAt: guestToken ? now + 2 * 60 * 60 * 1000 : 0,
       name: displayName,
       ticket: ticket.ticket,
       iceServers: await h.callIceServers(env, deps, { id: id, self: peerId, state: "ringing" }),

@@ -6985,5 +6985,8 @@ SI18n.addPack("ru", {
   "Translation goes through the Worker. The API key stays off this page and is never logged.": "Перевод идёт через Worker. Ключ API не остаётся на этой странице и не записывается в журналы.",
   "Retry translation": "Повторить перевод",
   "Translation dropped. Trying again…": "Перевод прервался. Пробуем снова…",
-  "Live translation dropped. This call is translating one phrase at a time.": "Поток перевода прервался. Сейчас фразы переводятся по одной."
+  "Live translation dropped. This call is translating one phrase at a time.": "Поток перевода прервался. Сейчас фразы переводятся по одной.",
+  "Rejoin this call": "Вернуться в звонок",
+  "Rejoining…": "Подключаемся снова…",
+  "Someone is already in this call.": "В этом звонке уже кто-то есть."
 });

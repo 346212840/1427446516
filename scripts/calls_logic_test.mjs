@@ -925,7 +925,8 @@ console.log("calls logic ok", JSON.stringify(report));
   const {
     applyStatusCode, holdStatus, shouldRemountOnStatus, shouldRemountOnPeer,
     signalOpenRestores, iceAlreadyUp, iceClearlyDown, iceConfigWithServers, signalAdmit, RECONNECT_HOLD_MS,
-    shouldRefreshLivePipe, micTrackLive, FOREGROUND_PIPE_MS, LIVE_PIPE_IDLE_MS
+    shouldRefreshLivePipe, micTrackLive, FOREGROUND_PIPE_MS, LIVE_PIPE_IDLE_MS,
+    guestSessionRecord, guestSessionLive, guestSessionForRoute, GUEST_SESSION_MS
   } = await import("../shared/call-status.js");
   const fs = await import("node:fs");
   const path = await import("node:path");
@@ -968,6 +969,15 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.equal(iced.bundlePolicy, "max-bundle");
   assert.equal(iced.iceServers[0].urls, "stun:example.test");
   assert.equal(iceConfigWithServers({ bundlePolicy: "max-bundle" }, []), null);
+
+  const now = 1_000_000;
+  const sess = guestSessionRecord({ token: "cg1." + "A".repeat(24), callId: "a".repeat(32), invite: "ci1.abc", name: "Vi", expiresAt: now + GUEST_SESSION_MS }, now);
+  assert.ok(sess && guestSessionLive(sess, now));
+  assert.equal(guestSessionLive(sess, now + GUEST_SESSION_MS), false, "an expired guest session is not reused");
+  assert.equal(guestSessionRecord({ token: "ci1.nope", callId: "a" * 32, expiresAt: now + 1000 }, now), null, "only a guest token is stored");
+  assert.ok(guestSessionForRoute(sess, { name: "callguest", token: "ci1.abc" }, now));
+  assert.equal(guestSessionForRoute(sess, { name: "callguest", token: "ci1.other" }, now), null, "a different link does not reuse the session");
+  assert.ok(guestSessionForRoute(sess, { name: "calls" }, now), "a bare Calls page can offer Rejoin");
 
   assert.equal(shouldRefreshLivePipe(0, 1000, 2000), false, "a brief glance away does not refresh a live pipe");
   assert.equal(shouldRefreshLivePipe(FOREGROUND_PIPE_MS, 1000, 1000 + FOREGROUND_PIPE_MS), true, "coming back from the lock screen refreshes the Live socket");
@@ -1308,4 +1318,28 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.ok(js.includes("function reconnectChip") && js.includes('data-act="call-reconnect"'), "Try again is one tap on the call screen when the connection is lost");
   assert.ok(js.includes("syncReconnectChip"), "Try again appears without rebuilding the call screen");
   console.log("calls ice restart ok");
+}
+
+{
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const root = path.join(path.dirname(new URL(import.meta.url).pathname), "..");
+  const js = fs.readFileSync(path.join(root, "calls.js"), "utf8");
+  const worker = fs.readFileSync(path.join(root, "worker/src/calls.js"), "utf8");
+  assert.ok(js.includes("function resumeGuest") && js.includes("rememberGuestSession"), "a guest session is kept on this device so a reload can rejoin");
+  assert.ok(js.includes('data-act="call-rejoin"') && js.includes("Rejoin this call"), "Rejoin is one tap on the join or home screen");
+  assert.ok(js.includes("clearGuestSession"), "leaving the call forgets the guest session");
+  assert.ok(js.includes("sessionStorage") && js.includes("GUEST_SESSION_KEY"), "the session stays on this tab or this device only");
+  assert.ok(worker.includes('error: "in_call"'), "a second person cannot take over an invite");
+  assert.ok(worker.includes("DELETE FROM call_guests WHERE call_id"), "hanging up revokes the guest token");
+  const en = fs.readFileSync(path.join(root, "i18n/en.js"), "utf8");
+  const es = fs.readFileSync(path.join(root, "i18n/es.js"), "utf8");
+  const ru = fs.readFileSync(path.join(root, "i18n/ru.js"), "utf8");
+  const hi = fs.readFileSync(path.join(root, "i18n/hi.js"), "utf8");
+  for (const pack of [en, es, ru, hi]) {
+    assert.ok(pack.includes("Rejoin this call"), "every language pack has Rejoin");
+    assert.ok(pack.includes("Someone is already in this call."), "every language pack has the in-call message");
+  }
+  assert.notEqual(es.split("Rejoin this call")[1].slice(0, 80), en.split("Rejoin this call")[1].slice(0, 80), "Spanish translates Rejoin");
+  console.log("calls guest rejoin ok");
 }
