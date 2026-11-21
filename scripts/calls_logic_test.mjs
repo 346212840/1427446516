@@ -1409,3 +1409,17 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.ok(standalone.includes("../shared/call-pip.js") && standalone.includes("../shared/call-preview.js"), "the stand-alone Calls page caches pip and preview");
   console.log("calls feature files ok");
 }
+
+{
+  const { isCallSignalKind, CALL_SIGNAL_KINDS } = await import("../shared/call-status.js");
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const root = path.join(path.dirname(new URL(import.meta.url).pathname), "..");
+  const src = fs.readFileSync(path.join(root, "worker/src/calls.js"), "utf8");
+  assert.ok(CALL_SIGNAL_KINDS.restart, "restart is a forwarded signaling kind");
+  assert.equal(isCallSignalKind("restart"), true);
+  assert.equal(isCallSignalKind("offer"), true);
+  assert.equal(isCallSignalKind("bogus"), false);
+  assert.ok(src.includes("isCallSignalKind(msg.data.kind)"), "the Worker forwards only allowed signaling kinds");
+  console.log("calls restart signal ok");
+}
