@@ -924,7 +924,8 @@ console.log("calls logic ok", JSON.stringify(report));
 {
   const {
     applyStatusCode, holdStatus, shouldRemountOnStatus, shouldRemountOnPeer,
-    signalOpenRestores, iceAlreadyUp, signalAdmit, RECONNECT_HOLD_MS
+    signalOpenRestores, iceAlreadyUp, signalAdmit, RECONNECT_HOLD_MS,
+    shouldRefreshLivePipe, micTrackLive, FOREGROUND_PIPE_MS, LIVE_PIPE_IDLE_MS
   } = await import("../shared/call-status.js");
   const fs = await import("node:fs");
   const path = await import("node:path");
@@ -957,6 +958,13 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.equal(signalOpenRestores("checking", true), true, "signaling back up after the peer joined restores Connected");
   assert.equal(signalOpenRestores("new", false), false);
 
+  assert.equal(shouldRefreshLivePipe(0, 1000, 2000), false, "a brief glance away does not refresh a live pipe");
+  assert.equal(shouldRefreshLivePipe(FOREGROUND_PIPE_MS, 1000, 1000 + FOREGROUND_PIPE_MS), true, "coming back from the lock screen refreshes the Live socket");
+  assert.equal(shouldRefreshLivePipe(0, 1000, 1000 + LIVE_PIPE_IDLE_MS), true, "a pipe idle longer than a keep-alive is refreshed");
+  assert.equal(micTrackLive({ getAudioTracks: () => [{ readyState: "live" }] }), true);
+  assert.equal(micTrackLive({ getAudioTracks: () => [{ readyState: "ended" }] }), false);
+  assert.equal(micTrackLive(null), false);
+
   const replace = signalAdmit([{ peer: "111111111111", ws: 1 }, { peer: "222222222222", ws: 2 }], "111111111111");
   assert.equal(replace.ok, true, "the same peer may replace its socket in a full room");
   assert.equal(replace.stale.length, 1);
@@ -970,6 +978,8 @@ console.log("calls logic ok", JSON.stringify(report));
   const eng = fs.readFileSync(path.join(root, "shared/call-engine.js"), "utf8");
   assert.ok(eng.includes("quietCloseSig"), "a new signaling socket closes the previous one first");
   assert.ok(eng.includes("signalOpenRestores"), "signaling open restores Connected when the peer is already in");
+  assert.ok(eng.includes("recoverMic") && eng.includes("shouldRefreshLivePipe"), "coming back from the background wakes the mic and the Live socket");
+  assert.ok(eng.includes("remoteEl.play"), "coming back retries the remote audio element");
   assert.ok(!eng.includes("The addresses may have changed even though the old path still reads connected"), "nudge does not ICE-restart a healthy path");
   const css = fs.readFileSync(path.join(root, "calls.css"), "utf8");
   assert.ok(/data-onescreen="1"\] \.calls-conv \{[^}]*min-height:\s*12rem/.test(css), "the conversation keeps a visible height in the one-screen layout");

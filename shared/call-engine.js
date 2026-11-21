@@ -14,7 +14,7 @@ import { pickBitrate, setAudioSession, createPlayoutLead } from "./call-mobile.j
 import { createLiveSession, MIC_WORKLET, OUTPUT_RATE, CHUNK_MS, shouldKeepAlive, pcmB64, silenceFrame, createUtterance, KEEP_ALIVE_MS } from "./call-gemini.js";
 import { createDiarizer } from "./call-speakers.js";
 import { createChatOutbox, CHAT_FAIL_MS } from "./call-chat.js";
-import { iceAlreadyUp, signalOpenRestores } from "./call-status.js";
+import { iceAlreadyUp, signalOpenRestores, shouldRefreshLivePipe, micTrackLive } from "./call-status.js";
 
 const IDLE_LINE_MS = 1500;
 const DIRECT_WAIT_MS = 3500;
@@ -316,10 +316,19 @@ export function createPipe(env, opts) {
     if (opts.onCut) opts.onCut(pipe);
   };
   /* The network came back or changed: do not wait out the back-off. */
-  pipe.nudge = () => {
+  pipe.lastAct = () => lastAct;
+  pipe.nudge = (opts) => {
     if (pipe.closed || connecting) return;
-    if (ws && ws.readyState === 1 && pipe.ready) return;
+    const up = !!(ws && ws.readyState === 1 && pipe.ready);
+    const stale = shouldRefreshLivePipe(opts && opts.hiddenMs, lastAct, Date.now());
+    if (up && !stale) return;
     attempt = 0;
+    if (up && stale && ws) {
+      const old = ws;
+      ws = null;
+      pipe.ready = false;
+      try { old.close(); } catch (err) { /* replaced below */ }
+    }
     connect();
   };
   pipe.send = (pcm) => {
@@ -906,6 +915,7 @@ export function createEngine(cfg) {
       micLevel.connect(origToSend);
       const ownTap = await tapNode(onOwnFrame);
       micLevel.connect(ownTap);
+      watchMic(micStream);
     }
     pc = new RTCPeerConnection({ iceServers: info.iceServers || [], bundlePolicy: "max-bundle" });
     sendDest.stream.getAudioTracks().forEach((track) => pc.addTrack(track, sendDest.stream));
@@ -966,7 +976,19 @@ export function createEngine(cfg) {
     ensureRx();
     ensureTx();
   };
-  function onVisible() { if (ac && ac.state !== "running" && ac.state !== "closed") ac.resume().catch(() => {}); }
+  let hiddenAt = 0;
+  function onVisible() {
+    if (ended) return;
+    const hidden = typeof document !== "undefined" && document.visibilityState === "hidden";
+    if (hidden) { hiddenAt = Date.now() || hiddenAt; return; }
+    const hiddenMs = hiddenAt ? Date.now() - hiddenAt : 0;
+    hiddenAt = 0;
+    setAudioSession(navigator, "play-and-record");
+    if (ac && ac.state !== "running" && ac.state !== "closed") ac.resume().catch(() => {});
+    if (remoteEl) remoteEl.play().catch(() => {});
+    recoverMic();
+    E.nudge({ hiddenMs: hiddenMs });
+  }
   /* A switch from Wi-Fi to mobile data (or back) leaves the old paths dead. */
   let netTimer = null;
   function onNetwork() {
@@ -974,7 +996,7 @@ export function createEngine(cfg) {
     clearTimeout(netTimer);
     netTimer = setTimeout(() => { if (!ended) E.nudge(); }, 400);
   }
-  E.nudge = function nudge() {
+  E.nudge = function nudge(opts) {
     if (ended || !call) return;
     sigAttempt = 0;
     if (!sig) connectSignal();
@@ -984,7 +1006,8 @@ export function createEngine(cfg) {
       if (call.role === "host") offer(true); else signal({ kind: "restart" });
     }
     /* A healthy ICE path is left alone. A real break emits disconnected/failed. */
-    [rx, tx].forEach((p) => { if (p && p.nudge) p.nudge(); });
+    const hiddenMs = opts && opts.hiddenMs;
+    [rx, tx].forEach((p) => { if (p && p.nudge) p.nudge({ hiddenMs: hiddenMs }); });
   };
   let link = { level: 0, good: 0 };
   const livePipes = new Set();
@@ -1023,9 +1046,21 @@ export function createEngine(cfg) {
   }
   E.prewarm = function prewarm() { ensureRx(); };
 
-  /* The mic was allowed after the call started: wire it in without touching the peer connection. */
+  function watchMic(stream) {
+    if (!stream || !stream.getAudioTracks) return;
+    stream.getAudioTracks().forEach((track) => {
+      track.onended = () => { if (!ended && !micTrackLive(micStream)) emit("nomic", { reason: "none" }); };
+    });
+  }
+  /* The mic was allowed after the call started, or a live track died and
+     a new stream was obtained: wire it in without touching the peer connection. */
   E.attachMic = async function attachMic(stream) {
-    if (micStream || !ac || !stream) return false;
+    if (!ac || !stream) return false;
+    if (micTrackLive(micStream)) return true;
+    if (micStream) {
+      try { micStream.getTracks().forEach((track) => track.stop()); } catch (err) { /* already ended */ }
+      micStream = null;
+    }
     micStream = stream;
     ownMic = true;
     const micSrc = ac.createMediaStreamSource(stream);
@@ -1035,9 +1070,27 @@ export function createEngine(cfg) {
     const tapMic = await tapNode(onOwnFrame);
     micLevel.connect(tapMic);
     stream.getAudioTracks().forEach((track) => { track.enabled = !muted; });
+    watchMic(stream);
     applyGains();
     return true;
   };
+  async function recoverMic() {
+    if (ended || !ac) return false;
+    if (micTrackLive(micStream)) return true;
+    if (!micStream && !ownMic) return false;
+    if (!micStream) return false;
+    try {
+      const stream = cfg.getMic ? await cfg.getMic() : await navigator.mediaDevices.getUserMedia({ audio: micConstraints(!quietOff()), video: false });
+      if (!stream) return false;
+      const ok = await E.attachMic(stream);
+      if (ok) emit("micrestored", {});
+      return ok;
+    } catch (err) {
+      const denied = err && (err.name === "NotAllowedError" || err.name === "SecurityError");
+      emit("nomic", { reason: denied ? "denied" : "none" });
+      return false;
+    }
+  }
   E.setMuted = (on) => {
     muted = !!on;
     if (micStream) micStream.getAudioTracks().forEach((t) => { t.enabled = !muted; });
