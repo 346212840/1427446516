@@ -14,7 +14,7 @@ import { pickBitrate, setAudioSession, createPlayoutLead } from "./call-mobile.j
 import { createLiveSession, MIC_WORKLET, OUTPUT_RATE, CHUNK_MS, shouldKeepAlive, pcmB64, silenceFrame, createUtterance, KEEP_ALIVE_MS } from "./call-gemini.js";
 import { createDiarizer } from "./call-speakers.js";
 import { createChatOutbox, CHAT_FAIL_MS } from "./call-chat.js";
-import { iceAlreadyUp, signalOpenRestores, shouldRefreshLivePipe, micTrackLive } from "./call-status.js";
+import { iceAlreadyUp, signalOpenRestores, shouldRefreshLivePipe, micTrackLive, iceConfigWithServers } from "./call-status.js";
 
 const IDLE_LINE_MS = 1500;
 const DIRECT_WAIT_MS = 3500;
@@ -519,7 +519,7 @@ export function createEngine(cfg) {
       const res = await cfg.api("/v1/calls/" + call.id + "/ticket", { method: "POST", body: "{}" }).catch(() => null);
       if (ended || gen !== sigGen) return;
       ticket = res && res.ok && res.data && res.data.ticket;
-      if (res && res.data && res.data.iceServers && pc) { /* keep current ICE servers */ }
+      if (res && res.data && res.data.iceServers && pc) applyFreshIceServers(res.data.iceServers);
     }
     if (!ticket) { scheduleSignal(); return; }
     let ws = null;
@@ -601,12 +601,41 @@ export function createEngine(cfg) {
       return "a=fmtp:" + pt + " " + out;
     });
   }
+  function applyFreshIceServers(servers) {
+    if (!pc || typeof pc.setConfiguration !== "function") return;
+    const current = typeof pc.getConfiguration === "function" ? pc.getConfiguration() : { bundlePolicy: "max-bundle" };
+    const next = iceConfigWithServers(current, servers);
+    if (!next) return;
+    try { pc.setConfiguration(next); } catch (err) { /* some browsers reject a mid-call no-op */ }
+  }
+  let offering = false;
+  let pendingIceRestart = false;
+  function requestIceRestart() {
+    if (ended || !pc || !call) return;
+    if (call.role === "host") offer(true);
+    else signal({ kind: "restart" });
+  }
+  function flushIceRestart() {
+    if (!ended && pc && pendingIceRestart && !offering && pc.signalingState === "stable") offer(true);
+  }
   async function offer(restart) {
-    if (!pc || pc.signalingState !== "stable") return;
-    const o = await pc.createOffer({ iceRestart: !!restart });
-    o.sdp = tuneOpus(o.sdp);
-    await pc.setLocalDescription(o);
-    signal({ kind: "offer", sdp: o.sdp });
+    if (!pc || ended) return;
+    if (restart) pendingIceRestart = true;
+    if (offering || pc.signalingState !== "stable") return;
+    offering = true;
+    const wantRestart = pendingIceRestart;
+    pendingIceRestart = false;
+    try {
+      const o = await pc.createOffer({ iceRestart: !!wantRestart });
+      o.sdp = tuneOpus(o.sdp);
+      await pc.setLocalDescription(o);
+      signal({ kind: "offer", sdp: o.sdp });
+    } catch (err) {
+      if (wantRestart) pendingIceRestart = true;
+    } finally {
+      offering = false;
+      flushIceRestart();
+    }
   }
 
   /* ---------- peer state ---------- */
@@ -942,11 +971,12 @@ export function createEngine(cfg) {
     pc = new RTCPeerConnection({ iceServers: info.iceServers || [], bundlePolicy: "max-bundle" });
     sendDest.stream.getAudioTracks().forEach((track) => pc.addTrack(track, sendDest.stream));
     pc.onicecandidate = (event) => { if (event.candidate) signal({ kind: "ice", candidate: event.candidate.toJSON ? event.candidate.toJSON() : event.candidate }); };
+    pc.onsignalingstatechange = () => { flushIceRestart(); };
     pc.oniceconnectionstatechange = () => {
       const s = pc.iceConnectionState;
       if (s === "connected" || s === "completed") { emit("status", { code: "connected" }); applyBitrate(); }
-      else if (s === "disconnected") { emit("status", { code: "reconnecting" }); setTimeout(() => { if (pc && pc.iceConnectionState === "disconnected" && call.role === "host") offer(true); }, 2500); }
-      else if (s === "failed") { emit("status", { code: "reconnecting" }); if (call.role === "host") offer(true); }
+      else if (s === "disconnected") { emit("status", { code: "reconnecting" }); setTimeout(() => { if (pc && pc.iceConnectionState === "disconnected") requestIceRestart(); }, 2500); }
+      else if (s === "failed") { emit("status", { code: "reconnecting" }); requestIceRestart(); }
     };
     pc.ontrack = async (event) => {
       const stream = event.streams && event.streams[0] ? event.streams[0] : new MediaStream([event.track]);
@@ -1018,6 +1048,12 @@ export function createEngine(cfg) {
     clearTimeout(netTimer);
     netTimer = setTimeout(() => { if (!ended) E.nudge(); }, 400);
   }
+  E.retryConnection = function retryConnection() {
+    if (ended || !call) return;
+    sigAttempt = 0;
+    emit("status", { code: "reconnecting" });
+    E.nudge();
+  };
   E.nudge = function nudge(opts) {
     if (ended || !call) return;
     sigAttempt = 0;
@@ -1025,7 +1061,7 @@ export function createEngine(cfg) {
     const st = pc ? pc.iceConnectionState : "";
     if (pc && !iceAlreadyUp(st)) {
       emit("status", { code: "reconnecting" });
-      if (call.role === "host") offer(true); else signal({ kind: "restart" });
+      requestIceRestart();
     }
     /* A healthy ICE path is left alone. A real break emits disconnected/failed. */
     const hiddenMs = opts && opts.hiddenMs;

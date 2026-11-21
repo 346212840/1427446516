@@ -1067,7 +1067,7 @@ function callScreen() {
   return `<div class="calls-page live" data-call-active="1" data-video="0" data-phase="${esc(state.phase)}" data-panel="${state.panel ? "1" : "0"}" data-conv="${conv ? "1" : "0"}"${onescreenFlagOn() ? " data-onescreen=\"1\"" : ""}">
     <header class="calls-top">
       <div class="calls-brand"><span class="calls-logo">${ico("phone")}</span><b>${esc(state.test ? tr("Test call") : tr("Calls"))}</b></div>
-      <div class="calls-meta"><span class="calls-status" data-translating="${state.translating ? "1" : "0"}">${esc(statusText())}</span><span class="calls-timer">${esc(timer)}</span></div>
+      <div class="calls-meta"><span class="calls-status" data-translating="${state.translating ? "1" : "0"}">${esc(statusText())}</span>${reconnectChip()}<span class="calls-timer">${esc(timer)}</span></div>
     </header>
     <main class="calls-stage">
       ${keyPanel()}
@@ -1130,6 +1130,23 @@ function stageChips() {
 function translateRetryChip() {
   if (!state.turnFallback || (state.phase !== "active" && state.phase !== "calling" && !state.test)) return "";
   return `<button type="button" class="calls-schip on" data-act="call-translate-retry" title="${esc(tr("Live translation dropped. This call is translating one phrase at a time."))}">${esc(tr("Retry translation"))}</button>`;
+}
+function reconnectChip() {
+  if (state.statusCode !== "lost") return "";
+  return `<button type="button" class="calls-schip on" data-act="call-reconnect" data-reconnect title="${esc(tr("The connection was lost."))}">${esc(tr("Try again"))}</button>`;
+}
+function syncReconnectChip(el) {
+  const root = el || host();
+  if (!root) return;
+  const meta = root.querySelector(".calls-meta");
+  if (!meta) return;
+  const existing = meta.querySelector("[data-reconnect]");
+  const html = reconnectChip();
+  if (!html) { if (existing) existing.remove(); return; }
+  if (existing) { existing.outerHTML = html; return; }
+  const timer = meta.querySelector(".calls-timer");
+  if (timer) timer.insertAdjacentHTML("beforebegin", html);
+  else meta.insertAdjacentHTML("beforeend", html);
 }
 function euProxyChip() {
   if (!euProxyFlagOn() || (state.phase !== "active" && state.phase !== "calling" && !state.test)) return "";
@@ -2190,6 +2207,7 @@ function live() {
   if (thread && !thread.closest(".calls-test")) thread.outerHTML = threadBlock();
   const status = el.querySelector(".calls-status");
   if (status) { status.textContent = statusText(); status.dataset.translating = state.translating ? "1" : "0"; }
+  syncReconnectChip(el);
   const peerTile = el.querySelector('[data-tile="peer"]');
   if (peerTile) peerTile.dataset.speaking = state.speaking || state.translating ? "1" : "0";
   const meTile = el.querySelector('[data-tile="me"]');
@@ -3154,6 +3172,10 @@ function onAct(act, el) {
     state.turnFallback = false;
     if (state.engine && state.engine.retryTranslation) state.engine.retryTranslation();
     paint();
+  }
+  else if (act === "call-reconnect") {
+    if (state.engine && state.engine.retryConnection) state.engine.retryConnection();
+    if (state.partner && state.partner.retryConnection) state.partner.retryConnection();
   }
   else if (act === "call-checkmic") checkMic();
   else if (act === "call-checkspk") checkSpeaker();
