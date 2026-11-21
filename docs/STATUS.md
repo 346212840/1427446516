@@ -24,6 +24,8 @@ Tap a call in history (`calls_hist_edit`, on by default) to rename it, add a not
 
 Live translation is routed through the Worker (`calls_eu_proxy`, on by default). The Gemini API key is sent only as a header and is never returned or logged. Off uses the earlier path that can open Google from the browser. This routes the session through the Worker; it does not pin Google's inference region.
 
+If the live translation stream drops, the call keeps going one phrase at a time, the person sees Retry translation on the call screen, and the stream is opened again by itself. A drop is not described as a quota problem.
+
 ## How to work on this repo
 
 Any person or agent can take over from this section. Rules for shipping, checks and merges are here. Longer history is in `docs/HANDOFF.md`. The agent guide is `AGENTS.md`.
