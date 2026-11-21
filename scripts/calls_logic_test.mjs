@@ -926,7 +926,7 @@ console.log("calls logic ok", JSON.stringify(report));
     applyStatusCode, holdStatus, shouldRemountOnStatus, shouldRemountOnPeer,
     signalOpenRestores, iceAlreadyUp, iceClearlyDown, iceConfigWithServers, signalAdmit, RECONNECT_HOLD_MS,
     shouldRefreshLivePipe, micTrackLive, micTrackCapturing, FOREGROUND_PIPE_MS, LIVE_PIPE_IDLE_MS,
-    guestSessionRecord, guestSessionLive, guestSessionForRoute, GUEST_SESSION_MS, callErrorKind
+    guestSessionRecord, guestSessionLive, guestSessionForRoute, GUEST_SESSION_MS, callErrorKind, callSessionEnded
   } = await import("../shared/call-status.js");
   const fs = await import("node:fs");
   const path = await import("node:path");
@@ -948,6 +948,12 @@ console.log("calls logic ok", JSON.stringify(report));
   const recov = holdStatus("connected", "connected", t0 + 100, held.heldAt);
   assert.equal(recov.code, "connected");
   assert.equal(recov.heldAt, 0);
+  assert.equal(holdStatus("connected", "ended", t0, 0).code, "ended", "a hang-up is not held as Connected");
+  assert.equal(holdStatus("ended", "reconnecting", t0, 0).code, "ended", "after a hang-up, a drop must not show Reconnecting");
+  assert.equal(callSessionEnded({ status: 200, data: { state: "ended", ended: true } }), true);
+  assert.equal(callSessionEnded({ status: 410, data: { error: "ended" } }), true);
+  assert.equal(callSessionEnded({ status: 200, data: { state: "active", ended: false } }), false);
+  assert.equal(callSessionEnded(null), false);
 
   assert.equal(shouldRemountOnStatus("idle", "connected"), true);
   assert.equal(shouldRemountOnStatus("active", "connected"), false, "a later connected event must not rebuild the chat");
@@ -1422,4 +1428,18 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.equal(isCallSignalKind("bogus"), false);
   assert.ok(src.includes("isCallSignalKind(msg.data.kind)"), "the Worker forwards only allowed signaling kinds");
   console.log("calls restart signal ok");
+}
+
+{
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const root = path.join(path.dirname(new URL(import.meta.url).pathname), "..");
+  const engine = fs.readFileSync(path.join(root, "shared/call-engine.js"), "utf8");
+  const worker = fs.readFileSync(path.join(root, "worker/src/calls.js"), "utf8");
+  const page = fs.readFileSync(path.join(root, "calls.js"), "utf8");
+  assert.ok(engine.includes('msg.op === "ended"') && engine.includes("markRemoteEnded()"), "the engine stops reconnecting when the other person hangs up");
+  assert.ok(engine.includes("callSessionEnded(res)"), "a finished call's ticket does not start Reconnecting");
+  assert.ok(worker.includes("endCallRoom") && worker.includes('op: "ended"') && worker.includes("x-call-end"), "hanging up tells the other phone the call has ended");
+  assert.ok(page.includes("async function peerEnded") && page.includes('d.code === "ended"'), "the call screen shows that the call has ended");
+  console.log("calls peer ended ok");
 }

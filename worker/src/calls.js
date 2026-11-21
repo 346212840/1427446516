@@ -513,7 +513,18 @@ function send(ws, body) {
   catch (err) { /* the socket can close while we answer */ }
 }
 
+export function endCallRoom(room) {
+  socketsOf(room).forEach((ws) => {
+    send(ws, { op: "ended" });
+    try { ws.close(4001, "ended"); } catch (err) { /* already closed */ }
+  });
+}
+
 export function callFetch(room, request) {
+  if (request.method === "POST" && (String(request.headers.get("x-call-end") || "") === "1" || /\/call-end\/?$/.test(new URL(request.url).pathname))) {
+    endCallRoom(room);
+    return new Response("ok", { status: 200 });
+  }
   if (String(request.headers.get("Upgrade") || "").toLowerCase() !== "websocket") return new Response("not found", { status: 404 });
   const peer = String(request.headers.get("x-call-peer") || "");
   if (!peerOk(peer)) return new Response("peer", { status: 403 });
@@ -937,6 +948,11 @@ export async function handleCalls(request, env, path, url, deps) {
     await env.DB.prepare("UPDATE call_sessions SET state = ?, ended_at = ? WHERE id = ?").bind(missed ? "missed" : "ended", now, id).run();
     await env.DB.prepare("DELETE FROM call_guests WHERE call_id = ?").bind(id).run();
     await settleTurn(env, id, row.answered_at ? now - row.answered_at : 0, now).catch(() => {});
+    if (env.ACCOUNT_CHANNEL) {
+      try {
+        await env.ACCOUNT_CHANNEL.get(env.ACCOUNT_CHANNEL.idFromName("call:" + id)).fetch(new Request("https://channel.internal/call-end", { method: "POST", headers: { "x-call-end": "1" } }));
+      } catch (err) { /* the remaining peer still sees leave when the socket closes */ }
+    }
     return deps.json(200, { ok: true, duration: row.answered_at ? Math.max(0, now - row.answered_at) : 0 });
   }
   if (action === "/ticket" && request.method === "POST") {
