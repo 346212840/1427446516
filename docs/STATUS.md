@@ -34,6 +34,7 @@ Call start and join errors use the Worker's error, so a cancelled scheduled call
 
 If the microphone drops mid-call, Allow microphone stays on the call screen, and coming back from Settings or another app tries to restore it without opening the type box.
 
+The main app service worker precaches the Calls files and can skip them when Calls is off, including the microphone, picture-in-picture, preview, and practice modules. The stand-alone Calls page caches the modules that page loads.
 
 ## How to work on this repo
 
