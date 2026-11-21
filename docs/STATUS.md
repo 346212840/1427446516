@@ -38,6 +38,8 @@ The main app service worker precaches the Calls files and can skip them when Cal
 
 If a guest's connection drops, their phone can ask the host to restart it, and the Worker forwards that request so the voice path can recover.
 
+When the other person hangs up, the remaining phone is told the call has ended instead of trying to reconnect.
+
 ## How to work on this repo
 
 Any person or agent can take over from this section. Rules for shipping, checks and merges are here. Longer history is in `docs/HANDOFF.md`. The agent guide is `AGENTS.md`.

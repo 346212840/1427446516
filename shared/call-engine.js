@@ -14,7 +14,7 @@ import { pickBitrate, setAudioSession, createPlayoutLead } from "./call-mobile.j
 import { createLiveSession, MIC_WORKLET, OUTPUT_RATE, CHUNK_MS, shouldKeepAlive, pcmB64, silenceFrame, createUtterance, KEEP_ALIVE_MS } from "./call-gemini.js";
 import { createDiarizer } from "./call-speakers.js";
 import { createChatOutbox, CHAT_FAIL_MS } from "./call-chat.js";
-import { iceAlreadyUp, signalOpenRestores, shouldRefreshLivePipe, micTrackLive, micTrackCapturing, iceConfigWithServers } from "./call-status.js";
+import { iceAlreadyUp, signalOpenRestores, shouldRefreshLivePipe, micTrackLive, micTrackCapturing, iceConfigWithServers, callSessionEnded } from "./call-status.js";
 
 const IDLE_LINE_MS = 1500;
 const DIRECT_WAIT_MS = 3500;
@@ -399,6 +399,7 @@ export function createEngine(cfg) {
   let sig = null;
   let call = null;
   let ended = false;
+  let sessionOver = false;
   let rx = null;
   let rxOld = null;
   let tx = null;
@@ -508,8 +509,13 @@ export function createEngine(cfg) {
     prev.onmessage = () => {};
     try { if (prev.readyState < 2) prev.close(); } catch (err) { /* already closed */ }
   }
+  function markRemoteEnded() {
+    if (ended || sessionOver) return;
+    sessionOver = true;
+    emit("status", { code: "ended" });
+  }
   async function connectSignal() {
-    if (ended || !call) return;
+    if (ended || sessionOver || !call) return;
     const gen = ++sigGen;
     quietCloseSig();
     const base = cfg.apiBase().replace(/^http/i, "ws");
@@ -517,17 +523,18 @@ export function createEngine(cfg) {
     call.ticket = "";
     if (!ticket) {
       const res = await cfg.api("/v1/calls/" + call.id + "/ticket", { method: "POST", body: "{}" }).catch(() => null);
-      if (ended || gen !== sigGen) return;
+      if (ended || sessionOver || gen !== sigGen) return;
+      if (callSessionEnded(res)) { markRemoteEnded(); return; }
       ticket = res && res.ok && res.data && res.data.ticket;
       if (res && res.data && res.data.iceServers && pc) applyFreshIceServers(res.data.iceServers);
     }
     if (!ticket) { scheduleSignal(); return; }
     let ws = null;
     try { ws = new WebSocket(base + "/v1/calls/" + call.id + "/signal?ticket=" + encodeURIComponent(ticket)); } catch (err) { scheduleSignal(); return; }
-    if (ended || gen !== sigGen) { try { ws.close(); } catch (err) { /* replaced */ } return; }
+    if (ended || sessionOver || gen !== sigGen) { try { ws.close(); } catch (err) { /* replaced */ } return; }
     sig = ws;
     ws.onopen = () => {
-      if (sig !== ws) return;
+      if (sig !== ws || sessionOver) return;
       sigAttempt = 0;
       flushChat();
       const ice = pc ? pc.iceConnectionState : "";
@@ -537,12 +544,12 @@ export function createEngine(cfg) {
     ws.onclose = () => {
       if (sig === ws) sig = null;
       else return;
-      if (!ended) { emit("status", { code: "reconnecting" }); scheduleSignal(); }
+      if (!ended && !sessionOver) { emit("status", { code: "reconnecting" }); scheduleSignal(); }
     };
     ws.onerror = () => { /* close follows */ };
   }
   function scheduleSignal() {
-    if (ended) return;
+    if (ended || sessionOver) return;
     sigAttempt += 1;
     if (sigAttempt > 8) { emit("status", { code: "lost" }); return; }
     setTimeout(connectSignal, reconnectDelay(sigAttempt));
@@ -562,6 +569,10 @@ export function createEngine(cfg) {
       emit("status", { code: "joined" });
       announce();
       if (call.role === "host") await offer(false);
+      return;
+    }
+    if (msg.op === "ended") {
+      markRemoteEnded();
       return;
     }
     if (msg.op === "leave") {
@@ -611,7 +622,7 @@ export function createEngine(cfg) {
   let offering = false;
   let pendingIceRestart = false;
   function requestIceRestart() {
-    if (ended || !pc || !call) return;
+    if (ended || sessionOver || !pc || !call) return;
     if (call.role === "host") offer(true);
     else signal({ kind: "restart" });
   }
@@ -933,6 +944,7 @@ export function createEngine(cfg) {
   E.start = async function start(info) {
     call = { id: info.id, ticket: info.ticket, role: info.role === "host" ? "host" : "guest" };
     ended = false;
+    sessionOver = false;
     shared = !!(cfg.audioContext && cfg.audioContext());
     ac = shared ? cfg.audioContext() : new (window.AudioContext || window.webkitAudioContext)({ latencyHint: "interactive" });
     setAudioSession(navigator, "play-and-record");

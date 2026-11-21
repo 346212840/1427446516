@@ -18,6 +18,9 @@ export function applyStatusCode(prev, code) {
 }
 
 export function holdStatus(prev, code, now, heldAt, holdMs) {
+  if (code === "ended" || prev === "ended") {
+    return { code: "ended", heldAt: 0 };
+  }
   const ms = holdMs == null ? RECONNECT_HOLD_MS : holdMs;
   if (code === "connected" || code === "joined") {
     return { code: code, heldAt: 0 };
@@ -184,4 +187,12 @@ export function callErrorKind(res) {
   if (status === 410) return "ended";
   if (status >= 500) return "unavailable";
   return "network";
+}
+
+/* A /state or /ticket reply that means the call is already over. */
+export function callSessionEnded(res) {
+  if (!res) return false;
+  if (res.data && res.data.ended) return true;
+  const kind = callErrorKind(res);
+  return kind === "ended" || kind === "cancelled" || kind === "not_found";
 }

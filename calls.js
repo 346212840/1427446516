@@ -797,6 +797,7 @@ function statusText() {
   if (code === "reconnecting") return tr("Reconnecting…");
   if (state.turnFallback && (code === "connected" || code === "joined" || code === "translating-ready" || !code)) return tr("Translation dropped. Trying again…");
   if (code === "left") return tr("They left the call.");
+  if (code === "ended") return tr("The call has ended.");
   if (code === "lost") return tr("The connection was lost.");
   if (state.translating) return tr("Translating…");
   if (code === "connected" || code === "joined" || code === "translating-ready") return tr("Connected");
@@ -1761,6 +1762,7 @@ function homeScreen(opts) {
   const o = opts || {};
   const back = standalone() ? "" : `<a class="calls-back" href="#/" aria-label="${esc(tr("Back"))}">${ico("back")}</a>`;
   const err = state.error ? `<p class="calls-error" role="alert">${esc(state.error)}</p>` : "";
+  const ended = state.statusCode === "ended" ? `<p class="calls-empty">${esc(tr("The call has ended."))}</p>` : "";
   const notSet = state.configured ? "" : `<p class="calls-empty">${esc(tr("Calls are not set up yet"))}</p>`;
   const signed = signedIn();
   const savedGuest = !signed && guestSessionLive(readStoredGuestSession()) ? readStoredGuestSession() : null;
@@ -1799,7 +1801,7 @@ function homeScreen(opts) {
     ${side}
     <section class="calls-main">
       ${histEditFlagOn() && state.histEdit ? histEditSheet() : ""}
-      ${notSet}${err}${rejoin}${start}
+      ${notSet}${err}${ended}${rejoin}${start}
       <label class="calls-vol calls-homelang"><span>${esc(tr("I speak"))}</span><select data-act="call-lang">${langOptions(myLang())}</select></label>
       ${installBlock()}
     </section>
@@ -2623,6 +2625,7 @@ function onEngineEvent(type, d) {
     state.statusCode = held.code;
     if (d.code === "joined" || d.code === "connected") { state.phase = "active"; if (!state.startedAt) state.startedAt = Date.now(); ringStop(); }
     if (d.code === "left") { state.peerName = state.peerName; }
+    if (d.code === "ended") { peerEnded(); return; }
     live();
     if (shouldRemountOnStatus(wasActive ? "active" : "idle", d.code)) paint();
   } else if (type === "peer") {
@@ -2952,6 +2955,23 @@ async function teardown(silent) {
   holdWake(false);
   pipOn(false);
   state.guestToken = state.guestToken;
+}
+async function peerEnded() {
+  if (state.phase === "idle") {
+    state.statusCode = "ended";
+    paint();
+    return;
+  }
+  const endedId = state.callId;
+  const endedLines = (state.lines || []).slice();
+  clearGuestSession();
+  state.guestToken = "";
+  await teardown(true);
+  if (endedId && endedLines.length) await saveHistTranscript(endedId, endedLines);
+  state.barOpen = false;
+  state.statusCode = "ended";
+  paint();
+  loadHistory();
 }
 async function hangUp() {
   const endedId = state.callId;
