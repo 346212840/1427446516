@@ -2553,6 +2553,12 @@ function onEngineEvent(type, d) {
     saveDevice();
     if (state.engine) state.engine.refresh();
     paint();
+  } else if (type === "micrestored") {
+    state.noMic = "";
+    state.muted = false;
+    state.mode = normalizeMode(Object.assign({}, state.mode, { send: "voice" }));
+    if (state.engine) state.engine.refresh();
+    paint();
   } else if (type === "nomic") {
     state.noMic = d.reason || "none";
     state.muted = true;

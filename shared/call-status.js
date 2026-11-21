@@ -62,3 +62,20 @@ export function signalAdmit(open, peer) {
   if (others.length >= 2) return { ok: false, stale: [], others: others };
   return { ok: true, stale: stale, others: others };
 }
+
+/* After the phone was locked or backgrounded, a Live socket can still look
+   open (readyState 1) while it is dead. Refresh it when the tab was hidden
+   long enough, or when it has been idle longer than a keep-alive. */
+export const FOREGROUND_PIPE_MS = 8000;
+export const LIVE_PIPE_IDLE_MS = 60 * 1000;
+
+export function shouldRefreshLivePipe(hiddenMs, lastAct, now, hiddenLimit, idleLimit) {
+  if ((Number(hiddenMs) || 0) >= (hiddenLimit == null ? FOREGROUND_PIPE_MS : hiddenLimit)) return true;
+  return (Number(now) || 0) - (Number(lastAct) || 0) >= (idleLimit == null ? LIVE_PIPE_IDLE_MS : idleLimit);
+}
+
+/* A getUserMedia stream is only usable while at least one audio track is live. */
+export function micTrackLive(stream) {
+  if (!stream || typeof stream.getAudioTracks !== "function") return false;
+  return stream.getAudioTracks().some((track) => track && track.readyState === "live");
+}
