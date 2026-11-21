@@ -19,6 +19,7 @@ import { encryptMaterial, decryptMaterial } from "../../shared/owner-keys.js";
 import { isOwnerViewer } from "./owner-view.js";
 import { signalAdmit } from "../../shared/call-status.js";
 import { handleCallSchedule, sweepSchedules, CALL_SCHEDULE_SCHEMA } from "./call-schedule.js";
+import { handleCallRotateQr, CALL_ROTATE_QR_SCHEMA } from "./call-rotate-qr.js";
 
 const ACCOUNT = /^\d{12}$/;
 const ID = /^[a-f0-9]{32}$/;
@@ -100,7 +101,7 @@ export const CALLS_SCHEMA = [
     guest_id TEXT NOT NULL,
     expires_at INTEGER NOT NULL
   )`
-].concat(TURN_SCHEMA, CALL_SCHEDULE_SCHEMA);
+].concat(TURN_SCHEMA, CALL_SCHEDULE_SCHEMA, CALL_ROTATE_QR_SCHEMA);
 
 let schema = null;
 function ensure(env) {
@@ -164,7 +165,7 @@ async function storedKey(env, publicId) {
   } catch (err) { return ""; }
 }
 async function pickKey(env, row, who, self, body) {
-  if (row.kind === "link" && row.state === "ringing" && self !== row.host_id) return { key: "", source: "ringing" };
+  if ((row.kind === "link" || row.kind === "qr") && row.state === "ringing" && self !== row.host_id) return { key: "", source: "ringing" };
   if (await ownerInCall(env, row, self)) {
     return configured(env) ? { key: String(env.GEMINI_API_KEY), source: "owner" } : { key: "", source: "none" };
   }
@@ -549,6 +550,11 @@ export async function handleCalls(request, env, path, url, deps) {
   });
   if (scheduled) return scheduled;
 
+  const rotateQr = await handleCallRotateQr(request, env, path, url, deps, {
+    member, mintTicket, callIceServers, sha256Hex, b64url, hex, viewCall, cleanName, callerMayCall, loadPrefs
+  });
+  if (rotateQr) return rotateQr;
+
   if (path === "/v1/calls/live" && request.method === "GET") return relayLive(request, env, url, deps);
 
   if (path === "/v1/calls/key") {
@@ -622,8 +628,8 @@ export async function handleCalls(request, env, path, url, deps) {
       const item = viewCall(row);
       item.handle = String(row.other_handle || "");
       item.name = String(row.other_name || "");
-      item.incoming = row.kind === "link" ? row.host_id === me : row.host_id !== me;
-      item.missed = row.state === "missed" || (row.state === "ended" && !row.answered_at && (row.kind === "link" ? row.host_id : row.peer_id) === who.account.public_id);
+      item.incoming = (row.kind === "link" || row.kind === "qr") ? row.host_id === me : row.host_id !== me;
+      item.missed = row.state === "missed" || (row.state === "ended" && !row.answered_at && ((row.kind === "link" || row.kind === "qr") ? row.host_id : row.peer_id) === who.account.public_id);
       item.duration = row.answered_at && row.ended_at ? Math.max(0, row.ended_at - row.answered_at) : 0;
       return item;
     });
@@ -671,7 +677,7 @@ export async function handleCalls(request, env, path, url, deps) {
   if (path === "/v1/calls/incoming" && request.method === "GET") {
     const who = await member(env, request, deps);
     if (!who.account) return deps.json(401, { error: "unauthorized" });
-    const listed = await env.DB.prepare("SELECT * FROM call_sessions WHERE ((peer_id = ? AND kind != 'link') OR (host_id = ? AND kind = 'link')) AND state = 'ringing' AND expires_at > ? ORDER BY created_at DESC LIMIT 5").bind(who.account.public_id, who.account.public_id, Date.now()).all();
+    const listed = await env.DB.prepare("SELECT * FROM call_sessions WHERE ((peer_id = ? AND kind != 'link' AND kind != 'qr') OR (host_id = ? AND kind IN ('link', 'qr'))) AND state = 'ringing' AND expires_at > ? ORDER BY created_at DESC LIMIT 5").bind(who.account.public_id, who.account.public_id, Date.now()).all();
     return deps.json(200, { calls: ((listed && listed.results) || []).map(viewCall) });
   }
 
@@ -863,7 +869,7 @@ export async function handleCalls(request, env, path, url, deps) {
   if (!inCall && !(who.guest && who.guest.callId === id)) return deps.json(403, { error: "calls_closed" });
 
   if (action === "/answer" && request.method === "POST") {
-    const linkHost = row.kind === "link" && self === row.host_id;
+    const linkHost = (row.kind === "link" || row.kind === "qr") && self === row.host_id;
     if (self !== row.peer_id && !linkHost) return deps.json(403, { error: "calls_closed" });
     if (row.state !== "ringing" && row.state !== "active") return deps.json(404, { error: "not_found" });
     const now = Date.now();

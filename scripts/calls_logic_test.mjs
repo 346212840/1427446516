@@ -1105,3 +1105,48 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.notEqual(es.split("Original voice volume")[1].slice(0, 80), en.split("Original voice volume")[1].slice(0, 80), "Spanish translates the switch name");
   console.log("calls orig vol ok");
 }
+
+{
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const root = path.join(path.dirname(new URL(import.meta.url).pathname), "..");
+  const { ROTATE_TOKEN, ROTATE_MS, ROTATE_REFRESH_MS } = await import("../shared/call-rotate-qr.js");
+  const js = fs.readFileSync(path.join(root, "calls.js"), "utf8");
+  const css = fs.readFileSync(path.join(root, "calls.css"), "utf8");
+  const flags = fs.readFileSync(path.join(root, "worker/src/feature-flags.js"), "utf8");
+  const worker = fs.readFileSync(path.join(root, "worker/src/call-rotate-qr.js"), "utf8");
+  const callsWorker = fs.readFileSync(path.join(root, "worker/src/calls.js"), "utf8");
+  const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
+  const boot = fs.readFileSync(path.join(root, "calls/boot.js"), "utf8");
+  const sw = fs.readFileSync(path.join(root, "sw.js"), "utf8");
+  const solo = fs.readFileSync(path.join(root, "calls/sw.js"), "utf8");
+  assert.ok(flags.includes("calls_rotate_qr"), "the switch is listed with the other Calls flags");
+  assert.ok(app.includes('"calls_rotate_qr"'), "the owner list includes the switch");
+  assert.ok(js.includes("function rotateQrFlagOn"), "the call page reads the switch");
+  assert.ok(js.includes("function rotateQrPanel"), "the home screen builds the rotating QR");
+  assert.ok(js.includes("Scan to call me"), "the QR sits on the Calls home screen");
+  assert.ok(js.includes("joinRotateQr"), "scanning joins through the rotating-QR path");
+  assert.ok(js.includes('hit.kind === "qr"') || js.includes("hit.kind === 'qr'"), "an incoming poll treats a QR session like a link call");
+  assert.ok(callsWorker.includes("kind IN ('link', 'qr')") || callsWorker.includes('kind IN ("link", "qr")'), "incoming lists QR sessions for the host");
+  assert.ok(callsWorker.includes('row.kind === "qr"') || callsWorker.includes("row.kind === 'qr'"), "the host can answer a QR session");
+  assert.ok(worker.includes("kind, 'qr'") || worker.includes("kind: 'qr'") || worker.includes("'qr'"), "a scan creates a qr session");
+  assert.ok(boot.includes("cr1"), "the standalone guest page accepts a cr1 token");
+  assert.ok(sw.includes("./shared/call-rotate-qr.js"), "the main service worker caches the helper");
+  assert.ok(solo.includes("../shared/call-rotate-qr.js"), "the Calls service worker caches the helper");
+  assert.ok(css.includes(".calls-rotateqr"), "the home QR has its own rules");
+  assert.equal(ROTATE_MS, 2 * 60 * 1000, "a code lasts two minutes");
+  assert.equal(ROTATE_REFRESH_MS, 30 * 1000, "a new code is issued with a thirty-second overlap");
+  assert.ok(ROTATE_TOKEN.test("cr1." + "A".repeat(24)), "a guest token of the usual length is accepted");
+  assert.equal(ROTATE_TOKEN.test("ci1." + "A".repeat(24)), false, "a Get call link token is not treated as a rotating QR");
+  const en = fs.readFileSync(path.join(root, "i18n/en.js"), "utf8");
+  const es = fs.readFileSync(path.join(root, "i18n/es.js"), "utf8");
+  const ru = fs.readFileSync(path.join(root, "i18n/ru.js"), "utf8");
+  const hi = fs.readFileSync(path.join(root, "i18n/hi.js"), "utf8");
+  for (const pack of [en, es, ru, hi]) {
+    assert.ok(pack.includes("Scan to call me"), "every language pack has the home heading");
+    assert.ok(pack.includes("Rotating call QR"), "every language pack has the switch name");
+  }
+  assert.notEqual(es.split("Rotating call QR")[1].slice(0, 80), en.split("Rotating call QR")[1].slice(0, 80), "Spanish translates the switch name");
+  console.log("calls rotate qr ok");
+}
+

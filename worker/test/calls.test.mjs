@@ -394,3 +394,64 @@ test("scheduled invites can be created, listed, declined, cancelled, and refused
   const on = await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls_schedule", off: false } });
   assert.equal(on.status, 200);
 });
+
+test("a rotating QR rings the host like an incoming call", async () => {
+  const ownerToken = globalThis.__callsOwnerToken;
+  assert.ok(ownerToken, "the first test turned Calls on");
+  const kade = await signup(81, "Kade Example", "kade_example");
+  const lina = await signup(82, "Lina Example", "lina_example");
+  await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls", off: false } });
+  await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls_rotate_qr", off: false } });
+
+  assert.equal((await call("/v1/calls/qr")).status, 401);
+  const minted = await call("/v1/calls/qr", { token: kade.token });
+  assert.equal(minted.status, 200, JSON.stringify(minted.body));
+  assert.ok(/^cr1\.[A-Za-z0-9_-]{8,80}$/.test(minted.body.token), "the host gets a rotating token");
+  assert.equal(minted.body.rotateMs, 2 * 60 * 1000);
+  const first = minted.body.token;
+  const again = await call("/v1/calls/qr", { token: kade.token });
+  assert.equal(again.body.token, first, "a fresh code is reused until it is close to expiry");
+  const rotated = await call("/v1/calls/qr/rotate", { method: "POST", token: kade.token });
+  assert.equal(rotated.status, 201, JSON.stringify(rotated.body));
+  assert.notEqual(rotated.body.token, first, "an explicit rotate issues a new code");
+  assert.equal((await call("/v1/calls/qr/info?token=" + encodeURIComponent(first))).status, 200, "the previous code still works during the overlap");
+
+  const info = await call("/v1/calls/qr/info?token=" + encodeURIComponent(rotated.body.token));
+  assert.equal(info.status, 200);
+  assert.equal(info.body.name, "Kade Example");
+  assert.equal(info.body.open, true);
+
+  const selfJoin = await call("/v1/calls/qr/join", { method: "POST", token: kade.token, body: { token: rotated.body.token, name: "Kade" } });
+  assert.equal(selfJoin.status, 403);
+
+  const joined = await call("/v1/calls/qr/join", { method: "POST", ip: "198.51.100.11", body: { token: first, name: "Vi" } });
+  assert.equal(joined.status, 200, JSON.stringify(joined.body));
+  assert.equal(joined.body.ringing, true);
+  assert.equal(joined.body.call.kind, "qr");
+  assert.ok(joined.body.guestToken && joined.body.ticket);
+  const id = joined.body.call.id;
+  assert.equal((await call("/v1/calls/" + id + "/state", { guest: joined.body.guestToken })).body.state, "ringing");
+  const incoming = await call("/v1/calls/incoming", { token: kade.token });
+  assert.equal(incoming.body.calls.some((row) => row.id === id), true, "the host sees it as an incoming call");
+  const early = await call("/v1/calls/" + id + "/translate", { method: "POST", guest: joined.body.guestToken, body: { target: "en", key: "k".repeat(30) } });
+  assert.equal(early.body.reason, "ringing");
+  const answered = await call("/v1/calls/" + id + "/answer", { method: "POST", token: kade.token });
+  assert.equal(answered.status, 200, JSON.stringify(answered.body));
+  assert.equal((await call("/v1/calls/" + id + "/answer", { method: "POST", token: lina.token })).status === 200, false);
+  const hist = await call("/v1/calls/history", { token: kade.token });
+  const row = hist.body.calls.find((item) => item.id === id);
+  assert.equal(row.name, "Vi");
+  assert.equal(row.incoming, true);
+
+  await call("/v1/calls/prefs", { method: "PUT", token: kade.token, body: { who: "nobody" } });
+  assert.equal((await call("/v1/calls/qr/info?token=" + encodeURIComponent(rotated.body.token))).body.open, false);
+  assert.equal((await call("/v1/calls/qr/join", { method: "POST", ip: "198.51.100.12", body: { token: rotated.body.token, name: "Vi" } })).status, 403);
+  await call("/v1/calls/prefs", { method: "PUT", token: kade.token, body: { who: "everyone", guests: true } });
+
+  const off = await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls_rotate_qr", off: true } });
+  assert.equal(off.status, 200);
+  assert.equal((await call("/v1/calls/qr", { token: kade.token })).status, 204);
+  assert.equal((await call("/v1/calls/qr/join", { method: "POST", ip: "198.51.100.13", body: { token: rotated.body.token, name: "Vi" } })).status, 404);
+  const on = await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls_rotate_qr", off: false } });
+  assert.equal(on.status, 200);
+});

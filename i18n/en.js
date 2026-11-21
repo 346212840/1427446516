@@ -6954,5 +6954,11 @@ SI18n.addPack("en", {
   "{name} declined your scheduled call": "{name} declined your scheduled call",
   "Original voice volume": "Original voice volume",
   "The original-voice volume slider sits on the call screen, next to a one-tap switch to hear their original voice. Off leaves the slider only in Settings and the Sound sheet.": "The original-voice volume slider sits on the call screen, next to a one-tap switch to hear their original voice. Off leaves the slider only in Settings and the Sound sheet.",
-  "Original voice": "Original voice"
+  "Original voice": "Original voice",
+  "Scan to call me": "Scan to call me",
+  "Rotating QR code to call me": "Rotating QR code to call me",
+  "This code refreshes every two minutes. When someone scans it, it rings you like an incoming call.": "This code refreshes every two minutes. When someone scans it, it rings you like an incoming call.",
+  "Loading the QR code…": "Loading the QR code…",
+  "Rotating call QR": "Rotating call QR",
+  "A QR code on the Calls home screen refreshes every two minutes. When someone scans it, it rings you like an incoming call. Off hides the code.": "A QR code on the Calls home screen refreshes every two minutes. When someone scans it, it rings you like an incoming call. Off hides the code."
 });

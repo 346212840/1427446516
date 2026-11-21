@@ -18,6 +18,7 @@ import { createDiarizer } from "./shared/call-speakers.js";
 import { createEngine } from "./shared/call-engine.js";
 import { holdStatus, shouldRemountOnStatus, shouldRemountOnPeer } from "./shared/call-status.js";
 import { SCHEDULE_TOKEN, icsForSchedule, clipDuration, DEFAULT_DURATION } from "./shared/call-schedule.js";
+import { ROTATE_TOKEN, ROTATE_REFRESH_MS } from "./shared/call-rotate-qr.js";
 
 const CAP_SIZES = ["s", "m", "l", "xl"];
 const CAP_SHOW = 3;
@@ -174,6 +175,14 @@ function origVolFlagOn() {
   } catch (err) { return true; }
 }
 
+/* Owner switch calls_rotate_qr, on unless the server list says off. */
+function rotateQrFlagOn() {
+  try {
+    const list = JSON.parse(localStorage.getItem("viktorychapp-server-off") || "[]");
+    return !(Array.isArray(list) && list.indexOf("calls_rotate_qr") >= 0);
+  } catch (err) { return true; }
+}
+
 /* Owner switch calls_preview, on unless the server list says off. */
 function previewFlagOn() {
   try {
@@ -309,6 +318,8 @@ const state = {
   schedToast: null,
   schedGuest: null,
   schedBusy: false,
+  rotateQr: null,
+  rotateQrTimer: 0,
   micCheck: null,
   testPrep: null,
   testPoll: 0,
@@ -1489,6 +1500,57 @@ async function joinScheduledGuest() {
   await beginScheduled(res, state.schedGuest && (state.schedGuest.hostName || state.schedGuest.hostHandle));
 }
 
+
+function rotateQrPanel() {
+  if (!rotateQrFlagOn() || !signedIn()) return "";
+  const row = state.rotateQr;
+  const url = row && row.token ? guestUrl(row.token) : "";
+  if (url) loadQr();
+  const svg = url ? qrSvg(url) : "";
+  return `<section class="calls-rotateqr" data-rotateqr>
+    <h3>${esc(tr("Scan to call me"))}</h3>
+    <div class="calls-qr" role="img" aria-label="${esc(tr("Rotating QR code to call me"))}">${svg || `<span class="calls-empty">${esc(tr("Loading the QR code…"))}</span>`}</div>
+    <p class="calls-privacy">${esc(tr("This code refreshes every two minutes. When someone scans it, it rings you like an incoming call."))}</p>
+    ${url ? `<div class="calls-invite"><input readonly value="${esc(url)}" aria-label="${esc(tr("Guest link"))}" data-rotateqr-link><button type="button" data-act="call-rotate-copy">${esc(tr("Copy link"))}</button></div>` : ""}
+  </section>`;
+}
+function armRotateQrRefresh(expiresAt) {
+  clearTimeout(state.rotateQrTimer);
+  const wait = Math.max(5000, (Number(expiresAt) || 0) - Date.now() - ROTATE_REFRESH_MS);
+  state.rotateQrTimer = setTimeout(() => { loadRotateQr(); }, wait);
+}
+async function loadRotateQr() {
+  if (!rotateQrFlagOn() || !signedIn()) { state.rotateQr = null; return; }
+  const res = await api("/v1/calls/qr").catch(() => null);
+  if (res && res.ok && res.data && res.data.token) {
+    state.rotateQr = { token: res.data.token, expiresAt: res.data.expiresAt };
+    armRotateQrRefresh(res.data.expiresAt);
+  } else if (res && res.status === 204) {
+    state.rotateQr = null;
+  }
+  if (host() && state.phase === "idle") paint();
+}
+async function joinRotateQr(tokenValue) {
+  state.error = "";
+  const typed = (document.getElementById("calls-name") || {}).value;
+  state.name = String(typed || state.name || tr("Guest")).slice(0, 40);
+  saveDevice();
+  const res = await api("/v1/calls/qr/join", { method: "POST", body: JSON.stringify({ token: tokenValue, name: state.name }) }).catch(() => null);
+  if (!res || !res.ok) { state.error = errorFor(res); paint(); return; }
+  state.guestToken = res.data.guestToken || "";
+  state.statusCode = "calling";
+  state.peerName = (res.data && res.data.name) || "";
+  const ok = await begin({ id: res.data.call.id, ticket: res.data.ticket, iceServers: res.data.iceServers }, "guest");
+  if (!ok) return;
+  if (state.engine) state.engine.prewarm();
+  const id = res.data.call.id;
+  state.ringPoll = setInterval(async () => {
+    if (state.phase !== "calling" || state.callId !== id) { clearInterval(state.ringPoll); return; }
+    const st = await api("/v1/calls/" + id + "/state").catch(() => null);
+    if (st && st.ok && st.data && st.data.ended) { clearInterval(state.ringPoll); state.error = tr("No answer."); await hangUp(); }
+  }, 2500);
+}
+
 function homeScreen(opts) {
   const o = opts || {};
   const back = standalone() ? "" : `<a class="calls-back" href="#/" aria-label="${esc(tr("Back"))}">${ico("back")}</a>`;
@@ -1514,6 +1576,7 @@ function homeScreen(opts) {
       </div>
       <div class="calls-modes" role="group" aria-label="${esc(tr("Link lasts"))}">${pill("ttl", "60", String(state.inviteTtl), tr("1 hour"))}${pill("ttl", "1440", String(state.inviteTtl), tr("24 hours"))}</div>
       ${scheduleFlagOn() && state.schedForm ? scheduleFormHtml() : ""}
+      ${rotateQrPanel()}
     </section>
     ${linkPanel()}`
     : `<section class="calls-hero"><h2>${esc(tr("Call someone"))}</h2>
@@ -1541,7 +1604,7 @@ function setupMicStatus() {
 }
 function joinScreen(route) {
   const err = state.error ? `<p class="calls-error" role="alert">${esc(state.error)}</p>` : "";
-  const info = route && route.name === "calllink" && state.linkInfo ? state.linkInfo : null;
+  const info = route && (route.name === "calllink" || (route.name === "callguest" && ROTATE_TOKEN.test(route.token || ""))) && state.linkInfo ? state.linkInfo : null;
   const title = info && info.name ? tr("Call {name}", { name: info.name }) : tr("Join call");
   const closed = info && info.open === false ? `<p class="calls-error" role="alert">${esc(info.reason === "quiet" ? tr("They are not taking calls right now.") : tr("This person is not taking calls right now."))}</p>` : "";
   const ended = state.statusCode === "ended" ? `<p class="calls-empty">${esc(tr("The call has ended."))}</p>` : "";
@@ -2549,7 +2612,7 @@ async function checkIncoming(id) {
     const hist = await api("/v1/calls/history").catch(() => null);
     const row = hist && hist.ok && hist.data && hist.data.calls && hist.data.calls.find((c) => c.id === hit.id);
     if (row) { name = row.name; handle = row.handle; }
-    onRing({ id: hit.id, name: name, handle: handle, link: hit.kind === "link" });
+    onRing({ id: hit.id, name: name, handle: handle, link: hit.kind === "link" || hit.kind === "qr" });
   }
 }
 async function loadHistory() {
@@ -2670,7 +2733,7 @@ function loadQr() {
   state.qrLoading = true;
   const el = document.createElement("script");
   el.src = new URL("vendor/qrcode-1.4.4.js", document.baseURI).href;
-  el.onload = () => { state.qrLoading = false; if (state.testPrep || state.inviteUrl) paint(); };
+  el.onload = () => { state.qrLoading = false; if (state.testPrep || state.inviteUrl || (state.rotateQr && state.rotateQr.token)) paint(); };
   el.onerror = () => { state.qrLoading = false; };
   document.head.appendChild(el);
 }
@@ -2918,7 +2981,13 @@ function onAct(act, el) {
   else if (act === "call-decline") declineIncoming();
   else if (act === "call-join") {
     if (state.route && state.route.name === "calllink") joinLink(state.route.slug || "");
+    else if (ROTATE_TOKEN.test((state.route && state.route.token) || "")) joinRotateQr(state.route.token);
     else joinAsGuest((state.route && state.route.token) || "");
+  }
+  else if (act === "call-rotate-copy") {
+    const url = state.rotateQr && state.rotateQr.token ? guestUrl(state.rotateQr.token) : "";
+    try { navigator.clipboard.writeText(url); } catch (err) { /* the field can be copied by hand */ }
+    el.textContent = tr("Copied");
   }
   else if (act === "call-link-create") saveLink({ method: "PUT", body: JSON.stringify({}) });
   else if (act === "call-link-toggle") saveLink({ method: "PUT", body: JSON.stringify({ enabled: !(state.link && state.link.enabled) }) });
@@ -3054,7 +3123,7 @@ function onChange(event) {
 function openByLink(text) {
   const raw = String(text || "").trim();
   let target = "";
-  const invite = raw.match(/#((?:ci1|cs1)\.[A-Za-z0-9_-]{8,80})/) || raw.match(/^((?:ci1|cs1)\.[A-Za-z0-9_-]{8,80})$/);
+  const invite = raw.match(/#((?:ci1|cs1|cr1)\.[A-Za-z0-9_-]{8,80})/) || raw.match(/^((?:ci1|cs1|cr1)\.[A-Za-z0-9_-]{8,80})$/);
   const named = raw.match(/#u\/([a-z0-9-]{3,30})\s*$/i) || raw.match(/^([a-z0-9][a-z0-9-]{2,29})$/i);
   if (invite) target = invite[1];
   else if (named) target = "u/" + named[1].toLowerCase();
@@ -3240,6 +3309,12 @@ function mount(route) {
   loadStatus();
   loadKeyState();
   if (r.name === "calls") loadLink();
+  if (r.name === "callguest" && ROTATE_TOKEN.test(r.token || "") && !state.linkInfo) {
+    api("/v1/calls/qr/info?token=" + encodeURIComponent(r.token)).then((res) => {
+      state.linkInfo = res && res.ok ? res.data : { name: "", open: false, reason: "closed" };
+      if (host()) paint();
+    }).catch(() => {});
+  }
   if (r.name === "calllink" && r.slug && !state.linkInfo) {
     api("/v1/calls/link/" + encodeURIComponent(r.slug)).then((res) => {
       state.linkInfo = res && res.ok ? res.data : { name: "", open: false, reason: "closed" };
@@ -3249,6 +3324,7 @@ function mount(route) {
   if (r.name === "callschedule" && r.token && state.phase === "idle") loadGuestSchedule(r.token);
   if (r.name === "calls" && state.phase === "idle") {
     loadHistory();
+    if (rotateQrFlagOn()) loadRotateQr();
     if (scheduleFlagOn()) {
       const tab = r.query && r.query.get && r.query.get("tab");
       if (tab === "scheduled") state.tab = "scheduled";
@@ -3274,6 +3350,7 @@ function mount(route) {
    tracks stop, the sockets close, the history row is written. The standalone guest page has no other page to go to. */
 let leaving = false;
 function unmount() {
+  clearTimeout(state.rotateQrTimer);
   if (!standalone() && !leaving && (state.phase === "active" || state.phase === "calling")) {
     leaving = true;
     hangUp().catch(() => {}).then(() => { leaving = false; });

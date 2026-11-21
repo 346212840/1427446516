@@ -828,3 +828,9 @@
 @media (min-width: 720px) {
   .calls-page[data-onescreen="1"] .calls-origvol { margin: 6px 16px 4px; }
 }
+
+/* Rotating QR on the Calls home screen: scan to ring the host. */
+.calls-rotateqr { margin: 16px 0 8px; padding: 12px; border: 1px solid var(--c-line, #2f3336); border-radius: 16px; }
+.calls-rotateqr h3 { margin: 0 0 8px; font-size: 16px; }
+.calls-rotateqr .calls-qr { width: min(220px, 70vw); margin: 8px auto; }
+.calls-rotateqr .calls-qr svg { width: 100%; height: auto; background: #fff; border-radius: 8px; }

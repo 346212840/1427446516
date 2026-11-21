@@ -195,7 +195,11 @@ export const FEATURES = {
   /* Original-voice volume on the call screen, with a one-tap switch
      to hear their original voice. On by default. Off leaves the
      slider only in Settings and the Sound sheet. */
-  calls_orig_vol: { paths: [] }
+  calls_orig_vol: { paths: [] },
+  /* Rotating QR on the Calls home screen. A short-lived code that
+     refreshes every two minutes. Scanning it rings you like an
+     incoming call. On by default. Off hides the code. */
+  calls_rotate_qr: { paths: [] }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 

@@ -53,6 +53,7 @@ function routeFromHash() {
   const hash = location.hash.replace(/^#\/?/, "");
   const query = new URLSearchParams(location.search);
   if (/^ci1\.[A-Za-z0-9_-]{8,80}$/.test(hash)) return { name: "callguest", token: hash, query };
+  if (/^cr1\.[A-Za-z0-9_-]{8,80}$/.test(hash)) return { name: "callguest", token: hash, query };
   if (/^cs1\.[A-Za-z0-9_-]{8,80}$/.test(hash)) return { name: "callschedule", token: hash, query };
   const link = hash.match(/^u\/([a-z0-9-]{3,30})$/);
   if (link) return { name: "calllink", slug: link[1], query };

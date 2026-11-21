@@ -1,6 +1,6 @@
 # Status snapshot
 
-Written 2026-11-20 (UTC). The Pages directory is the repository name, read from the address on github.io and from `GITHUB_REPOSITORY` when the site is published. The Cloudflare mirror stays `https://viktorychapp.pages.dev/`. Latest D1 migration is `0136_call_schedule.sql`. Telegram expiry is a column added at runtime, not a new migration. This is a snapshot: check `gh pr list` and `git log origin/main` before acting on it. Update this file at the end of every PR.
+Written 2026-11-21 (UTC). The Pages directory is the repository name, read from the address on github.io and from `GITHUB_REPOSITORY` when the site is published. The Cloudflare mirror stays `https://viktorychapp.pages.dev/`. Latest D1 migration is `0137_call_rotate_qr.sql`. Telegram expiry is a column added at runtime, not a new migration. This is a snapshot: check `gh pr list` and `git log origin/main` before acting on it. Update this file at the end of every PR.
 
 ## Calls
 
@@ -15,6 +15,8 @@ Calls use Gemini Live Translate (`calls_live_translate`, on by default). If that
 Scheduled call invites (`calls_schedule`, on by default) are created from the Calls home screen. A time, an optional username, or a guest link (`cs1.`), a calendar file with 15-minute and at-start alarms, RSVP, and Worker reminders 15 minutes before and at the start. Off hides scheduling and skips the reminders.
 
 The original-voice volume slider (`calls_orig_vol`, on by default) sits on the call screen, next to a one-tap switch to hear their original voice. Off leaves the slider only in Settings and the Sound sheet.
+
+A rotating QR code (`calls_rotate_qr`, on by default) sits on the Calls home screen and refreshes every two minutes. Scanning it rings you like an incoming call. The previous code stays valid until it expires so a mid-scan still works. Off hides the code.
 
 ## How to work on this repo
 
