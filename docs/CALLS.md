@@ -83,3 +83,8 @@ With this switch on (the default), the two people in the call sit in equal tiles
 ## Live Translate model (calls_live_translate)
 
 With this switch on (the default), the call mints a Gemini Live Translate session (`translationConfig`, model `gemini-3.5-live-translate-preview`). If minting or setup fails, it automatically uses the earlier Live interpreter path: the same model and socket, with a system instruction and no `translationConfig`. Off uses only that Live path. The short-lived token is still minted on the Worker; the API key is never returned or logged. Test-call details show which path was used. Phrase timings stay in `ViktorychCalls.debug().timings`.
+
+## Scheduled call invites (calls_schedule)
+
+With this switch on (the default), the Calls page has a Schedule a call button on the home screen (not only under a menu). You pick a time, optionally invite a username, or share a guest link (`cs1.`). The Scheduled tab lists upcoming calls with Join, RSVP, cancel, copy link, and Add to calendar (a `.ics` file with alarms 15 minutes before and at the start). The Worker sends a reminder 15 minutes before and at the start when both people have accounts. Guests rely on the calendar file; on iPhone, install the app to get a reminder if the event is not in the calendar. You can join from 10 minutes before the start until the duration ends. Off hides scheduling and skips the reminders.
+

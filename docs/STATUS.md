@@ -1,6 +1,6 @@
 # Status snapshot
 
-Written 2026-11-20 (UTC). The Pages directory is the repository name, read from the address on github.io and from `GITHUB_REPOSITORY` when the site is published. The Cloudflare mirror stays `https://viktorychapp.pages.dev/`. Latest D1 migration is `0135_call_turn.sql`. Telegram expiry is a column added at runtime, not a new migration. This is a snapshot: check `gh pr list` and `git log origin/main` before acting on it. Update this file at the end of every PR.
+Written 2026-11-20 (UTC). The Pages directory is the repository name, read from the address on github.io and from `GITHUB_REPOSITORY` when the site is published. The Cloudflare mirror stays `https://viktorychapp.pages.dev/`. Latest D1 migration is `0136_call_schedule.sql`. Telegram expiry is a column added at runtime, not a new migration. This is a snapshot: check `gh pr list` and `git log origin/main` before acting on it. Update this file at the end of every PR.
 
 ## Calls
 
@@ -11,6 +11,8 @@ Typed messages in a call, including a test call, are shown at once. A still-load
 The in-call people tiles are even and side by side (`calls_onescreen`, on by default). Names, a speaking ring, a waveform and a mute icon sit inside each tile. Language, captions, hearing the translation, and speaker or ear mode are one-tap chips under the tiles, and the conversation continues on the same screen with no separate card. Off restores the old stacked tiles and framed chat panel.
 
 Calls use Gemini Live Translate (`calls_live_translate`, on by default). If that path fails, the earlier Live interpreter is used automatically. Off uses only the earlier Live path. Keys stay on the Worker and are never logged.
+
+Scheduled call invites (`calls_schedule`, on by default) are created from the Calls home screen. A time, an optional username, or a guest link (`cs1.`), a calendar file with 15-minute and at-start alarms, RSVP, and Worker reminders 15 minutes before and at the start. Off hides scheduling and skips the reminders.
 
 ## How to work on this repo
 

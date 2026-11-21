@@ -1023,3 +1023,58 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.equal(snap(true, 10), true, "a short downward move keeps it open");
   console.log("calls bar sheet ok");
 }
+
+{
+  const { SCHEDULE_TOKEN, canJoin, remindPlan, icsForSchedule, parseStartsAt, clipDuration, endsAt, JOIN_EARLY_MS, REMIND_MS, DEFAULT_DURATION } = await import("../shared/call-schedule.js");
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const root = path.join(path.dirname(new URL(import.meta.url).pathname), "..");
+  const js = fs.readFileSync(path.join(root, "calls.js"), "utf8");
+  const css = fs.readFileSync(path.join(root, "calls.css"), "utf8");
+  const flags = fs.readFileSync(path.join(root, "worker/src/feature-flags.js"), "utf8");
+  const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
+  const worker = fs.readFileSync(path.join(root, "worker/src/call-schedule.js"), "utf8");
+  const migration = fs.readFileSync(path.join(root, "worker/migrations/0136_call_schedule.sql"), "utf8");
+  assert.ok(flags.includes("calls_schedule"), "the switch is listed with the other Calls flags");
+  assert.ok(app.includes('"calls_schedule"'), "the owner list includes the switch");
+  assert.ok(js.includes("function scheduleFlagOn"), "the call page reads the switch");
+  assert.ok(js.includes("data-act=\"call-sched-open\""), "Schedule a call is on the home screen");
+  assert.ok(js.includes("data-act=\"call-sched-join\""), "a scheduled row can be joined");
+  assert.ok(js.includes("data-act=\"call-sched-ics\""), "a scheduled row can be added to the calendar");
+  assert.ok(css.includes(".calls-sched-form"), "the schedule form has its own rules");
+  assert.ok(migration.includes("call_schedules"), "the migration creates the table");
+  assert.ok(worker.includes("call_remind") && worker.includes("call_starting"), "cron sends both reminders");
+  assert.ok(SCHEDULE_TOKEN.test("cs1." + "A".repeat(24)), "a guest token of the usual length is accepted");
+  assert.equal(SCHEDULE_TOKEN.test("ci1.aaaaaaaaaaaaaaaaaaaaaa"), false, "an instant invite token is not a scheduled token");
+  const start = Date.parse("2026-12-01T15:00:00Z");
+  assert.equal(parseStartsAt(start), start);
+  assert.equal(parseStartsAt("2026-12-01T15:00:00Z"), start);
+  assert.equal(clipDuration(0), DEFAULT_DURATION);
+  assert.equal(clipDuration(500), 180);
+  assert.equal(canJoin(start, 30, start - JOIN_EARLY_MS), true, "join opens 10 minutes early");
+  assert.equal(canJoin(start, 30, start - JOIN_EARLY_MS - 1), false, "join is closed before the window");
+  assert.equal(canJoin(start, 30, endsAt(start, 30)), true, "join stays open until the planned end");
+  assert.equal(canJoin(start, 30, endsAt(start, 30) + 1), false, "join closes after the planned end");
+  const row = { starts_at: start, duration_min: 30, state: "scheduled", reminded_15: 0, reminded_start: 0, call_id: "" };
+  assert.deepEqual(remindPlan(row, start - REMIND_MS), { remind15: true, remindStart: false, miss: false });
+  assert.deepEqual(remindPlan(row, start - 1), { remind15: true, remindStart: false, miss: false });
+  assert.deepEqual(remindPlan(Object.assign({}, row, { reminded_15: 1 }), start), { remind15: false, remindStart: true, miss: false });
+  assert.deepEqual(remindPlan(row, endsAt(start, 30) + 1), { remind15: false, remindStart: false, miss: true });
+  assert.deepEqual(remindPlan(Object.assign({}, row, { state: "cancelled" }), start), { remind15: false, remindStart: false, miss: false });
+  const ics = icsForSchedule({ title: "Call with Ada", startsAt: start, durationMin: 30, url: "https://example.test/#cs1.token", uid: "abc" });
+  assert.ok(ics.includes("BEGIN:VEVENT"), "the calendar file has an event");
+  assert.ok(ics.includes("TRIGGER:-PT15M"), "the calendar file reminds 15 minutes before");
+  assert.ok(ics.includes("TRIGGER:PT0S"), "the calendar file reminds at the start");
+  assert.ok(ics.includes("https://example.test/#cs1.token"), "the calendar file includes the invite link");
+  const en = fs.readFileSync(path.join(root, "i18n/en.js"), "utf8");
+  const es = fs.readFileSync(path.join(root, "i18n/es.js"), "utf8");
+  const ru = fs.readFileSync(path.join(root, "i18n/ru.js"), "utf8");
+  const hi = fs.readFileSync(path.join(root, "i18n/hi.js"), "utf8");
+  for (const pack of [en, es, ru, hi]) {
+    assert.ok(pack.includes("Scheduled call invites"), "every language pack has the switch name");
+    assert.ok(pack.includes("Schedule a call"), "every language pack has the home button");
+    assert.ok(pack.includes("On iPhone, install the app to get a reminder if you don't add it to your calendar."), "every language pack has the iPhone note");
+  }
+  assert.notEqual(es.split("Scheduled call invites")[1].slice(0, 80), en.split("Scheduled call invites")[1].slice(0, 80), "Spanish translates the switch name");
+  console.log("calls schedule ok");
+}

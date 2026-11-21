@@ -642,3 +642,18 @@ contacts-ui.js|Work
 contacts-ui.js|Home
 contacts-ui.js|Other
 calls.js|{n} selected
+shared/call-schedule.js|BEGIN:VCALENDAR
+shared/call-schedule.js|VERSION:2.0
+shared/call-schedule.js|PRODID:-//Viktorych//Calls//EN
+shared/call-schedule.js|CALSCALE:GREGORIAN
+shared/call-schedule.js|METHOD:PUBLISH
+shared/call-schedule.js|BEGIN:VEVENT
+shared/call-schedule.js|BEGIN:VALARM
+shared/call-schedule.js|ACTION:DISPLAY
+shared/call-schedule.js|Call starts in 15 minutes
+shared/call-schedule.js|TRIGGER:-PT15M
+shared/call-schedule.js|END:VALARM
+shared/call-schedule.js|Call starting
+shared/call-schedule.js|TRIGGER:PT0S
+shared/call-schedule.js|END:VEVENT
+shared/call-schedule.js|END:VCALENDAR

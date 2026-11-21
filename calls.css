@@ -806,3 +806,14 @@
     height: 12px;
   }
 }
+
+/* Scheduled invites: the form sits on the home screen, one tap from Start a call. */
+.calls-sched-form { display: grid; gap: 8px; margin: 12px 0 0; padding: 12px; border: 1px solid var(--c-line, #2f3336); border-radius: 16px; }
+.calls-sched-form label { display: grid; gap: 4px; font-size: 13px; }
+.calls-sched-form input, .calls-sched-form select, .calls-sched-form textarea { width: 100%; }
+.calls-sched-form textarea { min-height: 3.2em; resize: vertical; }
+.calls-sched-note { margin: 8px 0 0; color: var(--c-muted, #8b98a5); font-size: 13px; line-height: 1.4; }
+.calls-sched-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.calls-row .calls-sched-actions { margin-top: 4px; }
+.calls-row.due { outline: 1px solid var(--c-accent, #1d9bf0); }
+.calls-toast.sched .calls-toast-text span { display: block; }

@@ -335,3 +335,62 @@ test("editing call history only hides rows for that user, with undo and clear", 
   assert.equal((await call("/v1/calls/history/hide", { method: "POST", body: { ids: [ids[0]] } })).status, 401);
   assert.equal((await call("/v1/calls/history/hide", { method: "POST", token: ed.token, body: { ids: ["x"] } })).status, 400);
 });
+
+test("scheduled invites can be created, listed, declined, cancelled, and refused early", async () => {
+  const ownerToken = globalThis.__callsOwnerToken;
+  assert.ok(ownerToken, "the first test turned Calls on");
+  const iris = await signup(71, "Iris Example", "iris_example");
+  const jess = await signup(72, "Jess Example", "jess_example");
+  const startsAt = Date.now() + 2 * 60 * 60 * 1000;
+  const made = await call("/v1/calls/schedule", { method: "POST", token: iris.token, body: { handle: "jess_example", startsAt, durationMin: 30, title: "Weekly catch-up" } });
+  assert.equal(made.status, 201, JSON.stringify(made.body));
+  assert.equal(made.body.schedule.title, "Weekly catch-up");
+  assert.equal(made.body.schedule.role, "host");
+  assert.equal(made.body.schedule.handle, "jess_example");
+  assert.ok(/^cs1\.[A-Za-z0-9_-]{8,80}$/.test(made.body.schedule.invite), "the host gets a guest invite");
+  assert.equal(made.body.schedule.canJoin, false);
+
+  const tooSoon = await call("/v1/calls/schedule", { method: "POST", token: iris.token, body: { startsAt: Date.now() + 1000, durationMin: 30 } });
+  assert.equal(tooSoon.status, 400);
+  assert.equal(tooSoon.body.error, "when");
+
+  const listed = await call("/v1/calls/schedule", { token: jess.token });
+  assert.equal(listed.status, 200);
+  const row = (listed.body.schedules || []).find((item) => item.id === made.body.schedule.id);
+  assert.ok(row, "the invitee sees the scheduled call");
+  assert.equal(row.role, "peer");
+  assert.equal(row.canRsvp, true);
+  assert.equal(row.invite, "", "only the host is given the guest token");
+
+  const guest = await call("/v1/calls/schedule/guest?token=" + encodeURIComponent(made.body.schedule.invite));
+  assert.equal(guest.status, 200);
+  assert.equal(guest.body.schedule.hostHandle, "iris_example");
+  assert.equal(guest.body.schedule.canJoin, false);
+
+  const ics = await call("/v1/calls/schedule/" + made.body.schedule.id + "/ics", { token: iris.token });
+  assert.equal(ics.status, 200);
+  assert.ok(String(ics.text || "").includes("TRIGGER:-PT15M"));
+  assert.ok(String(ics.text || "").includes("TRIGGER:PT0S"));
+
+  const early = await call("/v1/calls/schedule/" + made.body.schedule.id + "/start", { method: "POST", token: iris.token, body: {} });
+  assert.equal(early.status, 403);
+  assert.equal(early.body.error, "not_due");
+
+  const rsvp = await call("/v1/calls/schedule/" + made.body.schedule.id + "/rsvp", { method: "POST", token: jess.token, body: { rsvp: "no" } });
+  assert.equal(rsvp.status, 200, JSON.stringify(rsvp.body));
+  assert.equal(rsvp.body.schedule.myRsvp, "no");
+
+  const hostRsvp = await call("/v1/calls/schedule/" + made.body.schedule.id + "/rsvp", { method: "POST", token: iris.token, body: { rsvp: "yes" } });
+  assert.equal(hostRsvp.status, 403);
+
+  const cancelled = await call("/v1/calls/schedule/" + made.body.schedule.id + "/cancel", { method: "POST", token: iris.token, body: {} });
+  assert.equal(cancelled.status, 200);
+  assert.equal(cancelled.body.schedule.state, "cancelled");
+
+  const off = await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls_schedule", off: true } });
+  assert.equal(off.status, 200);
+  assert.equal((await call("/v1/calls/schedule", { token: iris.token })).status, 204);
+  assert.equal((await call("/v1/calls/schedule", { method: "POST", token: iris.token, body: { startsAt: startsAt + 3600000 } })).status, 404);
+  const on = await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls_schedule", off: false } });
+  assert.equal(on.status, 200);
+});
