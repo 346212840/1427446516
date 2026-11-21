@@ -6966,5 +6966,9 @@ SI18n.addPack("hi", {
   "No transcript was saved for this call.": "इस कॉल की ट्रांस्क्रिप्ट सहेजी नहीं गई।",
   "A rename, a note, or a correction is only for you. The other person keeps theirs.": "नाम, नोट या सुधार केवल आपके लिए है। दूसरे व्यक्ति का इतिहास वैसा ही रहता है।",
   "Edit call history": "कॉल इतिहास संपादित करें",
-  "Tap a call in history to rename it, add a note, or correct a transcript line. Changes are only for you. Off hides the editor.": "इतिहास में किसी कॉल पर टैप करके उसका नाम बदलें, नोट जोड़ें, या ट्रांस्क्रिप्ट की पंक्ति सुधारें। बदलाव केवल आपके लिए हैं। बंद करने पर संपादक छिप जाता है।"
+  "Tap a call in history to rename it, add a note, or correct a transcript line. Changes are only for you. Off hides the editor.": "इतिहास में किसी कॉल पर टैप करके उसका नाम बदलें, नोट जोड़ें, या ट्रांस्क्रिप्ट की पंक्ति सुधारें। बदलाव केवल आपके लिए हैं। बंद करने पर संपादक छिप जाता है।",
+  "EU translation route": "EU अनुवाद मार्ग",
+  "Translation goes through the Worker, the API key is sent only as a header, and the key is never shown or logged. Off uses the earlier path that can open Google from the browser.": "अनुवाद Worker के माध्यम से जाता है, API कुंजी केवल हेडर के रूप में भेजी जाती है, और कुंजी कभी दिखाई या लॉग नहीं होती। बंद करने पर पहले वाला पथ चलता है, जो ब्राउज़र से Google खोल सकता है।",
+  "Routed in the EU": "EU में रूट किया गया",
+  "Translation goes through the Worker. The API key stays off this page and is never logged.": "अनुवाद Worker के माध्यम से जाता है। API कुंजी इस पेज पर नहीं रहती और कभी लॉग नहीं होती।"
 });

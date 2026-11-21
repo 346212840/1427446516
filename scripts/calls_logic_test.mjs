@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createLiveSession, directSocketUrl, proxiesAudio, MIC_WORKLET, CHUNK_SAMPLES, OUTPUT_RATE, needsResume, SESSION_REFRESH_MS, createVad, shouldKeepAlive, silenceFrame, pcmB64, createUtterance, KEEP_ALIVE_MS, SILENCE_SAMPLES, HANG_MAX, HANG_MIN } from "../shared/call-gemini.js";
+import { createLiveSession, directSocketUrl, proxiesAudio, MIC_WORKLET, CHUNK_SAMPLES, OUTPUT_RATE, needsResume, SESSION_REFRESH_MS, createVad, shouldKeepAlive, silenceFrame, pcmB64, createUtterance, KEEP_ALIVE_MS, SILENCE_SAMPLES, HANG_MAX, HANG_MIN, geminiHeaders, redactSecret, euProxyHint, GEMINI_REST } from "../shared/call-gemini.js";
 import { isCallLang, CALL_LANGS, detectLang, guessLang } from "../shared/call-langs.js";
 import { outputGains, createJitter, soakJitter, createMeter, createTimeline, normalizeVolumes, MIC_CONSTRAINTS, micConstraints, OPUS_MAX_BITRATE, mergeTranscript, transcriptWords } from "../shared/call-audio.js";
 import { callDecision, dndActive } from "../shared/call-privacy.js";
@@ -1216,4 +1216,37 @@ console.log("calls logic ok", JSON.stringify(report));
   }
   assert.notEqual(es.split("Edit call history")[1].slice(0, 80), en.split("Edit call history")[1].slice(0, 80), "Spanish translates the switch name");
   console.log("calls hist edit ok");
+}
+
+{
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const root = path.join(path.dirname(new URL(import.meta.url).pathname), "..");
+  const js = fs.readFileSync(path.join(root, "calls.js"), "utf8");
+  const flags = fs.readFileSync(path.join(root, "worker/src/feature-flags.js"), "utf8");
+  const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
+  const callsWorker = fs.readFileSync(path.join(root, "worker/src/calls.js"), "utf8");
+  const gemini = fs.readFileSync(path.join(root, "shared/call-gemini.js"), "utf8");
+  assert.ok(flags.includes("calls_eu_proxy"), "the switch is listed with the other Calls flags");
+  assert.ok(app.includes('"calls_eu_proxy"'), "the owner list includes the switch");
+  assert.ok(js.includes("function euProxyFlagOn"), "the call page reads the switch");
+  assert.ok(js.includes("function euProxyChip") && js.includes("Routed in the EU"), "the call screen shows the EU route");
+  assert.ok(callsWorker.includes("euProxyHint") && callsWorker.includes("geminiHeaders"), "the Worker mints through the proxy helper");
+  assert.equal(callsWorker.includes("auth_tokens?key="), false, "the token request does not put the key on the URL");
+  assert.equal(callsWorker.includes("generateContent?key="), false, "generateContent does not put the key on the URL");
+  assert.ok(gemini.includes("x-goog-api-key"), "the helper sends the key as a header");
+  assert.deepEqual(euProxyHint(), { prefer: "relay", proxy: "eu" });
+  assert.equal(geminiHeaders("secret-key-value")["x-goog-api-key"], "secret-key-value");
+  assert.ok(GEMINI_REST.startsWith("https://generativelanguage.googleapis.com"));
+  assert.equal(redactSecret("used secret-key-value in the url", "secret-key-value"), "used [redacted] in the url");
+  const en = fs.readFileSync(path.join(root, "i18n/en.js"), "utf8");
+  const es = fs.readFileSync(path.join(root, "i18n/es.js"), "utf8");
+  const ru = fs.readFileSync(path.join(root, "i18n/ru.js"), "utf8");
+  const hi = fs.readFileSync(path.join(root, "i18n/hi.js"), "utf8");
+  for (const pack of [en, es, ru, hi]) {
+    assert.ok(pack.includes("EU translation route"), "every language pack has the switch name");
+    assert.ok(pack.includes("Routed in the EU"), "every language pack has the on-screen chip");
+  }
+  assert.notEqual(es.split("EU translation route")[1].slice(0, 80), en.split("EU translation route")[1].slice(0, 80), "Spanish translates the switch name");
+  console.log("calls eu proxy ok");
 }

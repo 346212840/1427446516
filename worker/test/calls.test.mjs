@@ -134,12 +134,14 @@ test("calls stay off until the owner turns them on, then privacy is enforced", a
   assert.ok(liveMint.body.setup.systemInstruction.parts[0].text.includes("simultaneous interpreter"));
   assert.equal(JSON.stringify(liveMint.body).includes("k".repeat(30)), false);
 
-  assert.equal(minted.body.prefer, undefined, "an unknown country keeps the default order");
+  assert.equal(minted.body.prefer, "relay", "the EU proxy uses the Worker first");
+  assert.equal(minted.body.proxy, "eu");
   const ruMint = await call("/v1/calls/" + created.body.call.id + "/translate", { method: "POST", token: ada.token, cf: { country: "RU" }, body: { target: "en", source: "ru", key: "k".repeat(30) } });
   assert.equal(ruMint.body.prefer, "relay", "a caller in Russia is told to use the relay first");
   assert.equal(ruMint.body.country, "RU");
   const seMint = await call("/v1/calls/" + created.body.call.id + "/translate", { method: "POST", token: ada.token, cf: { country: "SE" }, body: { target: "en", source: "sv", key: "k".repeat(30) } });
-  assert.equal(seMint.body.prefer, undefined);
+  assert.equal(seMint.body.prefer, "relay", "the EU proxy uses the Worker first even from Sweden");
+  assert.equal(seMint.body.proxy, "eu");
   assert.equal(seMint.body.country, "SE");
 
   const invite = await call("/v1/calls", { method: "POST", token: ada.token, body: { invite: true } });
@@ -553,5 +555,39 @@ test("a caller can rename a history row, add a note, and correct a transcript", 
   assert.equal(off.status, 200);
   assert.equal((await call("/v1/calls/history/edit", { method: "POST", token: pip.token, body: { id, title: "Hidden" } })).status, 404);
   const on = await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls_hist_edit", off: false } });
+  assert.equal(on.status, 200);
+});
+
+test("the EU proxy prefers the Worker relay and never puts the API key on a URL or in the response", async () => {
+  const ownerToken = globalThis.__callsOwnerToken;
+  assert.ok(ownerToken, "the first test turned Calls on");
+  const rio = await signup(103, "Rio Example", "rio_example");
+  await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls", off: false } });
+  await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls_eu_proxy", off: false } });
+
+  const made = await call("/v1/calls", { method: "POST", token: rio.token, body: { invite: true } });
+  assert.equal(made.status, 201, JSON.stringify(made.body));
+  const id = made.body.call.id;
+  const minted = await call("/v1/calls/" + id + "/translate", { method: "POST", token: rio.token, cf: { country: "SE" }, body: { target: "es", key: "k".repeat(30) } });
+  assert.equal(minted.status, 200, JSON.stringify(minted.body));
+  assert.equal(minted.body.mode, "token");
+  assert.equal(minted.body.prefer, "relay");
+  assert.equal(minted.body.proxy, "eu");
+  const packed = JSON.stringify(minted.body);
+  assert.equal(packed.includes("test-key"), false, "the owner key is not in the body");
+  assert.equal(packed.includes("k".repeat(30)), false, "a pasted key is not in the body");
+  assert.equal(String(minted.body.url || "").includes("key="), false);
+
+  const off = await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls_eu_proxy", off: true } });
+  assert.equal(off.status, 200);
+  const direct = await call("/v1/calls/" + id + "/translate", { method: "POST", token: rio.token, cf: { country: "SE" }, body: { target: "es", key: "k".repeat(30) } });
+  assert.equal(direct.status, 200, JSON.stringify(direct.body));
+  assert.equal(direct.body.prefer, undefined, "off restores the earlier country-based order");
+  assert.equal(direct.body.proxy, undefined);
+  const ru = await call("/v1/calls/" + id + "/translate", { method: "POST", token: rio.token, cf: { country: "RU" }, body: { target: "es", key: "k".repeat(30) } });
+  assert.equal(ru.body.prefer, "relay");
+  assert.equal(ru.body.proxy, undefined);
+
+  const on = await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls_eu_proxy", off: false } });
   assert.equal(on.status, 200);
 });

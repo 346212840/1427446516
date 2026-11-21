@@ -199,6 +199,14 @@ function histEditFlagOn() {
   } catch (err) { return true; }
 }
 
+/* Owner switch calls_eu_proxy, on unless the server list says off. */
+function euProxyFlagOn() {
+  try {
+    const list = JSON.parse(localStorage.getItem("viktorychapp-server-off") || "[]");
+    return !(Array.isArray(list) && list.indexOf("calls_eu_proxy") >= 0);
+  } catch (err) { return true; }
+}
+
 /* Owner switch calls_preview, on unless the server list says off. */
 function previewFlagOn() {
   try {
@@ -1114,8 +1122,15 @@ function stageChips() {
     <button type="button" class="calls-schip${subsOn ? " on" : ""}" data-act="call-pop" data-value="subs" aria-haspopup="dialog" aria-expanded="${state.pop === "subs" ? "true" : "false"}" title="${esc(tr("Captions"))}">${ico("captions")}<span>${esc(tr("Captions"))}</span></button>
     ${hearBtn}
     <button type="button" class="calls-schip${state.speakerOn ? " on" : ""}" data-act="call-speaker" aria-pressed="${state.speakerOn ? "true" : "false"}" title="${esc(tr("Speaker"))}">${ico(state.speakerOn ? "speaker" : "speakerOff")}<span>${esc(tr("Speaker"))}</span></button>
-    ${ear}${details}
+    ${ear}${details}${euProxyChip()}
   </div>`;
+}
+function euProxyChip() {
+  if (!euProxyFlagOn() || (state.phase !== "active" && state.phase !== "calling" && !state.test)) return "";
+  const info = (state.partner && state.partner.mintInfo && state.partner.mintInfo()) || (state.engine && state.engine.mintInfo && state.engine.mintInfo()) || null;
+  const on = !info || info.proxy === "eu" || info.prefer === "relay";
+  if (!on && info) return "";
+  return `<span class="calls-schip on" data-euproxy title="${esc(tr("Translation goes through the Worker. The API key stays off this page and is never logged."))}">${esc(tr("Routed in the EU"))}</span>`;
 }
 function chipsHtml() {
   const s = state.stats;
@@ -1129,7 +1144,7 @@ function chipsHtml() {
   parts.push([tr("Packets lost"), s && s.lost != null ? String(s.lost) : "-"]);
   if (latencyFlagOn()) latencyRows(s).slice(0, 3).forEach((row) => parts.push(row));
   if (s && s.turn) parts.push([tr("Translation"), tr("One phrase at a time")]);
-  parts.push([tr("Route"), s ? (s.route === "relay" ? tr("Through our server") : tr("Direct")) : "-"]);
+  parts.push([tr("Route"), euProxyFlagOn() || (info && info.proxy === "eu") ? tr("Routed in the EU") : (s ? (s.route === "relay" ? tr("Through our server") : tr("Direct")) : "-")]);
   parts.push([tr("Per minute"), s && s.perMinute != null ? tr("{n} s of 32", { n: s.perMinute }) : "-"]);
   parts.push([tr("Translation"), !info ? tr("Starting…") : (info.ok && info.mode === "token" ? tr("Ready") : (state.needKey ? tr("Needs a Gemini key") : tr("Text only")))]);
   if (info && info.path) parts.push([tr("Path"), info.path === "live" ? tr("Live interpreter") : tr("Live Translate")]);

@@ -653,7 +653,7 @@ export function createEngine(cfg) {
     }
     const path = String((res.data && res.data.path) || "");
     if (path === "live") liveFallback = true;
-    E._mint = { ok: true, status: res.status, reason: String((res.data && res.data.reason) || ""), source: String((res.data && res.data.keySource) || ""), mode: String((res.data && res.data.mode) || ""), path: path, at: now() };
+    E._mint = { ok: true, status: res.status, reason: String((res.data && res.data.reason) || ""), source: String((res.data && res.data.keySource) || ""), mode: String((res.data && res.data.mode) || ""), path: path, proxy: String((res.data && res.data.proxy) || ""), prefer: String((res.data && res.data.prefer) || ""), at: now() };
     return res.data;
   }
   function makePipe(isTx, target, voice, out) {

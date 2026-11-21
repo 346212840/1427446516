@@ -3,6 +3,29 @@
    chunks, and only when the local voice detector hears someone. */
 
 export const GEMINI_WS = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained";
+
+export const GEMINI_REST = "https://generativelanguage.googleapis.com";
+
+/* The API key goes only in this header, never on the URL (so it cannot
+   appear in request logs). */
+export function geminiHeaders(key, extra) {
+  const headers = Object.assign({ "content-type": "application/json" }, extra || {});
+  if (key) headers["x-goog-api-key"] = key;
+  return headers;
+}
+
+export function redactSecret(text, secret) {
+  const raw = String(text == null ? "" : text);
+  const value = String(secret || "");
+  if (!value || value.length < 8) return raw;
+  return raw.split(value).join("[redacted]");
+}
+
+/* When the EU proxy switch is on, the live session goes through the Worker
+   instead of the browser opening Google itself. */
+export function euProxyHint() {
+  return { prefer: "relay", proxy: "eu" };
+}
 export const INPUT_RATE = 16000;
 export const OUTPUT_RATE = 24000;
 export const CHUNK_MS = 100;

@@ -104,3 +104,7 @@ With this switch on (the default), a Practice with AI button sits on the signed-
 
 With this switch on (the default), tap a call in history to rename it, add a note, or correct a transcript line. When a call ends, the transcript from that call is saved for you. A rename, a note, or a correction is only for you; the other person keeps theirs. Off hides the editor.
 
+## EU translation route (calls_eu_proxy)
+
+With this switch on (the default), a live session goes through the Worker proxy first instead of the browser opening Google itself. The Gemini API key is sent only as a request header, never on the URL, and is stripped from responses and error text so it cannot appear in logs. A “Routed in the EU” chip is on the call screen. Off restores the earlier path: the browser may open Google directly, and only some countries are told to use the relay first. This does not pin Google’s model to an EU region; the consumer Gemini API has no official EU hostname, and inference still runs in Google’s regions.
+

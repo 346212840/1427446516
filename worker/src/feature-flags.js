@@ -206,7 +206,11 @@ export const FEATURES = {
   calls_practice: { paths: [] },
   /* Rename a call in history, add a note, and correct a transcript
      line. On by default. Off hides the editor. */
-  calls_hist_edit: { paths: [] }
+  calls_hist_edit: { paths: [] },
+  /* Live translation goes through the Worker proxy, the API key is only
+     sent as a header, and the key is never logged or returned. On by
+     default. Off uses the earlier direct-to-Google path. */
+  calls_eu_proxy: { paths: [] }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 
