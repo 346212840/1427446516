@@ -22,6 +22,8 @@ A Practice with AI button (`calls_practice`, on by default) on the Calls home sc
 
 Tap a call in history (`calls_hist_edit`, on by default) to rename it, add a note, or correct a transcript line. A finished call saves its transcript for you. Changes are only for you. Off hides the editor.
 
+Live translation is routed through the Worker (`calls_eu_proxy`, on by default). The Gemini API key is sent only as a header and is never returned or logged. Off uses the earlier path that can open Google from the browser. This routes the session through the Worker; it does not pin Google's inference region.
+
 ## How to work on this repo
 
 Any person or agent can take over from this section. Rules for shipping, checks and merges are here. Longer history is in `docs/HANDOFF.md`. The agent guide is `AGENTS.md`.

@@ -14,7 +14,7 @@ import { cleanWho, callDecision, dndActive } from "../../shared/call-privacy.js"
 import { normalizeMode } from "../../shared/call-mode.js";
 import { liveSetup, livePath, rejectsClone, cleanVoice } from "../../shared/call-setup.js";
 import { lexiconHint } from "../../shared/call-quality.js";
-import { directSocketUrl } from "../../shared/call-gemini.js";
+import { directSocketUrl, GEMINI_REST, geminiHeaders, redactSecret, euProxyHint } from "../../shared/call-gemini.js";
 import { encryptMaterial, decryptMaterial } from "../../shared/owner-keys.js";
 import { isOwnerViewer } from "./owner-view.js";
 import { signalAdmit } from "../../shared/call-status.js";
@@ -304,9 +304,9 @@ export function relayHint(request) {
 async function requestToken(key, setup) {
   const exp = new Date(Date.now() + 10 * 60 * 1000).toISOString();
   const fresh = new Date(Date.now() + 2 * 60 * 1000).toISOString();
-  return fetch("https://generativelanguage.googleapis.com/v1alpha/auth_tokens?key=" + encodeURIComponent(key), {
+  return fetch(GEMINI_REST + "/v1alpha/auth_tokens", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: geminiHeaders(key),
     body: JSON.stringify({
       uses: 1,
       expireTime: exp,
@@ -364,9 +364,9 @@ async function translateText(env, key, text, target, hint) {
   let hardError = "";
   for (const model of TEXT_MODELS) {
     try {
-      const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + encodeURIComponent(key), {
+      const response = await fetch(GEMINI_REST + "/v1beta/models/" + model + ":generateContent", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: geminiHeaders(key),
         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
       });
       if (response.status === 429) return { error: "quota" };
@@ -394,9 +394,9 @@ async function generateText(env, key, prompt) {
   let hardError = "";
   for (const model of TEXT_MODELS) {
     try {
-      const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + encodeURIComponent(key), {
+      const response = await fetch(GEMINI_REST + "/v1beta/models/" + model + ":generateContent", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: geminiHeaders(key),
         body: JSON.stringify({ contents: [{ parts: [{ text: clipped }] }] })
       });
       if (response.status === 429) return { error: "quota" };
@@ -618,7 +618,7 @@ export async function handleCalls(request, env, path, url, deps) {
       if (!KEY_SHAPE.test(value)) return deps.json(400, { error: "bad_key" });
       if (!mockKey(env, value)) {
         let check = null;
-        try { check = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=1", { headers: { "x-goog-api-key": value } }); } catch (err) { check = null; }
+        try { check = await fetch(GEMINI_REST + "/v1beta/models?pageSize=1", { headers: geminiHeaders(value) }); } catch (err) { check = null; }
         if (!check || !check.ok) return deps.json(400, { error: "bad_key" });
       }
       const sealed = await encryptMaterial(env.KEYS_ENC_KEY, KEY_SLOT(id), value);
@@ -964,10 +964,10 @@ export async function handleCalls(request, env, path, url, deps) {
     const minted = await geminiToken(env, picked.key, target, body.voice, lexiconHint(body.lexicon), body.source, typeof body.resume === "string" ? body.resume : "", path);
     minted.keySource = picked.source;
     Object.assign(minted, relayHint(request));
-    if (minted.reason === "quota" || minted.mode === "text") return deps.json(200, minted);
-    const packed = JSON.stringify(minted);
+    if (!off.calls_eu_proxy) Object.assign(minted, euProxyHint());
+    const packed = redactSecret(JSON.stringify(minted), picked.key);
     if (packed.includes(picked.key)) return deps.json(500, { error: "unavailable" });
-    return deps.json(200, minted);
+    return deps.json(200, JSON.parse(packed));
   }
   if (action === "/preview" && request.method === "POST") {
     const paced = await deps.rateHit(env, "callprev:" + self, 90, 10 * 60 * 1000);

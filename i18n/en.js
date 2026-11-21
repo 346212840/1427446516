@@ -6976,5 +6976,9 @@ SI18n.addPack("en", {
   "No transcript was saved for this call.": "No transcript was saved for this call.",
   "A rename, a note, or a correction is only for you. The other person keeps theirs.": "A rename, a note, or a correction is only for you. The other person keeps theirs.",
   "Edit call history": "Edit call history",
-  "Tap a call in history to rename it, add a note, or correct a transcript line. Changes are only for you. Off hides the editor.": "Tap a call in history to rename it, add a note, or correct a transcript line. Changes are only for you. Off hides the editor."
+  "Tap a call in history to rename it, add a note, or correct a transcript line. Changes are only for you. Off hides the editor.": "Tap a call in history to rename it, add a note, or correct a transcript line. Changes are only for you. Off hides the editor.",
+  "EU translation route": "EU translation route",
+  "Translation goes through the Worker, the API key is sent only as a header, and the key is never shown or logged. Off uses the earlier path that can open Google from the browser.": "Translation goes through the Worker, the API key is sent only as a header, and the key is never shown or logged. Off uses the earlier path that can open Google from the browser.",
+  "Routed in the EU": "Routed in the EU",
+  "Translation goes through the Worker. The API key stays off this page and is never logged.": "Translation goes through the Worker. The API key stays off this page and is never logged."
 });

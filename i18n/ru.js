@@ -6978,5 +6978,9 @@ SI18n.addPack("ru", {
   "No transcript was saved for this call.": "Для этого звонка расшифровка не сохранена.",
   "A rename, a note, or a correction is only for you. The other person keeps theirs.": "Новое имя, заметка или исправление видны только вам. У собеседника остаётся своя история.",
   "Edit call history": "Правка истории звонков",
-  "Tap a call in history to rename it, add a note, or correct a transcript line. Changes are only for you. Off hides the editor.": "Нажмите звонок в истории, чтобы переименовать его, добавить заметку или исправить строку расшифровки. Изменения только для вас. Выключено: редактор скрыт."
+  "Tap a call in history to rename it, add a note, or correct a transcript line. Changes are only for you. Off hides the editor.": "Нажмите звонок в истории, чтобы переименовать его, добавить заметку или исправить строку расшифровки. Изменения только для вас. Выключено: редактор скрыт.",
+  "EU translation route": "Маршрут перевода в ЕС",
+  "Translation goes through the Worker, the API key is sent only as a header, and the key is never shown or logged. Off uses the earlier path that can open Google from the browser.": "Перевод идёт через Worker, ключ API передаётся только в заголовке и никогда не показывается и не пишется в журналы. Выключено: прежний путь, который может открыть Google из браузера.",
+  "Routed in the EU": "Через ЕС",
+  "Translation goes through the Worker. The API key stays off this page and is never logged.": "Перевод идёт через Worker. Ключ API не остаётся на этой странице и не записывается в журналы."
 });

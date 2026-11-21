@@ -6979,5 +6979,9 @@ SI18n.addPack("es", {
   "No transcript was saved for this call.": "No se guardó una transcripción de esta llamada.",
   "A rename, a note, or a correction is only for you. The other person keeps theirs.": "Un nombre, una nota o una corrección son solo para ti. La otra persona conserva los suyos.",
   "Edit call history": "Editar el historial de llamadas",
-  "Tap a call in history to rename it, add a note, or correct a transcript line. Changes are only for you. Off hides the editor.": "Toca una llamada del historial para cambiarle el nombre, añadir una nota o corregir una línea de la transcripción. Los cambios son solo para ti. Desactivado oculta el editor."
+  "Tap a call in history to rename it, add a note, or correct a transcript line. Changes are only for you. Off hides the editor.": "Toca una llamada del historial para cambiarle el nombre, añadir una nota o corregir una línea de la transcripción. Los cambios son solo para ti. Desactivado oculta el editor.",
+  "EU translation route": "Ruta de traducción en la UE",
+  "Translation goes through the Worker, the API key is sent only as a header, and the key is never shown or logged. Off uses the earlier path that can open Google from the browser.": "La traducción pasa por el Worker, la clave de API se envía solo como encabezado y la clave nunca se muestra ni se registra. Desactivado usa la ruta anterior, que puede abrir Google desde el navegador.",
+  "Routed in the EU": "Enrutado en la UE",
+  "Translation goes through the Worker. The API key stays off this page and is never logged.": "La traducción pasa por el Worker. La clave de API no queda en esta página y nunca se registra."
 });
