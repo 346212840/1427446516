@@ -1556,7 +1556,7 @@ console.log("calls logic ok", JSON.stringify(report));
   const fs = await import("node:fs");
   const reach = await import("../shared/call-reach.js");
   assert.ok(reach.REQUEST_TOKEN.test("cq1.abcdefgh12345678") && !reach.REQUEST_TOKEN.test("cs1.abcdefgh12345678"), "request tokens are their own kind");
-  assert.ok(reach.looksSpammy("visit https://spam.example") && reach.looksSpammy("mail me a@b.co") && reach.looksSpammy("+1 555 123 4567 8"), "links, emails and phone runs are spam");
+  assert.ok(reach.looksSpammy("visit https://spam.example") && reach.looksSpammy("mail me a@b.co") && reach.looksSpammy("+1 555 123 4567 8"), "links, emails and phone runs are spam"); // secret-scan: allow fake phone run used to test the spam filter
   assert.ok(!reach.looksSpammy("Hola, ¿hablamos del proyecto?"), "a plain note is fine");
   const now = Date.now();
   assert.ok(!reach.requestWhenOk(now + 5 * 60 * 1000, now) && reach.requestWhenOk(now + 60 * 60 * 1000, now) && !reach.requestWhenOk(now + 90 * 24 * 60 * 60 * 1000, now), "a request needs 15 minutes to 60 days of notice");
