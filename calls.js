@@ -1796,7 +1796,8 @@ async function joinRotateQr(tokenValue) {
   if (!res || !res.ok) { state.error = errorFor(res); paint(); return; }
   state.guestToken = res.data.guestToken || "";
   state.statusCode = "calling";
-  state.peerName = (res.data && res.data.name) || "";
+  /* The join answer carries the scanner's own name; the owner name comes from the QR info. */
+  state.peerName = (state.linkInfo && state.linkInfo.name) || "";
   const ok = await begin({ id: res.data.call.id, ticket: res.data.ticket, iceServers: res.data.iceServers }, "guest");
   if (!ok) return;
   rememberGuestSession(res.data.guestExpiresAt);

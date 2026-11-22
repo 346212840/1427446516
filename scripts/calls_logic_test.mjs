@@ -1573,4 +1573,7 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.ok(!/owner_id|public_id|handle/.test(worker.slice(worker.indexOf("function viewForVisitor"), worker.indexOf("function viewForOwner"))), "a visitor never sees owner ids");
   assert.ok(worker.includes('return deps.json(200, { available: available, requests: !!owner && !self, self: self });'), "the public read says only whether the owner can be reached");
   console.log("calls owner reach ok");
+  const qr = page.slice(page.indexOf("async function joinRotateQr("), page.indexOf("async function joinRotateQr(") + 1200);
+  assert.ok(qr.includes('state.peerName = (state.linkInfo && state.linkInfo.name) || "";') && !qr.includes("state.peerName = (res.data && res.data.name)"), "a QR caller sees the owner name, not their own");
+  console.log("calls qr peer name ok");
 }
