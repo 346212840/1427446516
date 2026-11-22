@@ -2390,7 +2390,7 @@ const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "
       calls_schedule: [tr("Scheduled call invites"), tr("Schedule a call from the Calls page: pick a time, invite someone or share a guest link, add it to your calendar, and get a reminder 15 minutes before and at the start. Off hides scheduling and skips the reminders.")],
       calls_orig_vol: [tr("Original voice volume"), tr("The original-voice volume slider sits on the call screen, next to a one-tap switch to hear their original voice. Off leaves the slider only in Settings and the Sound sheet.")],
       calls_rotate_qr: [tr("Rotating call QR"), tr("A QR code on the Calls home screen refreshes every two minutes. When someone scans it, it rings you like an incoming call. Off hides the code.")],
-      calls_practice: [tr("Practice partner"), tr("A Practice with AI button on the Calls home screen starts a call with a partner that replies on its own, so you can practice a translated call without a second person. Off hides the button.")],
+      calls_practice: [tr("Practice partner"), tr("A Practice with AI mode inside the Test call: a partner that replies on its own by voice, so you can practice a translated call without a second person. Off leaves only the translate test.")],
       calls_hist_edit: [tr("Edit call history"), tr("Tap a call in history to rename it, add a note, or correct a transcript line. Changes are only for you. Off hides the editor.")],
       calls_eu_proxy: [tr("EU translation route"), tr("Translation goes through the Worker, the API key is sent only as a header, and the key is never shown or logged. Off uses the earlier path that can open Google from the browser.")]
     };

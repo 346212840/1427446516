@@ -200,9 +200,10 @@ export const FEATURES = {
      refreshes every two minutes. Scanning it rings you like an
      incoming call. On by default. Off hides the code. */
   calls_rotate_qr: { paths: [] },
-  /* Optional AI practice partner on the Calls home screen. One tap
-     starts a call with a partner that replies on its own. On by
-     default. Off hides the button. */
+  /* Optional AI practice partner as a mode of the one Test call (a
+     Translate test / Practice with AI switch on the test and call
+     screens). It replies on its own by voice. On by default. Off
+     leaves only the translate test. */
   calls_practice: { paths: [] },
   /* Rename a call in history, add a note, and correct a transcript
      line. On by default. Off hides the editor. */

@@ -1480,6 +1480,7 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.ok(practiceGreet("ru").includes("ru"), "the greeting is in the partner language");
   assert.ok(page.includes("t.vmic = vmicAc.createMediaStreamDestination()") && page.includes("return t.vmic.stream"), "the practice voice goes into the call like a real peer's microphone");
   assert.ok(page.includes('practiceReply("", true)'), "the practice partner speaks first");
+  assert.ok(!/setTimeout\([^;]*practiceReply/.test(page) && page.includes("function practiceGreetWhenReady()") && page.includes('if (d.code === "translating-ready" && !d.mine) state.test.rxReady = true;'), "it greets once the call and translator are ready, with no timer");
   assert.ok(page.includes("The practice partner did not answer. Say something again."), "a missing reply is shown, never silent");
   assert.ok(page.includes("PRACTICE_ECHO_MS") && page.includes("t.pendingHeard"), "its own echo is ignored and a line said while it thinks is kept");
   assert.ok(worker.includes("TTS_MODELS") && worker.includes('responseModalities: ["AUDIO"]'), "the Worker voices the reply with Gemini speech");
@@ -1533,4 +1534,20 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.ok(engine.includes("rx.source !== peer.lang") && engine.includes("const target = isTx ? (peer.lang || old.target) : mineLang();"), "the translator learns the speaker language when it arrives and a language change reaches it");
   assert.ok(worker.includes("response.status === 400 && !plain"), "a refused voice-detection setting retries with the defaults");
   console.log("calls spanish asr ok");
+}
+
+{
+  const fs = await import("node:fs");
+  const page = fs.readFileSync(new URL("../calls.js", import.meta.url), "utf8");
+  const css = fs.readFileSync(new URL("../calls.css", import.meta.url), "utf8");
+  assert.ok(!page.includes('data-act="call-practice"'), "one Test call button; Practice with AI is a mode inside it");
+  assert.ok(page.includes('data-act="call-test-kind"') && page.includes('function testKindSwitch(kind) {\n  if (!practiceFlagOn()) return "";'), "the Translate test / Practice with AI switch is on the test screens and gated by calls_practice");
+  assert.ok(page.includes('${state.test ? testKindSwitch(state.test.practice ? "practice" : "translate") : ""}'), "the switch sits on the call screen itself");
+  assert.ok(page.includes('if (prep.kind === "practice" && practiceFlagOn())'), "Start on the practice mode starts the practice partner");
+  ["lang", "sound", "mic", "subs", "settings", "test"].forEach((tab) => assert.ok(page.includes('if (tab === "' + tab + '") return'), "the bar sheet has the " + tab + " section"));
+  assert.ok(page.includes('const go = (tab, pop) => inSheet ? ["call-sheet-tab"'), "tiles in the sheet open their section in place");
+  assert.ok(page.includes('if (e.target.closest(".calls-sheet-body, .calls-sheet-tabs")) { barDrag = null; return; }'), "a drag inside a section scrolls it instead of moving the sheet");
+  assert.ok(!/barDrag = \{[^}]*\};\s*try \{ if \(e\.pointerId != null && bar\.setPointerCapture\)/.test(page) && page.includes("barDrag.bar.setPointerCapture(barDrag.pid)"), "the bar takes pointer capture only once a drag starts, so a mouse click on a bar button still lands");
+  assert.ok(css.includes(".calls-sheet-body {") && /\.calls-sheet-body \{[^}]*overflow-y: auto/.test(css), "a long section scrolls inside the sheet");
+  console.log("calls test modes and sheet sections ok");
 }
