@@ -3509,7 +3509,7 @@ async function startPractice(lang) {
 function practiceGreetWhenReady() {
   const t = state.test;
   if (!t || !t.practice || t.greeted || !state.partner) return;
-  if (!t.linkUp || !(t.rxReady || t.noVoice || state.needKey || state.turnFallback)) return;
+  if (!t.linkUp || !(t.rxReady || t.noVoice || sameLang(t.lang, myLang()) || state.needKey || state.turnFallback)) return;
   t.greeted = true;
   practiceReply("", true);
 }
