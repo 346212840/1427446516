@@ -697,7 +697,7 @@ function convThread() {
 function convBlock() {
   const empty = state.lines.length || (state.partial && (state.partial.original || state.partial.translation)) ? "" : `<p class="calls-empty">${esc(tr("Messages and what was said show up here."))}</p>`;
   return `<section class="calls-conv" aria-label="${esc(tr("Chat"))}"><div class="calls-convbody">${convThread()}${empty}</div>
-    <form class="calls-type calls-compose" data-act="call-type-form">${previewCard()}<input name="text" maxlength="500" aria-label="${esc(tr("Type to them"))}" placeholder="${esc(tr("Type to them"))}" autocomplete="off"><button type="submit" class="cb send" aria-label="${esc(tr("Send"))}">${ico("outgoing")}</button></form></section>`;
+    <form class="calls-type calls-compose" data-act="call-type-form">${previewCard()}<input name="text" maxlength="500" aria-label="${esc(tr("Type to them"))}" placeholder="${esc(tr("Type to them"))}" autocomplete="off" enterkeyhint="send"><button type="submit" class="cb send" aria-label="${esc(tr("Send"))}">${ico("outgoing")}</button></form></section>`;
 }
 function threadBlock() {
   return `<div class="calls-thread" data-size="${esc(state.capSize)}">${state.lines.slice(-30).map(bubble).join("")}</div>`;
@@ -1087,7 +1087,7 @@ function panelBlock() {
   else if (state.panel === "test" && state.test) body = `<div class="calls-sheet">${testPanel()}</div>`;
   else {
     body = `<div class="calls-sheet calls-chat">${threadBlock()}${state.lines.length ? "" : `<p class="calls-empty">${esc(tr("Messages and what was said show up here."))}</p>`}</div>
-      <form class="calls-type calls-compose" data-act="call-type-form">${previewCard()}<input name="text" maxlength="500" aria-label="${esc(tr("Type to them"))}" placeholder="${esc(tr("Type to them"))}" autocomplete="off"><button type="submit" class="cb send" aria-label="${esc(tr("Send"))}">${ico("outgoing")}</button></form>`;
+      <form class="calls-type calls-compose" data-act="call-type-form">${previewCard()}<input name="text" maxlength="500" aria-label="${esc(tr("Type to them"))}" placeholder="${esc(tr("Type to them"))}" autocomplete="off" enterkeyhint="send"><button type="submit" class="cb send" aria-label="${esc(tr("Send"))}">${ico("outgoing")}</button></form>`;
   }
   return `<aside class="calls-panel${state.panelAnim ? " enter" : ""}" data-open="1" aria-label="${esc(tr(state.panel === "chat" ? "Chat" : "Settings"))}">${head}${body}</aside>`;
 }
@@ -1102,7 +1102,7 @@ function callScreen() {
   const timer = state.startedAt ? clock(Date.now() - state.startedAt) : "";
   const noteBar = state.mode.send === "note" ? (state.review ? `<div class="calls-review"><button type="button" class="calls-go" data-act="call-note-send">${esc(tr("Send"))}</button><button type="button" data-act="call-note-cancel">${esc(tr("Cancel voice note"))}</button></div>` : `<button type="button" class="calls-talk" data-act="call-talk">${esc(state.recording ? tr("Slide to cancel") : tr("Hold to talk"))}</button>`) : "";
   const conv = convShown();
-  const typeBar = !conv && (state.mode.send === "text" || state.noMic) && state.panel !== "chat" ? `<form class="calls-type calls-float" data-act="call-type-form">${previewCard()}<input name="text" maxlength="500" aria-label="${esc(tr("Type to them"))}" placeholder="${esc(tr("Type to them"))}" autocomplete="off"><button type="submit" class="cb send" aria-label="${esc(tr("Send"))}">${ico("outgoing")}</button></form>` : "";
+  const typeBar = !conv && (state.mode.send === "text" || state.noMic) && state.panel !== "chat" ? `<form class="calls-type calls-float" data-act="call-type-form">${previewCard()}<input name="text" maxlength="500" aria-label="${esc(tr("Type to them"))}" placeholder="${esc(tr("Type to them"))}" autocomplete="off" enterkeyhint="send"><button type="submit" class="cb send" aria-label="${esc(tr("Send"))}">${ico("outgoing")}</button></form>` : "";
   const nomic = state.noMic ? `<button type="button" class="calls-nomic" data-act="call-allowmic">${ico("micOff")}<span>${esc(tr("Allow microphone"))}</span></button>` : "";
   const hint = state.hintSeen ? "" : `<p class="calls-hint">${esc(tr("You can type instead of talking."))}</p>`;
   return `<div class="calls-page live" data-call-active="1" data-video="0" data-phase="${esc(state.phase)}" data-panel="${state.panel ? "1" : "0"}" data-conv="${conv ? "1" : "0"}"${onescreenFlagOn() ? " data-onescreen=\"1\"" : ""}">
@@ -2216,7 +2216,8 @@ function paint() {
   const el = host();
   if (!el || !el.parentElement) return;
   const focus = document.activeElement;
-  const keep = focus && focus.name && el.contains(focus) ? { name: focus.name, value: focus.value } : null;
+  const keepForm = focus && focus.form && focus.form.dataset ? focus.form.dataset.act : "";
+  const keep = focus && focus.name && el.contains(focus) ? { name: focus.name, value: focus.value, form: keepForm, start: focus.selectionStart, end: focus.selectionEnd } : null;
   const sheet = el.querySelector(".calls-sheet");
   const scroll = sheet ? sheet.scrollTop : 0;
   const convBody = el.querySelector(".calls-convbody");
@@ -2227,8 +2228,13 @@ function paint() {
   el.outerHTML = page(state.route);
   const fresh = host();
   if (keep && fresh) {
-    const input = fresh.querySelector(`input[name="${keep.name}"]`);
-    if (input) { input.value = keep.value; input.focus(); }
+    const scoped = keep.form ? fresh.querySelector(`form[data-act="${keep.form}"] [name="${keep.name}"]`) : null;
+    const input = scoped || fresh.querySelector(`input[name="${keep.name}"]`);
+    if (input) {
+      input.value = keep.value;
+      try { input.focus({ preventScroll: true }); } catch (err) { input.focus(); }
+      try { if (keep.start != null) input.setSelectionRange(keep.start, keep.end); } catch (err) { /* not a text field */ }
+    }
   }
   const sheetNow = fresh && fresh.querySelector(".calls-sheet");
   if (sheetNow) sheetNow.scrollTop = scroll;
@@ -2241,6 +2247,33 @@ function paint() {
   if (state.phase === "active") startOrientation();
   maybePrejoinMic();
   syncBarSheetSize();
+  syncKeyboard();
+}
+/* The on-screen keyboard shrinks only the visual viewport on iOS and recent
+   Android Chrome. Fit the call to the visible area while it is open, so the
+   composer and Send stay above the keyboard instead of under it. */
+let keyboardBound = false;
+function syncKeyboard() {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  if (!keyboardBound) {
+    keyboardBound = true;
+    vv.addEventListener("resize", syncKeyboard);
+    vv.addEventListener("scroll", syncKeyboard);
+  }
+  const page = host();
+  if (!page) return;
+  const root = document.documentElement;
+  const open = state.phase === "active" && window.innerHeight - vv.height > 120 && !!(document.activeElement && document.activeElement.matches && document.activeElement.matches("input, textarea"));
+  if (open) {
+    root.style.setProperty("--calls-vv-top", Math.max(0, Math.round(vv.offsetTop)) + "px");
+    root.style.setProperty("--calls-vv-h", Math.round(vv.height) + "px");
+    if (page.dataset.kb !== "1") page.dataset.kb = "1";
+  } else if (page.dataset.kb === "1") {
+    delete page.dataset.kb;
+    root.style.removeProperty("--calls-vv-top");
+    root.style.removeProperty("--calls-vv-h");
+  }
 }
 /* Cheap updates while a call runs: no full repaint, so typing keeps focus. */
 function live() {
@@ -2673,7 +2706,9 @@ function onEngineEvent(type, d) {
     state.translating = d.on;
     live();
   } else if (type === "needKey") {
-    state.needKey = d.reason === "badkey" ? "badkey" : "nokey";
+    const next = d.reason === "badkey" ? "badkey" : "nokey";
+    if (state.needKey === next) return;
+    state.needKey = next;
     paint();
   } else if (type === "quota") {
     if (d.reason === "quota") {
@@ -2767,7 +2802,7 @@ async function begin(info, role, extra) {
 
   state.error = "";
   stopMicCheck();
-  state.panel = state.test ? "test" : "";
+  state.panel = "";
   state.more = false;
   state.callId = info.id;
   state.phase = "calling";
@@ -3162,7 +3197,9 @@ async function startPartner(invite) {
         state.whoLabel = tr("You") + " → " + langName(state.test.lang);
         live();
       } else if (type === "needKey") {
-        state.needKey = d && d.reason === "badkey" ? "badkey" : "nokey";
+        const next = d && d.reason === "badkey" ? "badkey" : "nokey";
+        if (state.needKey === next) return;
+        state.needKey = next;
         if (host()) paint();
       }
     }
@@ -3436,6 +3473,10 @@ function onAct(act, el) {
 }
 
 function onPointer(event) {
+  /* Keep the mobile keyboard open between pointerdown and the native click
+     submit. Blurring here can resize the viewport and move Send off the tap. */
+  const send = event.target.closest && event.target.closest('form[data-act="call-type-form"] button[type="submit"]');
+  if (send && (event.button == null || event.button === 0)) event.preventDefault();
   const talk = event.target.closest && event.target.closest(".calls-talk");
   if (!talk || state.mode.send !== "note" || !state.engine) return;
   state.talkX = event.clientX;
@@ -3581,7 +3622,8 @@ function onSubmit(event) {
       pieces.forEach((piece) => pushLine({ who: tr("You"), mine: true, typed: true, original: piece, status: "failed", sent: false }));
       live();
     }
-    focusType();
+    /* iOS only honours keyboard focus synchronously in the user gesture. */
+    if (input && input.isConnected) { try { input.focus({ preventScroll: true }); } catch (err) { input.focus(); } }
   } else if (act === "call-link-form") {
     const slug = form.elements.slug.value;
     saveLink({ method: "PUT", body: JSON.stringify({ slug: slug }) });
@@ -3685,6 +3727,8 @@ function mount(route) {
     target.addEventListener("input", onInput);
     target.addEventListener("change", onChange);
     target.addEventListener("submit", onSubmit, true);
+    target.addEventListener("focusin", syncKeyboard);
+    target.addEventListener("focusout", () => setTimeout(syncKeyboard, 80));
     document.addEventListener("visibilitychange", micRecheck);
     window.addEventListener("focus", micRecheck);
     window.addEventListener("pageshow", micRecheck);
