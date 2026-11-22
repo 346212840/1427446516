@@ -4,6 +4,8 @@ Written 2026-11-21 (UTC). The Pages directory is the repository name, read from 
 
 ## Calls
 
+The slide-up call bar (`calls_bar_sheet`) now holds every Calls setting as tabs one tap away: Controls, Languages, Sound (translation, original and call volume), Microphone, Captions, Invite, Settings (voice, pronunciations, Gemini key, connection and EU route) and the Test or Practice partner during a test. Tiles in the sheet open their section in place instead of a second sheet or a deep screen; the section scrolls inside the sheet and a drag there scrolls instead of closing it. The home screen has a single Test call button. With a mouse, bar buttons (Mute, Leave, the handle) work again: the bar used to capture the pointer on press, which sent the click to the bar instead of the button.
+
 Speech recognition (Spanish and every other language): the microphone is resampled to 16 kHz with a ~7 kHz low-pass and interpolation instead of a 3-sample average (high hiss no longer folds into the speech band; 44.1 kHz phones no longer jitter), 500 ms before speech is kept even right after the other side spoke, and the server's voice detection is set to high start sensitivity, 300 ms prefix padding and 800 ms silence (a refused setting retries once with the defaults). Live Translate has no source-language field, so the speaker language goes in the instruction on both the Live Translate and the fallback path. The translator now learns the speaker's language when it arrives after the socket opened, and a language change mid-call reaches it (it used to keep its first target and no source).
 
 Practice with AI talks like a real person on the call: it says hello first, answers in its language with a Gemini voice (`gemini-3.8-flash-lite-tts`, then `gemini-3.8-flash-tts`), and that voice is fed into the partner's virtual microphone, so it reaches you over the same WebRTC call and Live Translate path as a real peer (original under the translation, captions, bubbles, real latency). If the voice is not available the reply is sent as a typed message. A failed reply says so on the call screen. Lines heard while its own voice or translation is still playing are ignored as echo.
@@ -25,7 +27,7 @@ The original-voice volume slider (`calls_orig_vol`, on by default) sits on the c
 
 A rotating QR code (`calls_rotate_qr`, on by default) sits on the Calls home screen and refreshes every two minutes. Scanning it rings you like an incoming call. The previous code stays valid until it expires so a mid-scan still works. Off hides the code.
 
-A Practice with AI button (`calls_practice`, on by default) on the Calls home screen starts a call with a partner that replies on its own, so you can practice a translated call without a second person. Off hides the button.
+Practice with AI (`calls_practice`, on by default) is a mode of the one Test call: a Translate test / Practice with AI switch sits on the test screen and on the call screen itself (switching mid-call ends that test and starts the other at once). Off leaves only the translate test.
 
 Tap a call in history (`calls_hist_edit`, on by default) to rename it, add a note, or correct a transcript line. A finished call saves its transcript for you. Changes are only for you. Off hides the editor.
 

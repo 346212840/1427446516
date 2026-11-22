@@ -860,3 +860,50 @@
 .calls-page[data-onescreen="1"][data-conv="1"][data-kb="1"] .calls-compose { bottom: 4px; }
 .calls-page.live[data-kb="1"][data-conv="1"] .calls-stage > :not(.calls-conv) { display: none; }
 .calls-page.live[data-kb="1"][data-conv="1"] .calls-conv { flex: 1 1 0; min-height: 0; }
+
+/* ---- test modes and settings sections in the bar sheet ---- */
+.calls-testkind { justify-content: center; margin: 0 0 8px; }
+.calls-testkind .calls-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; }
+.calls-testkind .calls-pill svg { width: 18px; height: 18px; }
+.calls-testkind .calls-pill[disabled] { opacity: 0.6; }
+.calls-bar[data-sheet="1"][data-open="1"] .calls-bar-sheet {
+  max-height: min(70vh, 34rem);
+  display: flex;
+  flex-direction: column;
+}
+.calls-sheet-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  padding: 0 2px 8px;
+  flex: none;
+  touch-action: pan-x;
+}
+.calls-sheet-tabs::-webkit-scrollbar { display: none; }
+.calls-sheet-tab {
+  flex: none;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 18px;
+  border: 1px solid var(--c-line);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.calls-sheet-tab.on { background: var(--c-fill); color: var(--c-on-fill); border-color: var(--c-fill); }
+.calls-sheet-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: min(58vh, 28rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  padding: 0 2px 6px;
+}
+.calls-sheet-body .calls-sheet { padding: 0; max-height: none; overflow: visible; }

@@ -883,7 +883,7 @@ function newBar() {
     ${earSupported() ? cbtn("call-ear", "ear", tr("Ear mode"), { pressed: state.ear.on }).replace('class="cb', 'class="cb cb-extra') : ""}
     ${popBtn("invite", "link", tr("Invite"), { extra: true })}
     ${popBtn("tray", "more", tr("More"), { extra: true })}`;
-  const more = sheet ? `<div class="calls-bar-sheet">${popTray()}</div>` : "";
+  const more = sheet ? `<div class="calls-bar-sheet">${sheetTabs()}<div class="calls-sheet-body" data-sheet-tab="${esc(state.sheetTab || "")}">${sheetBody()}</div></div>` : "";
   const main = `<span class="cb-split">${micBtn}${caret}</span>
     ${popBtn("lang", "translate", tr("Languages"))}
     ${popBtn("subs", "captions", tr("Captions"), { cls: subsOn ? "" : "dim" })}
@@ -967,19 +967,58 @@ function trayTile(act, icon, label, data, on) {
   const d = data ? Object.keys(data).map((k) => ` data-${k}="${esc(data[k])}"`).join("") : "";
   return `<button type="button" class="calls-tilebtn${on ? " on" : ""}" data-act="${act}"${d}>${ico(icon)}<span>${esc(label)}</span></button>`;
 }
-function popTray() {
+function popTray(inSheet) {
+  /* Inside the slide-up sheet every tile opens its section right there, never a second sheet or a deep screen. */
+  const go = (tab, pop) => inSheet ? ["call-sheet-tab", { value: tab }] : (pop === "more" ? ["call-more", null] : pop === "test" ? ["call-panel", { value: "test" }] : ["call-pop", { value: pop }]);
+  const t = (tab, pop, icon, label) => { const g = go(tab, pop); return trayTile(g[0], icon, label, g[1]); };
   const tiles = [
-    trayTile("call-pop", "mic", tr("Microphone and sending"), { value: "mic" }),
-    trayTile("call-pop", state.speakerOn ? "speaker" : "speakerOff", tr("Sound"), { value: "sound" }),
+    t("mic", "mic", "mic", tr("Microphone and sending")),
+    t("sound", "sound", state.speakerOn ? "speaker" : "speakerOff", tr("Sound")),
     earSupported() ? trayTile("call-ear", "ear", tr("Ear mode")) : "",
     state.test ? trayTile("call-test-hear", "voice", tr("Hear my translation"), null, state.test.hear) : "",
-    trayTile("call-pop", "link", tr("Invite"), { value: "invite" }),
+    t("invite", "invite", "link", tr("Invite")),
     trayTile("call-repeat", "note", tr("Repeat that")),
-    state.test ? trayTile("call-panel", "test", tr("Test partner"), { value: "test" }) : "",
+    state.test ? t("test", "test", "test", state.test.practice ? tr("Practice partner") : tr("Test partner")) : "",
     state.test ? trayTile("call-test-info", "info", tr("Call details"), null, state.testInfo) : "",
-    trayTile("call-more", "settings", tr("All settings"))
+    t("settings", "more", "settings", tr("All settings"))
   ].join("");
   return `<div class="calls-tiles">${tiles}</div>`;
+}
+/* calls_bar_sheet: the whole Calls settings and the test partner are sections of the slide-up bar, one tap away. */
+const SHEET_TABS = ["", "lang", "sound", "mic", "subs", "invite", "settings", "test"];
+function sheetTabList() {
+  const list = [["", tr("Controls")], ["lang", tr("Languages")], ["sound", tr("Sound")], ["mic", tr("Microphone")], ["subs", tr("Captions")], ["invite", tr("Invite")], ["settings", tr("Settings")]];
+  if (state.test) list.push(["test", state.test.practice ? tr("Practice partner") : tr("Test partner")]);
+  return list;
+}
+function sheetTabs() {
+  const cur = state.sheetTab || "";
+  return `<div class="calls-sheet-tabs" role="tablist" aria-label="${esc(tr("Call settings"))}">${sheetTabList().map((row) => `<button type="button" role="tab" class="calls-sheet-tab${cur === row[0] ? " on" : ""}" data-act="call-sheet-tab" data-value="${row[0]}" aria-selected="${cur === row[0] ? "true" : "false"}">${esc(row[1])}</button>`).join("")}</div>`;
+}
+function sheetBody() {
+  let tab = state.sheetTab || "";
+  if (tab === "test" && !state.test) tab = state.sheetTab = "";
+  if (tab === "lang") return popLang();
+  if (tab === "sound") return popSound();
+  if (tab === "mic") return popMic();
+  if (tab === "subs") return popSubs();
+  if (tab === "invite") return popInvite();
+  if (tab === "settings") return moreSheet();
+  if (tab === "test") return testPanel();
+  return popTray(true);
+}
+function setSheetTab(tab) {
+  const next = SHEET_TABS.indexOf(tab) >= 0 ? tab : "";
+  if (state.sheetTab === "mic" && next !== "mic" && state.micCheck && state.phase === "active") stopMicCheck();
+  state.sheetTab = next;
+  state.barOpen = true;
+  state.pop = "";
+  paint();
+  const body = document.querySelector(".calls-sheet-body");
+  if (body) body.scrollTop = 0;
+  const on = document.querySelector(".calls-sheet-tab.on");
+  const row = on && on.parentNode;
+  if (row && row.scrollTo) row.scrollTo({ left: Math.max(0, on.offsetLeft - (row.clientWidth - on.offsetWidth) / 2), behavior: "smooth" });
 }
 function popBlock() {
   if (!barFlagOn() || !state.pop || POPS.indexOf(state.pop) < 0) return "";
@@ -1018,10 +1057,12 @@ function barDown(e) {
   const bar = e.target.closest(".calls-bar, .calls-pop.tray");
   if (!bar) { barSwipe = null; return; }
   if (barSheetFlagOn() && bar.classList.contains("calls-bar")) {
+    if (e.target.closest(".calls-sheet-body, .calls-sheet-tabs")) { barDrag = null; return; }
     const onHandle = !!e.target.closest(".calls-handle");
     const onBtn = !!e.target.closest(".cb, .calls-tilebtn, .cb-caret, input, select, a, .calls-x");
-    barDrag = { y: e.clientY, x: e.clientX, open: !!state.barOpen, fromHandle: onHandle, fromBtn: onBtn && !onHandle, moved: false, bar: bar };
-    try { if (e.pointerId != null && bar.setPointerCapture) bar.setPointerCapture(e.pointerId); } catch (err) { /* capture is optional */ }
+    /* No pointer capture yet: a capture taken on press retargets the click to the bar, so with a mouse no bar button
+       (Mute, Leave, the handle) worked. The bar captures the pointer only once a drag has really started. */
+    barDrag = { y: e.clientY, x: e.clientX, open: !!state.barOpen, fromHandle: onHandle, fromBtn: onBtn && !onHandle, moved: false, bar: bar, pid: e.pointerId };
     return;
   }
   barSwipe = { y: e.clientY, tray: !!e.target.closest(".calls-pop.tray") };
@@ -1037,6 +1078,7 @@ function barMove(e) {
     if (barDrag.fromBtn && Math.abs(dyRaw) < 16) return;
     barDrag.moved = true;
     barDrag.bar.dataset.dragging = "1";
+    try { if (barDrag.pid != null && barDrag.bar.setPointerCapture) barDrag.bar.setPointerCapture(barDrag.pid); } catch (err) { /* capture is optional */ }
   }
   const sheet = barDrag.bar.querySelector(".calls-bar-sheet");
   if (!sheet) return;
@@ -1111,6 +1153,7 @@ function callScreen() {
       <div class="calls-meta"><span class="calls-status" data-translating="${state.translating ? "1" : "0"}">${esc(statusText())}</span>${reconnectChip()}<span class="calls-timer">${esc(timer)}</span></div>
     </header>
     <main class="calls-stage">
+      ${state.test ? testKindSwitch(state.test.practice ? "practice" : "translate") : ""}
       ${keyPanel()}
       ${invite}
       ${onescreenFlagOn() ? "" : (conv && !state.testInfo ? "" : testStrip())}
@@ -1782,7 +1825,6 @@ function homeScreen(opts) {
       <div class="calls-hero-row">
         <button type="button" class="calls-big" data-act="call-invite">${ico("link")}<span>${esc(tr("Get call link"))}</span></button>
         <button type="button" class="calls-big ghost" data-act="call-test">${ico("test")}<span>${esc(tr("Test call"))}</span></button>
-        ${practiceFlagOn() ? `<button type="button" class="calls-big ghost" data-act="call-practice">${ico("voice")}<span>${esc(tr("Practice with AI"))}</span></button>` : ""}
         ${scheduleFlagOn() ? `<button type="button" class="calls-big ghost" data-act="call-sched-open">${ico("link")}<span>${esc(tr("Schedule a call"))}</span></button>` : ""}
       </div>
       <div class="calls-modes" role="group" aria-label="${esc(tr("Link lasts"))}">${pill("ttl", "60", String(state.inviteTtl), tr("1 hour"))}${pill("ttl", "1440", String(state.inviteTtl), tr("24 hours"))}</div>
@@ -3031,17 +3073,17 @@ function setMuted(on) {
 /* ---------- self test ---------- */
 /* Test call. A pre-join screen first: join from another device with a QR code or a link,
    or start with a simulated partner that joins by itself. */
-async function prepareTest() {
+async function prepareTest(quiet) {
   if (!signedIn()) return;
   state.error = "";
   const res = await api("/v1/calls", { method: "POST", body: JSON.stringify({ invite: true, ttlMin: 30 }) }).catch(() => null);
   if (!res || !res.ok) { state.error = errorFor(res); paint(); return; }
   const base = standalone() ? new URL("./", location.href) : new URL("calls/", document.baseURI);
-  state.testPrep = { id: res.data.call.id, invite: res.data.invite, url: base.href + "#" + res.data.invite, other: false, lang: myLang() === "en" ? "es" : "en", copied: false };
+  state.testPrep = { id: res.data.call.id, invite: res.data.invite, url: base.href + "#" + res.data.invite, other: false, lang: myLang() === "en" ? "es" : "en", copied: false, kind: practiceFlagOn() && state.testKind === "practice" ? "practice" : "translate" };
   clearInterval(state.testPoll);
   state.testPoll = setInterval(pollTestPrep, 2000);
   loadQr();
-  paint();
+  if (!quiet) paint();
 }
 async function pollTestPrep() {
   const prep = state.testPrep;
@@ -3067,6 +3109,12 @@ async function startTest() {
   const prep = state.testPrep;
   if (!prep || !signedIn()) return;
   clearInterval(state.testPoll);
+  if (prep.kind === "practice" && practiceFlagOn()) {
+    state.testPrep = null;
+    api("/v1/calls/" + prep.id + "/end", { method: "POST", body: "{}" }).catch(() => null);
+    await startPractice(prep.lang);
+    return;
+  }
   state.error = "";
   const tk = await api("/v1/calls/" + prep.id + "/ticket", { method: "POST", body: "{}" }).catch(() => null);
   if (!tk || !tk.ok) { state.error = errorFor(tk); paint(); return; }
@@ -3112,11 +3160,42 @@ function qrSvg(text) {
     return qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
   } catch (err) { return ""; }
 }
+/* One Test call with two modes side by side on the screen itself (calls_practice gates the second one):
+   translate your own words, or talk with the AI practice partner. */
+function testKindSwitch(kind) {
+  if (!practiceFlagOn()) return "";
+  const opt = (value, icon, label) => `<button type="button" role="radio" class="calls-pill${kind === value ? " on" : ""}" data-act="call-test-kind" data-value="${value}" aria-checked="${kind === value ? "true" : "false"}"${state.testSwitching ? " disabled" : ""}>${ico(icon)}<span>${esc(label)}</span></button>`;
+  return `<div class="calls-modes calls-testkind" role="radiogroup" aria-label="${esc(tr("Test mode"))}">${opt("translate", "translate", tr("Translate test"))}${opt("practice", "voice", tr("Practice with AI"))}</div>`;
+}
+async function switchTestKind(value) {
+  const kind = value === "practice" && practiceFlagOn() ? "practice" : "translate";
+  state.testKind = kind;
+  if (state.testPrep) { state.testPrep.kind = kind; paint(); return; }
+  const t = state.test;
+  if (!t || state.testSwitching || !!t.practice === (kind === "practice")) return;
+  /* A practice call is its own call on the server, so switching ends this test and starts the other at once. */
+  state.testSwitching = true;
+  const lang = t.lang;
+  paint();
+  try {
+    await teardown(false);
+    state.barOpen = false;
+    if (kind === "practice") await startPractice(lang);
+    else {
+      await prepareTest(true);
+      if (state.testPrep) { state.testPrep.lang = lang; await startTest(); }
+    }
+  } finally {
+    state.testSwitching = false;
+    paint();
+  }
+}
 function testPrepScreen() {
   const prep = state.testPrep;
   const mc = state.micCheck;
   const err = state.error ? `<p class="calls-error" role="alert">${esc(state.error)}</p>` : "";
   const qr = qrSvg(prep.url);
+  const practiceOn = practiceFlagOn() && prep.kind === "practice";
   return `<div class="calls-page calls-join${standalone() ? " calls-solo" : ""}" data-phase="testprep" data-video="0">
     <header class="calls-top"><div class="calls-brand"><span class="calls-logo">${ico("phone")}</span><b>${esc(tr("Test call"))}</b></div><button type="button" class="calls-x" data-act="call-test-cancel" aria-label="${esc(tr("Close"))}">${ico("close")}</button></header>
     <div class="calls-prejoin">
@@ -3136,19 +3215,20 @@ function testPrepScreen() {
       </div>
       <div class="calls-joinform">
         <h1>${esc(tr("Test call"))}</h1>
+        ${testKindSwitch(practiceOn ? "practice" : "translate")}
         ${err}
         <label class="calls-vol"><span>${esc(tr("I speak"))}</span><select data-act="call-lang">${langOptions(myLang())}</select></label>
-        <label class="calls-vol"><span>${esc(tr("Translate me into"))}</span><select data-act="call-test-prep-lang">${langOptions(prep.lang)}</select></label>
-        <section class="calls-device" data-device>
+        <label class="calls-vol"><span>${esc(practiceOn ? tr("Partner speaks") : tr("Translate me into"))}</span><select data-act="call-test-prep-lang">${langOptions(prep.lang)}</select></label>
+        ${practiceOn ? "" : `<section class="calls-device" data-device>
           <h3>${esc(tr("Join from another device"))}</h3>
           <div class="calls-qr" aria-label="${esc(tr("QR code for the other device"))}">${qr || `<span class="calls-empty">${esc(tr("Loading the QR code…"))}</span>`}</div>
           <p class="calls-privacy">${esc(tr("Scan with your phone or open in another tab."))}</p>
           <div class="calls-invite"><input readonly value="${esc(prep.url)}" aria-label="${esc(tr("Guest link"))}" data-invite><button type="button" data-act="call-test-copy">${esc(prep.copied ? tr("Copied") : tr("Copy link"))}</button></div>
           <a class="calls-pill calls-newtab" href="${esc(prep.url)}" target="_blank" rel="noopener">${esc(tr("Open in new tab"))}</a>
           ${testStatusHtml()}
-        </section>
-        <button type="button" class="calls-big join" data-act="call-test-start">${ico("phone")}<span>${esc(prep.other ? tr("Start with your other device") : tr("Start test call"))}</span></button>
-        <p class="calls-privacy">${esc(tr("No second device? A simulated partner joins by itself and you hear your own words translated."))}</p>
+        </section>`}
+        <button type="button" class="calls-big join" data-act="call-test-start">${ico(practiceOn ? "voice" : "phone")}<span>${esc(practiceOn ? tr("Start practice") : (prep.other ? tr("Start with your other device") : tr("Start test call")))}</span></button>
+        <p class="calls-privacy">${esc(practiceOn ? tr("An AI partner talks with you in the language you pick, through the same live translation as a real call.") : tr("No second device? A simulated partner joins by itself and you hear your own words translated."))}</p>
       </div>
     </div>
   </div>`;
@@ -3222,12 +3302,12 @@ function testReply(text) {
   if (!clean || !state.partner) return;
   state.partner.sendText(clean);
 }
-async function startPractice() {
+async function startPractice(lang) {
   if (!practiceFlagOn() || !signedIn()) return;
   state.error = "";
   const res = await api("/v1/calls", { method: "POST", body: JSON.stringify({ practice: true }) }).catch(() => null);
   if (!res || !res.ok) { state.error = errorFor(res); paint(); return; }
-  state.test = { lang: myLang() === "en" ? "es" : "en", hear: false, lines: [], partial: { original: "", translation: "" }, practice: true, turns: [] };
+  state.test = { lang: normalizeLang(lang) || (myLang() === "en" ? "es" : "en"), hear: false, lines: [], partial: { original: "", translation: "" }, practice: true, turns: [] };
   state.statusCode = "waiting";
   state.peerName = tr("Practice partner");
   const ok = await begin({ id: res.data.call.id, ticket: res.data.ticket, iceServers: res.data.iceServers }, "host");
@@ -3426,6 +3506,8 @@ function onAct(act, el) {
   else if (act === "call-invite") startInvite();
   else if (act === "call-test") prepareTest();
   else if (act === "call-practice") startPractice();
+  else if (act === "call-test-kind") switchTestKind(el.dataset.value || "");
+  else if (act === "call-sheet-tab") setSheetTab(el.dataset.value || "");
   else if (act === "call-capsize") { if (CAP_SIZES.indexOf(el.dataset.value) >= 0) { state.capSize = el.dataset.value; saveDevice(); paint(); } }
   else if (act === "call-ear") enterEar(false);
   else if (act === "call-ear-raise") { toggleEarRaise(); }
