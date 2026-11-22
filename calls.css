@@ -845,3 +845,18 @@
 .calls-histedit .calls-side-head { display: flex; align-items: center; justify-content: space-between; }
 .calls-histedit textarea { width: 100%; resize: vertical; }
 .calls-histedit .calls-go { margin: 8px 0 12px; }
+
+/* Short screens and the keyboard must scroll the stage, not put the composer
+   underneath the fixed call bar. Keep its minimum conversation height intact. */
+.calls-page[data-onescreen="1"][data-conv="1"] .calls-stage { overflow-y: auto; scroll-padding-bottom: calc(var(--calls-bar-h, 96px) + 8px); }
+.calls-page[data-onescreen="1"][data-conv="1"] .calls-conv { flex-shrink: 0; min-height: min(12rem, 30vh); }
+
+.calls-page[data-onescreen="1"][data-conv="1"] .calls-compose { position: sticky; bottom: calc(var(--calls-bar-h, 96px) + 8px); z-index: 2; }
+
+/* Keyboard open: the call fills only the visible area and the composer sits on the keyboard. */
+.calls-page.live[data-kb="1"] { top: var(--calls-vv-top, 0); bottom: auto; height: var(--calls-vv-h, 100%); }
+.calls-page.live[data-kb="1"] .calls-bar { display: none; }
+.calls-page.live[data-kb="1"] .calls-stage { padding-bottom: 8px; scroll-padding-bottom: 8px; }
+.calls-page[data-onescreen="1"][data-conv="1"][data-kb="1"] .calls-compose { bottom: 4px; }
+.calls-page.live[data-kb="1"][data-conv="1"] .calls-stage > :not(.calls-conv) { display: none; }
+.calls-page.live[data-kb="1"][data-conv="1"] .calls-conv { flex: 1 1 0; min-height: 0; }
