@@ -5,6 +5,7 @@ Written 2026-11-21 (UTC). The Pages directory is the repository name, read from 
 ## Calls
 
 One tap on Send always sends on a phone: the composer is never under the call bar, the keyboard stays open, the box clears and the bubble shows at once, and Enter (the keyboard's Send key) sends too. While the keyboard is open the call fits the visible area with the conversation and composer above the keyboard. A test call opens on the call screen, not behind the Test partner sheet, and a repaint no longer reopens or moves focus to a different text box.
+By default both people hear the original voice at 35% of the chosen overall level, smoothly ducked to 17.5% while translation is playing; the original-volume slider overrides the resting level. Test calls use the same mix. Already translated audio from a peer in translation-only mode is audible even with original voice off.
 
 Voice and text calls (`calls`, off until the owner turns it on) are in `#/calls`. The key is the Worker secret `GEMINI_API_KEY`. Details: `docs/CALLS.md`. No camera. Catalan and Swedish are supported targets. Privacy, blocks, and quiet hours are enforced on the server. Guests join from a link with no account. The call screen is mute, speaker, hang up, and talk or type. The rest is under More.
 

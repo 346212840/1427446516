@@ -453,8 +453,12 @@ export function createEngine(cfg) {
       playTts: m.receive !== "text"
     });
     const t = ac.currentTime;
-    const original = !translated || degraded ? Math.min(1, volumes().overall) : g.original;
-    origOut.gain.setTargetAtTime(Math.min(1, original), t, 0.05);
+    /* A peer in translation-only mode sends already translated audio on the
+       remote bus. It is speech to play, not the original voice to suppress. */
+    const original = pre ? g.translation : (!translated || degraded ? Math.min(1, volumes().overall) : g.original);
+    /* Duck quickly, come back slowly: no clicks and no pumping between words. */
+    const origTo = Math.min(1, original);
+    origOut.gain.setTargetAtTime(origTo, t, origTo > origOut.gain.value ? 0.25 : 0.05);
     const trans = pre ? volumes().overall : g.translation;
     transOut.gain.setTargetAtTime(Math.min(1, trans), t, 0.03);
     master.gain.setTargetAtTime(cfg.speakerOn && !cfg.speakerOn() ? 0.4 : 1, t, 0.05);

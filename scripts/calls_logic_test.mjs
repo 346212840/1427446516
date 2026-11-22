@@ -1458,3 +1458,16 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.ok(page.includes("form[data-act=\"${keep.form}\"]"), "a repaint returns focus to the same text box");
   console.log("calls send tap ok");
 }
+
+{
+  const defaults = outputGains({}, { hearOriginal: true, playTranslation: true });
+  const talking = outputGains({}, { hearOriginal: true, playTranslation: true, translating: true });
+  assert.ok(defaults.original >= 0.3 && defaults.original <= 0.4, "the original voice rests below the translation by default");
+  assert.ok(talking.original >= 0.15 && talking.original <= 0.2, "the original ducks further during translated speech");
+  assert.ok(defaults.translation > defaults.original && talking.translation > talking.original);
+  assert.equal(outputGains({ original: 0 }, { hearOriginal: true, playTranslation: true, translating: true }).original, 0, "a manual zero stays silent");
+  const fs = await import("node:fs");
+  const engine = fs.readFileSync(new URL("../shared/call-engine.js", import.meta.url), "utf8");
+  assert.ok(engine.includes("const original = pre ? g.translation :"), "already translated audio on the remote bus uses the translation gain, not the suppressed original gain");
+  console.log("calls translated remote mix ok");
+}

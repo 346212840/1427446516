@@ -3,12 +3,15 @@
 
 export const VOLUME_DEFAULTS = {
   translation: 0.85,
-  original: 0.28,
+  original: 0.35,
   overall: 1,
   ring: 0.7,
   mic: 1,
   tts: 0.85
 };
+
+/* How far the original voice drops while a translation is playing. */
+export const DUCK_RATIO = 0.5;
 
 export const VOLUME_KEYS = Object.keys(VOLUME_DEFAULTS);
 
@@ -51,11 +54,11 @@ export function normalizeVolumes(raw) {
 export function outputGains(volumes, state) {
   const v = normalizeVolumes(volumes);
   const flags = state || {};
+  /* v.original is the original voice between phrases, always under the
+     translation by default. While the translation plays it ducks to half,
+     unless the calls_duck switch leaves it up. */
   let original = v.original;
-  /* v.original is the quiet level under a translation. Between phrases it
-     comes back up. The calls_duck switch can leave it up while translating. */
-  const rest = original > 0 ? Math.min(1, Math.max(original, original / 0.35)) : 0;
-  if (original > 0 && (!flags.translating || flags.duck === false)) original = rest;
+  if (original > 0 && flags.translating && flags.duck !== false) original = original * DUCK_RATIO;
   if (!flags.hearOriginal) original = 0;
   return {
     original: original * v.overall,
