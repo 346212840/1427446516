@@ -6955,6 +6955,7 @@ SI18n.addPack("hi", {
   "Practice partner": "अभ्यास साथी",
   "The practice partner replies on its own after you speak or type.": "आप बोलने या टाइप करने के बाद अभ्यास साथी खुद जवाब देता है।",
   "The practice partner is busy. Try again in a moment.": "अभ्यास साथी व्यस्त है। थोड़ी देर बाद फिर कोशिश करें।",
+  "The practice partner did not answer. Say something again.": "अभ्यास साथी ने जवाब नहीं दिया। फिर से कुछ कहिए।",
   "A Practice with AI button on the Calls home screen starts a call with a partner that replies on its own, so you can practice a translated call without a second person. Off hides the button.": "कॉल्स होम स्क्रीन पर «AI के साथ अभ्यास» बटन एक ऐसे साथी के साथ कॉल शुरू करता है जो खुद जवाब देता है, ताकि बिना दूसरे व्यक्ति के अनुवादित कॉल का अभ्यास किया जा सके। बंद करने पर बटन छिप जाता है।",
   "Transcript": "ट्रांस्क्रिप्ट",
   "Open call details": "कॉल की जानकारी खोलें",

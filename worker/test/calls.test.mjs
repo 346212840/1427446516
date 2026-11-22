@@ -483,6 +483,11 @@ test("a practice partner can be started and replies on its own", async () => {
   assert.equal(replied.status, 200, JSON.stringify(replied.body));
   assert.ok(replied.body.reply, "the mock key returns a spoken reply");
   assert.equal(JSON.stringify(replied.body).includes("test-key"), false, "the key is not returned");
+  const greeted = await call("/v1/calls/practice", { method: "POST", token: ownerToken, body: { id, greet: true, voice: true, lang: "ru", turns: [] } });
+  assert.equal(greeted.status, 200, JSON.stringify(greeted.body));
+  assert.ok(greeted.body.reply, "the partner says hello first when the call connects");
+  assert.equal(typeof greeted.body.audio, "string", "a voice reply field is always present");
+  assert.equal(JSON.stringify(greeted.body).includes("test-key"), false, "the key is not returned with a voice reply");
 
   const noKey = await call("/v1/calls", { method: "POST", token: nia.token, body: { practice: true } });
   assert.equal(noKey.status, 201, JSON.stringify(noKey.body));

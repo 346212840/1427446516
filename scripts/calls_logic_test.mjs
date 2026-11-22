@@ -1471,3 +1471,17 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.ok(engine.includes("const original = pre ? g.translation :"), "already translated audio on the remote bus uses the translation gain, not the suppressed original gain");
   console.log("calls translated remote mix ok");
 }
+
+{
+  const fs = await import("node:fs");
+  const page = fs.readFileSync(new URL("../calls.js", import.meta.url), "utf8");
+  const worker = fs.readFileSync(new URL("../worker/src/calls.js", import.meta.url), "utf8");
+  const { practiceGreet } = await import("../shared/call-practice.js");
+  assert.ok(practiceGreet("ru").includes("ru"), "the greeting is in the partner language");
+  assert.ok(page.includes("t.vmic = vmicAc.createMediaStreamDestination()") && page.includes("return t.vmic.stream"), "the practice voice goes into the call like a real peer's microphone");
+  assert.ok(page.includes('practiceReply("", true)'), "the practice partner speaks first");
+  assert.ok(page.includes("The practice partner did not answer. Say something again."), "a missing reply is shown, never silent");
+  assert.ok(page.includes("PRACTICE_ECHO_MS") && page.includes("t.pendingHeard"), "its own echo is ignored and a line said while it thinks is kept");
+  assert.ok(worker.includes("TTS_MODELS") && worker.includes('responseModalities: ["AUDIO"]'), "the Worker voices the reply with Gemini speech");
+  console.log("calls practice voice ok");
+}

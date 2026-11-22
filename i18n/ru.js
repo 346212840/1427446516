@@ -6967,6 +6967,7 @@ SI18n.addPack("ru", {
   "Practice partner": "Партнёр для практики",
   "The practice partner replies on its own after you speak or type.": "Партнёр для практики отвечает сам, после того как вы скажете или напишете.",
   "The practice partner is busy. Try again in a moment.": "Партнёр для практики сейчас занят. Попробуйте ещё раз через минуту.",
+  "The practice partner did not answer. Say something again.": "Партнёр для практики не ответил. Скажите что-нибудь ещё раз.",
   "A Practice with AI button on the Calls home screen starts a call with a partner that replies on its own, so you can practice a translated call without a second person. Off hides the button.": "Кнопка «Практика с ИИ» на главном экране «Звонки» начинает звонок с партнёром, который отвечает сам, чтобы вы могли практиковать перевод без второго человека. Выключено: кнопка скрыта.",
   "Transcript": "Расшифровка",
   "Open call details": "Открыть сведения о звонке",

@@ -413,6 +413,34 @@ async function generateText(env, key, prompt) {
   return { text: clipped, translation: "", error: "unavailable" };
 }
 
+/* The practice partner's voice: one short reply spoken in its language, so it
+   can go through the same call audio and Live Translate path as a real peer. */
+const TTS_MODELS = ["gemini-3.8-flash-lite-tts", "gemini-3.8-flash-tts"];
+const PRACTICE_VOICE = "Kore";
+async function generateSpeech(env, key, text) {
+  const clipped = String(text || "").slice(0, 400);
+  if (!clipped || mockKey(env, key)) return { audio: "", mime: "" };
+  for (const model of TTS_MODELS) {
+    try {
+      const response = await fetch(GEMINI_REST + "/v1beta/models/" + model + ":generateContent", {
+        method: "POST",
+        headers: geminiHeaders(key),
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: clipped }] }],
+          generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: PRACTICE_VOICE } } } }
+        })
+      });
+      if (response.status === 429) return { audio: "", mime: "", error: "quota" };
+      if (!response.ok) continue;
+      const data = await response.json().catch(() => ({}));
+      const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+      const hit = (parts || []).find((part) => part && part.inlineData && part.inlineData.data);
+      if (hit && hit.inlineData.data.length < 3000000) return { audio: String(hit.inlineData.data), mime: String(hit.inlineData.mimeType || "audio/l16;rate=24000") };
+    } catch (err) { /* try the next model */ }
+  }
+  return { audio: "", mime: "" };
+}
+
 function viewCall(row) {
   return {
     id: row.id,
@@ -597,7 +625,7 @@ export async function handleCalls(request, env, path, url, deps) {
   if (rotateQr) return rotateQr;
 
   const practice = await handleCallPractice(request, env, path, url, deps, {
-    member, mintTicket, callIceServers, sha256Hex, b64url, hex, viewCall, cleanName, pickKey, generateText, normalizeLang
+    member, mintTicket, callIceServers, sha256Hex, b64url, hex, viewCall, cleanName, pickKey, generateText, generateSpeech, normalizeLang
   });
   if (practice) return practice;
 

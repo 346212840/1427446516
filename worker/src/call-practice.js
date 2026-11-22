@@ -4,7 +4,7 @@
    translates and speaks it. */
 
 import { readFlags } from "./feature-flags.js";
-import { practiceTalk, PRACTICE_LIMIT } from "../../shared/call-practice.js";
+import { practiceTalk, practiceGreet, PRACTICE_LIMIT } from "../../shared/call-practice.js";
 
 export async function handleCallPractice(request, env, path, url, deps, h) {
   if (path !== "/v1/calls/practice") return null;
@@ -31,20 +31,23 @@ export async function handleCallPractice(request, env, path, url, deps, h) {
   const paced = await deps.rateHit(env, "callpractice:" + (who.account ? who.account.public_id : who.guest.guestId), PRACTICE_LIMIT, 60 * 60 * 1000);
   if (!paced.ok) return deps.limited(paced);
 
-  const heard = String((body && body.text) || "").replace(/\s+/g, " ").trim().slice(0, 400);
-  if (!heard) return deps.json(400, { error: "text" });
+  const greet = body && body.greet === true;
+  const heard = greet ? "" : String((body && body.text) || "").replace(/\s+/g, " ").trim().slice(0, 400);
+  if (!heard && !greet) return deps.json(400, { error: "text" });
   const lang = h.normalizeLang(body.lang) || "en";
   const turns = Array.isArray(body.turns) ? body.turns.slice(-6) : [];
-  const prompt = practiceTalk(heard, lang, turns);
+  const prompt = greet ? practiceGreet(lang) : practiceTalk(heard, lang, turns);
   const picked = await h.pickKey(env, row, who, self, body);
   if (!picked.key) return deps.json(200, { text: heard, reply: "", lang: lang, reason: picked.source === "ringing" ? "ringing" : "nokey" });
   const out = await h.generateText(env, picked.key, prompt);
   if (out && out.error === "quota") return deps.json(200, { text: heard, reply: "", lang: lang, reason: "quota" });
   if (out && out.error === "badkey") return deps.json(200, { text: heard, reply: "", lang: lang, reason: "badkey" });
   const reply = String((out && (out.translation || out.text)) || "").replace(/\s+/g, " ").trim().slice(0, 400);
+  let voice = { audio: "", mime: "" };
+  if (reply && body.voice === true && h.generateSpeech) voice = await h.generateSpeech(env, picked.key, reply);
   const packed = JSON.stringify({ reply: reply, lang: lang, reason: "" });
-  if (picked.key && packed.includes(picked.key)) return deps.json(500, { error: "unavailable" });
-  return deps.json(200, { text: heard, reply: reply, lang: lang, reason: reply ? "" : "unavailable" });
+  if (picked.key && (packed.includes(picked.key) || voice.mime.includes(picked.key))) return deps.json(500, { error: "unavailable" });
+  return deps.json(200, { text: heard, reply: reply, lang: lang, reason: reply ? "" : "unavailable", audio: voice.audio || "", audioMime: voice.audio ? voice.mime : "" });
 }
 
 export async function startPracticeSession(env, request, deps, h) {

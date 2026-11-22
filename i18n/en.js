@@ -6965,6 +6965,7 @@ SI18n.addPack("en", {
   "Practice partner": "Practice partner",
   "The practice partner replies on its own after you speak or type.": "The practice partner replies on its own after you speak or type.",
   "The practice partner is busy. Try again in a moment.": "The practice partner is busy. Try again in a moment.",
+  "The practice partner did not answer. Say something again.": "The practice partner did not answer. Say something again.",
   "A Practice with AI button on the Calls home screen starts a call with a partner that replies on its own, so you can practice a translated call without a second person. Off hides the button.": "A Practice with AI button on the Calls home screen starts a call with a partner that replies on its own, so you can practice a translated call without a second person. Off hides the button.",
   "Transcript": "Transcript",
   "Open call details": "Open call details",
