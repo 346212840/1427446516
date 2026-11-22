@@ -1443,3 +1443,18 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.ok(page.includes("async function peerEnded") && page.includes('d.code === "ended"'), "the call screen shows that the call has ended");
   console.log("calls peer ended ok");
 }
+
+{
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const root = path.join(path.dirname(new URL(import.meta.url).pathname), "..");
+  const page = fs.readFileSync(path.join(root, "calls.js"), "utf8");
+  const css = fs.readFileSync(path.join(root, "calls.css"), "utf8");
+  assert.ok(page.includes('form[data-act="call-type-form"] button[type="submit"]') && page.includes("event.preventDefault()"), "tapping Send keeps the keyboard open so one tap sends");
+  assert.ok(page.includes('enterkeyhint="send"'), "the keyboard shows Send and Enter sends");
+  assert.ok(page.includes("function syncKeyboard") && css.includes('.calls-page.live[data-kb="1"]'), "the composer sits above the on-screen keyboard");
+  assert.ok(css.includes(".calls-compose { position: sticky;"), "the composer is never under the call bar");
+  assert.ok(page.includes('state.panel = "";') && !page.includes('state.panel = state.test ? "test" : "";'), "a test call opens with the composer visible");
+  assert.ok(page.includes("form[data-act=\"${keep.form}\"]"), "a repaint returns focus to the same text box");
+  console.log("calls send tap ok");
+}
