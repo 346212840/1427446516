@@ -311,6 +311,9 @@ export async function handleCallReach(request, env, path, url, deps, h) {
     const body = await deps.readJson(request, 500);
     const now = Date.now();
     if (one[2] === "accept") {
+      /* After Suggest another time the visitor holds the choice: an owner Accept
+         would book the old time the visitor was just told was off. */
+      if (row.state === "suggested") return deps.json(409, { error: "waiting_for_visitor" });
       if (Number(row.starts_at) < now) return deps.json(400, { error: "when" });
       const schedule = await accept(env, h, row, Number(row.starts_at));
       await tellVisitor(env, row, "call_scheduled");

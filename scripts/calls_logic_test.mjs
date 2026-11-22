@@ -1577,3 +1577,12 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.ok(qr.includes('state.peerName = (state.linkInfo && state.linkInfo.name) || "";') && !qr.includes("state.peerName = (res.data && res.data.name)"), "a QR caller sees the owner name, not their own");
   console.log("calls qr peer name ok");
 }
+
+{
+  const fs = await import("node:fs");
+  const page = fs.readFileSync(new URL("../calls.js", import.meta.url), "utf8");
+  const worker = fs.readFileSync(new URL("../worker/src/call-reach.js", import.meta.url), "utf8");
+  assert.ok(page.includes('const accept = r.state === "pending" ? `<button type="button" class="calls-go" data-act="call-req-accept"'), "after Suggest another time the owner has no Accept for the old time");
+  assert.ok(worker.includes('if (row.state === "suggested") return deps.json(409, { error: "waiting_for_visitor" });'), "the server refuses an owner Accept while the visitor decides");
+  console.log("calls reach suggested accept ok");
+}

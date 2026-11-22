@@ -681,6 +681,7 @@ test("call the owner and request a call: availability, anti-spam, and Accept / S
   const seen = await call("/v1/calls/reach/request?token=" + encodeURIComponent(made.body.token));
   assert.equal(seen.body.request.state, "suggested");
   assert.equal(seen.body.request.suggestedAt, later);
+  assert.equal((await call("/v1/calls/reach/requests/" + row.id + "/accept", { method: "POST", token: ownerToken, body: {} })).status, 409, "after Suggest another time only the visitor can take the new time");
   const took = await call("/v1/calls/reach/request/take", { method: "POST", body: { token: made.body.token } });
   assert.equal(took.status, 200, JSON.stringify(took.body));
   assert.equal(took.body.request.state, "accepted");
