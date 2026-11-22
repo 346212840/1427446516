@@ -18,6 +18,7 @@ import { createDiarizer } from "./shared/call-speakers.js";
 import { createEngine } from "./shared/call-engine.js";
 import { holdStatus, shouldRemountOnStatus, shouldRemountOnPeer, GUEST_SESSION_KEY, guestSessionRecord, guestSessionLive, guestSessionForRoute, callErrorKind } from "./shared/call-status.js";
 import { SCHEDULE_TOKEN, icsForSchedule, clipDuration, DEFAULT_DURATION } from "./shared/call-schedule.js";
+import { REQUEST_TOKEN, NAME_MAX, NOTE_MAX, REQUEST_MIN_AHEAD_MS, looksSpammy } from "./shared/call-reach.js";
 import { ROTATE_TOKEN, ROTATE_REFRESH_MS } from "./shared/call-rotate-qr.js";
 
 const CAP_SIZES = ["s", "m", "l", "xl"];
@@ -176,6 +177,13 @@ function origVolFlagOn() {
 }
 
 /* Owner switch calls_rotate_qr, on unless the server list says off. */
+/* Owner switch calls_owner_reach, on unless the server list says off. */
+function reachFlagOn() {
+  try {
+    const list = JSON.parse(localStorage.getItem("viktorychapp-server-off") || "[]");
+    return !(Array.isArray(list) && list.indexOf("calls_owner_reach") >= 0);
+  } catch (err) { return true; }
+}
 function rotateQrFlagOn() {
   try {
     const list = JSON.parse(localStorage.getItem("viktorychapp-server-off") || "[]");
@@ -883,7 +891,7 @@ function newBar() {
     ${earSupported() ? cbtn("call-ear", "ear", tr("Ear mode"), { pressed: state.ear.on }).replace('class="cb', 'class="cb cb-extra') : ""}
     ${popBtn("invite", "link", tr("Invite"), { extra: true })}
     ${popBtn("tray", "more", tr("More"), { extra: true })}`;
-  const more = sheet ? `<div class="calls-bar-sheet">${popTray()}</div>` : "";
+  const more = sheet ? `<div class="calls-bar-sheet">${sheetTabs()}<div class="calls-sheet-body" data-sheet-tab="${esc(state.sheetTab || "")}">${sheetBody()}</div></div>` : "";
   const main = `<span class="cb-split">${micBtn}${caret}</span>
     ${popBtn("lang", "translate", tr("Languages"))}
     ${popBtn("subs", "captions", tr("Captions"), { cls: subsOn ? "" : "dim" })}
@@ -967,19 +975,58 @@ function trayTile(act, icon, label, data, on) {
   const d = data ? Object.keys(data).map((k) => ` data-${k}="${esc(data[k])}"`).join("") : "";
   return `<button type="button" class="calls-tilebtn${on ? " on" : ""}" data-act="${act}"${d}>${ico(icon)}<span>${esc(label)}</span></button>`;
 }
-function popTray() {
+function popTray(inSheet) {
+  /* Inside the slide-up sheet every tile opens its section right there, never a second sheet or a deep screen. */
+  const go = (tab, pop) => inSheet ? ["call-sheet-tab", { value: tab }] : (pop === "more" ? ["call-more", null] : pop === "test" ? ["call-panel", { value: "test" }] : ["call-pop", { value: pop }]);
+  const t = (tab, pop, icon, label) => { const g = go(tab, pop); return trayTile(g[0], icon, label, g[1]); };
   const tiles = [
-    trayTile("call-pop", "mic", tr("Microphone and sending"), { value: "mic" }),
-    trayTile("call-pop", state.speakerOn ? "speaker" : "speakerOff", tr("Sound"), { value: "sound" }),
+    t("mic", "mic", "mic", tr("Microphone and sending")),
+    t("sound", "sound", state.speakerOn ? "speaker" : "speakerOff", tr("Sound")),
     earSupported() ? trayTile("call-ear", "ear", tr("Ear mode")) : "",
     state.test ? trayTile("call-test-hear", "voice", tr("Hear my translation"), null, state.test.hear) : "",
-    trayTile("call-pop", "link", tr("Invite"), { value: "invite" }),
+    t("invite", "invite", "link", tr("Invite")),
     trayTile("call-repeat", "note", tr("Repeat that")),
-    state.test ? trayTile("call-panel", "test", tr("Test partner"), { value: "test" }) : "",
+    state.test ? t("test", "test", "test", state.test.practice ? tr("Practice partner") : tr("Test partner")) : "",
     state.test ? trayTile("call-test-info", "info", tr("Call details"), null, state.testInfo) : "",
-    trayTile("call-more", "settings", tr("All settings"))
+    t("settings", "more", "settings", tr("All settings"))
   ].join("");
   return `<div class="calls-tiles">${tiles}</div>`;
+}
+/* calls_bar_sheet: the whole Calls settings and the test partner are sections of the slide-up bar, one tap away. */
+const SHEET_TABS = ["", "lang", "sound", "mic", "subs", "invite", "settings", "test"];
+function sheetTabList() {
+  const list = [["", tr("Controls")], ["lang", tr("Languages")], ["sound", tr("Sound")], ["mic", tr("Microphone")], ["subs", tr("Captions")], ["invite", tr("Invite")], ["settings", tr("Settings")]];
+  if (state.test) list.push(["test", state.test.practice ? tr("Practice partner") : tr("Test partner")]);
+  return list;
+}
+function sheetTabs() {
+  const cur = state.sheetTab || "";
+  return `<div class="calls-sheet-tabs" role="tablist" aria-label="${esc(tr("Call settings"))}">${sheetTabList().map((row) => `<button type="button" role="tab" class="calls-sheet-tab${cur === row[0] ? " on" : ""}" data-act="call-sheet-tab" data-value="${row[0]}" aria-selected="${cur === row[0] ? "true" : "false"}">${esc(row[1])}</button>`).join("")}</div>`;
+}
+function sheetBody() {
+  let tab = state.sheetTab || "";
+  if (tab === "test" && !state.test) tab = state.sheetTab = "";
+  if (tab === "lang") return popLang();
+  if (tab === "sound") return popSound();
+  if (tab === "mic") return popMic();
+  if (tab === "subs") return popSubs();
+  if (tab === "invite") return popInvite();
+  if (tab === "settings") return moreSheet();
+  if (tab === "test") return testPanel();
+  return popTray(true);
+}
+function setSheetTab(tab) {
+  const next = SHEET_TABS.indexOf(tab) >= 0 ? tab : "";
+  if (state.sheetTab === "mic" && next !== "mic" && state.micCheck && state.phase === "active") stopMicCheck();
+  state.sheetTab = next;
+  state.barOpen = true;
+  state.pop = "";
+  paint();
+  const body = document.querySelector(".calls-sheet-body");
+  if (body) body.scrollTop = 0;
+  const on = document.querySelector(".calls-sheet-tab.on");
+  const row = on && on.parentNode;
+  if (row && row.scrollTo) row.scrollTo({ left: Math.max(0, on.offsetLeft - (row.clientWidth - on.offsetWidth) / 2), behavior: "smooth" });
 }
 function popBlock() {
   if (!barFlagOn() || !state.pop || POPS.indexOf(state.pop) < 0) return "";
@@ -1018,10 +1065,12 @@ function barDown(e) {
   const bar = e.target.closest(".calls-bar, .calls-pop.tray");
   if (!bar) { barSwipe = null; return; }
   if (barSheetFlagOn() && bar.classList.contains("calls-bar")) {
+    if (e.target.closest(".calls-sheet-body, .calls-sheet-tabs")) { barDrag = null; return; }
     const onHandle = !!e.target.closest(".calls-handle");
     const onBtn = !!e.target.closest(".cb, .calls-tilebtn, .cb-caret, input, select, a, .calls-x");
-    barDrag = { y: e.clientY, x: e.clientX, open: !!state.barOpen, fromHandle: onHandle, fromBtn: onBtn && !onHandle, moved: false, bar: bar };
-    try { if (e.pointerId != null && bar.setPointerCapture) bar.setPointerCapture(e.pointerId); } catch (err) { /* capture is optional */ }
+    /* No pointer capture yet: a capture taken on press retargets the click to the bar, so with a mouse no bar button
+       (Mute, Leave, the handle) worked. The bar captures the pointer only once a drag has really started. */
+    barDrag = { y: e.clientY, x: e.clientX, open: !!state.barOpen, fromHandle: onHandle, fromBtn: onBtn && !onHandle, moved: false, bar: bar, pid: e.pointerId };
     return;
   }
   barSwipe = { y: e.clientY, tray: !!e.target.closest(".calls-pop.tray") };
@@ -1037,6 +1086,7 @@ function barMove(e) {
     if (barDrag.fromBtn && Math.abs(dyRaw) < 16) return;
     barDrag.moved = true;
     barDrag.bar.dataset.dragging = "1";
+    try { if (barDrag.pid != null && barDrag.bar.setPointerCapture) barDrag.bar.setPointerCapture(barDrag.pid); } catch (err) { /* capture is optional */ }
   }
   const sheet = barDrag.bar.querySelector(".calls-bar-sheet");
   if (!sheet) return;
@@ -1111,6 +1161,7 @@ function callScreen() {
       <div class="calls-meta"><span class="calls-status" data-translating="${state.translating ? "1" : "0"}">${esc(statusText())}</span>${reconnectChip()}<span class="calls-timer">${esc(timer)}</span></div>
     </header>
     <main class="calls-stage">
+      ${state.test ? testKindSwitch(state.test.practice ? "practice" : "translate") : ""}
       ${keyPanel()}
       ${invite}
       ${onescreenFlagOn() ? "" : (conv && !state.testInfo ? "" : testStrip())}
@@ -1759,6 +1810,178 @@ async function joinRotateQr(tokenValue) {
   }, 2500);
 }
 
+/* ---------- Call the owner and Request a call (calls_owner_reach) ---------- */
+const REACH_KEY = "viktorych-calls-reach-v1";
+function reachOwner() { return reachFlagOn() && !!(state.reach && state.reach.self); }
+function reachDevice() {
+  try {
+    let id = localStorage.getItem(REACH_KEY + "-device");
+    if (!/^[A-Za-z0-9_-]{8,64}$/.test(id || "")) {
+      const bytes = crypto.getRandomValues(new Uint8Array(12));
+      id = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+      localStorage.setItem(REACH_KEY + "-device", id);
+    }
+    return id;
+  } catch (err) { return ""; }
+}
+function reachTokens() {
+  try { const list = JSON.parse(localStorage.getItem(REACH_KEY) || "[]"); return Array.isArray(list) ? list.filter((t) => REQUEST_TOKEN.test(t)).slice(-5) : []; } catch (err) { return []; }
+}
+function saveReachTokens(list) { try { localStorage.setItem(REACH_KEY, JSON.stringify(list.slice(-5))); } catch (err) { /* private mode */ } }
+async function loadReach() {
+  if (!reachFlagOn()) return;
+  const res = await api("/v1/calls/reach").catch(() => null);
+  state.reach = res && res.ok && res.data ? res.data : null;
+  if (reachOwner()) { await loadReachRequests(); return; }
+  const mine = reachTokens();
+  const views = [];
+  for (const token of mine) {
+    const one = await api("/v1/calls/reach/request?token=" + encodeURIComponent(token)).catch(() => null);
+    if (one && one.ok && one.data && one.data.request) views.push(Object.assign({ token: token }, one.data.request));
+    else if (one && one.status === 404) saveReachTokens(reachTokens().filter((t) => t !== token));
+  }
+  state.reachMine = views;
+  if (host() && state.phase === "idle") paint();
+}
+async function loadReachRequests() {
+  if (!reachOwner()) return;
+  const [list, avail] = await Promise.all([api("/v1/calls/reach/requests").catch(() => null), api("/v1/calls/reach/availability").catch(() => null)]);
+  if (list && list.ok && list.data) { state.reachRequests = list.data.requests || []; state.reachPending = Number(list.data.pending) || 0; }
+  if (avail && avail.ok && avail.data) state.reachAvail = avail.data;
+  if (host() && state.phase === "idle") paint();
+}
+function reachWhen(ms) {
+  try { return new Date(ms).toLocaleString(uiLocale(), { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); } catch (err) { return new Date(ms).toLocaleString(); }
+}
+function uiLocale() { try { return document.documentElement.lang || navigator.language || "en"; } catch (err) { return "en"; } }
+/* datetime-local wants the visitor's own clock, not UTC. */
+function localInputValue(ms) {
+  const d = new Date(ms);
+  const pad = (n) => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes());
+}
+function reachStateText(row) {
+  if (row.state === "pending") return tr("Waiting for an answer");
+  if (row.state === "suggested") return tr("Another time was suggested") + ": " + reachWhen(row.suggestedAt);
+  if (row.state === "accepted") return tr("Accepted") + ": " + reachWhen(row.startsAt);
+  if (row.state === "declined") return tr("Declined");
+  return tr("Cancelled");
+}
+function reachCard() {
+  if (!reachFlagOn() || !state.reach || state.reach.self || !state.reach.requests) return "";
+  const on = !!state.reach.available;
+  const min = localInputValue(Date.now() + REQUEST_MIN_AHEAD_MS + 60 * 1000);
+  const form = state.reachForm ? `<form class="calls-reach-form" data-act="call-reach-send">
+      <label class="calls-vol"><span>${esc(tr("When"))}</span><input type="datetime-local" name="when" required min="${esc(min)}" value="${esc(localInputValue(Date.now() + 24 * 60 * 60 * 1000))}"></label>
+      <p class="calls-privacy">${esc(tr("In your time zone"))}: ${esc((Intl.DateTimeFormat().resolvedOptions().timeZone || "").replace(/_/g, " "))}</p>
+      <label class="calls-vol"><span>${esc(tr("Your name"))}</span><input name="name" required maxlength="${NAME_MAX}" value="${esc(state.name || "")}" autocomplete="name"></label>
+      <label class="calls-vol"><span>${esc(tr("Note (optional)"))}</span><textarea name="note" maxlength="${NOTE_MAX}" rows="2"></textarea></label>
+      <input class="calls-hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <div class="calls-sched-actions"><button type="submit" class="calls-go"${state.reachBusy ? " disabled" : ""}>${esc(tr("Send request"))}</button><button type="button" class="calls-link" data-act="call-reach-form">${esc(tr("Cancel"))}</button></div>
+    </form>` : "";
+  const mine = (state.reachMine || []).filter((r) => r.state !== "cancelled").map((r) => {
+    const acts = r.state === "suggested"
+      ? `<button type="button" class="calls-go" data-act="call-reach-take" data-token="${esc(r.token)}">${esc(tr("Accept this time"))}</button><button type="button" class="calls-link" data-act="call-reach-cancel" data-token="${esc(r.token)}">${esc(tr("Cancel request"))}</button>`
+      : r.state === "accepted" && r.invite
+        ? `<button type="button" class="calls-go" data-act="call-reach-open" data-invite="${esc(r.invite)}">${esc(tr("Open scheduled call"))}</button><button type="button" class="calls-link" data-act="call-reach-ics" data-invite="${esc(r.invite)}">${esc(tr("Add to calendar"))}</button>`
+        : r.state === "pending" ? `<button type="button" class="calls-link" data-act="call-reach-cancel" data-token="${esc(r.token)}">${esc(tr("Cancel request"))}</button>` : "";
+    return `<li class="calls-row"><div class="calls-rt"><b>${esc(reachWhen(r.startsAt))}</b><span>${esc(reachStateText(r))}</span><div class="calls-sched-actions">${acts}</div></div></li>`;
+  }).join("");
+  return `<section class="calls-reach" data-reach>
+    <button type="button" class="calls-big join calls-reach-call" data-act="call-reach"${on ? "" : " disabled aria-disabled=\"true\""}>${ico("phone")}<span>${esc(on ? tr("Call the owner") : tr("Not available right now"))}</span></button>
+    <button type="button" class="calls-big ghost" data-act="call-reach-form" aria-expanded="${state.reachForm ? "true" : "false"}">${ico("link")}<span>${esc(tr("Request a call"))}</span></button>
+    ${state.reachMsg ? `<p class="calls-privacy" role="status">${esc(state.reachMsg)}</p>` : ""}
+    ${form}
+    ${mine ? `<ul class="calls-list">${mine}</ul>` : ""}
+  </section>`;
+}
+async function callOwner() {
+  if (!state.reach || !state.reach.available) return;
+  state.error = "";
+  const res = await api("/v1/calls/reach/call", { method: "POST", body: JSON.stringify({ name: state.name || "", device: reachDevice() }) }).catch(() => null);
+  if (!res || !res.ok) {
+    state.error = res && res.data && res.data.error === "not_available" ? tr("Not available right now") : errorFor(res);
+    loadReach();
+    paint();
+    return;
+  }
+  state.guestToken = res.data.guestToken || "";
+  state.statusCode = "calling";
+  state.peerName = tr("Owner");
+  const ok = await begin({ id: res.data.call.id, ticket: res.data.ticket, iceServers: res.data.iceServers }, "guest");
+  if (!ok) return;
+  if (res.data.guestToken) rememberGuestSession(res.data.guestExpiresAt);
+  if (state.engine) state.engine.prewarm();
+  const id = res.data.call.id;
+  state.ringPoll = setInterval(async () => {
+    if (state.phase !== "calling" || state.callId !== id) { clearInterval(state.ringPoll); return; }
+    const st = await api("/v1/calls/" + id + "/state").catch(() => null);
+    if (st && st.ok && st.data && st.data.ended) { clearInterval(state.ringPoll); state.error = tr("No answer."); await hangUp(); }
+  }, 2500);
+}
+async function sendReachRequest(form) {
+  const f = new FormData(form);
+  const startsAt = new Date(String(f.get("when") || "")).getTime();
+  const name = String(f.get("name") || "").trim();
+  const note = String(f.get("note") || "").trim();
+  if (!name || !Number.isFinite(startsAt)) return;
+  if (startsAt < Date.now() + REQUEST_MIN_AHEAD_MS) { state.reachMsg = tr("Pick a time at least 15 minutes from now."); paint(); return; }
+  if (looksSpammy(name) || looksSpammy(note)) { state.reachMsg = tr("Leave out links and phone numbers."); paint(); return; }
+  state.reachBusy = true;
+  state.name = name.slice(0, NAME_MAX);
+  saveDevice();
+  const zone = (Intl.DateTimeFormat().resolvedOptions().timeZone || "");
+  const res = await api("/v1/calls/reach/request", { method: "POST", body: JSON.stringify({ name: name, note: note, startsAt: startsAt, zone: zone, device: reachDevice(), website: String(f.get("website") || "") }) }).catch(() => null);
+  state.reachBusy = false;
+  if (!res || !res.ok || !res.data || !res.data.token) {
+    const code = res && res.data && res.data.error;
+    state.reachMsg = code === "too_many_requests" || (res && res.status === 429) ? tr("You already have requests waiting. Try again later.") : code === "spam" ? tr("Leave out links and phone numbers.") : code === "when" ? tr("Pick a time at least 15 minutes from now.") : tr("Could not send the request. Try again.");
+    paint();
+    return;
+  }
+  saveReachTokens(reachTokens().concat([res.data.token]));
+  state.reachForm = false;
+  state.reachMsg = tr("Request sent. You will see the answer here.");
+  await loadReach();
+  paint();
+}
+async function reachVisitorAct(token, what) {
+  if (!REQUEST_TOKEN.test(token)) return;
+  const res = await api("/v1/calls/reach/request/" + what, { method: "POST", body: JSON.stringify({ token: token }) }).catch(() => null);
+  if (!res || !res.ok) state.reachMsg = tr("Could not update the request. Try again.");
+  await loadReach();
+  paint();
+}
+async function setReachAvailable(on) {
+  const res = await api("/v1/calls/reach/availability", { method: "PUT", body: JSON.stringify({ available: !!on }) }).catch(() => null);
+  if (res && res.ok && res.data) state.reachAvail = res.data;
+  paint();
+}
+async function ownerReqAct(id, what, startsAt) {
+  const res = await api("/v1/calls/reach/requests/" + encodeURIComponent(id) + "/" + what, { method: "POST", body: JSON.stringify(startsAt ? { startsAt: startsAt } : {}) }).catch(() => null);
+  if (!res || !res.ok) { state.error = errorFor(res) || tr("Could not update the request. Try again."); paint(); return; }
+  state.reqSuggest = "";
+  if (what === "accept" && scheduleFlagOn()) loadSchedules();
+  await loadReachRequests();
+}
+function requestRows() {
+  const a = state.reachAvail || {};
+  const on = !!a.available;
+  const head = `<div class="calls-reach-avail">
+    <button type="button" class="calls-pill${on ? " on" : ""}" data-act="call-reach-avail" role="switch" aria-checked="${on ? "true" : "false"}">${esc(on ? tr("Available for calls") : tr("Not available for calls"))}</button>
+    <p class="calls-privacy">${esc(on ? (a.quiet ? tr("Quiet hours are on, so the Call the owner button is off until they end.") : (a.guests ? tr("Visitors can ring you from the public Calls page.") : tr("Only signed-in people you allow can ring you."))) : tr("The Call the owner button reads Not available right now."))}</p>
+  </div>`;
+  const rows = (state.reachRequests || []);
+  if (!rows.length) return head + `<p class="calls-empty">${esc(tr("No call requests yet."))}</p>`;
+  const item = (r) => {
+    const open = r.state === "pending" || r.state === "suggested";
+    const suggest = state.reqSuggest === r.id ? `<form class="calls-start" data-act="call-req-suggest-form" data-id="${esc(r.id)}"><input type="datetime-local" name="when" required min="${esc(localInputValue(Date.now() + REQUEST_MIN_AHEAD_MS + 60000))}" value="${esc(localInputValue(r.startsAt + 60 * 60 * 1000))}" aria-label="${esc(tr("Suggest another time"))}"><button type="submit" class="calls-go">${esc(tr("Send"))}</button></form>` : "";
+    const acts = open ? `<button type="button" class="calls-go" data-act="call-req-accept" data-id="${esc(r.id)}">${esc(tr("Accept"))}</button><button type="button" class="calls-link" data-act="call-req-suggest" data-id="${esc(r.id)}">${esc(tr("Suggest another time"))}</button><button type="button" class="calls-link" data-act="call-req-decline" data-id="${esc(r.id)}">${esc(tr("Decline"))}</button>` : "";
+    const zone = r.zone ? " · " + r.zone.replace(/_/g, " ") : "";
+    return `<li class="calls-row" data-id="${esc(r.id)}"><div class="calls-ava sm">${esc(initialOf(r.name))}</div><div class="calls-rt"><b>${esc(r.name)}</b><span>${esc(reachWhen(r.state === "suggested" ? r.suggestedAt : r.startsAt) + zone)} · ${esc(reachStateText(r))}</span>${r.note ? `<p class="calls-privacy">${esc(r.note)}</p>` : ""}<div class="calls-sched-actions">${acts}</div>${suggest}</div></li>`;
+  };
+  return head + `<ul class="calls-list">${rows.map(item).join("")}</ul>`;
+}
 function homeScreen(opts) {
   const o = opts || {};
   const back = standalone() ? "" : `<a class="calls-back" href="#/" aria-label="${esc(tr("Back"))}">${ico("back")}</a>`;
@@ -1770,7 +1993,8 @@ function homeScreen(opts) {
   const rejoin = savedGuest ? `<button type="button" class="calls-big join" data-act="call-rejoin">${ico("phone")}<span>${esc(state.resuming ? tr("Rejoining…") : tr("Rejoin this call"))}</span></button>` : "";
   const tab = state.tab || "recent";
   const tabs = [["recent", tr("Recent")], ["missed", tr("Missed")], ["scheduled", tr("Scheduled")]];
-  const list = tab === "scheduled" ? scheduleRows() : historyRows(tab);
+  if (reachOwner()) tabs.push(["requests", tr("Requests") + (state.reachPending ? " (" + state.reachPending + ")" : "")]);
+  const list = tab === "requests" && reachOwner() ? requestRows() : (tab === "scheduled" ? scheduleRows() : historyRows(tab));
   const side = `<aside class="calls-side">
     <header class="calls-side-head">${back}<span class="calls-logo">${ico("phone")}</span><h1>${esc(tr("Calls"))}</h1></header>
     <div class="calls-tabs" role="tablist" aria-label="${esc(tr("Calls"))}">${tabs.map((row) => `<button type="button" role="tab" class="calls-tab${tab === row[0] ? " on" : ""}" aria-selected="${tab === row[0] ? "true" : "false"}" data-act="call-tab" data-value="${row[0]}">${esc(row[1])}</button>`).join("")}</div>
@@ -1783,7 +2007,6 @@ function homeScreen(opts) {
       <div class="calls-hero-row">
         <button type="button" class="calls-big" data-act="call-invite">${ico("link")}<span>${esc(tr("Get call link"))}</span></button>
         <button type="button" class="calls-big ghost" data-act="call-test">${ico("test")}<span>${esc(tr("Test call"))}</span></button>
-        ${practiceFlagOn() ? `<button type="button" class="calls-big ghost" data-act="call-practice">${ico("voice")}<span>${esc(tr("Practice with AI"))}</span></button>` : ""}
         ${scheduleFlagOn() ? `<button type="button" class="calls-big ghost" data-act="call-sched-open">${ico("link")}<span>${esc(tr("Schedule a call"))}</span></button>` : ""}
       </div>
       <div class="calls-modes" role="group" aria-label="${esc(tr("Link lasts"))}">${pill("ttl", "60", String(state.inviteTtl), tr("1 hour"))}${pill("ttl", "1440", String(state.inviteTtl), tr("24 hours"))}</div>
@@ -1802,7 +2025,7 @@ function homeScreen(opts) {
     ${side}
     <section class="calls-main">
       ${histEditFlagOn() && state.histEdit ? histEditSheet() : ""}
-      ${notSet}${err}${ended}${rejoin}${start}
+      ${notSet}${err}${ended}${rejoin}${reachCard()}${start}
       <label class="calls-vol calls-homelang"><span>${esc(tr("I speak"))}</span><select data-act="call-lang">${langOptions(myLang())}</select></label>
       ${installBlock()}
     </section>
@@ -2648,6 +2871,7 @@ function onEngineEvent(type, d) {
   if (type === "fallback") {
     const was = !!state.turnFallback;
     state.turnFallback = !!d.on;
+    if (state.turnFallback) practiceGreetWhenReady();
     if (state.turnFallback !== was) paint();
     else live();
     return;
@@ -2660,6 +2884,11 @@ function onEngineEvent(type, d) {
     if (d.code === "joined" || d.code === "connected") { state.phase = "active"; if (!state.startedAt) state.startedAt = Date.now(); ringStop(); }
     if (d.code === "left") { state.peerName = state.peerName; }
     if (d.code === "ended") { peerEnded(); return; }
+    if (state.test && state.test.practice) {
+      if (d.code === "connected" || d.code === "joined") state.test.linkUp = true;
+      if (d.code === "translating-ready" && !d.mine) state.test.rxReady = true;
+      practiceGreetWhenReady();
+    }
     live();
     if (shouldRemountOnStatus(wasActive ? "active" : "idle", d.code)) paint();
   } else if (type === "peer") {
@@ -2713,9 +2942,11 @@ function onEngineEvent(type, d) {
     if (state.needKey === next) return;
     state.needKey = next;
     paint();
+    practiceGreetWhenReady();
   } else if (type === "quota") {
     if (d.reason === "quota") {
       state.quota = true;
+      if (state.test) { state.test.noVoice = true; practiceGreetWhenReady(); }
       state.mode = normalizeMode(Object.assign({}, state.mode, { send: "text" }));
       saveDevice();
     }
@@ -3032,17 +3263,17 @@ function setMuted(on) {
 /* ---------- self test ---------- */
 /* Test call. A pre-join screen first: join from another device with a QR code or a link,
    or start with a simulated partner that joins by itself. */
-async function prepareTest() {
+async function prepareTest(quiet) {
   if (!signedIn()) return;
   state.error = "";
   const res = await api("/v1/calls", { method: "POST", body: JSON.stringify({ invite: true, ttlMin: 30 }) }).catch(() => null);
   if (!res || !res.ok) { state.error = errorFor(res); paint(); return; }
   const base = standalone() ? new URL("./", location.href) : new URL("calls/", document.baseURI);
-  state.testPrep = { id: res.data.call.id, invite: res.data.invite, url: base.href + "#" + res.data.invite, other: false, lang: myLang() === "en" ? "es" : "en", copied: false };
+  state.testPrep = { id: res.data.call.id, invite: res.data.invite, url: base.href + "#" + res.data.invite, other: false, lang: myLang() === "en" ? "es" : "en", copied: false, kind: practiceFlagOn() && state.testKind === "practice" ? "practice" : "translate" };
   clearInterval(state.testPoll);
   state.testPoll = setInterval(pollTestPrep, 2000);
   loadQr();
-  paint();
+  if (!quiet) paint();
 }
 async function pollTestPrep() {
   const prep = state.testPrep;
@@ -3068,6 +3299,12 @@ async function startTest() {
   const prep = state.testPrep;
   if (!prep || !signedIn()) return;
   clearInterval(state.testPoll);
+  if (prep.kind === "practice" && practiceFlagOn()) {
+    state.testPrep = null;
+    api("/v1/calls/" + prep.id + "/end", { method: "POST", body: "{}" }).catch(() => null);
+    await startPractice(prep.lang);
+    return;
+  }
   state.error = "";
   const tk = await api("/v1/calls/" + prep.id + "/ticket", { method: "POST", body: "{}" }).catch(() => null);
   if (!tk || !tk.ok) { state.error = errorFor(tk); paint(); return; }
@@ -3113,11 +3350,42 @@ function qrSvg(text) {
     return qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
   } catch (err) { return ""; }
 }
+/* One Test call with two modes side by side on the screen itself (calls_practice gates the second one):
+   translate your own words, or talk with the AI practice partner. */
+function testKindSwitch(kind) {
+  if (!practiceFlagOn()) return "";
+  const opt = (value, icon, label) => `<button type="button" role="radio" class="calls-pill${kind === value ? " on" : ""}" data-act="call-test-kind" data-value="${value}" aria-checked="${kind === value ? "true" : "false"}"${state.testSwitching ? " disabled" : ""}>${ico(icon)}<span>${esc(label)}</span></button>`;
+  return `<div class="calls-modes calls-testkind" role="radiogroup" aria-label="${esc(tr("Test mode"))}">${opt("translate", "translate", tr("Translate test"))}${opt("practice", "voice", tr("Practice with AI"))}</div>`;
+}
+async function switchTestKind(value) {
+  const kind = value === "practice" && practiceFlagOn() ? "practice" : "translate";
+  state.testKind = kind;
+  if (state.testPrep) { state.testPrep.kind = kind; paint(); return; }
+  const t = state.test;
+  if (!t || state.testSwitching || !!t.practice === (kind === "practice")) return;
+  /* A practice call is its own call on the server, so switching ends this test and starts the other at once. */
+  state.testSwitching = true;
+  const lang = t.lang;
+  paint();
+  try {
+    await teardown(false);
+    state.barOpen = false;
+    if (kind === "practice") await startPractice(lang);
+    else {
+      await prepareTest(true);
+      if (state.testPrep) { state.testPrep.lang = lang; await startTest(); }
+    }
+  } finally {
+    state.testSwitching = false;
+    paint();
+  }
+}
 function testPrepScreen() {
   const prep = state.testPrep;
   const mc = state.micCheck;
   const err = state.error ? `<p class="calls-error" role="alert">${esc(state.error)}</p>` : "";
   const qr = qrSvg(prep.url);
+  const practiceOn = practiceFlagOn() && prep.kind === "practice";
   return `<div class="calls-page calls-join${standalone() ? " calls-solo" : ""}" data-phase="testprep" data-video="0">
     <header class="calls-top"><div class="calls-brand"><span class="calls-logo">${ico("phone")}</span><b>${esc(tr("Test call"))}</b></div><button type="button" class="calls-x" data-act="call-test-cancel" aria-label="${esc(tr("Close"))}">${ico("close")}</button></header>
     <div class="calls-prejoin">
@@ -3137,19 +3405,20 @@ function testPrepScreen() {
       </div>
       <div class="calls-joinform">
         <h1>${esc(tr("Test call"))}</h1>
+        ${testKindSwitch(practiceOn ? "practice" : "translate")}
         ${err}
         <label class="calls-vol"><span>${esc(tr("I speak"))}</span><select data-act="call-lang">${langOptions(myLang())}</select></label>
-        <label class="calls-vol"><span>${esc(tr("Translate me into"))}</span><select data-act="call-test-prep-lang">${langOptions(prep.lang)}</select></label>
-        <section class="calls-device" data-device>
+        <label class="calls-vol"><span>${esc(practiceOn ? tr("Partner speaks") : tr("Translate me into"))}</span><select data-act="call-test-prep-lang">${langOptions(prep.lang)}</select></label>
+        ${practiceOn ? "" : `<section class="calls-device" data-device>
           <h3>${esc(tr("Join from another device"))}</h3>
           <div class="calls-qr" aria-label="${esc(tr("QR code for the other device"))}">${qr || `<span class="calls-empty">${esc(tr("Loading the QR code…"))}</span>`}</div>
           <p class="calls-privacy">${esc(tr("Scan with your phone or open in another tab."))}</p>
           <div class="calls-invite"><input readonly value="${esc(prep.url)}" aria-label="${esc(tr("Guest link"))}" data-invite><button type="button" data-act="call-test-copy">${esc(prep.copied ? tr("Copied") : tr("Copy link"))}</button></div>
           <a class="calls-pill calls-newtab" href="${esc(prep.url)}" target="_blank" rel="noopener">${esc(tr("Open in new tab"))}</a>
           ${testStatusHtml()}
-        </section>
-        <button type="button" class="calls-big join" data-act="call-test-start">${ico("phone")}<span>${esc(prep.other ? tr("Start with your other device") : tr("Start test call"))}</span></button>
-        <p class="calls-privacy">${esc(tr("No second device? A simulated partner joins by itself and you hear your own words translated."))}</p>
+        </section>`}
+        <button type="button" class="calls-big join" data-act="call-test-start">${ico(practiceOn ? "voice" : "phone")}<span>${esc(practiceOn ? tr("Start practice") : (prep.other ? tr("Start with your other device") : tr("Start test call")))}</span></button>
+        <p class="calls-privacy">${esc(practiceOn ? tr("An AI partner talks with you in the language you pick, through the same live translation as a real call.") : tr("No second device? A simulated partner joins by itself and you hear your own words translated."))}</p>
       </div>
     </div>
   </div>`;
@@ -3216,25 +3485,34 @@ async function startPartner(invite) {
   try { await eng.start({ id: state.callId, ticket: joined.data.ticket, iceServers: joined.data.iceServers, role: "guest" }); }
   catch (err) { state.error = tr("The call could not start. Check your connection and try again."); paint(); return; }
   /* Like a person picking up, the practice partner says hello first. */
-  if (practice) setTimeout(() => { if (state.test === t) practiceReply("", true); }, 1800);
+  if (practice) practiceGreetWhenReady();
 }
 function testReply(text) {
   const clean = String(text || "").trim();
   if (!clean || !state.partner) return;
   state.partner.sendText(clean);
 }
-async function startPractice() {
+async function startPractice(lang) {
   if (!practiceFlagOn() || !signedIn()) return;
   state.error = "";
   const res = await api("/v1/calls", { method: "POST", body: JSON.stringify({ practice: true }) }).catch(() => null);
   if (!res || !res.ok) { state.error = errorFor(res); paint(); return; }
-  state.test = { lang: myLang() === "en" ? "es" : "en", hear: false, lines: [], partial: { original: "", translation: "" }, practice: true, turns: [] };
+  state.test = { lang: normalizeLang(lang) || (myLang() === "en" ? "es" : "en"), hear: false, lines: [], partial: { original: "", translation: "" }, practice: true, turns: [] };
   state.statusCode = "waiting";
   state.peerName = tr("Practice partner");
   const ok = await begin({ id: res.data.call.id, ticket: res.data.ticket, iceServers: res.data.iceServers }, "host");
   if (!ok) return;
   await startPartner(res.data.invite);
   state.statsTimer = setInterval(updateStats, 1000);
+}
+/* The practice partner says hello the moment the call can carry it: the call is connected and your translator is
+   ready (or the call is in text). No timer: it greets as soon as its session is up. */
+function practiceGreetWhenReady() {
+  const t = state.test;
+  if (!t || !t.practice || t.greeted || !state.partner) return;
+  if (!t.linkUp || !(t.rxReady || t.noVoice || sameLang(t.lang, myLang()) || state.needKey || state.turnFallback)) return;
+  t.greeted = true;
+  practiceReply("", true);
 }
 /* Lines the partner hears while its own voice or its translation is still playing are echo from this phone's speaker. */
 const PRACTICE_ECHO_MS = 2500;
@@ -3385,7 +3663,7 @@ function onAct(act, el) {
   else if (act === "call-conv") { state.pop = ""; state.conv = state.conv === false; paint(); }
   else if (act === "call-pop") setPop(el.dataset.value || "");
   else if (act === "call-bar-sheet") { state.barOpen = !state.barOpen; paint(); }
-  else if (act === "call-tab") { state.tab = el.dataset.value || "recent"; if (state.tab === "scheduled") loadSchedules(); paint(); }
+  else if (act === "call-tab") { state.tab = el.dataset.value || "recent"; if (state.tab === "scheduled") loadSchedules(); if (state.tab === "requests") loadReachRequests(); paint(); }
   else if (act === "hist-del") histRemove([el.dataset.id]);
   else if (act === "hist-select") { state.histSel = new Set(); paint(); }
   else if (act === "hist-cancel") { state.histSel = null; paint(); }
@@ -3427,6 +3705,18 @@ function onAct(act, el) {
   else if (act === "call-invite") startInvite();
   else if (act === "call-test") prepareTest();
   else if (act === "call-practice") startPractice();
+  else if (act === "call-test-kind") switchTestKind(el.dataset.value || "");
+  else if (act === "call-reach") callOwner();
+  else if (act === "call-reach-form") { state.reachForm = !state.reachForm; state.reachMsg = ""; paint(); }
+  else if (act === "call-reach-take") reachVisitorAct(el.dataset.token || "", "take");
+  else if (act === "call-reach-cancel") reachVisitorAct(el.dataset.token || "", "cancel");
+  else if (act === "call-reach-open") { const tok = el.dataset.invite || ""; if (SCHEDULE_TOKEN.test(tok)) location.href = guestUrl(tok); }
+  else if (act === "call-reach-ics") { const tok = el.dataset.invite || ""; if (SCHEDULE_TOKEN.test(tok)) window.open(apiBase() + "/v1/calls/schedule/guest/ics?token=" + encodeURIComponent(tok), "_blank", "noopener"); }
+  else if (act === "call-reach-avail") setReachAvailable(!(state.reachAvail && state.reachAvail.available));
+  else if (act === "call-req-accept") ownerReqAct(el.dataset.id || "", "accept");
+  else if (act === "call-req-decline") ownerReqAct(el.dataset.id || "", "decline");
+  else if (act === "call-req-suggest") { state.reqSuggest = state.reqSuggest === el.dataset.id ? "" : (el.dataset.id || ""); paint(); }
+  else if (act === "call-sheet-tab") setSheetTab(el.dataset.value || "");
   else if (act === "call-capsize") { if (CAP_SIZES.indexOf(el.dataset.value) >= 0) { state.capSize = el.dataset.value; saveDevice(); paint(); } }
   else if (act === "call-ear") enterEar(false);
   else if (act === "call-ear-raise") { toggleEarRaise(); }
@@ -3695,6 +3985,11 @@ function onSubmit(event) {
       title: form.elements.title && form.elements.title.value,
       note: form.elements.note && form.elements.note.value
     });
+  } else if (act === "call-reach-send") {
+    sendReachRequest(form);
+  } else if (act === "call-req-suggest-form") {
+    const at = new Date(String((form.elements.when && form.elements.when.value) || "")).getTime();
+    if (Number.isFinite(at)) ownerReqAct(form.dataset.id || "", "suggest", at);
   } else if (act === "call-sched-name") {
     state.name = String(text || state.name || tr("Guest")).slice(0, 40);
     saveDevice();
@@ -3781,6 +4076,8 @@ function mount(route) {
     target.addEventListener("focusin", syncKeyboard);
     target.addEventListener("focusout", () => setTimeout(syncKeyboard, 80));
     document.addEventListener("visibilitychange", micRecheck);
+    /* Fresh request answers when the visitor comes back: no polling loop. */
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && state.phase === "idle" && reachFlagOn() && host()) loadReach(); });
     window.addEventListener("focus", micRecheck);
     window.addEventListener("pageshow", micRecheck);
     window.addEventListener("viktorych-call-ring", (event) => onRing(event.detail));
@@ -3805,6 +4102,10 @@ function mount(route) {
   if (r.name === "callschedule" && r.token && state.phase === "idle") loadGuestSchedule(r.token);
   if (r.name === "calls" && state.phase === "idle") {
     loadHistory();
+    if (reachFlagOn()) {
+      if (r.query && r.query.get && r.query.get("tab") === "requests") state.tab = "requests";
+      loadReach();
+    }
     if (rotateQrFlagOn()) loadRotateQr();
     if (scheduleFlagOn()) {
       const tab = r.query && r.query.get && r.query.get("tab");

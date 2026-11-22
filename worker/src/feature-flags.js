@@ -200,9 +200,10 @@ export const FEATURES = {
      refreshes every two minutes. Scanning it rings you like an
      incoming call. On by default. Off hides the code. */
   calls_rotate_qr: { paths: [] },
-  /* Optional AI practice partner on the Calls home screen. One tap
-     starts a call with a partner that replies on its own. On by
-     default. Off hides the button. */
+  /* Optional AI practice partner as a mode of the one Test call (a
+     Translate test / Practice with AI switch on the test and call
+     screens). It replies on its own by voice. On by default. Off
+     leaves only the translate test. */
   calls_practice: { paths: [] },
   /* Rename a call in history, add a note, and correct a transcript
      line. On by default. Off hides the editor. */
@@ -210,7 +211,16 @@ export const FEATURES = {
   /* Live translation goes through the Worker proxy, the API key is only
      sent as a header, and the key is never logged or returned. On by
      default. Off uses the earlier direct-to-Google path. */
-  calls_eu_proxy: { paths: [] }
+  calls_eu_proxy: { paths: [] },
+  /* Call the owner and Request a call on the public Calls page. Call the
+     owner rings the owner (their key once answered) only while the owner
+     has switched themselves available in the Requests tab; otherwise it
+     reads "Not available right now". Request a call sends a time, name and
+     note; the owner gets a notification and can Accept (a scheduled call
+     with calendar file and reminders), Suggest another time or Decline.
+     Rate limited per IP and device, no links, nothing about the owner shown.
+     On by default; availability itself starts off. Off hides both. */
+  calls_owner_reach: { paths: ["/v1/calls/reach"] }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 

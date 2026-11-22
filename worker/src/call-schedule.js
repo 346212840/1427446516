@@ -147,6 +147,18 @@ async function notifyPeople(env, row, kind, actorId, names, hash) {
   }
 }
 
+/* One scheduled call row with its cs1. guest invite. Also used by Call requests (calls_owner_reach) on Accept. */
+export async function insertSchedule(env, h, o) {
+  const now = Date.now();
+  const id = h.hex(crypto.getRandomValues(new Uint8Array(16)));
+  const token = "cs1." + h.b64url(crypto.getRandomValues(new Uint8Array(18)));
+  const hash = await h.sha256Hex(token);
+  await env.DB.prepare(
+    "INSERT INTO call_schedules (id, host_id, peer_id, guest_token, token_hash, starts_at, duration_min, title, note, host_rsvp, peer_rsvp, state, reminded_15, reminded_start, call_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'yes', ?, 'scheduled', 0, 0, '', ?, ?)"
+  ).bind(id, o.hostId, o.peerId || "", token, hash, o.startsAt, clipDuration(o.durationMin), clipText(o.title, TITLE_MAX), clipText(o.note, NOTE_MAX), o.peerRsvp || "", now, now).run();
+  return loadRow(env, id);
+}
+
 export async function sweepSchedules(env, at) {
   if (!env || !env.DB) return;
   try {
@@ -396,13 +408,7 @@ export async function handleCallSchedule(request, env, path, url, deps, h) {
       if (!(await h.callerMayCall(env, me, peer.public_id))) return deps.json(403, { error: "calls_closed" });
       peerId = peer.public_id;
     }
-    const id = h.hex(crypto.getRandomValues(new Uint8Array(16)));
-    const token = "cs1." + h.b64url(crypto.getRandomValues(new Uint8Array(18)));
-    const hash = await h.sha256Hex(token);
-    await env.DB.prepare(
-      "INSERT INTO call_schedules (id, host_id, peer_id, guest_token, token_hash, starts_at, duration_min, title, note, host_rsvp, peer_rsvp, state, reminded_15, reminded_start, call_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'yes', '', 'scheduled', 0, 0, '', ?, ?)"
-    ).bind(id, me, peerId, token, hash, startsAt, durationMin, title, note, now, now).run();
-    const row = await loadRow(env, id);
+    const row = await insertSchedule(env, h, { hostId: me, peerId: peerId, startsAt: startsAt, durationMin: durationMin, title: title, note: note });
     const names = await namesFor(env, [me, peerId]);
     if (peer) {
       await notifyPeople(env, row, "call_scheduled", me, names, "#/calls?tab=scheduled");

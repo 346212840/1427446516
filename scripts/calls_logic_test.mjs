@@ -1411,7 +1411,7 @@ console.log("calls logic ok", JSON.stringify(report));
     assert.ok(list.includes(file), "FEATURE_FILES.calls includes " + file);
     assert.ok(shell.includes(file), "the main shell precaches " + file);
   }
-  assert.ok(standalone.includes("viktorych-calls-shell-v6"), "the stand-alone Calls cache is bumped");
+  assert.ok(standalone.includes("viktorych-calls-shell-v7") && standalone.includes("../shared/call-reach.js"), "the stand-alone Calls cache is bumped and caches the reach helper");
   assert.ok(standalone.includes("../shared/call-pip.js") && standalone.includes("../shared/call-preview.js"), "the stand-alone Calls page caches pip and preview");
   console.log("calls feature files ok");
 }
@@ -1480,6 +1480,7 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.ok(practiceGreet("ru").includes("ru"), "the greeting is in the partner language");
   assert.ok(page.includes("t.vmic = vmicAc.createMediaStreamDestination()") && page.includes("return t.vmic.stream"), "the practice voice goes into the call like a real peer's microphone");
   assert.ok(page.includes('practiceReply("", true)'), "the practice partner speaks first");
+  assert.ok(!/setTimeout\([^;]*practiceReply/.test(page) && page.includes("function practiceGreetWhenReady()") && page.includes('if (d.code === "translating-ready" && !d.mine) state.test.rxReady = true;'), "it greets once the call and translator are ready, with no timer");
   assert.ok(page.includes("The practice partner did not answer. Say something again."), "a missing reply is shown, never silent");
   assert.ok(page.includes("PRACTICE_ECHO_MS") && page.includes("t.pendingHeard"), "its own echo is ignored and a line said while it thinks is kept");
   assert.ok(worker.includes("TTS_MODELS") && worker.includes('responseModalities: ["AUDIO"]'), "the Worker voices the reply with Gemini speech");
@@ -1538,6 +1539,40 @@ console.log("calls logic ok", JSON.stringify(report));
 {
   const fs = await import("node:fs");
   const page = fs.readFileSync(new URL("../calls.js", import.meta.url), "utf8");
+  const css = fs.readFileSync(new URL("../calls.css", import.meta.url), "utf8");
+  assert.ok(!page.includes('data-act="call-practice"'), "one Test call button; Practice with AI is a mode inside it");
+  assert.ok(page.includes('data-act="call-test-kind"') && page.includes('function testKindSwitch(kind) {\n  if (!practiceFlagOn()) return "";'), "the Translate test / Practice with AI switch is on the test screens and gated by calls_practice");
+  assert.ok(page.includes('${state.test ? testKindSwitch(state.test.practice ? "practice" : "translate") : ""}'), "the switch sits on the call screen itself");
+  assert.ok(page.includes('if (prep.kind === "practice" && practiceFlagOn())'), "Start on the practice mode starts the practice partner");
+  ["lang", "sound", "mic", "subs", "settings", "test"].forEach((tab) => assert.ok(page.includes('if (tab === "' + tab + '") return'), "the bar sheet has the " + tab + " section"));
+  assert.ok(page.includes('const go = (tab, pop) => inSheet ? ["call-sheet-tab"'), "tiles in the sheet open their section in place");
+  assert.ok(page.includes('if (e.target.closest(".calls-sheet-body, .calls-sheet-tabs")) { barDrag = null; return; }'), "a drag inside a section scrolls it instead of moving the sheet");
+  assert.ok(!/barDrag = \{[^}]*\};\s*try \{ if \(e\.pointerId != null && bar\.setPointerCapture\)/.test(page) && page.includes("barDrag.bar.setPointerCapture(barDrag.pid)"), "the bar takes pointer capture only once a drag starts, so a mouse click on a bar button still lands");
+  assert.ok(css.includes(".calls-sheet-body {") && /\.calls-sheet-body \{[^}]*overflow-y: auto/.test(css), "a long section scrolls inside the sheet");
+  console.log("calls test modes and sheet sections ok");
+}
+
+{
+  const fs = await import("node:fs");
+  const reach = await import("../shared/call-reach.js");
+  assert.ok(reach.REQUEST_TOKEN.test("cq1.abcdefgh12345678") && !reach.REQUEST_TOKEN.test("cs1.abcdefgh12345678"), "request tokens are their own kind");
+  assert.ok(reach.looksSpammy("visit https://spam.example") && reach.looksSpammy("mail me a@b.co") && reach.looksSpammy("+1 555 123 4567 8"), "links, emails and phone runs are spam"); // secret-scan: allow fake phone run used to test the spam filter
+  assert.ok(!reach.looksSpammy("Hola, ¿hablamos del proyecto?"), "a plain note is fine");
+  const now = Date.now();
+  assert.ok(!reach.requestWhenOk(now + 5 * 60 * 1000, now) && reach.requestWhenOk(now + 60 * 60 * 1000, now) && !reach.requestWhenOk(now + 90 * 24 * 60 * 60 * 1000, now), "a request needs 15 minutes to 60 days of notice");
+  const page = fs.readFileSync(new URL("../calls.js", import.meta.url), "utf8");
+  const flags = fs.readFileSync(new URL("../worker/src/feature-flags.js", import.meta.url), "utf8");
+  const app = fs.readFileSync(new URL("../app.js", import.meta.url), "utf8");
+  const worker = fs.readFileSync(new URL("../worker/src/call-reach.js", import.meta.url), "utf8");
+  assert.ok(flags.includes('calls_owner_reach: { paths: ["/v1/calls/reach"] }') && app.includes('"calls_owner_reach"'), "calls_owner_reach is a server feature flag");
+  assert.ok(page.includes('data-act="call-reach"${on ? "" : " disabled aria-disabled=\\"true\\""}') && page.includes('tr("Not available right now")'), "the Call the owner button is off while the owner is away");
+  assert.ok(page.includes('if (!reachFlagOn() || !state.reach || state.reach.self || !state.reach.requests) return "";'), "the owner never sees their own Call the owner card");
+  assert.ok(page.includes('<input class="calls-hp" name="website"') && page.includes('type="datetime-local" name="when"'), "the request form has a local time picker and a honeypot");
+  assert.ok(page.includes('if (reachOwner()) tabs.push(["requests"') && page.includes('data-act="call-req-accept"') && page.includes('data-act="call-req-suggest"') && page.includes('data-act="call-req-decline"'), "the owner answers in a Requests tab");
+  assert.ok(!/setInterval\(\s*loadReach/.test(page) && page.includes('document.visibilityState === "visible" && state.phase === "idle" && reachFlagOn()'), "request answers refresh on return, with no polling loop");
+  assert.ok(!/owner_id|public_id|handle/.test(worker.slice(worker.indexOf("function viewForVisitor"), worker.indexOf("function viewForOwner"))), "a visitor never sees owner ids");
+  assert.ok(worker.includes('return deps.json(200, { available: available, requests: !!owner && !self, self: self });'), "the public read says only whether the owner can be reached");
+  console.log("calls owner reach ok");
   const qr = page.slice(page.indexOf("async function joinRotateQr("), page.indexOf("async function joinRotateQr(") + 1200);
   assert.ok(qr.includes('state.peerName = (state.linkInfo && state.linkInfo.name) || "";') && !qr.includes("state.peerName = (res.data && res.data.name)"), "a QR caller sees the owner name, not their own");
   console.log("calls qr peer name ok");
