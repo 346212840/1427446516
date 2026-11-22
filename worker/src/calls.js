@@ -320,9 +320,9 @@ function tokenResult(setup, path, token, url) {
   return { mode: "token", direct: true, token: token, url: url, setup: setup, path: path };
 }
 
-async function geminiToken(env, key, target, voice, hint, source, resume, path) {
+async function geminiToken(env, key, target, voice, hint, source, resume, path, plain) {
   const used = path === "live" ? "live" : "translate";
-  const setup = liveSetup(target, voice, resume, hint, source, used);
+  const setup = liveSetup(target, voice, resume, hint, source, used, plain);
   const textFallback = { mode: "text", direct: true, setup: setup, path: used };
   if (mockKey(env, key)) {
     return tokenResult(setup, used, "test-ephemeral", directSocketUrl("test-ephemeral"));
@@ -338,7 +338,9 @@ async function geminiToken(env, key, target, voice, hint, source, resume, path) 
   if (response.status === 401 || response.status === 403) return Object.assign({ reason: "badkey" }, textFallback);
   /* A 400 on the Live Translate setup is often the config, not the key: try the earlier Live path once. A 400 on that path is a bad key. */
   if (!response.ok) {
-    if (used !== "live") return geminiToken(env, key, target, voice, hint, source, resume, "live");
+    /* A 400 may be the voice-detection settings: try the same path once with the defaults first. */
+    if (response.status === 400 && !plain) return geminiToken(env, key, target, voice, hint, source, resume, used, true);
+    if (used !== "live") return geminiToken(env, key, target, voice, hint, source, resume, "live", plain);
     if (response.status === 400) return Object.assign({ reason: "badkey" }, textFallback);
     return textFallback;
   }

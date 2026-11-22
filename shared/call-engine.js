@@ -713,6 +713,7 @@ export function createEngine(cfg) {
     const cb = pipeCallbacks(isTx);
     const p = createPipe(env, Object.assign({ id: (isTx ? "tx" : "rx") + Date.now(), target: target, voice: voice, out: out, keepAlive: liveStreamOn(), immediatePlay: !!(cfg.streamPlay && cfg.streamPlay()) }, cb));
     p.lead.floor(link.level);
+    p.source = cb.source || "";
     livePipes.add(p);
     return p;
   }
@@ -760,7 +761,7 @@ export function createEngine(cfg) {
         rx = makePipe(false, mineLang(), cfg.voiceOverride() || wantVoice, transOut);
         rx.open();
         rxFlushed = true;
-      } else if (rx.target !== mineLang()) rotate(false);
+      } else if (rx.target !== mineLang() || (peer.lang && rx.source !== peer.lang)) rotate(false);
     } else if (rx) {
       const gone = rx;
       rx = null;
@@ -777,6 +778,8 @@ export function createEngine(cfg) {
       tx = makePipe(true, peer.lang, cfg.voiceOverride(), transToSend);
       tx.open();
       txFlushed = true;
+    } else if (want && tx && (tx.target !== peer.lang || tx.source !== mineLang())) {
+      rotate(true);
     } else if (!want && tx) {
       const gone = tx;
       tx = null;
@@ -792,8 +795,12 @@ export function createEngine(cfg) {
     if (!old || old.rotating) return;
     old.rotating = true;
     lastRotate = Date.now();
-    const next = makePipe(isTx, old.target, isTx ? cfg.voiceOverride() : (cfg.voiceOverride() || wantVoice), isTx ? transToSend : transOut);
-    next.handle = old.handle;
+    /* A rotation also picks up a language change: the rx pipe used to keep its first target, and one opened before the
+       other side said its language never told the translator what language it hears. A new language starts a new
+       session instead of resuming the old one. */
+    const target = isTx ? (peer.lang || old.target) : mineLang();
+    const next = makePipe(isTx, target, isTx ? cfg.voiceOverride() : (cfg.voiceOverride() || wantVoice), isTx ? transToSend : transOut);
+    if (target === old.target && next.source === old.source) next.handle = old.handle;
     const originalState = next.open;
     const origCb = next;
     const timer = setInterval(() => {
@@ -802,9 +809,15 @@ export function createEngine(cfg) {
         if (isTx) tx = next; else rx = next;
         setTimeout(() => { old.finish(); old.close(); }, 1500);
         applyGains();
-      } else if (next.closed) clearInterval(timer);
+        /* The language may have changed again while this one connected. */
+        if (isTx) ensureTx(); else ensureRx();
+      } else if (next.closed) { clearInterval(timer); old.rotating = false; }
     }, 80);
-    setTimeout(() => clearInterval(timer), 15000);
+    setTimeout(() => {
+      clearInterval(timer);
+      /* A rotation that never connected must not block the next one. */
+      if (!next.ready) { old.rotating = false; if (!next.closed) next.close(); }
+    }, 15000);
     originalState.call(origCb);
   }
 

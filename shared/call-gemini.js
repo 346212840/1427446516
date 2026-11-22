@@ -33,22 +33,32 @@ export const CHUNK_SAMPLES = 1600;
 export const SESSION_REFRESH_MS = 8 * 60 * 1000;
 
 /* The worklet resamples to 16 kHz and posts one 100 ms PCM16 frame.
-   It does not talk to the network. */
+   It does not talk to the network. A plain average of 3 samples let
+   everything above 8 kHz fold back into the speech band (hiss on s, z
+   and f, which Spanish has many of) and jittered on 44.1 kHz phones. Now
+   two low-pass stages (Butterworth, about 7 kHz) run at the device rate
+   and the 16 kHz samples are read by linear interpolation. */
 export const MIC_WORKLET = [
   "class CallMic extends AudioWorkletProcessor {",
-  "  constructor() { super(); this.ratio = sampleRate / 16000; this.acc = 0; this.sum = 0; this.n = 0; this.buf = new Int16Array(1600); this.i = 0; }",
+  "  constructor() {",
+  "    super(); this.ratio = sampleRate / 16000; this.pos = 0; this.prev = 0; this.buf = new Int16Array(1600); this.i = 0;",
+  "    var fc = Math.min(7000, sampleRate * 0.45), w = 2 * Math.PI * fc / sampleRate, c = Math.cos(w), al = Math.sin(w) / (2 * 0.7071), a0 = 1 + al;",
+  "    this.b0 = (1 - c) / 2 / a0; this.b1 = (1 - c) / a0; this.b2 = this.b0; this.a1 = -2 * c / a0; this.a2 = (1 - al) / a0;",
+  "    this.f = this.ratio > 1.01; this.z = [0, 0, 0, 0, 0, 0, 0, 0];",
+  "  }",
+  "  lp(x, o) { var z = this.z; var y = this.b0 * x + this.b1 * z[o] + this.b2 * z[o + 1] - this.a1 * z[o + 2] - this.a2 * z[o + 3]; z[o + 1] = z[o]; z[o] = x; z[o + 3] = z[o + 2]; z[o + 2] = y; return y; }",
+  "  push(v) {",
+  "    v = v < -1 ? -1 : v > 1 ? 1 : v;",
+  "    this.buf[this.i++] = v < 0 ? v * 32768 : v * 32767;",
+  "    if (this.i === 1600) { this.port.postMessage(this.buf.buffer, [this.buf.buffer]); this.buf = new Int16Array(1600); this.i = 0; }",
+  "  }",
   "  process(inputs) {",
   "    var ch = inputs[0]; if (!ch || !ch.length) return true;",
   "    var x = ch[0];",
   "    for (var k = 0; k < x.length; k++) {",
-  "      this.sum += x[k]; this.n++; this.acc += 1;",
-  "      if (this.acc >= this.ratio) {",
-  "        this.acc -= this.ratio;",
-  "        var v = this.n ? this.sum / this.n : 0; this.sum = 0; this.n = 0;",
-  "        v = v < -1 ? -1 : v > 1 ? 1 : v;",
-  "        this.buf[this.i++] = v < 0 ? v * 32768 : v * 32767;",
-  "        if (this.i === 1600) { this.port.postMessage(this.buf.buffer, [this.buf.buffer]); this.buf = new Int16Array(1600); this.i = 0; }",
-  "      }",
+  "      var cur = this.f ? this.lp(this.lp(x[k], 0), 4) : x[k];",
+  "      while (this.pos < 1) { this.push(this.prev + (cur - this.prev) * this.pos); this.pos += this.ratio; }",
+  "      this.pos -= 1; this.prev = cur;",
   "    }",
   "    return true;",
   "  }",
@@ -87,7 +97,7 @@ function levelOf(samples) {
 /* The old gate was a fixed level (about -34 dBFS), so a whisper or a soft
    voice never reached the translator. The detector now follows the room:
    it tracks the noise floor, opens a little above it, boosts quiet speech
-   toward a normal level with a limiter, and keeps 300 ms before the gate
+   toward a normal level with a limiter, and keeps 500 ms before the gate
    opened so a soft word start is not clipped. Nothing for the person to set.
    strict = true (the translation or the other person is playing aloud, or
    the feature is off) puts the old fixed gate back, so the speaker's own
@@ -103,7 +113,8 @@ export const SPEECH_OVER_FLOOR = 2.5;
 export const FLOOR_WINDOW = 50;
 export const BOOST_TARGET = 0.04;
 export const MAX_BOOST = 6;
-export const PRE_ROLL = 3;
+/* 500 ms before the gate opened, so the first syllable reaches the translator. */
+export const PRE_ROLL = 5;
 
 function boosted(samples, gain) {
   const out = new Int16Array(samples.length);
@@ -176,10 +187,9 @@ export function createVad() {
         api.out.push(g > 1.05 ? boosted(samples, g) : samples);
       } else {
         skipped += CHUNK_MS;
-        if (!strict) {
-          pre.push(samples);
-          if (pre.length > PRE_ROLL) pre.shift();
-        } else pre.length = 0;
+        /* Keep the look-back in strict mode too: a word started right after the other side stopped was cut at its start. */
+        pre.push(samples);
+        if (pre.length > PRE_ROLL) pre.shift();
       }
       return keep;
     },

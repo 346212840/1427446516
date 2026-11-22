@@ -532,8 +532,8 @@ console.log("calls logic ok", JSON.stringify(report));
   for (let i = 0; i < 20; i++) assert.equal(quiet.gate(frame(dbfs(-58), i + 1)), false, "room noise alone stays closed");
   assert.equal(quiet.gate(frame(dbfs(-60), 99)), false);
   assert.equal(quiet.gate(frame(dbfs(-42), 5)), true, "a -42 dBFS whisper opens the gate (the old fixed gate was -34 dBFS)");
-  assert.equal(quiet.out.length, 4, "the three frames before the gate opened go out first");
-  const lifted = rmsOf(quiet.out[3]);
+  assert.equal(quiet.out.length, 6, "the five frames (500 ms) before the gate opened go out first");
+  const lifted = rmsOf(quiet.out[5]);
   assert.ok(lifted > 0.03 && lifted < 0.2, "the whisper is lifted toward a normal level, got " + lifted);
   assert.ok(quiet.out.every((c) => c.every((v) => Math.abs(v) < 32768 * 0.99)), "the limiter keeps it from clipping");
   // The old gate would not have opened.
@@ -1484,4 +1484,53 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.ok(page.includes("PRACTICE_ECHO_MS") && page.includes("t.pendingHeard"), "its own echo is ignored and a line said while it thinks is kept");
   assert.ok(worker.includes("TTS_MODELS") && worker.includes('responseModalities: ["AUDIO"]'), "the Worker voices the reply with Gemini speech");
   console.log("calls practice voice ok");
+}
+
+{
+  /* Spanish speech recognition: a clean 16 kHz signal, the speaker language, longer server voice detection, a word start kept. */
+  const { speakerHint, LIVE_VAD } = await import("../shared/call-setup.js");
+  const run = (rate, hz, seconds) => {
+    let Proc = null;
+    const posted = [];
+    const fn = new Function("AudioWorkletProcessor", "registerProcessor", "sampleRate", MIC_WORKLET);
+    fn(class { constructor() { this.port = { postMessage: (b) => posted.push(new Int16Array(b)) }; } }, (n, c) => { Proc = c; }, rate);
+    const node = new Proc();
+    const total = Math.round(rate * seconds);
+    for (let at = 0; at < total; at += 128) {
+      const x = new Float32Array(Math.min(128, total - at));
+      for (let i = 0; i < x.length; i++) x[i] = 0.5 * Math.sin(2 * Math.PI * hz * (at + i) / rate);
+      node.process([[x]]);
+    }
+    const all = [];
+    posted.forEach((b) => b.forEach((v) => all.push(v / 32768)));
+    const tail = all.slice(800);
+    return { frames: posted.length, n: all.length, rms: Math.sqrt(tail.reduce((a, v) => a + v * v, 0) / tail.length) };
+  };
+  [48000, 44100, 16000].forEach((rate) => {
+    const voice = run(rate, 1000, 1);
+    assert.equal(voice.frames, 10, rate + " Hz: one second is ten 100 ms frames, none dropped");
+    assert.ok(Math.abs(voice.rms - 0.5 / Math.SQRT2) < 0.03, rate + " Hz: speech-band level is kept, no clipping");
+  });
+  const fold = run(48000, 12000, 1);
+  assert.ok(fold.rms < 0.05, "a 12 kHz hiss no longer folds back into the 16 kHz speech band (" + fold.rms.toFixed(3) + ")");
+  assert.ok(speakerHint("es").includes("Spanish") && speakerHint("es").includes("Speaker language: es."));
+  const es = liveSetup("en", "Puck", "", "", "es");
+  assert.ok(es.systemInstruction.parts[0].text.includes("Recognise every word as Spanish"));
+  assert.equal(es.generationConfig.translationConfig.sourceLanguageCode, undefined, "Live Translate has no source field; the hint carries it");
+  assert.ok(liveSetup("en", "Puck", "", "", "es", "live").systemInstruction.parts[0].text.includes("Spanish"), "the fallback path gets the same hint");
+  assert.equal(es.realtimeInputConfig.automaticActivityDetection.silenceDurationMs, LIVE_VAD.silenceDurationMs);
+  assert.ok(LIVE_VAD.silenceDurationMs >= 500 && LIVE_VAD.silenceDurationMs <= 800 && LIVE_VAD.prefixPaddingMs >= 200);
+  assert.equal(liveSetup("en", "Puck", "", "", "es", "translate", true).realtimeInputConfig, undefined, "plain falls back to the server defaults");
+  const vad = createVad();
+  const quiet = new Int16Array(CHUNK_SAMPLES);
+  const loud = new Int16Array(CHUNK_SAMPLES).fill(4000);
+  for (let i = 0; i < 6; i++) vad.gate(quiet, true);
+  assert.equal(vad.gate(loud, true), true);
+  assert.equal(vad.out.length, 6, "while the other side plays, a word start still gets its 500 ms look-back");
+  const fs = await import("node:fs");
+  const engine = fs.readFileSync(new URL("../shared/call-engine.js", import.meta.url), "utf8");
+  const worker = fs.readFileSync(new URL("../worker/src/calls.js", import.meta.url), "utf8");
+  assert.ok(engine.includes("rx.source !== peer.lang") && engine.includes("const target = isTx ? (peer.lang || old.target) : mineLang();"), "the translator learns the speaker language when it arrives and a language change reaches it");
+  assert.ok(worker.includes("response.status === 400 && !plain"), "a refused voice-detection setting retries with the defaults");
+  console.log("calls spanish asr ok");
 }
