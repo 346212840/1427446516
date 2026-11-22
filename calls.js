@@ -1976,7 +1976,8 @@ function requestRows() {
   const item = (r) => {
     const open = r.state === "pending" || r.state === "suggested";
     const suggest = state.reqSuggest === r.id ? `<form class="calls-start" data-act="call-req-suggest-form" data-id="${esc(r.id)}"><input type="datetime-local" name="when" required min="${esc(localInputValue(Date.now() + REQUEST_MIN_AHEAD_MS + 60000))}" value="${esc(localInputValue(r.startsAt + 60 * 60 * 1000))}" aria-label="${esc(tr("Suggest another time"))}"><button type="submit" class="calls-go">${esc(tr("Send"))}</button></form>` : "";
-    const acts = open ? `<button type="button" class="calls-go" data-act="call-req-accept" data-id="${esc(r.id)}">${esc(tr("Accept"))}</button><button type="button" class="calls-link" data-act="call-req-suggest" data-id="${esc(r.id)}">${esc(tr("Suggest another time"))}</button><button type="button" class="calls-link" data-act="call-req-decline" data-id="${esc(r.id)}">${esc(tr("Decline"))}</button>` : "";
+    const accept = r.state === "pending" ? `<button type="button" class="calls-go" data-act="call-req-accept" data-id="${esc(r.id)}">${esc(tr("Accept"))}</button>` : "";
+    const acts = open ? `${accept}<button type="button" class="calls-link" data-act="call-req-suggest" data-id="${esc(r.id)}">${esc(tr("Suggest another time"))}</button><button type="button" class="calls-link" data-act="call-req-decline" data-id="${esc(r.id)}">${esc(tr("Decline"))}</button>` : "";
     const zone = r.zone ? " · " + r.zone.replace(/_/g, " ") : "";
     return `<li class="calls-row" data-id="${esc(r.id)}"><div class="calls-ava sm">${esc(initialOf(r.name))}</div><div class="calls-rt"><b>${esc(r.name)}</b><span>${esc(reachWhen(r.state === "suggested" ? r.suggestedAt : r.startsAt) + zone)} · ${esc(reachStateText(r))}</span>${r.note ? `<p class="calls-privacy">${esc(r.note)}</p>` : ""}<div class="calls-sched-actions">${acts}</div>${suggest}</div></li>`;
   };
