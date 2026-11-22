@@ -1480,6 +1480,7 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.ok(practiceGreet("ru").includes("ru"), "the greeting is in the partner language");
   assert.ok(page.includes("t.vmic = vmicAc.createMediaStreamDestination()") && page.includes("return t.vmic.stream"), "the practice voice goes into the call like a real peer's microphone");
   assert.ok(page.includes('practiceReply("", true)'), "the practice partner speaks first");
+  assert.ok(!/setTimeout\([^;]*practiceReply/.test(page) && page.includes("function practiceGreetWhenReady()") && page.includes('if (d.code === "translating-ready" && !d.mine) state.test.rxReady = true;'), "it greets once the call and translator are ready, with no timer");
   assert.ok(page.includes("The practice partner did not answer. Say something again."), "a missing reply is shown, never silent");
   assert.ok(page.includes("PRACTICE_ECHO_MS") && page.includes("t.pendingHeard"), "its own echo is ignored and a line said while it thinks is kept");
   assert.ok(worker.includes("TTS_MODELS") && worker.includes('responseModalities: ["AUDIO"]'), "the Worker voices the reply with Gemini speech");

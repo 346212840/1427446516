@@ -2689,6 +2689,7 @@ function onEngineEvent(type, d) {
   if (type === "fallback") {
     const was = !!state.turnFallback;
     state.turnFallback = !!d.on;
+    if (state.turnFallback) practiceGreetWhenReady();
     if (state.turnFallback !== was) paint();
     else live();
     return;
@@ -2701,6 +2702,11 @@ function onEngineEvent(type, d) {
     if (d.code === "joined" || d.code === "connected") { state.phase = "active"; if (!state.startedAt) state.startedAt = Date.now(); ringStop(); }
     if (d.code === "left") { state.peerName = state.peerName; }
     if (d.code === "ended") { peerEnded(); return; }
+    if (state.test && state.test.practice) {
+      if (d.code === "connected" || d.code === "joined") state.test.linkUp = true;
+      if (d.code === "translating-ready" && !d.mine) state.test.rxReady = true;
+      practiceGreetWhenReady();
+    }
     live();
     if (shouldRemountOnStatus(wasActive ? "active" : "idle", d.code)) paint();
   } else if (type === "peer") {
@@ -2754,9 +2760,11 @@ function onEngineEvent(type, d) {
     if (state.needKey === next) return;
     state.needKey = next;
     paint();
+    practiceGreetWhenReady();
   } else if (type === "quota") {
     if (d.reason === "quota") {
       state.quota = true;
+      if (state.test) { state.test.noVoice = true; practiceGreetWhenReady(); }
       state.mode = normalizeMode(Object.assign({}, state.mode, { send: "text" }));
       saveDevice();
     }
@@ -3295,7 +3303,7 @@ async function startPartner(invite) {
   try { await eng.start({ id: state.callId, ticket: joined.data.ticket, iceServers: joined.data.iceServers, role: "guest" }); }
   catch (err) { state.error = tr("The call could not start. Check your connection and try again."); paint(); return; }
   /* Like a person picking up, the practice partner says hello first. */
-  if (practice) setTimeout(() => { if (state.test === t) practiceReply("", true); }, 1800);
+  if (practice) practiceGreetWhenReady();
 }
 function testReply(text) {
   const clean = String(text || "").trim();
@@ -3314,6 +3322,15 @@ async function startPractice(lang) {
   if (!ok) return;
   await startPartner(res.data.invite);
   state.statsTimer = setInterval(updateStats, 1000);
+}
+/* The practice partner says hello the moment the call can carry it: the call is connected and your translator is
+   ready (or the call is in text). No timer: it greets as soon as its session is up. */
+function practiceGreetWhenReady() {
+  const t = state.test;
+  if (!t || !t.practice || t.greeted || !state.partner) return;
+  if (!t.linkUp || !(t.rxReady || t.noVoice || state.needKey || state.turnFallback)) return;
+  t.greeted = true;
+  practiceReply("", true);
 }
 /* Lines the partner hears while its own voice or its translation is still playing are echo from this phone's speaker. */
 const PRACTICE_ECHO_MS = 2500;
