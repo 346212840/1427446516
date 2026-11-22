@@ -1534,3 +1534,11 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.ok(worker.includes("response.status === 400 && !plain"), "a refused voice-detection setting retries with the defaults");
   console.log("calls spanish asr ok");
 }
+
+{
+  const fs = await import("node:fs");
+  const page = fs.readFileSync(new URL("../calls.js", import.meta.url), "utf8");
+  const qr = page.slice(page.indexOf("async function joinRotateQr("), page.indexOf("async function joinRotateQr(") + 1200);
+  assert.ok(qr.includes('state.peerName = (state.linkInfo && state.linkInfo.name) || "";') && !qr.includes("state.peerName = (res.data && res.data.name)"), "a QR caller sees the owner name, not their own");
+  console.log("calls qr peer name ok");
+}

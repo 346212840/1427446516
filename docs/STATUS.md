@@ -23,7 +23,7 @@ Scheduled call invites (`calls_schedule`, on by default) are created from the Ca
 
 The original-voice volume slider (`calls_orig_vol`, on by default) sits on the call screen, next to a one-tap switch to hear their original voice. Off leaves the slider only in Settings and the Sound sheet.
 
-A rotating QR code (`calls_rotate_qr`, on by default) sits on the Calls home screen and refreshes every two minutes. Scanning it rings you like an incoming call. The previous code stays valid until it expires so a mid-scan still works. Off hides the code.
+A rotating QR code (`calls_rotate_qr`, on by default) sits on the Calls home screen and refreshes every two minutes. Scanning it rings you like an incoming call. The person who scans sees your name on their call screen (it used to show their own name). The previous code stays valid until it expires so a mid-scan still works. Off hides the code.
 
 A Practice with AI button (`calls_practice`, on by default) on the Calls home screen starts a call with a partner that replies on its own, so you can practice a translated call without a second person. Off hides the button.
 
