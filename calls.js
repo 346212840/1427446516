@@ -3122,12 +3122,15 @@ async function startPartner(invite) {
   const joined = await api("/v1/calls/join/" + encodeURIComponent(invite), { method: "POST", body: JSON.stringify({ name: partnerLabel }) }).catch(() => null);
   if (!joined || !joined.ok) { state.error = errorFor(joined); paint(); return; }
   const guestToken = joined.data.guestToken;
-  const partnerMode = { send: "text", receive: "both", original: false, translationOnly: false, subtitles: "both" };
+  /* The partner hears like a real peer: the translation, with the original voice under it when the person keeps it on. */
+  const partnerMode = () => ({ send: "text", receive: "both", original: state.mode.original !== false, translationOnly: false, subtitles: "both" });
   const eng = createEngine(engineConfig({
     api: (path, init) => api(path, Object.assign({}, init || {}, { headers: { "content-type": "application/json", "x-call-guest": guestToken } })),
-    getMode: () => partnerMode,
+    getMode: partnerMode,
     micLoop: true,
-    getVolumes: () => normalizeVolumes({ overall: state.test && state.test.hear ? 1 : 0, translation: state.test && state.test.hear ? 0.9 : 0, tts: 0 }),
+    /* Its "remote" voice is this phone's own microphone, which also hears the translation playing. Talking over it must not cut it off. */
+    bargeIn: () => false,
+    getVolumes: () => normalizeVolumes({ overall: state.test && state.test.hear ? 1 : 0, translation: state.test && state.test.hear ? state.volumes.translation : 0, original: state.volumes.original, tts: 0 }),
     getLang: () => (state.test ? state.test.lang : "en"),
     getName: () => (state.test && state.test.practice ? tr("Practice partner") : tr("Test partner")),
     voiceOverride: () => "",

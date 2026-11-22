@@ -4,6 +4,8 @@ Written 2026-11-21 (UTC). The Pages directory is the repository name, read from 
 
 ## Calls
 
+By default both people hear the original voice at 35% of the chosen overall level, smoothly ducked to 17.5% while translation is playing; the original-volume slider overrides the resting level. Test calls use the same mix. Already translated audio from a peer in translation-only mode is audible even with original voice off.
+
 Voice and text calls (`calls`, off until the owner turns it on) are in `#/calls`. The key is the Worker secret `GEMINI_API_KEY`. Details: `docs/CALLS.md`. No camera. Catalan and Swedish are supported targets. Privacy, blocks, and quiet hours are enforced on the server. Guests join from a link with no account. The call screen is mute, speaker, hang up, and talk or type. The rest is under More.
 
 Typed messages in a call, including a test call, are shown at once. A still-loading translation preview does not delay or drop Send. If signalling is down the message is queued and retried, and a failed send shows Retry on the bubble. `ViktorychCalls.debug().lastSendVisibleMs` is the time from Send to the bubble.
