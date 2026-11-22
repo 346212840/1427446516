@@ -22,6 +22,7 @@ import { handleCallSchedule, sweepSchedules, CALL_SCHEDULE_SCHEMA } from "./call
 import { handleCallRotateQr, CALL_ROTATE_QR_SCHEMA } from "./call-rotate-qr.js";
 import { handleCallPractice, startPracticeSession } from "./call-practice.js";
 import { handleCallHistoryEdit, attachHistoryMeta, CALL_HISTORY_EDIT_SCHEMA } from "./call-history-edit.js";
+import { handleCallReach, CALL_REACH_SCHEMA } from "./call-reach.js";
 
 const ACCOUNT = /^\d{12}$/;
 const ID = /^[a-f0-9]{32}$/;
@@ -103,7 +104,7 @@ export const CALLS_SCHEMA = [
     guest_id TEXT NOT NULL,
     expires_at INTEGER NOT NULL
   )`
-].concat(TURN_SCHEMA, CALL_SCHEDULE_SCHEMA, CALL_ROTATE_QR_SCHEMA, CALL_HISTORY_EDIT_SCHEMA);
+].concat(TURN_SCHEMA, CALL_SCHEDULE_SCHEMA, CALL_ROTATE_QR_SCHEMA, CALL_HISTORY_EDIT_SCHEMA, CALL_REACH_SCHEMA);
 
 let schema = null;
 function ensure(env) {
@@ -625,6 +626,11 @@ export async function handleCalls(request, env, path, url, deps) {
     member, mintTicket, callIceServers, sha256Hex, b64url, hex, viewCall, cleanName, callerMayCall, loadPrefs
   });
   if (rotateQr) return rotateQr;
+
+  const reach = await handleCallReach(request, env, path, url, deps, {
+    member, mintTicket, callIceServers, sha256Hex, b64url, hex, cleanName, callerMayCall, loadPrefs
+  });
+  if (reach) return reach;
 
   const practice = await handleCallPractice(request, env, path, url, deps, {
     member, mintTicket, callIceServers, sha256Hex, b64url, hex, viewCall, cleanName, pickKey, generateText, generateSpeech, normalizeLang

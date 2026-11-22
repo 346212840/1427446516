@@ -1411,7 +1411,7 @@ console.log("calls logic ok", JSON.stringify(report));
     assert.ok(list.includes(file), "FEATURE_FILES.calls includes " + file);
     assert.ok(shell.includes(file), "the main shell precaches " + file);
   }
-  assert.ok(standalone.includes("viktorych-calls-shell-v6"), "the stand-alone Calls cache is bumped");
+  assert.ok(standalone.includes("viktorych-calls-shell-v7") && standalone.includes("../shared/call-reach.js"), "the stand-alone Calls cache is bumped and caches the reach helper");
   assert.ok(standalone.includes("../shared/call-pip.js") && standalone.includes("../shared/call-preview.js"), "the stand-alone Calls page caches pip and preview");
   console.log("calls feature files ok");
 }
@@ -1550,4 +1550,27 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.ok(!/barDrag = \{[^}]*\};\s*try \{ if \(e\.pointerId != null && bar\.setPointerCapture\)/.test(page) && page.includes("barDrag.bar.setPointerCapture(barDrag.pid)"), "the bar takes pointer capture only once a drag starts, so a mouse click on a bar button still lands");
   assert.ok(css.includes(".calls-sheet-body {") && /\.calls-sheet-body \{[^}]*overflow-y: auto/.test(css), "a long section scrolls inside the sheet");
   console.log("calls test modes and sheet sections ok");
+}
+
+{
+  const fs = await import("node:fs");
+  const reach = await import("../shared/call-reach.js");
+  assert.ok(reach.REQUEST_TOKEN.test("cq1.abcdefgh12345678") && !reach.REQUEST_TOKEN.test("cs1.abcdefgh12345678"), "request tokens are their own kind");
+  assert.ok(reach.looksSpammy("visit https://spam.example") && reach.looksSpammy("mail me a@b.co") && reach.looksSpammy("+1 555 123 4567 8"), "links, emails and phone runs are spam");
+  assert.ok(!reach.looksSpammy("Hola, ¿hablamos del proyecto?"), "a plain note is fine");
+  const now = Date.now();
+  assert.ok(!reach.requestWhenOk(now + 5 * 60 * 1000, now) && reach.requestWhenOk(now + 60 * 60 * 1000, now) && !reach.requestWhenOk(now + 90 * 24 * 60 * 60 * 1000, now), "a request needs 15 minutes to 60 days of notice");
+  const page = fs.readFileSync(new URL("../calls.js", import.meta.url), "utf8");
+  const flags = fs.readFileSync(new URL("../worker/src/feature-flags.js", import.meta.url), "utf8");
+  const app = fs.readFileSync(new URL("../app.js", import.meta.url), "utf8");
+  const worker = fs.readFileSync(new URL("../worker/src/call-reach.js", import.meta.url), "utf8");
+  assert.ok(flags.includes('calls_owner_reach: { paths: ["/v1/calls/reach"] }') && app.includes('"calls_owner_reach"'), "calls_owner_reach is a server feature flag");
+  assert.ok(page.includes('data-act="call-reach"${on ? "" : " disabled aria-disabled=\\"true\\""}') && page.includes('tr("Not available right now")'), "the Call the owner button is off while the owner is away");
+  assert.ok(page.includes('if (!reachFlagOn() || !state.reach || state.reach.self || !state.reach.requests) return "";'), "the owner never sees their own Call the owner card");
+  assert.ok(page.includes('<input class="calls-hp" name="website"') && page.includes('type="datetime-local" name="when"'), "the request form has a local time picker and a honeypot");
+  assert.ok(page.includes('if (reachOwner()) tabs.push(["requests"') && page.includes('data-act="call-req-accept"') && page.includes('data-act="call-req-suggest"') && page.includes('data-act="call-req-decline"'), "the owner answers in a Requests tab");
+  assert.ok(!/setInterval\(\s*loadReach/.test(page) && page.includes('document.visibilityState === "visible" && state.phase === "idle" && reachFlagOn()'), "request answers refresh on return, with no polling loop");
+  assert.ok(!/owner_id|public_id|handle/.test(worker.slice(worker.indexOf("function viewForVisitor"), worker.indexOf("function viewForOwner"))), "a visitor never sees owner ids");
+  assert.ok(worker.includes('return deps.json(200, { available: available, requests: !!owner && !self, self: self });'), "the public read says only whether the owner can be reached");
+  console.log("calls owner reach ok");
 }

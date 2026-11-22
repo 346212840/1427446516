@@ -622,3 +622,83 @@ test("a guest can resume the same call after a reload, and leaving revokes the t
   const after = await call("/v1/calls/" + id + "/ticket", { method: "POST", guest: first.body.guestToken, body: {} });
   assert.ok(after.status === 401 || after.status === 410, "the guest token is no longer valid after leaving");
 });
+
+test("call the owner and request a call: availability, anti-spam, and Accept / Suggest / Decline", async () => {
+  const ownerToken = globalThis.__callsOwnerToken;
+  assert.ok(ownerToken, "the first test turned Calls on");
+  await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls", off: false } });
+  await call("/v1/calls/prefs", { method: "PUT", token: ownerToken, body: { who: "everyone", guests: true, dnd: false } });
+  const mona = await signup(91, "Mona Example", "mona_example");
+
+  const closed = await call("/v1/calls/reach", { ip: "198.51.100.40" });
+  assert.equal(closed.status, 200);
+  assert.deepEqual(Object.keys(closed.body).sort(), ["available", "requests", "self"], "nothing about the owner is shown");
+  assert.equal(closed.body.available, false, "availability starts off");
+  assert.equal((await call("/v1/calls/reach/call", { method: "POST", ip: "198.51.100.40", body: { name: "Vi" } })).status, 403);
+  assert.equal((await call("/v1/calls/reach", { token: ownerToken })).body.self, true);
+  assert.equal((await call("/v1/calls/reach/availability", { method: "PUT", token: mona.token, body: { available: true } })).status, 403, "only the owner switches it");
+
+  const on = await call("/v1/calls/reach/availability", { method: "PUT", token: ownerToken, body: { available: true } });
+  assert.equal(on.status, 200, JSON.stringify(on.body));
+  assert.equal(on.body.available, true);
+  assert.equal((await call("/v1/calls/reach", { ip: "198.51.100.40" })).body.available, true);
+  const rang = await call("/v1/calls/reach/call", { method: "POST", ip: "198.51.100.40", body: { name: "Vi", device: "dev-aaaaaaaa" } });
+  assert.equal(rang.status, 200, JSON.stringify(rang.body));
+  assert.equal(rang.body.ringing, true);
+  assert.ok(rang.body.guestToken && rang.body.ticket);
+  assert.equal(rang.body.call.hostId, "", "the owner's id is not handed out");
+  const incoming = await call("/v1/calls/incoming", { token: ownerToken });
+  assert.equal(incoming.body.calls.some((row) => row.id === rang.body.call.id), true, "it rings the owner");
+
+  await call("/v1/calls/prefs", { method: "PUT", token: ownerToken, body: { dnd: true, dndFrom: "00:00", dndTo: "23:59" } });
+  await call("/v1/calls/prefs", { method: "PUT", token: ownerToken, body: { dnd: false } });
+
+  const soon = Date.now() + 2 * 24 * 60 * 60 * 1000;
+  const spam = await call("/v1/calls/reach/request", { method: "POST", ip: "198.51.100.41", body: { name: "Vi", note: "visit https://spam.example", startsAt: soon } });
+  assert.equal(spam.status, 400, "links are refused");
+  const bot = await call("/v1/calls/reach/request", { method: "POST", ip: "198.51.100.42", body: { name: "Vi", website: "x", startsAt: soon } });
+  assert.equal(bot.status, 400, "the hidden field catches bots");
+  assert.equal((await call("/v1/calls/reach/request", { method: "POST", ip: "198.51.100.43", body: { name: "Vi", startsAt: Date.now() + 60 * 1000 } })).status, 400, "too soon");
+
+  const made = await call("/v1/calls/reach/request", { method: "POST", ip: "198.51.100.44", body: { name: "Vi", note: "About the trip", startsAt: soon, zone: "Europe/Madrid", device: "dev-bbbbbbbb" } });
+  assert.equal(made.status, 201, JSON.stringify(made.body));
+  assert.ok(/^cq1\./.test(made.body.token));
+  assert.equal(made.body.request.state, "pending");
+  assert.equal((await call("/v1/calls/reach/requests", { token: mona.token })).status, 403, "only the owner lists requests");
+  const listed = await call("/v1/calls/reach/requests", { token: ownerToken });
+  assert.equal(listed.status, 200);
+  const row = listed.body.requests.find((r) => r.name === "Vi" && r.note === "About the trip");
+  assert.ok(row, "the owner sees the request");
+  assert.equal(row.zone, "Europe/Madrid");
+  assert.equal(JSON.stringify(listed.body).includes("198.51.100"), false, "no IP is kept or shown");
+
+  for (let i = 0; i < 2; i++) assert.equal((await call("/v1/calls/reach/request", { method: "POST", ip: "198.51.100.44", body: { name: "Vi" + i, startsAt: soon } })).status, 201);
+  assert.equal((await call("/v1/calls/reach/request", { method: "POST", ip: "198.51.100.44", body: { name: "Vi3", startsAt: soon } })).status, 429, "a source can only have a few open requests");
+
+  const later = soon + 60 * 60 * 1000;
+  const suggested = await call("/v1/calls/reach/requests/" + row.id + "/suggest", { method: "POST", token: ownerToken, body: { startsAt: later } });
+  assert.equal(suggested.status, 200, JSON.stringify(suggested.body));
+  const seen = await call("/v1/calls/reach/request?token=" + encodeURIComponent(made.body.token));
+  assert.equal(seen.body.request.state, "suggested");
+  assert.equal(seen.body.request.suggestedAt, later);
+  const took = await call("/v1/calls/reach/request/take", { method: "POST", body: { token: made.body.token } });
+  assert.equal(took.status, 200, JSON.stringify(took.body));
+  assert.equal(took.body.request.state, "accepted");
+  assert.ok(/^cs1\./.test(took.body.request.invite), "the visitor gets the scheduled-call link");
+  const sched = await call("/v1/calls/schedule", { token: ownerToken });
+  assert.equal(sched.body.schedules.some((s) => s.startsAt === later), true, "Accept creates a scheduled call with reminders");
+  const ics = await call("/v1/calls/schedule/guest/ics?token=" + encodeURIComponent(took.body.request.invite));
+  assert.equal(ics.status, 200);
+  assert.ok(ics.text.includes("BEGIN:VCALENDAR"));
+
+  const second = (await call("/v1/calls/reach/requests", { token: ownerToken })).body.requests.find((r) => r.name === "Vi0");
+  assert.equal((await call("/v1/calls/reach/requests/" + second.id + "/decline", { method: "POST", token: ownerToken, body: {} })).body.request.state, "declined");
+  const third = (await call("/v1/calls/reach/requests", { token: ownerToken })).body.requests.find((r) => r.name === "Vi1");
+  assert.equal((await call("/v1/calls/reach/requests/" + third.id + "/accept", { method: "POST", token: ownerToken, body: {} })).body.request.state, "accepted");
+
+  await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls_owner_reach", off: true } });
+  assert.equal((await call("/v1/calls/reach", { ip: "198.51.100.45" })).status, 204);
+  assert.equal((await call("/v1/calls/reach/request", { method: "POST", ip: "198.51.100.45", body: { name: "Vi", startsAt: soon } })).status, 404);
+  await call("/v1/owner/features", { method: "POST", token: ownerToken, body: { name: "calls_owner_reach", off: false } });
+  await call("/v1/calls/reach/availability", { method: "PUT", token: ownerToken, body: { available: false } });
+});

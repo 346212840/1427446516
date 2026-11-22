@@ -211,7 +211,16 @@ export const FEATURES = {
   /* Live translation goes through the Worker proxy, the API key is only
      sent as a header, and the key is never logged or returned. On by
      default. Off uses the earlier direct-to-Google path. */
-  calls_eu_proxy: { paths: [] }
+  calls_eu_proxy: { paths: [] },
+  /* Call the owner and Request a call on the public Calls page. Call the
+     owner rings the owner (their key once answered) only while the owner
+     has switched themselves available in the Requests tab; otherwise it
+     reads "Not available right now". Request a call sends a time, name and
+     note; the owner gets a notification and can Accept (a scheduled call
+     with calendar file and reminders), Suggest another time or Decline.
+     Rate limited per IP and device, no links, nothing about the owner shown.
+     On by default; availability itself starts off. Off hides both. */
+  calls_owner_reach: { paths: ["/v1/calls/reach"] }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 

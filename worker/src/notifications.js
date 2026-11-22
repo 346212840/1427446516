@@ -20,7 +20,7 @@ import { viewerDisplay } from "./name-rules.js";
 import { lockedAccountSet, notLocked } from "./locked-sql.js";
 
 const encoder = new TextEncoder();
-const KINDS = { post: 1, mention: 1, reply: 1, quote: 1, like: 1, repost: 1, follow: 1, follow_request: 1, follow_accept: 1, friend_request: 1, friend_accept: 1, dm: 1, discord: 1, live: 1, call: 1, call_scheduled: 1, call_remind: 1, call_starting: 1, call_cancelled: 1, call_declined: 1, birthday: 1, birthday_self: 1, gift: 1, package: 1, game_invite: 1, game_join: 1, game_achievement: 1, game_board: 1, tv_signin: 1, community_note: 1, feed_request: 1, feed_approved: 1, feed_rejected: 1 };
+const KINDS = { post: 1, mention: 1, reply: 1, quote: 1, like: 1, repost: 1, follow: 1, follow_request: 1, follow_accept: 1, friend_request: 1, friend_accept: 1, dm: 1, discord: 1, live: 1, call: 1, call_scheduled: 1, call_remind: 1, call_starting: 1, call_cancelled: 1, call_declined: 1, call_request: 1, birthday: 1, birthday_self: 1, gift: 1, package: 1, game_invite: 1, game_join: 1, game_achievement: 1, game_board: 1, tv_signin: 1, community_note: 1, feed_request: 1, feed_approved: 1, feed_rejected: 1 };
 const PREF_KINDS = ["mentions", "replies", "quotes", "likes", "reposts", "follows", "dms", "games"];
 // Every notification type is on (push) for anyone who has not changed it.
 const DEFAULT_PREFS = { mentions: "push", replies: "push", quotes: "push", likes: "push", reposts: "push", follows: "push", dms: "push", games: "push", mentionsFrom: "all" };
@@ -963,6 +963,7 @@ function titleKeyFor(item) {
   if (kind === "call_starting") return "Your call with {name} is starting";
   if (kind === "call_cancelled") return "{name} cancelled a scheduled call";
   if (kind === "call_declined") return "{name} declined your scheduled call";
+  if (kind === "call_request") return "{name} asked for a call";
   if (kind === "birthday") return "It's {name}'s birthday today";
   if (kind === "birthday_self") return "Happy birthday";
   if (kind === "package") return "Package update: {name}";
