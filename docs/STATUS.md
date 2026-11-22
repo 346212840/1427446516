@@ -4,6 +4,8 @@ Written 2026-11-21 (UTC). The Pages directory is the repository name, read from 
 
 ## Calls
 
+Practice with AI talks like a real person on the call: it says hello first, answers in its language with a Gemini voice (`gemini-3.8-flash-lite-tts`, then `gemini-3.8-flash-tts`), and that voice is fed into the partner's virtual microphone, so it reaches you over the same WebRTC call and Live Translate path as a real peer (original under the translation, captions, bubbles, real latency). If the voice is not available the reply is sent as a typed message. A failed reply says so on the call screen. Lines heard while its own voice or translation is still playing are ignored as echo.
+
 One tap on Send always sends on a phone: the composer is never under the call bar, the keyboard stays open, the box clears and the bubble shows at once, and Enter (the keyboard's Send key) sends too. While the keyboard is open the call fits the visible area with the conversation and composer above the keyboard. A test call opens on the call screen, not behind the Test partner sheet, and a repaint no longer reopens or moves focus to a different text box.
 By default both people hear the original voice at 35% of the chosen overall level, smoothly ducked to 17.5% while translation is playing; the original-volume slider overrides the resting level. Test calls use the same mix. Already translated audio from a peer in translation-only mode is audible even with original voice off.
 

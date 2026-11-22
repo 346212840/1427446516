@@ -2704,6 +2704,8 @@ function onEngineEvent(type, d) {
     live();
   } else if (type === "translating") {
     state.translating = d.on;
+    /* The practice partner's translated voice just stopped: its echo can still reach the microphone for a moment. */
+    if (!d.on && state.test && state.test.practice) state.test.aiUntil = Math.max(state.test.aiUntil || 0, Date.now() + 1200);
     live();
   } else if (type === "needKey") {
     const next = d.reason === "badkey" ? "badkey" : "nokey";
@@ -3158,7 +3160,11 @@ async function startPartner(invite) {
   if (!joined || !joined.ok) { state.error = errorFor(joined); paint(); return; }
   const guestToken = joined.data.guestToken;
   /* The partner hears like a real peer: the translation, with the original voice under it when the person keeps it on. */
-  const partnerMode = () => ({ send: "text", receive: "both", original: state.mode.original !== false, translationOnly: false, subtitles: "both" });
+  const practice = !!(t && t.practice);
+  /* The practice partner talks like a real peer: its voice is fed into a virtual microphone and goes over the call to you. */
+  const vmicAc = practice ? (audioUnlock.get() || audioUnlock.unlock()) : null;
+  if (practice && vmicAc) t.vmic = vmicAc.createMediaStreamDestination();
+  const partnerMode = () => ({ send: practice && t.vmic ? "voice" : "text", receive: "both", original: state.mode.original !== false, translationOnly: false, subtitles: "both" });
   const eng = createEngine(engineConfig({
     api: (path, init) => api(path, Object.assign({}, init || {}, { headers: { "content-type": "application/json", "x-call-guest": guestToken } })),
     getMode: partnerMode,
@@ -3170,6 +3176,7 @@ async function startPartner(invite) {
     getName: () => (state.test && state.test.practice ? tr("Practice partner") : tr("Test partner")),
     voiceOverride: () => "",
     getMic: async () => {
+      if (practice && t.vmic) return t.vmic.stream;
       const mic = state.engine && state.engine.micClone && state.engine.micClone();
       return mic || null;
     },
@@ -3206,7 +3213,9 @@ async function startPartner(invite) {
   }));
   state.partner = eng;
   try { await eng.start({ id: state.callId, ticket: joined.data.ticket, iceServers: joined.data.iceServers, role: "guest" }); }
-  catch (err) { state.error = tr("The call could not start. Check your connection and try again."); paint(); }
+  catch (err) { state.error = tr("The call could not start. Check your connection and try again."); paint(); return; }
+  /* Like a person picking up, the practice partner says hello first. */
+  if (practice) setTimeout(() => { if (state.test === t) practiceReply("", true); }, 1800);
 }
 function testReply(text) {
   const clean = String(text || "").trim();
@@ -3218,7 +3227,7 @@ async function startPractice() {
   state.error = "";
   const res = await api("/v1/calls", { method: "POST", body: JSON.stringify({ practice: true }) }).catch(() => null);
   if (!res || !res.ok) { state.error = errorFor(res); paint(); return; }
-  state.test = { lang: myLang() === "en" ? "es" : "en", hear: true, lines: [], partial: { original: "", translation: "" }, practice: true, turns: [] };
+  state.test = { lang: myLang() === "en" ? "es" : "en", hear: false, lines: [], partial: { original: "", translation: "" }, practice: true, turns: [] };
   state.statusCode = "waiting";
   state.peerName = tr("Practice partner");
   const ok = await begin({ id: res.data.call.id, ticket: res.data.ticket, iceServers: res.data.iceServers }, "host");
@@ -3226,34 +3235,75 @@ async function startPractice() {
   await startPartner(res.data.invite);
   state.statsTimer = setInterval(updateStats, 1000);
 }
-async function practiceReply(heard) {
+/* Lines the partner hears while its own voice or its translation is still playing are echo from this phone's speaker. */
+const PRACTICE_ECHO_MS = 2500;
+async function practiceReply(heard, greet) {
   const t = state.test;
   if (!t || !t.practice || !state.partner) return;
   const text = String(heard || "").replace(/\s+/g, " ").trim();
-  if (!text) return;
-  if (t.practiceBusy) return;
+  if (!text && !greet) return;
+  if (!greet && (Date.now() < (t.aiUntil || 0) || (state.translating && Date.now() < (t.aiUntil || 0) + 15000))) return;
+  if (t.practiceBusy) { if (text) t.pendingHeard = text; return; }
   t.practiceBusy = true;
-  const res = await api("/v1/calls/practice", { method: "POST", body: JSON.stringify({ id: state.callId, text: text, lang: t.lang, turns: t.turns }) }).catch(() => null);
+  const body = { id: state.callId, text: text, lang: t.lang, turns: t.turns, voice: !!t.vmic, greet: !!greet };
+  const res = await api("/v1/calls/practice", { method: "POST", body: JSON.stringify(body) }).catch(() => null);
   t.practiceBusy = false;
-  if (!state.test || !state.test.practice) return;
-  if (!res || !res.ok) {
-    const code = res && res.data && res.data.error;
-    if (code === "nokey" || (res && res.data && res.data.reason === "nokey")) state.needKey = "nokey";
-    else if (res && res.data && res.data.reason === "badkey") state.needKey = "badkey";
-    else if (res && res.data && res.data.reason === "quota") state.error = tr("The practice partner is busy. Try again in a moment.");
-    if (host()) paint();
-    return;
-  }
-  const reply = String((res.data && res.data.reply) || "").trim();
+  if (state.test !== t || !t.practice) return;
+  const reason = res && res.data && (res.data.reason || res.data.error);
+  const reply = res && res.ok ? String((res.data && res.data.reply) || "").trim() : "";
   if (!reply) {
-    if (res.data && res.data.reason === "nokey") state.needKey = "nokey";
-    else if (res.data && res.data.reason === "badkey") state.needKey = "badkey";
-    else if (res.data && res.data.reason === "quota") state.error = tr("The practice partner is busy. Try again in a moment.");
+    if (reason === "nokey") state.needKey = "nokey";
+    else if (reason === "badkey") state.needKey = "badkey";
+    else if (reason === "quota") state.error = tr("The practice partner is busy. Try again in a moment.");
+    else state.error = tr("The practice partner did not answer. Say something again.");
     if (host()) paint();
     return;
   }
-  t.turns = (t.turns || []).concat([{ role: "you", text: text }, { role: "partner", text: reply }]).slice(-8);
-  state.partner.sendText(reply);
+  if (state.error) { state.error = ""; if (host()) paint(); }
+  t.turns = (t.turns || []).concat(greet ? [{ role: "partner", text: reply }] : [{ role: "you", text: text }, { role: "partner", text: reply }]).slice(-8);
+  const spoken = res.data.audio ? playPracticeVoice(t, res.data.audio, res.data.audioMime) : 0;
+  if (!spoken) state.partner.sendText(reply);
+  const next = t.pendingHeard;
+  t.pendingHeard = "";
+  if (next) practiceReply(next);
+}
+/* 16-bit mono PCM, raw or in a WAV file, played into the partner's virtual microphone. Returns its length in ms, or 0. */
+function playPracticeVoice(t, b64, mime) {
+  try {
+    const ac = audioUnlock.get();
+    if (!ac || !t.vmic) return 0;
+    const bin = atob(String(b64 || ""));
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    let rate = Number((String(mime || "").match(/rate=(\d+)/) || [])[1]) || 24000;
+    let start = 0;
+    let len = bytes.length;
+    if (bytes.length > 44 && bin.slice(0, 4) === "RIFF" && bin.slice(8, 12) === "WAVE") {
+      const view = new DataView(bytes.buffer);
+      let at = 12;
+      while (at + 8 <= bytes.length) {
+        const id = bin.slice(at, at + 4);
+        const size = view.getUint32(at + 4, true);
+        if (id === "fmt ") rate = view.getUint32(at + 12, true) || rate;
+        if (id === "data") { start = at + 8; len = Math.min(size, bytes.length - start); break; }
+        at += 8 + size + (size % 2);
+      }
+    }
+    const samples = Math.floor(len / 2);
+    if (samples < 10) return 0;
+    const view = new DataView(bytes.buffer, start, samples * 2);
+    const floats = new Float32Array(samples);
+    for (let i = 0; i < samples; i++) floats[i] = view.getInt16(i * 2, true) / 32768;
+    const buffer = ac.createBuffer(1, samples, rate);
+    buffer.copyToChannel(floats, 0);
+    const src = ac.createBufferSource();
+    src.buffer = buffer;
+    src.connect(t.vmic);
+    src.start();
+    const ms = Math.round(buffer.duration * 1000);
+    t.aiUntil = Date.now() + ms + PRACTICE_ECHO_MS;
+    return ms;
+  } catch (err) { return 0; }
 }
 /* In a test call the partner engine hears this device, so its heard-side timeline is the one that matters. */
 function lastTimings(owner) {
