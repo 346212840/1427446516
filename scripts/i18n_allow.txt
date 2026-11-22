@@ -670,3 +670,5 @@ shared/call-practice.js|The other person just started the call.
 shared/call-practice.js|They just said:
 shared/call-practice.js|Reply in 
 shared/call-practice.js|They just said: 
+shared/call-setup.js|START_SENSITIVITY_HIGH
+shared/call-setup.js|END_SENSITIVITY_LOW
