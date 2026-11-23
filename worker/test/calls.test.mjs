@@ -196,6 +196,8 @@ test("calls stay off until the owner turns them on, then privacy is enforced", a
   const ownerMint = await call("/v1/calls/" + ownerInvite.body.call.id + "/translate", { method: "POST", guest: ownerGuest.body.guestToken, body: { target: "en" } });
   assert.equal(ownerMint.body.mode, "token");
   assert.equal(ownerMint.body.keySource, "owner");
+  const ownerHistory = await call("/v1/calls/history", { token: owner.body.token });
+  assert.equal(ownerHistory.body.calls.find((c) => c.id === ownerInvite.body.call.id).name, "Visitor", "the host's history keeps the name the link guest typed");
   const toOwner = await call("/v1/calls", { method: "POST", token: ada.token, body: { handle: "owner_test" } });
   assert.equal(toOwner.status, 201, JSON.stringify(toOwner.body));
   const ringing = await call("/v1/calls/" + toOwner.body.call.id + "/translate", { method: "POST", token: ada.token, body: { target: "en" } });

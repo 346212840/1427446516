@@ -929,6 +929,9 @@ export async function handleCalls(request, env, path, url, deps) {
     if (row.state === "ringing") {
       await env.DB.prepare("UPDATE call_sessions SET state = 'active', answered_at = ?, peer_id = ? WHERE id = ?").bind(now, guestId, row.id).run();
     }
+    /* Keep the name the guest typed so the host's history shows who it was, not "Guest". */
+    const guestName = cleanName(body && body.name);
+    if (guestName) await env.DB.prepare("INSERT INTO call_names (call_id, name) VALUES (?, ?) ON CONFLICT(call_id) DO UPDATE SET name = excluded.name").bind(row.id, guestName).run();
     const ticket = await mintTicket(env, row.id, guestId, "guest");
     return deps.json(200, { call: viewCall(await env.DB.prepare("SELECT * FROM call_sessions WHERE id = ?").bind(row.id).first()), guestId: guestId, guestToken: guestToken, guestExpiresAt: Number(saved.expires_at), name: cleanName(body && body.name) || "Guest", ticket: ticket.ticket, iceServers: await callIceServers(env, deps, { id: row.id, self: guestId, state: "active" }), video: false });
   }
