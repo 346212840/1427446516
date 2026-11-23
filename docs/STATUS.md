@@ -471,3 +471,5 @@ scripts/smoke-all.sh --changed
 - Rules and how to ship: `AGENTS.md`.
 - History and merge-queue details: `docs/HANDOFF.md`.
 - Opening the repo in Antigravity and starter prompts: `docs/ANTIGRAVITY.md`.
+
+Calls statistics: when the translation starts before the speaker stops, Stop to sound reads "N ms before you stopped" instead of a negative number.

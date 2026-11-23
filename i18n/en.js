@@ -7024,5 +7024,6 @@ SI18n.addPack("en", {
   "The Call the owner button reads Not available right now.": "The Call the owner button reads Not available right now.",
   "No call requests yet.": "No call requests yet.",
   "Suggest another time": "Suggest another time",
-  "A Call the owner button and a Request a call form on the public Calls page. Calls ring you only while you are available in the Requests tab; requests wait there for Accept, Suggest another time or Decline. Off hides both.": "A Call the owner button and a Request a call form on the public Calls page. Calls ring you only while you are available in the Requests tab; requests wait there for Accept, Suggest another time or Decline. Off hides both."
+  "A Call the owner button and a Request a call form on the public Calls page. Calls ring you only while you are available in the Requests tab; requests wait there for Accept, Suggest another time or Decline. Off hides both.": "A Call the owner button and a Request a call form on the public Calls page. Calls ring you only while you are available in the Requests tab; requests wait there for Accept, Suggest another time or Decline. Off hides both.",
+  "{ms} ms before you stopped": "{ms} ms before you stopped"
 });
