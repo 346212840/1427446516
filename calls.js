@@ -256,6 +256,22 @@ function writeSessionJson(key, value) {
   try { sessionStorage.setItem(key, JSON.stringify(value)); }
   catch (err) { /* private mode */ }
 }
+/* What was said stays on screen after a reload or rejoin of the same call. It is kept
+   in this tab only (sessionStorage) and dropped when the call ends. */
+const CALL_LINES_KEY = "viktorych-calls-lines-v1";
+const CALL_LINES_MS = 2 * 60 * 60 * 1000;
+function saveCallLines() {
+  if (!state.callId || state.test || state.phase === "idle" || !state.lines.length) return;
+  writeSessionJson(CALL_LINES_KEY, { callId: state.callId, at: Date.now(), lines: state.lines.slice(-40) });
+}
+function restoreCallLines(id) {
+  const saved = readSessionJson(CALL_LINES_KEY);
+  if (!saved || saved.callId !== id || !Array.isArray(saved.lines) || Date.now() - Number(saved.at || 0) > CALL_LINES_MS) return [];
+  return saved.lines.filter((row) => row && typeof row === "object").slice(-40);
+}
+function clearCallLines() {
+  try { sessionStorage.removeItem(CALL_LINES_KEY); } catch (err) { /* private mode */ }
+}
 function readStoredGuestSession() {
   const now = Date.now();
   let row = readSessionJson(GUEST_SESSION_KEY);
@@ -2825,6 +2841,7 @@ function pushLine(line) {
   state.lines.push(row);
   if (row.translation && !row.mine) state.lastLine = rememberLine(state.lastLine, { text: row.translation });
   if (state.lines.length > 40) state.lines.shift();
+  saveCallLines();
 }
 function speakText(text, lang, force) {
   const line = String(text || "").trim();
@@ -3043,7 +3060,7 @@ async function begin(info, role, extra) {
   state.more = false;
   state.callId = info.id;
   state.phase = "calling";
-  state.lines = [];
+  state.lines = restoreCallLines(info.id);
   state.partial = { original: "", translation: "" };
   state.quota = false;
   state.peerQuota = false;
@@ -3238,6 +3255,7 @@ async function peerEnded() {
   const endedId = state.callId;
   const endedLines = (state.lines || []).slice();
   clearGuestSession();
+  clearCallLines();
   state.guestToken = "";
   await teardown(true);
   if (endedId && endedLines.length) await saveHistTranscript(endedId, endedLines);
@@ -3250,6 +3268,7 @@ async function hangUp() {
   const endedId = state.callId;
   const endedLines = (state.lines || []).slice();
   clearGuestSession();
+  clearCallLines();
   /* The guest token signs the end request, so it is dropped only after teardown
      has told the server. Clearing it first made a guest's hang-up a 401: the
      host stayed in a dead call and the guest could not join again. */
@@ -4083,6 +4102,9 @@ function mount(route) {
     target.addEventListener("focusin", syncKeyboard);
     target.addEventListener("focusout", () => setTimeout(syncKeyboard, 80));
     document.addEventListener("visibilitychange", micRecheck);
+    /* Translations fill in after a line is added; keep the latest text for a reload. */
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") saveCallLines(); });
+    window.addEventListener("pagehide", saveCallLines);
     /* Fresh request answers when the visitor comes back: no polling loop. */
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && state.phase === "idle" && reachFlagOn() && host()) loadReach(); });
     window.addEventListener("focus", micRecheck);

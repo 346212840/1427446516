@@ -1595,6 +1595,11 @@ console.log("calls logic ok", JSON.stringify(report));
   const body = page.slice(page.indexOf("async function hangUp() {"), page.indexOf("function setMuted("));
   assert.ok(body.indexOf("await teardown(false);") >= 0 && body.indexOf('state.guestToken = "";') > body.indexOf("await teardown(false);"), "a guest's hang-up still carries the guest token to the end request");
   console.log("calls guest hang-up ends ok");
+  assert.ok(page.includes("state.lines = restoreCallLines(info.id);"), "a reload or rejoin of the same call brings back what was said");
+  assert.ok(page.includes('writeSessionJson(CALL_LINES_KEY') && !page.includes('writeJson(CALL_LINES_KEY'), "the call text stays in this tab only");
+  assert.equal((page.match(/clearCallLines\(\);/g) || []).length, 2, "hang-up and the other side ending both drop the saved text");
+  assert.ok(page.includes('window.addEventListener("pagehide", saveCallLines);'), "the latest translations are saved before a reload");
+  console.log("calls rejoin keeps chat ok");
 }
 
 {
