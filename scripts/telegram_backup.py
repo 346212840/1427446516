@@ -1741,6 +1741,40 @@ def put_object_file(token: str, account: str, bucket: str, key: str, path: Path,
     raise RuntimeError(last)
 
 
+
+def already_copied(prior: dict | None, obj: dict, kind: str, loop_version: str = "") -> dict | None:
+    """The stored part if this object is already fully copied, or None.
+
+    A skip must not require an etag. R2 list results often leave etag empty,
+    and then a later run re-downloads every already copied comment, rewrites
+    the manifest, and never reaches the 300-file cap before the job timeout.
+    When both sides have an etag or the size changed, the file is uploaded
+    again.
+    """
+    if not prior:
+        return None
+    if kind == "loop":
+        part = loop_part(str(obj.get("key") or ""), loop_version)
+        done = part_done(prior, part["role"], part["index"]) if part else None
+    elif kind in {"mirror", "small", "account"}:
+        done = part_done(prior, "file", 0)
+    else:
+        return None
+    if not done:
+        return None
+    obj_size = int(obj.get("size") or 0)
+    prior_size = int(prior.get("size") or 0)
+    if obj_size and prior_size and obj_size != prior_size:
+        return None
+    obj_etag = str(obj.get("etag") or "").strip('"')
+    prior_etag = str(prior.get("etag") or "").strip('"')
+    if obj_etag and prior_etag and obj_etag != prior_etag:
+        return None
+    if done.get("sha256") and prior.get("sha256") and done.get("sha256") != prior.get("sha256"):
+        return None
+    return done
+
+
 def already_kept(prior: dict | None) -> bool:
     return bool(prior and prior.get("kept") and not prior.get("deleted"))
 
@@ -2889,27 +2923,27 @@ def process(obj: dict, manifest: dict, cf: dict, state: dict, directory: Path) -
     prior = find_entry(manifest, obj["bucket"], obj["key"])
     if already_kept(prior):
         return "skip"
-    if prior and prior.get("etag") and prior.get("etag") == obj.get("etag") and prior.get("sha256"):
-        if kind == "loop":
-            part = loop_part(obj["key"], cf.get("loop_version") or "")
-            done = part_done(prior, part["role"], part["index"]) if part else None
-            if done and done.get("sha256") == prior.get("sha256"):
-                if cf.get("database"):
-                    index_part(cf, prior, done, bool(prior.get("verified")), part["group"])
-                return "skip"
-        elif kind == "mirror":
-            done = part_done(prior, "file", 0)
-            if done and done.get("sha256") == prior.get("sha256"):
-                if cf.get("database"):
-                    index_part(cf, prior, done, bool(prior.get("verified")))
-                return "skip"
-        elif prior.get("verified"):
-            if may_delete(prior.get("kind") or "", True, int(prior.get("size") or 0)) and not prior.get("deleted"):
-                delete_object(cf["token"], cf["account"], obj["bucket"], obj["key"])
-                prior["deleted"] = True
-                save_manifest(cf, manifest, directory)
-                log("[telegram-backup] deleted %s/%s" % (obj["bucket"], obj["key"]))
-            return "skip"
+    done = already_copied(prior, obj, kind, cf.get("loop_version") or "")
+    if done:
+        if cf.get("database"):
+            d1_key = ""
+            if kind == "loop":
+                loop = loop_part(obj["key"], cf.get("loop_version") or "")
+                d1_key = loop["group"] if loop else ""
+            index_part(cf, prior, done, bool(prior.get("verified")), d1_key)
+        if kind in {"small", "hls"} and prior.get("verified") and may_delete(prior.get("kind") or "", True, int(prior.get("size") or 0)) and not prior.get("deleted"):
+            delete_object(cf["token"], cf["account"], obj["bucket"], obj["key"])
+            prior["deleted"] = True
+            save_manifest(cf, manifest, directory)
+            log("[telegram-backup] deleted %s/%s" % (obj["bucket"], obj["key"]))
+        return "skip"
+    if prior and prior.get("etag") and prior.get("etag") == obj.get("etag") and prior.get("sha256") and prior.get("verified"):
+        if may_delete(prior.get("kind") or "", True, int(prior.get("size") or 0)) and not prior.get("deleted"):
+            delete_object(cf["token"], cf["account"], obj["bucket"], obj["key"])
+            prior["deleted"] = True
+            save_manifest(cf, manifest, directory)
+            log("[telegram-backup] deleted %s/%s" % (obj["bucket"], obj["key"]))
+        return "skip"
     src = directory / "object.bin"
     sha = download_object(cf["token"], cf["account"], obj["bucket"], obj["key"], src)
     if kind == "account":
@@ -3680,6 +3714,26 @@ def selftest() -> int:
     check('"primary": "r2"' in doc and "LOOP_PRIMARY" in doc, "the radio primary field is documented and defaults to r2")
     check("--loop" in workflow and 'workflows: ["Publish radio loop"]' in workflow and "loop_only" in workflow and "timeout-minutes: 180" in workflow, "a published loop is mirrored")
     check(loop_file_cap() >= 1000 and MAX_NEW_FILES == 300, "a loop mirror can hold a full version and the daily backup stays at 300 files")
+    copied = {
+        "bucket": "viktorych-data",
+        "key": "comments/example-thread.json",
+        "etag": "",
+        "sha256": "abc",
+        "size": 1000,
+        "parts": [{"role": "file", "index": 0, "sha256": "abc", "size": 1000, "file_id": "fid-example"}],
+    }
+    same = {"bucket": "viktorych-data", "key": "comments/example-thread.json", "etag": "", "size": 1000, "content_type": "application/json"}
+    check(already_copied(copied, same, "mirror") is not None, "a copied comment is skipped when the etag is missing")
+    check(already_copied(copied, dict(same, size=2000), "mirror") is None, "a grown comment is uploaded again")
+    check(already_copied(dict(copied, etag="old"), dict(same, etag="new"), "mirror") is None, "an etag change is uploaded again")
+    skip_dir = Path(tempfile.mkdtemp(prefix="tg-skip-"))
+    try:
+        skip_state = new_entry_state()
+        skip_cf = {"token": "test-token", "account": "test-account", "loop_version": "", "blocked_keys": set()}
+        skip_result = process(same, {"v": 1, "files": [copied]}, skip_cf, skip_state, skip_dir)
+        check(skip_result == "skip" and skip_state["files"] == 0, "process skips a copied comment without downloading it")
+    finally:
+        shutil.rmtree(skip_dir, ignore_errors=True)
     check(loop_rank("loop/v202610221355/seg_0001.m4s", "v202610221355") < loop_rank("loop/vOLD/seg_0001.m4s", "v202610221355"), "the current loop version is mirrored first")
     tiktok_post = {
         "platform": "tiktok",
