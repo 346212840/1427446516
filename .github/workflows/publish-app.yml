@@ -474,10 +474,12 @@ jobs:
           include-hidden-files: true
 
       # The upload can finish before the run's artifact list shows the new
-      # name. deploy-pages reads that list once, so wait until this name is
-      # actually there. A 403 is the token, not a missing artifact, so it
-      # stops immediately. A name that is not listed yet is tried ten times,
-      # three seconds apart.
+      # name. The REST list is not enough: deploy-pages uses the Actions
+      # artifact service, which can still miss the new name a second later
+      # ("Found 4 artifact(s)" while the REST list already has 5). A 403 is
+      # the token, not a missing artifact, so it stops immediately. A name
+      # that is not listed yet is tried ten times, three seconds apart. After
+      # it appears, wait a bit longer, then retry the deploy once if needed.
       - name: Wait until the version artifact is listed
         if: steps.fresh.outputs.go != 'false'
         env:
@@ -498,6 +500,8 @@ jobs:
               echo "attempt ${i}: listing artifacts failed (${code}). ${err}"
             elif printf '%s\n' "$names" | grep -Fx "$ARTIFACT_NAME"; then
               echo "listed ${ARTIFACT_NAME}"
+              # deploy-pages' artifact service can lag the REST list.
+              sleep 20
               exit 0
             else
               echo "attempt ${i}: ${ARTIFACT_NAME} is not listed yet"
@@ -512,12 +516,30 @@ jobs:
       - name: Deploy the version manifest
         id: deploy
         if: steps.fresh.outputs.go != 'false'
+        continue-on-error: true
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
         with:
           artifact_name: app-shell-version-${{ github.run_id }}-${{ github.run_attempt }}
 
+      - name: Wait before retrying the version deploy
+        if: steps.fresh.outputs.go != 'false' && steps.deploy.outcome == 'failure'
+        run: sleep 20
+
+      - name: Deploy the version manifest again
+        id: deploy-retry
+        if: steps.fresh.outputs.go != 'false' && steps.deploy.outcome == 'failure'
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+        with:
+          artifact_name: app-shell-version-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Fail if the version manifest was not deployed
+        if: steps.fresh.outputs.go != 'false' && steps.deploy.outcome != 'success' && steps.deploy-retry.outcome != 'success'
+        run: |
+          echo "deploy-pages could not see app-shell-version-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >&2
+          exit 1
+
       - name: Deploy the version manifest to the Pages mirror
-        if: steps.fresh.outputs.go != 'false'
+        if: steps.fresh.outputs.go != 'false' && (steps.deploy.outcome == 'success' || steps.deploy-retry.outcome == 'success')
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
