@@ -974,7 +974,8 @@ export async function handleCalls(request, env, path, url, deps) {
     return deps.json(200, { call: viewCall(await env.DB.prepare("SELECT * FROM call_sessions WHERE id = ?").bind(id).first()), ticket: ticket.ticket, iceServers: await callIceServers(env, deps, { id: id, self: self, state: "active" }), video: false });
   }
   if (action === "/state" && request.method === "GET") {
-    return deps.json(200, { state: row.state, answered: !!row.answered_at, ended: row.state === "ended" || row.state === "missed" });
+    /* elapsed is measured on the server, so a rejoining device can show the real call time without trusting its own clock. */
+    return deps.json(200, { state: row.state, answered: !!row.answered_at, ended: row.state === "ended" || row.state === "missed", elapsed: row.answered_at ? Math.max(0, Date.now() - Number(row.answered_at)) : 0 });
   }
   if (action === "/decline" && request.method === "POST") {
     await env.DB.prepare("UPDATE call_sessions SET state = 'missed', ended_at = ? WHERE id = ? AND answered_at = 0").bind(Date.now(), id).run();

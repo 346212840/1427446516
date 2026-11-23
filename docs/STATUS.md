@@ -27,6 +27,8 @@ The original-voice volume slider (`calls_orig_vol`, on by default) sits on the c
 
 A rotating QR code (`calls_rotate_qr`, on by default) sits on the Calls home screen and refreshes every two minutes. Scanning it rings you like an incoming call. The person who scans sees your name on their call screen (it used to show their own name). The previous code stays valid until it expires so a mid-scan still works. Off hides the code.
 
+Rejoin timer: after a guest reloads or rejoins, the call timer (and the duration in their local history) continues from when the call was answered instead of restarting at 0:00.
+
 Calls statistics: when the translation starts before the speaker stops, Stop to sound reads "N ms before you stopped" instead of a negative number.
 
 Guest hang-up: when a link guest taps End, the call now ends for the host too. Before, the end request went out without the guest's token and was refused, so the host was left alone in the call and the guest could not join again.

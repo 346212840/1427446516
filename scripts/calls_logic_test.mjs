@@ -1601,3 +1601,12 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.ok(page.includes('window.addEventListener("pagehide", saveCallLines);'), "the latest translations are saved before a reload");
   console.log("calls rejoin keeps chat ok");
 }
+
+{
+  const fs = await import("node:fs");
+  const page = fs.readFileSync(new URL("../calls.js", import.meta.url), "utf8");
+  const worker = fs.readFileSync(new URL("../worker/src/calls.js", import.meta.url), "utf8");
+  assert.ok(page.includes("state.startedAt = Number(info.elapsed) > 0 ? Date.now() - Number(info.elapsed) : 0;") && page.includes('elapsed: st.data.state === "active" ? Number(st.data.elapsed) || 0 : 0'), "a rejoined guest's call timer continues from the answer time");
+  assert.ok(worker.includes("elapsed: row.answered_at ? Math.max(0, Date.now() - Number(row.answered_at)) : 0"), "the server says how long the call has run");
+  console.log("calls rejoin timer ok");
+}

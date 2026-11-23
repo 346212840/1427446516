@@ -3025,7 +3025,7 @@ async function resumeGuest(row) {
     return false;
   }
   state.statusCode = st.data.state === "ringing" ? "calling" : "joined";
-  const ok = await begin({ id: row.callId, ticket: res.data.ticket, iceServers: res.data.iceServers }, "guest");
+  const ok = await begin({ id: row.callId, ticket: res.data.ticket, iceServers: res.data.iceServers, elapsed: st.data.state === "active" ? Number(st.data.elapsed) || 0 : 0 }, "guest");
   if (ok) {
     rememberGuestSession(row.expiresAt);
     if (state.engine && state.statusCode === "calling") state.engine.prewarm();
@@ -3065,7 +3065,8 @@ async function begin(info, role, extra) {
   state.quota = false;
   state.peerQuota = false;
   state.muted = false;
-  state.startedAt = 0;
+  /* A rejoin keeps counting from when the call was answered, not from the rejoin. */
+  state.startedAt = Number(info.elapsed) > 0 ? Date.now() - Number(info.elapsed) : 0;
   state.net = lighterFor(navigator.connection || {});
   state.noMic = "";
   state.micAsked = false;
