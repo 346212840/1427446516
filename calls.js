@@ -3249,8 +3249,11 @@ async function hangUp() {
   const endedId = state.callId;
   const endedLines = (state.lines || []).slice();
   clearGuestSession();
-  state.guestToken = "";
+  /* The guest token signs the end request, so it is dropped only after teardown
+     has told the server. Clearing it first made a guest's hang-up a 401: the
+     host stayed in a dead call and the guest could not join again. */
   await teardown(false);
+  state.guestToken = "";
   if (endedId && endedLines.length) await saveHistTranscript(endedId, endedLines);
   state.barOpen = false;
   state.statusCode = standalone() && state.route && state.route.name === "callguest" ? "ended" : "";
