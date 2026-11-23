@@ -1586,3 +1586,10 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.ok(worker.includes('if (row.state === "suggested") return deps.json(409, { error: "waiting_for_visitor" });'), "the server refuses an owner Accept while the visitor decides");
   console.log("calls reach suggested accept ok");
 }
+
+{
+  const fs = await import("node:fs");
+  const page = fs.readFileSync(new URL("../calls.js", import.meta.url), "utf8");
+  assert.ok(page.includes('tr("{ms} ms before you stopped", { ms: Math.abs(Math.round(v)) })') && page.includes('[tr("Stop to sound (median)"), stop(l && l.stopToPlay.p50)]'), "an early translation reads as before you stopped, never a minus number");
+  console.log("calls stop to sound label ok");
+}

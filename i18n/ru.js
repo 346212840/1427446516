@@ -7026,5 +7026,6 @@ SI18n.addPack("ru", {
   "The Call the owner button reads Not available right now.": "На кнопке «Позвонить владельцу» написано «Сейчас недоступен».",
   "No call requests yet.": "Запросов на звонок пока нет.",
   "Suggest another time": "Предложить другое время",
-  "A Call the owner button and a Request a call form on the public Calls page. Calls ring you only while you are available in the Requests tab; requests wait there for Accept, Suggest another time or Decline. Off hides both.": "Кнопка «Позвонить владельцу» и форма «Запросить звонок» на публичной странице звонков. Звонки поступают, только пока вы доступны на вкладке «Запросы»; запросы ждут там: Принять, Предложить другое время или Отклонить. Выключено скрывает оба."
+  "A Call the owner button and a Request a call form on the public Calls page. Calls ring you only while you are available in the Requests tab; requests wait there for Accept, Suggest another time or Decline. Off hides both.": "Кнопка «Позвонить владельцу» и форма «Запросить звонок» на публичной странице звонков. Звонки поступают, только пока вы доступны на вкладке «Запросы»; запросы ждут там: Принять, Предложить другое время или Отклонить. Выключено скрывает оба.",
+  "{ms} ms before you stopped": "за {ms} мс до конца фразы"
 });
