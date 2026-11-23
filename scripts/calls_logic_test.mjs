@@ -1590,6 +1590,8 @@ console.log("calls logic ok", JSON.stringify(report));
 {
   const fs = await import("node:fs");
   const page = fs.readFileSync(new URL("../calls.js", import.meta.url), "utf8");
+  assert.ok(page.includes('tr("{ms} ms before you stopped", { ms: Math.abs(Math.round(v)) })') && page.includes('[tr("Stop to sound (median)"), stop(l && l.stopToPlay.p50)]'), "an early translation reads as before you stopped, never a minus number");
+  console.log("calls stop to sound label ok");
   assert.ok(page.includes("state.lines = restoreCallLines(info.id);"), "a reload or rejoin of the same call brings back what was said");
   assert.ok(page.includes('writeSessionJson(CALL_LINES_KEY') && !page.includes('writeJson(CALL_LINES_KEY'), "the call text stays in this tab only");
   assert.equal((page.match(/clearCallLines\(\);/g) || []).length, 2, "hang-up and the other side ending both drop the saved text");
