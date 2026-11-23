@@ -1596,3 +1596,12 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.ok(body.indexOf("await teardown(false);") >= 0 && body.indexOf('state.guestToken = "";') > body.indexOf("await teardown(false);"), "a guest's hang-up still carries the guest token to the end request");
   console.log("calls guest hang-up ends ok");
 }
+
+{
+  const fs = await import("node:fs");
+  const page = fs.readFileSync(new URL("../calls.js", import.meta.url), "utf8");
+  const worker = fs.readFileSync(new URL("../worker/src/calls.js", import.meta.url), "utf8");
+  assert.ok(page.includes("state.startedAt = Number(info.elapsed) > 0 ? Date.now() - Number(info.elapsed) : 0;") && page.includes('elapsed: st.data.state === "active" ? Number(st.data.elapsed) || 0 : 0'), "a rejoined guest's call timer continues from the answer time");
+  assert.ok(worker.includes("elapsed: row.answered_at ? Math.max(0, Date.now() - Number(row.answered_at)) : 0"), "the server says how long the call has run");
+  console.log("calls rejoin timer ok");
+}

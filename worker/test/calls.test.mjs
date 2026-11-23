@@ -191,6 +191,8 @@ test("calls stay off until the owner turns them on, then privacy is enforced", a
   const ownerInvite = await call("/v1/calls", { method: "POST", token: owner.body.token, body: { invite: true } });
   assert.equal(ownerInvite.status, 201, JSON.stringify(ownerInvite.body));
   const ownerGuest = await call("/v1/calls/join/" + ownerInvite.body.invite, { method: "POST", body: { name: "Visitor" } });
+  const running = await call("/v1/calls/" + ownerInvite.body.call.id + "/state", { guest: ownerGuest.body.guestToken });
+  assert.ok(typeof running.body.elapsed === "number" && running.body.elapsed >= 0 && running.body.elapsed < 60000, "the call state says how long the call has run, for a rejoin timer");
   const ownerMint = await call("/v1/calls/" + ownerInvite.body.call.id + "/translate", { method: "POST", guest: ownerGuest.body.guestToken, body: { target: "en" } });
   assert.equal(ownerMint.body.mode, "token");
   assert.equal(ownerMint.body.keySource, "owner");
