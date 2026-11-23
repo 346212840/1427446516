@@ -127,9 +127,11 @@ function latencyFlagOn() {
 function latencyRows(s) {
   const l = s && s.lat;
   const ms = (v) => (v == null ? "-" : tr("{ms} ms", { ms: Math.round(v) }));
+  /* A streamed translation can start before the speaker stops; say so instead of a minus sign. */
+  const stop = (v) => (v == null ? "-" : (Math.round(v) < 0 ? tr("{ms} ms before you stopped", { ms: Math.abs(Math.round(v)) }) : ms(v)));
   return [
-    [tr("Stop to sound (median)"), ms(l && l.stopToPlay.p50)],
-    [tr("Stop to sound (slowest)"), ms(l && l.stopToPlay.p95)],
+    [tr("Stop to sound (median)"), stop(l && l.stopToPlay.p50)],
+    [tr("Stop to sound (slowest)"), stop(l && l.stopToPlay.p95)],
     [tr("Speech to first reply"), ms(l && l.toByte.p50)],
     [tr("Reply to speaker"), ms(l && l.byteToPlay.p50)],
     [tr("Phrases timed"), l ? String(l.n) : "-"]

@@ -7027,5 +7027,6 @@ SI18n.addPack("es", {
   "The Call the owner button reads Not available right now.": "El botón Llamar al propietario muestra No disponible ahora.",
   "No call requests yet.": "Aún no hay solicitudes de llamada.",
   "Suggest another time": "Proponer otra hora",
-  "A Call the owner button and a Request a call form on the public Calls page. Calls ring you only while you are available in the Requests tab; requests wait there for Accept, Suggest another time or Decline. Off hides both.": "Un botón Llamar al propietario y un formulario Pedir una llamada en la página pública de Llamadas. Las llamadas solo te suenan mientras estés disponible en la pestaña Solicitudes; las solicitudes esperan allí a Aceptar, Proponer otra hora o Rechazar. Desactivado oculta ambos."
+  "A Call the owner button and a Request a call form on the public Calls page. Calls ring you only while you are available in the Requests tab; requests wait there for Accept, Suggest another time or Decline. Off hides both.": "Un botón Llamar al propietario y un formulario Pedir una llamada en la página pública de Llamadas. Las llamadas solo te suenan mientras estés disponible en la pestaña Solicitudes; las solicitudes esperan allí a Aceptar, Proponer otra hora o Rechazar. Desactivado oculta ambos.",
+  "{ms} ms before you stopped": "{ms} ms antes de que dejaras de hablar"
 });

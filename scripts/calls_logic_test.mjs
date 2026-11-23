@@ -1590,6 +1590,8 @@ console.log("calls logic ok", JSON.stringify(report));
 {
   const fs = await import("node:fs");
   const page = fs.readFileSync(new URL("../calls.js", import.meta.url), "utf8");
+  assert.ok(page.includes('tr("{ms} ms before you stopped", { ms: Math.abs(Math.round(v)) })') && page.includes('[tr("Stop to sound (median)"), stop(l && l.stopToPlay.p50)]'), "an early translation reads as before you stopped, never a minus number");
+  console.log("calls stop to sound label ok");
   const body = page.slice(page.indexOf("async function hangUp() {"), page.indexOf("function setMuted("));
   assert.ok(body.indexOf("await teardown(false);") >= 0 && body.indexOf('state.guestToken = "";') > body.indexOf("await teardown(false);"), "a guest's hang-up still carries the guest token to the end request");
   console.log("calls guest hang-up ends ok");
