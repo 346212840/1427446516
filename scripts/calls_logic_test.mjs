@@ -1586,3 +1586,11 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.ok(worker.includes('if (row.state === "suggested") return deps.json(409, { error: "waiting_for_visitor" });'), "the server refuses an owner Accept while the visitor decides");
   console.log("calls reach suggested accept ok");
 }
+
+{
+  const fs = await import("node:fs");
+  const page = fs.readFileSync(new URL("../calls.js", import.meta.url), "utf8");
+  const body = page.slice(page.indexOf("async function hangUp() {"), page.indexOf("function setMuted("));
+  assert.ok(body.indexOf("await teardown(false);") >= 0 && body.indexOf('state.guestToken = "";') > body.indexOf("await teardown(false);"), "a guest's hang-up still carries the guest token to the end request");
+  console.log("calls guest hang-up ends ok");
+}
