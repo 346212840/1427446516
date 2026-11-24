@@ -1880,7 +1880,40 @@
     }
   }
 
-  function refreshLive(handle, fresh) {
+  /* Opening Live now re-checks accounts whose saved state is older than two
+     minutes, three at a time, so a live that started since the last server
+     check shows up within seconds (switch shorts_live_fresh). A blocked check
+     never turns a live account off. */
+  var freshTried = {};
+  var FRESH_AGE_MS = 2 * 60 * 1000;
+  function freshOn() {
+    return !!(ownerHere() && (!window.ViktorychServerFeature || window.ViktorychServerFeature("shorts_live_fresh")));
+  }
+  function staleRows(rows, now) {
+    return (rows || []).filter(function (row) {
+      var key = foldHandle(row && row.handle);
+      if (!key) return false;
+      if (freshTried[key] && now - freshTried[key] < 60000) return false;
+      var status = liveStatus(row.handle) || {};
+      var at = Date.parse(status.checkedAt || "") || 0;
+      return !at || now - at > FRESH_AGE_MS;
+    }).slice(0, 12);
+  }
+  function refreshStale() {
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+    if (!onLiveRoute() || routePane() === "past" || !freshOn()) return;
+    var due = staleRows(liveRows(), Date.now());
+    var i = 0;
+    function next() {
+      if (i >= due.length || !onLiveRoute()) return null;
+      var row = due[i++];
+      freshTried[foldHandle(row.handle)] = Date.now();
+      return refreshLive(row.handle, false, true).then(next, next);
+    }
+    for (var k = 0; k < 3; k++) next();
+  }
+
+  function refreshLive(handle, fresh, skipBlocked) {
     var key = (fresh ? "fresh:" : "") + foldHandle(handle);
     if (!key || key === "fresh:") return Promise.resolve(null);
     if (liveInflight[key]) return liveInflight[key];
@@ -1889,7 +1922,8 @@
       if (!res.ok) return null;
       return res.json();
     }).then(function (info) {
-      if (info) rememberLive(handle, info);
+      if (info && !info.checkedAt && !info.blocked) info.checkedAt = new Date().toISOString();
+      if (info && !(skipBlocked && info.blocked)) rememberLive(handle, info);
       return info;
     }).catch(function () { return null; }).then(function (info) {
       delete liveInflight[key];
@@ -4163,7 +4197,9 @@
     boardTimer = 0;
     if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
     if (!onLiveRoute() || routePane() === "past") return;
-    boardTimer = setInterval(pullBoard, 60000);
+    boardTimer = setInterval(function () {
+      pullBoard().then(refreshStale, refreshStale);
+    }, 60000);
   }
 
   function alignLiveHash(route) {
@@ -4249,7 +4285,7 @@
     var warm = ready && (!!loadBusy || (accountsLoaded && Date.now() - lastMountLoad < 10000));
     if (warm) {
       if (!loadBusy) {
-        if (onLiveRoute()) paintLive();
+        if (onLiveRoute()) { paintLive(); refreshStale(); }
         else paintForYou();
         renderAdded();
       }
@@ -4262,6 +4298,7 @@
         if (onLiveRoute()) {
           paintLive();
           refreshRecordings();
+          refreshStale();
         } else {
           paintForYou();
         }
@@ -4320,7 +4357,7 @@
     }
     armPreview();
     if (onLiveRoute() && routePane() !== "past") {
-      pullBoard();
+      pullBoard().then(refreshStale, refreshStale);
       armBoard();
     }
     if (!statsHandle || !liveRoot()) return;
@@ -4399,6 +4436,7 @@
     switchHtml: switchHtml,
     setLiveSortMode: setLiveSortMode,
     sinceText: sinceText,
+    staleRows: staleRows,
     neighborHandle: neighborHandle,
     playbackSteps: playbackSteps,
     hlsFatalPlan: hlsFatalPlan,

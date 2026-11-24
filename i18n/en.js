@@ -7034,5 +7034,7 @@ SI18n.addPack("en", {
   "Always unlocked": "Always unlocked",
   "Couldn’t change this account. Try again.": "Couldn’t change this account. Try again.",
   "Unlock accounts in Shorts": "Unlock accounts in Shorts",
-  "Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is.": "Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is."
+  "Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is.": "Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is.",
+  "Fresh live check in Shorts": "Fresh live check in Shorts",
+  "Opening Live now re-checks accounts whose live state is more than two minutes old, three at a time. Off shows only the saved state.": "Opening Live now re-checks accounts whose live state is more than two minutes old, three at a time. Off shows only the saved state."
 });

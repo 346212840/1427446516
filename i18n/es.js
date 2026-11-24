@@ -7037,5 +7037,7 @@ SI18n.addPack("es", {
   "Always unlocked": "Siempre desbloqueada",
   "Couldn’t change this account. Try again.": "No se pudo cambiar esta cuenta. Inténtalo de nuevo.",
   "Unlock accounts in Shorts": "Desbloquear cuentas en Shorts",
-  "Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is.": "Desbloquea o bloquea una cuenta de TikTok desde la hoja Añadir cuenta de Shorts. Desactivado oculta esos botones; la lista de desbloqueo queda como está."
+  "Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is.": "Desbloquea o bloquea una cuenta de TikTok desde la hoja Añadir cuenta de Shorts. Desactivado oculta esos botones; la lista de desbloqueo queda como está.",
+  "Fresh live check in Shorts": "Comprobación de directos al momento en Shorts",
+  "Opening Live now re-checks accounts whose live state is more than two minutes old, three at a time. Off shows only the saved state.": "Al abrir En directo ahora se vuelven a comprobar las cuentas cuyo estado tiene más de dos minutos, de tres en tres. Desactivado muestra solo el estado guardado."
 });
