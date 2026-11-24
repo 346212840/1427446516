@@ -220,7 +220,11 @@ export const FEATURES = {
      with calendar file and reminders), Suggest another time or Decline.
      Rate limited per IP and device, no links, nothing about the owner shown.
      On by default; availability itself starts off. Off hides both. */
-  calls_owner_reach: { paths: ["/v1/calls/reach"] }
+  calls_owner_reach: { paths: ["/v1/calls/reach"] },
+  /* Unlock or lock one TikTok account from the Shorts Add account sheet
+     (owner/tiktok-unlocked.json). On by default. Off hides the buttons and
+     the route answers empty; the unlock list stays as it is. */
+  shorts_unlock_edit: { paths: ["/v1/owner/tiktok/unlock"] }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 

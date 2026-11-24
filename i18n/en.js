@@ -7030,5 +7030,9 @@ SI18n.addPack("en", {
   "No accounts yet": "No accounts yet",
   "Only unlocked accounts show here. Unlock to see every account you added.": "Only unlocked accounts show here. Unlock to see every account you added.",
   "Add a TikTok link or @handle to see when they go live.": "Add a TikTok link or @handle to see when they go live.",
-  "Added. It stays hidden while Shorts is locked.": "Added. It stays hidden while Shorts is locked."
+  "Added. It stays hidden while Shorts is locked.": "Added. It stays hidden while Shorts is locked.",
+  "Always unlocked": "Always unlocked",
+  "Couldn’t change this account. Try again.": "Couldn’t change this account. Try again.",
+  "Unlock accounts in Shorts": "Unlock accounts in Shorts",
+  "Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is.": "Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is."
 });

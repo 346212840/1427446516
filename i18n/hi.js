@@ -7020,5 +7020,9 @@ SI18n.addPack("hi", {
   "No accounts yet": "अभी कोई खाता नहीं",
   "Only unlocked accounts show here. Unlock to see every account you added.": "यहां केवल अनलॉक किए गए खाते दिखते हैं। अपने जोड़े गए सभी खाते देखने के लिए अनलॉक करें।",
   "Add a TikTok link or @handle to see when they go live.": "लाइव होने पर देखने के लिए TikTok लिंक या @हैंडल जोड़ें।",
-  "Added. It stays hidden while Shorts is locked.": "जोड़ा गया। शॉर्ट्स लॉक रहने तक यह छिपा रहेगा।"
+  "Added. It stays hidden while Shorts is locked.": "जोड़ा गया। शॉर्ट्स लॉक रहने तक यह छिपा रहेगा।",
+  "Always unlocked": "हमेशा अनलॉक",
+  "Couldn’t change this account. Try again.": "यह खाता बदला नहीं जा सका। फिर से कोशिश करें।",
+  "Unlock accounts in Shorts": "शॉर्ट्स में खाते अनलॉक करें",
+  "Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is.": "शॉर्ट्स की खाता जोड़ें शीट से किसी एक TikTok खाते को अनलॉक या लॉक करें। बंद करने पर ये बटन छिप जाते हैं; अनलॉक सूची जैसी है वैसी रहती है।"
 });

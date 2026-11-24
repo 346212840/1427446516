@@ -83,6 +83,8 @@
     }
   } catch (err) { /* private browsing */ }
   var unlockedAccounts = [];
+  var fixedAccounts = [];
+  var unlockBusy = {};
 
   function isLocked() {
     return !!lockedMode;
@@ -890,11 +892,21 @@
       "</div></div>" + lockBtn + add + "</div>";
   }
 
+  function unlockEditOn() {
+    return !!(ownerHere() && (!window.ViktorychServerFeature || window.ViktorychServerFeature("shorts_unlock_edit")));
+  }
+
   function renderUnlocked() {
+    var edit = unlockEditOn();
     return unlockedAccounts.map(function (handle) {
+      var fixed = fixedAccounts.indexOf(foldHandle(handle)) >= 0;
+      var action = !edit ? "" : fixed
+        ? '<span class="shorts-fixed-badge">' + hooks.esc(tr("Always unlocked")) + "</span>"
+        : '<button type="button" data-shorts="relock-account" data-handle="' + hooks.esc(handle) + '"' + (unlockBusy[foldHandle(handle)] ? " disabled" : "") + ">" + hooks.esc(tr("Lock")) + "</button>";
       return '<li class="shorts-account">' +
         '<span class="shorts-account-face">' + hooks.avatar("", handle) + "</span>" +
         '<span><b>' + hooks.esc(handle) + '</b><small>@' + hooks.esc(handle) + '</small><span class="shorts-pill unlocked">' + hooks.esc(tr("Unlocked")) + "</span></span>" +
+        (action ? '<div class="shorts-account-actions">' + action + "</div>" : "") +
         "</li>";
     }).join("");
   }
@@ -914,9 +926,12 @@
         ? '<img alt="" src="' + hooks.esc(row.avatar) + '" referrerpolicy="no-referrer">'
         : hooks.avatar("", name);
       var lockedBadge = '<span class="shorts-pill locked">' + hooks.esc(tr("Locked behind")) + "</span>";
-      var actionBtn = row.builtIn
+      var unlockBtn = unlockEditOn()
+        ? '<button type="button" data-shorts="unlock-account" data-handle="' + hooks.esc(handle) + '"' + (unlockBusy[foldHandle(handle)] ? " disabled" : "") + ">" + hooks.esc(tr("Unlock")) + "</button>"
+        : "";
+      var actionBtn = unlockBtn + (row.builtIn
         ? '<span class="shorts-fixed-badge">' + hooks.esc(tr("Default")) + "</span>"
-        : '<button type="button" data-shorts="remove-account" data-handle="' + hooks.esc(handle) + '">' + hooks.esc(tr("Remove")) + "</button>";
+        : '<button type="button" data-shorts="remove-account" data-handle="' + hooks.esc(handle) + '">' + hooks.esc(tr("Remove")) + "</button>");
       return '<li class="shorts-account"><span class="shorts-account-face">' + face + "</span><span><b>" + hooks.esc(name) + "</b><small>@" + hooks.esc(handle) + "</small>" + lockedBadge + "</span>" +
         '<div class="shorts-account-actions">' + actionBtn + "</div></li>";
     }).join("");
@@ -3853,6 +3868,7 @@
       accountsLoaded = true;
       return unlockedReq.then(function (unlocked) {
         if (unlocked && Array.isArray(unlocked.handles)) setUnlocked(unlocked.handles);
+        if (unlocked && Array.isArray(unlocked.fixed)) fixedAccounts = foldList(unlocked.fixed);
         saveAcctCache();
       });
     }).then(function () {
@@ -3924,6 +3940,47 @@
     }).catch(function () {
       addingAccount = false;
       accountsNote(tr("Couldn’t save this account."));
+    });
+  }
+
+  /* Unlock or lock one account. The lists change at once and roll back if the server says no. */
+  function editUnlock(handle, on) {
+    var base = apiBase();
+    var key = foldHandle(handle);
+    if (!base || !hooks.token() || !key || unlockBusy[key]) return;
+    var before = unlockedAccounts.slice();
+    var next = before.filter(function (name) { return name !== key; });
+    if (on) next.push(key);
+    unlockBusy[key] = true;
+    function apply(list) {
+      setUnlocked(list);
+      saveAcctCache();
+      livePaintKey = "";
+      pastPaintKey = "";
+      renderAdded();
+      if (onLiveRoute()) schedulePaint();
+      else paintForYou();
+    }
+    apply(next);
+    fetch(base + "/v1/owner/tiktok/unlock", {
+      method: "POST",
+      headers: Object.assign({ "content-type": "application/json" }, authHeaders()),
+      body: JSON.stringify({ handle: handle, unlocked: !!on })
+    }).then(function (res) {
+      if (!res.ok) throw new Error(String(res.status));
+      return res.json();
+    }).then(function (body) {
+      delete unlockBusy[key];
+      if (body && Array.isArray(body.fixed)) fixedAccounts = foldList(body.fixed);
+      apply(body && Array.isArray(body.handles) ? body.handles : next);
+      if (on) {
+        refreshLive(handle);
+        pull();
+      }
+    }).catch(function () {
+      delete unlockBusy[key];
+      apply(before);
+      accountsNote(tr("Couldn’t change this account. Try again."));
     });
   }
 
@@ -4022,6 +4079,9 @@
     } else if (kind === "toggle-lock") {
       event.preventDefault();
       toggleLock();
+    } else if (kind === "unlock-account" || kind === "relock-account") {
+      event.preventDefault();
+      editUnlock(button.getAttribute("data-handle") || "", kind === "unlock-account");
     } else if (kind === "remove-account") {
       event.preventDefault();
       removeAccount(button.getAttribute("data-handle") || "");

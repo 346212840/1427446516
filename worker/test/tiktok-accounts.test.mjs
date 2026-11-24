@@ -26,7 +26,8 @@ function workerOptions() {
       OWNER_HANDLE: "mirathorn",
       ALLOWED_ORIGINS: "https://viktorychgroup.github.io,http://127.0.0.1:8080",
       PBKDF2_ITERATIONS: "1000",
-      GITHUB_DISPATCH_TOKEN: "dispatch-test"
+      GITHUB_DISPATCH_TOKEN: "dispatch-test",
+      TIKTOK_UNLOCKED: "fixed_clip"
     },
     async outboundService(request) {
       const url = new URL(request.url);
@@ -532,4 +533,35 @@ test("the live board is owner-only, etagged, and has no stream urls", async () =
     body: { items: { "few_viewers-7699647509498710805": { t: 4, at: 50 } } }
   });
   assert.equal(older.body.items["few_viewers-7699647509498710805"].t, 12.2);
+});
+
+test("owner unlocks and locks one account from the sheet", async () => {
+  assert.ok(ownerToken, "owner signed up in the first test");
+  const stranger = await call("/v1/signup", { method: "POST", ip: "203.0.113.90", body: { displayName: "Bo", handle: "bo_unlock" } });
+  assert.equal(stranger.status, 201);
+  const denied = await call("/v1/owner/tiktok/unlock", { method: "POST", ip: "203.0.113.91", token: stranger.body.token, body: { handle: "sample_name", unlocked: true } });
+  assert.equal(denied.status, 403);
+  const anon = await call("/v1/owner/tiktok/unlock", { method: "POST", ip: "203.0.113.92", body: { handle: "sample_name", unlocked: true } });
+  assert.equal(anon.status, 401);
+  const before = await call("/v1/owner/tiktok/unlocked", { ip: "203.0.113.93", token: ownerToken });
+  assert.equal(before.status, 200);
+  assert.deepEqual(before.body.handles, ["fixed_clip"]);
+  assert.deepEqual(before.body.fixed, ["fixed_clip"]);
+  const missing = await call("/v1/owner/tiktok/unlock", { method: "POST", ip: "203.0.113.94", token: ownerToken, body: { handle: "sample_name" } });
+  assert.equal(missing.status, 400);
+  const badName = await call("/v1/owner/tiktok/unlock", { method: "POST", ip: "203.0.113.94", token: ownerToken, body: { handle: "not a handle", unlocked: true } });
+  assert.equal(badName.status, 400);
+  const on = await call("/v1/owner/tiktok/unlock", { method: "POST", ip: "203.0.113.95", token: ownerToken, body: { handle: "@Sample_Name", unlocked: true } });
+  assert.equal(on.status, 200);
+  assert.deepEqual(on.body.handles, ["fixed_clip", "Sample_Name"]);
+  const again = await call("/v1/owner/tiktok/unlock", { method: "POST", ip: "203.0.113.95", token: ownerToken, body: { handle: "sample_name", unlocked: true } });
+  assert.deepEqual(again.body.handles, ["fixed_clip", "sample_name"], "one entry per account, case folded");
+  const read = await call("/v1/owner/tiktok/unlocked", { ip: "203.0.113.96", token: ownerToken });
+  assert.deepEqual(read.body.handles, ["fixed_clip", "sample_name"]);
+  const fixed = await call("/v1/owner/tiktok/unlock", { method: "POST", ip: "203.0.113.97", token: ownerToken, body: { handle: "fixed_clip", unlocked: false } });
+  assert.equal(fixed.status, 409);
+  assert.equal(fixed.body.error, "fixed");
+  const off = await call("/v1/owner/tiktok/unlock", { method: "POST", ip: "203.0.113.98", token: ownerToken, body: { handle: "SAMPLE_NAME", unlocked: false } });
+  assert.equal(off.status, 200);
+  assert.deepEqual(off.body.handles, ["fixed_clip"]);
 });
