@@ -2240,7 +2240,7 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
   function friendsOffNow() {
     return !!(window.ViktorychFriendsPref && window.ViktorychFriendsPref.isOff());
   }
-const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "pills", "nostr", "regone_leaderboard", "regone_online", "regone_rooms", "regone_profile_stats", "nzlay_forum", "nzlay_forum_post", "nzlay_forum_regone", "nft", "bitchat", "feed_requests", "friends_off", "local_ai", "local_ai_setup", "ext_nicknames", "merged_profiles", "owner_inspector", "live_frame_grab", "app_repair", "auto_update", "swipe_tabs", "compact_header", "status_bar", "zoom_lock", "app_scale", "image_copy", "update_notice", "foryou_off", "status_icons", "side_panel", "ai_people", "gguf_models", "instant_limits", "ai_tools", "site_permissions", "notif_sounds", "owner_user_settings", "tiktok_auto_record", "ai_device_setup", "x_broadcast", "ai_auto_model", "article_reader", "storage_recordings", "home_live", "audio_convert", "telegram_account_send", "fish_audio", "local_voice", "calls", "calls_quiet_voice", "calls_pip", "calls_preview", "calls_turn_budget", "calls_bar", "calls_qr", "calls_onechat", "calls_setup", "calls_latency", "calls_live_stream", "calls_stream_play", "calls_short_eos", "calls_barge", "calls_duck", "calls_onescreen", "calls_bar_sheet", "calls_live_translate", "calls_schedule", "calls_orig_vol", "calls_rotate_qr", "calls_practice", "calls_hist_edit", "calls_eu_proxy", "calls_owner_reach", "shorts_unlock_edit", "shorts_live_fresh"];
+const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "pills", "nostr", "regone_leaderboard", "regone_online", "regone_rooms", "regone_profile_stats", "nzlay_forum", "nzlay_forum_post", "nzlay_forum_regone", "nft", "bitchat", "feed_requests", "friends_off", "local_ai", "local_ai_setup", "ext_nicknames", "merged_profiles", "owner_inspector", "live_frame_grab", "app_repair", "auto_update", "swipe_tabs", "compact_header", "status_bar", "zoom_lock", "app_scale", "image_copy", "update_notice", "foryou_off", "status_icons", "side_panel", "ai_people", "gguf_models", "instant_limits", "ai_tools", "site_permissions", "notif_sounds", "owner_user_settings", "tiktok_auto_record", "ai_device_setup", "x_broadcast", "ai_auto_model", "article_reader", "storage_recordings", "home_live", "audio_convert", "telegram_account_send", "fish_audio", "local_voice", "calls", "calls_quiet_voice", "calls_pip", "calls_preview", "calls_turn_budget", "calls_bar", "calls_qr", "calls_onechat", "calls_setup", "calls_latency", "calls_live_stream", "calls_stream_play", "calls_short_eos", "calls_barge", "calls_duck", "calls_onescreen", "calls_bar_sheet", "calls_live_translate", "calls_schedule", "calls_orig_vol", "calls_rotate_qr", "calls_practice", "calls_hist_edit", "calls_eu_proxy", "calls_owner_reach", "calls_desktop", "shorts_unlock_edit", "shorts_live_fresh"];
   function serverOffList() {
     try {
       const list = JSON.parse(localStorage.getItem(SERVER_OFF_KEY) || "[]");
@@ -2394,6 +2394,7 @@ const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "
       calls_hist_edit: [tr("Edit call history"), tr("Tap a call in history to rename it, add a note, or correct a transcript line. Changes are only for you. Off hides the editor.")],
       calls_eu_proxy: [tr("EU translation route"), tr("Translation goes through the Worker, the API key is sent only as a header, and the key is never shown or logged. Off uses the earlier path that can open Google from the browser.")],
       calls_owner_reach: [tr("Call the owner"), tr("A Call the owner button and a Request a call form on the public Calls page. Calls ring you only while you are available in the Requests tab; requests wait there for Accept, Suggest another time or Decline. Off hides both.")],
+      calls_desktop: [tr("Calls desktop layout"), tr("Call screens fill a computer window like Teams: centred content, larger tiles, chat as a side panel on wide windows and a centred call bar. Phones are unchanged. Off keeps the earlier layout.")],
       shorts_unlock_edit: [tr("Unlock accounts in Shorts"), tr("Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is.")],
       shorts_live_fresh: [tr("Fresh live check in Shorts"), tr("Opening Live now re-checks accounts whose live state is more than two minutes old, three at a time. Off shows only the saved state.")]
     };
@@ -19853,7 +19854,7 @@ const here = parseRoute();
         ${serverOffList().includes("foryou_off") ? "" : homeFeatureSwitch("forYou", tr("For you"), tr("The For You tab and its ranking. Off makes Following your Home, loads nothing for it and clears its saved data."))}
         ${sw("story-notes", notesOn, tr("Show notes"), tr("Notes sit above stories. Turn this off to hide them."))}
         ${friendsOffNow() ? "" : sw("toggle-privacy-pref", friendsOn, tr("Friends panel"), tr("Show active friends beside the home feed."), ` data-key="friendsRail"`)}
-        ${localAiOn() ? sw("ai-fab", !!st.aiFab, tr("Local AI button"), tr("A round button on every page that opens Local AI."), "") : ""}
+        ${localAiOn() ? sw("ai-fab", !!st.aiFab, tr("Local AI button"), tr("A round button on phones that opens Local AI. On a computer, use the black square in the corner."), "") : ""}
         ${localAiSetupOn() ? `<div class="set-list">${settingsRow("#/ai?setup=1", tr("Set up Local AI again"), tr("Check this device, pick a model and choose how Local AI works."))}</div>` : ""}`)}
       ${sec(tr("Your feed"), `${sw("pz-feed", st.forYouReposts !== false, tr("Show reposts"), "", ` data-key="forYouReposts"`)}
         ${sw("pz-feed", st.forYouReplies !== false, tr("Show replies in tab"), "", ` data-key="forYouReplies"`)}
@@ -19924,9 +19925,33 @@ const here = parseRoute();
     try { kb.focus({ preventScroll: true }); } catch (err) { /* old browser */ }
     setTimeout(() => kb.remove(), 1500);
   }, true);
+  /* On a desktop (700px+ with a mouse) the black square dock launcher is
+     the Viktrych entry. The purple floating button stays on phones and
+     when that dock square is off. */
+  function aiDockDesktopMq() {
+    return window.matchMedia ? window.matchMedia("(min-width: 700px) and (hover: hover) and (pointer: fine)") : null;
+  }
+  function aiDockDesktopEntry() {
+    const mq = aiDockDesktopMq();
+    if (!mq || !mq.matches) return false;
+    return !!(document.querySelector('.xdock-panel[data-panel="ai"]'));
+  }
+  let aiFabMqBound = false;
+  function bindAiFabMq() {
+    if (aiFabMqBound) return;
+    aiFabMqBound = true;
+    const mq = aiDockDesktopMq();
+    const onChange = () => paintAiFab(parseRoute());
+    if (mq) {
+      if (mq.addEventListener) mq.addEventListener("change", onChange);
+      else if (mq.addListener) mq.addListener(onChange);
+    }
+    document.addEventListener("vk-dock-paint", onChange);
+  }
   function paintAiFab(route) {
+    bindAiFabMq();
     let fab = document.getElementById("lai-fab");
-    const want = localAiOn() && !!(STATE.settings && STATE.settings.aiFab) && route && route.name !== "localai" && route.name !== "watch" && route.name !== "shorts" && route.name !== "tv";
+    const want = localAiOn() && !!(STATE.settings && STATE.settings.aiFab) && route && route.name !== "localai" && route.name !== "watch" && route.name !== "shorts" && route.name !== "tv" && !aiDockDesktopEntry();
     if (!want) { if (fab) fab.remove(); return; }
     if (!fab) {
       fab = document.createElement("a");

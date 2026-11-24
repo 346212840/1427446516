@@ -76,7 +76,7 @@
   add({ id: "inboxLayout", label: t("Inbox sections"), desc: "Which Inbox sections are merged, split or hidden.", type: "object", store: "state", key: "inboxLayout", page: "#/settings/display/inbox", cat: "look", risk: "safe", sync: "device", ai: false, words: "inbox sections mail sms discord bandeja входящие इनबॉक्स" });
   add({ id: "profileTabs", label: t("Profile tabs"), desc: "Order of the tabs on profiles.", type: "object", store: "state", key: "profileTabs", page: "#/customize", cat: "look", risk: "safe", sync: "account", ai: false, words: "profile tabs order pestañas perfil вкладки профиля प्रोफ़ाइल टैब" });
   add({ id: "keyboard", label: t("Keyboard shortcuts"), desc: "Keyboard shortcut choices on computers.", type: "object", store: "state", key: "keyboard", page: "#/settings/keyboard", cat: "look", risk: "safe", sync: "account", ai: false, words: "keyboard shortcuts keys atajos teclado горячие клавиши клавиатура कीबोर्ड शॉर्टकट" });
-  add({ id: "aiFab", label: t("Local AI button"), desc: "Shows a floating Local AI button on every page.", type: "bool", def: false, store: "state", key: "aiFab", page: "#/ai", cat: "look", risk: "safe", sync: "account",
+  add({ id: "aiFab", label: t("Local AI button"), desc: "Shows a floating Local AI button on phones. On a computer, use the black square in the corner.", type: "bool", def: false, store: "state", key: "aiFab", page: "#/ai", cat: "look", risk: "safe", sync: "account",
     words: "floating button assistant ai bubble shortcut botón flotante asistente плавающая кнопка ассистент फ्लोटिंग बटन सहायक" });
 
   /* ---- Feed and media ---- */

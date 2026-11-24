@@ -5644,6 +5644,7 @@ SI18n.addPack("ru", {
   "Runs on this device. Nothing you type is sent anywhere.": "Работает на этом устройстве. Ничего из написанного никуда не отправляется.",
   "The Local AI page that changes settings from plain words. Models run on each person's device; nothing is sent to us.": "Страница Viktrych, которая меняет настройки по простым словам. Модели работают на устройстве каждого; нам ничего не отправляется.",
   "A round button on every page that opens Local AI.": "Круглая кнопка на каждой странице, открывающая Viktrych.",
+  "A round button on phones that opens Local AI. On a computer, use the black square in the corner.": "Круглая кнопка на телефоне открывает Viktrych. На компьютере используйте чёрный квадрат в углу.",
   "Ask Local AI": "Спросить Viktrych",
   "Say what you want changed, like “bigger text” or “make it private”. It runs on this device.": "Скажите, что изменить, например «крупнее текст» или «сделай закрытым». Работает на этом устройстве.",
   "Local AI is turned off right now.": "Viktrych сейчас выключен.",
@@ -7039,5 +7040,7 @@ SI18n.addPack("ru", {
   "Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is.": "Разблокировать или заблокировать отдельный аккаунт TikTok в окне «Добавить аккаунт» в Shorts. Если выключено, кнопки скрыты, а список разблокированных не меняется.",
   "Fresh live check in Shorts": "Свежая проверка эфиров в Shorts",
   "Opening Live now re-checks accounts whose live state is more than two minutes old, three at a time. Off shows only the saved state.": "При открытии «В эфире сейчас» аккаунты, чей статус старше двух минут, проверяются заново, по три за раз. Если выключено, показывается только сохранённый статус.",
-  "Shorts is only for the owner of this app.": "Shorts доступен только владельцу этого приложения."
+  "Shorts is only for the owner of this app.": "Shorts доступен только владельцу этого приложения.",
+  "Calls desktop layout": "Раскладка звонков для компьютера",
+  "Call screens fill a computer window like Teams: centred content, larger tiles, chat as a side panel on wide windows and a centred call bar. Phones are unchanged. Off keeps the earlier layout.": "Экраны звонка заполняют окно компьютера, как в Teams: контент по центру, крупные плитки, чат боковой панелью в широком окне и панель звонка по центру. На телефоне ничего не меняется. Выключено — прежняя раскладка."
 });

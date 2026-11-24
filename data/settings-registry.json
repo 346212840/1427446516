@@ -481,7 +481,7 @@
   {
    "id": "aiFab",
    "label": "Local AI button",
-   "desc": "Shows a floating Local AI button on every page.",
+   "desc": "Shows a floating Local AI button on phones. On a computer, use the black square in the corner.",
    "type": "bool",
    "def": false,
    "store": "state",

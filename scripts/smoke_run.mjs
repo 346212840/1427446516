@@ -272,6 +272,10 @@ const PAGE_STEPS = [
   step("calls-logic", "node scripts/calls_logic_test.mjs", {
     paths: [file("calls_logic_test.mjs"), /^shared\/call-/, /^calls\.js$/, /^worker\/src\/calls\.js$/]
   }),
+  step("calls-desktop", "node scripts/calls_desktop_layout_test.mjs", {
+    needs: ["pw", "browser"],
+    paths: [file("calls_desktop_layout_test.mjs"), /^scripts\/fixtures\/calls-desktop\//, /^calls\.(js|css)$/, /^calls\/index\.html$/, /^worker\/src\/feature-flags\.js$/]
+  }),
   step("audio-studio", "node scripts/telegram_account_test.mjs && node scripts/audio_convert_plan_test.mjs && node scripts/audio_studio_test.mjs && python3 scripts/local_voice_route_test.py && python3 scripts/local_voice_proxy_test.py", {
     weight: 50, needs: ["pw", "browser"],
     paths: [/^audio-convert/, /^audio-studio-files\.js$/, /^voice-sheet\.js$/, /^telegram-account\.js$/, /^local-voice/, /^flow-music\.js$/, /^fish-cache\.js$/, file("telegram_account_test.mjs"), file("audio_studio_test.mjs"), file("audio_convert_plan_test.mjs"), file("local_voice_route_test.py"), file("local_voice_proxy_test.py"), ...APP]
@@ -317,7 +321,7 @@ const NAV_STEPS = [
 
 const SHARDS = {
   checks: ["action-bar", "assemble-self", "r2-catalog", "catalog-migrate", "handle-guard", "repo-path", "i18n", "telegram-stories", "stories", "device", "translate", "ondevice-ai", "dock", "for-you", "storage-recordings", "app-scale", "image-copy", "calls-logic"],
-  site: ["about-layout", "points-layout", "stories-layout", "assemble-site", "smoke-site", "smoke-mirror", "yt-embed", "x-video", "ios", "live", "shorts-page", "app-base"],
+  site: ["about-layout", "points-layout", "stories-layout", "calls-desktop", "assemble-site", "smoke-site", "smoke-mirror", "yt-embed", "x-video", "ios", "live", "shorts-page", "app-base"],
   "ui-fast": ["notifications", "scrollbar-hidden", "pill-fit", "sidebar", "privacy", "title-privacy", "desktop-squares", "storage-page", "audio-studio"],
   sw: ["sw-update"],
   "ui-profile": ["profile", "profile-tab-scroll"],
@@ -350,7 +354,7 @@ const REQUIRED_PAGE = [
   "device-guard", "usernames", "owner-user-settings", "display-names", "settings-assistant", "nostr-settings", "games-mobile",
   "live-translate", "friend-p2p", "friend-refresh", "communities-instant", "routes-instant", "profile-by-name", "people-search", "emoji-text", "post-menu", "show-more-scroll", "action-speed", "reply-pending", "tab-sync",
   "communities-rows", "friend-privacy", "foryou-communities", "foryou-chunks", "author-marks", "foryou-off", "title-privacy", "desktop-squares",
-  "storage-recordings", "storage-page", "app-scale", "image-copy", "app-base", "audio-studio", "calls-logic"
+  "storage-recordings", "storage-page", "app-scale", "image-copy", "app-base", "audio-studio", "calls-logic", "calls-desktop"
 ];
 
 export function stepsFor(suite) {

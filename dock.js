@@ -521,6 +521,7 @@
       if (open) panel.classList.add("is-settled");
       fill(kind, forceBody);
     });
+    try { document.dispatchEvent(new Event("vk-dock-paint")); } catch (err) {}
   }
   function finishClose(panel) {
     if (!panel || panel.classList.contains("is-open")) return;

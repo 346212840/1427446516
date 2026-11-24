@@ -1,0 +1,48 @@
+<!-- Snapshot of the rendered calls screen (made-up names, example.test links) for calls_desktop_layout_test.mjs. -->
+<div class="calls-page calls-home calls-solo" data-video="0" data-phase="idle">
+    
+    <aside class="calls-side">
+    <header class="calls-side-head"><span class="calls-logo"><svg class="calls-ico" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 16.9v2.6a2 2 0 0 1-2.2 2 18.7 18.7 0 0 1-8.1-2.9 18.4 18.4 0 0 1-5.7-5.7A18.7 18.7 0 0 1 2.6 4.7a2 2 0 0 1 2-2.2h2.6a2 2 0 0 1 2 1.7c.1.9.3 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 10.1a16 16 0 0 0 5.8 5.8l1.3-1.3a2 2 0 0 1 2.1-.5c.9.4 1.8.6 2.7.7a2 2 0 0 1 1.5 2.1z"></path></g></svg></span><h1>Calls</h1></header>
+    <div class="calls-tabs" role="tablist" aria-label="Calls"><button type="button" role="tab" class="calls-tab on" aria-selected="true" data-act="call-tab" data-value="recent">Recent</button><button type="button" role="tab" class="calls-tab" aria-selected="false" data-act="call-tab" data-value="missed">Missed</button><button type="button" role="tab" class="calls-tab" aria-selected="false" data-act="call-tab" data-value="scheduled">Scheduled</button><button type="button" role="tab" class="calls-tab" aria-selected="false" data-act="call-tab" data-value="requests">Requests</button></div>
+    <p class="calls-empty">No calls yet</p>
+  </aside>
+    <section class="calls-main">
+      
+      <p class="calls-empty">Calls are not set up yet</p><section class="calls-hero">
+      <h2>Start a call</h2>
+      <form class="calls-start" data-act="call-start-form"><input name="handle" maxlength="31" placeholder="Username to call" aria-label="Username to call" autocomplete="off" autocapitalize="off"><button type="submit" class="calls-go"><svg class="calls-ico" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 16.9v2.6a2 2 0 0 1-2.2 2 18.7 18.7 0 0 1-8.1-2.9 18.4 18.4 0 0 1-5.7-5.7A18.7 18.7 0 0 1 2.6 4.7a2 2 0 0 1 2-2.2h2.6a2 2 0 0 1 2 1.7c.1.9.3 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 10.1a16 16 0 0 0 5.8 5.8l1.3-1.3a2 2 0 0 1 2.1-.5c.9.4 1.8.6 2.7.7a2 2 0 0 1 1.5 2.1z"></path></g></svg><span>Call</span></button></form>
+      <div data-sugg=""></div>
+      <div class="calls-hero-row">
+        <button type="button" class="calls-big" data-act="call-invite"><svg class="calls-ico" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></g></svg><span>Get call link</span></button>
+        <button type="button" class="calls-big ghost" data-act="call-test"><svg class="calls-ico" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 18l-5-9V3"></path><path d="M7.5 15h9"></path></g></svg><span>Test call</span></button>
+        <button type="button" class="calls-big ghost" data-act="call-sched-open"><svg class="calls-ico" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></g></svg><span>Schedule a call</span></button>
+      </div>
+      <div class="calls-modes" role="group" aria-label="Link lasts"><button type="button" class="calls-pill on" data-act="call-set" data-group="ttl" data-value="60" aria-pressed="true">1 hour</button><button type="button" class="calls-pill" data-act="call-set" data-group="ttl" data-value="1440" aria-pressed="false">24 hours</button></div>
+      
+      <section class="calls-rotateqr" data-rotateqr="">
+    <h3>Scan to call me</h3>
+    <div class="calls-qr" role="img" aria-label="Rotating QR code to call me"></div>
+    <p class="calls-privacy">This code refreshes every two minutes. When someone scans it, it rings you like an incoming call.</p>
+    <div class="calls-invite"><input readonly="" value="https://calls.example.test/" aria-label="Guest link" data-rotateqr-link=""><button type="button" data-act="call-rotate-copy">Copy link</button></div>
+  </section>
+    </section>
+    <section class="calls-link" data-link=""><h3>My call-me link</h3>
+    <div class="calls-invite"><input readonly="" value="https://calls.example.test/" aria-label="Call-me link" data-invite=""><button type="button" data-act="call-link-copy">Copy link</button></div>
+    
+    
+    <div class="calls-modes">
+      <button type="button" class="calls-pill" data-act="call-link-toggle">Turn off</button>
+      <button type="button" class="calls-pill" data-act="call-link-regen">Make a new link</button>
+      <button type="button" class="calls-pill" data-act="call-link-del">Delete link</button>
+    </div>
+    <form class="calls-lex" data-act="call-link-form"><input name="slug" maxlength="30" placeholder="Custom name, like my-name" aria-label="Custom link name" autocomplete="off" autocapitalize="off"><button type="submit">Save</button></form>
+    <p class="calls-privacy">Your quiet hours, blocks and who-can-call settings still apply. Turning the link off or making a new one stops the old link at once.</p>
+  </section>
+      <label class="calls-vol calls-homelang"><span>I speak</span><select data-act="call-lang"><option value="es">Spanish</option><option value="en" selected="">English</option><option value="sv">Swedish</option><option value="ca">Catalan</option><option value="ru">Russian</option><option value="af">Afrikaans</option><option value="ak">Akan</option><option value="sq">Albanian</option><option value="am">Amharic</option><option value="ar">Arabic</option><option value="hy">Armenian</option><option value="az">Azerbaijani</option><option value="bn">Bangla</option><option value="eu">Basque</option><option value="be">Belarusian</option><option value="pt-BR">Brazilian Portuguese</option><option value="bg">Bulgarian</option><option value="my">Burmese</option><option value="hr">Croatian</option><option value="cs">Czech</option><option value="da">Danish</option><option value="nl">Dutch</option><option value="et">Estonian</option><option value="pt-PT">European Portuguese</option><option value="fil">Filipino</option><option value="fi">Finnish</option><option value="fr">French</option><option value="gl">Galician</option><option value="ka">Georgian</option><option value="de">German</option><option value="el">Greek</option><option value="gu">Gujarati</option><option value="ha">Hausa</option><option value="he">Hebrew</option><option value="hi">Hindi</option><option value="hu">Hungarian</option><option value="is">Icelandic</option><option value="id">Indonesian</option><option value="it">Italian</option><option value="ja">Japanese</option><option value="jv">Javanese</option><option value="kn">Kannada</option><option value="kk">Kazakh</option><option value="km">Khmer</option><option value="rw">Kinyarwanda</option><option value="ko">Korean</option><option value="lo">Lao</option><option value="lv">Latvian</option><option value="lt">Lithuanian</option><option value="mk">Macedonian</option><option value="ms">Malay</option><option value="ml">Malayalam</option><option value="mr">Marathi</option><option value="mn">Mongolian</option><option value="ne">Nepali</option><option value="no">Norwegian</option><option value="nb">Norwegian Bokmål</option><option value="fa">Persian</option><option value="pl">Polish</option><option value="pa">Punjabi</option><option value="ro">Romanian</option><option value="sr">Serbian</option><option value="zh-Hans">Simplified Chinese</option><option value="sd">Sindhi</option><option value="si">Sinhala</option><option value="sk">Slovak</option><option value="sl">Slovenian</option><option value="su">Sundanese</option><option value="sw">Swahili</option><option value="ta">Tamil</option><option value="te">Telugu</option><option value="th">Thai</option><option value="zh-Hant">Traditional Chinese</option><option value="tr">Turkish</option><option value="uk">Ukrainian</option><option value="ur">Urdu</option><option value="uz">Uzbek</option><option value="vi">Vietnamese</option><option value="zu">Zulu</option></select></label>
+      <section class="calls-install" data-install="">
+    <label class="calls-vol"><span>App name</span><input data-act="call-pwa-name" maxlength="30" value="ViktorychCalls" aria-label="App name"></label>
+    <button type="button" class="calls-go" data-act="call-install" hidden="">Install app</button>
+    <p class="calls-privacy" data-ios="" hidden="">On iPhone: Share, then Add to Home Screen. The name above is filled in for you.</p>
+  </section>
+    </section>
+  </div>

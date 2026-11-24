@@ -5642,6 +5642,7 @@ SI18n.addPack("en", {
   "Runs on this device. Nothing you type is sent anywhere.": "Runs on this device. Nothing you type is sent anywhere.",
   "The Local AI page that changes settings from plain words. Models run on each person's device; nothing is sent to us.": "The Viktrych page that changes settings from plain words. Models run on each person's device; nothing is sent to us.",
   "A round button on every page that opens Local AI.": "A round button on every page that opens Viktrych.",
+  "A round button on phones that opens Local AI. On a computer, use the black square in the corner.": "A round button on phones that opens Viktrych. On a computer, use the black square in the corner.",
   "Ask Local AI": "Ask Viktrych",
   "Say what you want changed, like “bigger text” or “make it private”. It runs on this device.": "Say what you want changed, like “bigger text” or “make it private”. It runs on this device.",
   "Local AI is turned off right now.": "Viktrych is turned off right now.",
@@ -7037,5 +7038,7 @@ SI18n.addPack("en", {
   "Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is.": "Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is.",
   "Fresh live check in Shorts": "Fresh live check in Shorts",
   "Opening Live now re-checks accounts whose live state is more than two minutes old, three at a time. Off shows only the saved state.": "Opening Live now re-checks accounts whose live state is more than two minutes old, three at a time. Off shows only the saved state.",
-  "Shorts is only for the owner of this app.": "Shorts is only for the owner of this app."
+  "Shorts is only for the owner of this app.": "Shorts is only for the owner of this app.",
+  "Calls desktop layout": "Calls desktop layout",
+  "Call screens fill a computer window like Teams: centred content, larger tiles, chat as a side panel on wide windows and a centred call bar. Phones are unchanged. Off keeps the earlier layout.": "Call screens fill a computer window like Teams: centred content, larger tiles, chat as a side panel on wide windows and a centred call bar. Phones are unchanged. Off keeps the earlier layout."
 });
