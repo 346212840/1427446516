@@ -20,6 +20,7 @@ import { holdStatus, shouldRemountOnStatus, shouldRemountOnPeer, GUEST_SESSION_K
 import { SCHEDULE_TOKEN, icsForSchedule, clipDuration, DEFAULT_DURATION } from "./shared/call-schedule.js";
 import { REQUEST_TOKEN, NAME_MAX, NOTE_MAX, REQUEST_MIN_AHEAD_MS, looksSpammy } from "./shared/call-reach.js";
 import { ROTATE_TOKEN, ROTATE_REFRESH_MS } from "./shared/call-rotate-qr.js";
+import { practiceAccepts, practiceQueue } from "./shared/call-practice.js";
 
 const CAP_SIZES = ["s", "m", "l", "xl"];
 const CAP_SHOW = 3;
@@ -3505,7 +3506,7 @@ async function startPartner(invite) {
           if (state.lines.length > 40) state.lines.shift();
           /* What the test partner hears is also spoken, so typing with no microphone is a full test. */
           if (d.typed && state.test.hear) speakText(d.translation || d.original, state.test.lang, true);
-          if (state.test.practice) practiceReply(d.original || d.translation);
+          if (state.test.practice) practiceReply(d.original || d.translation, false, !!d.typed);
         }
         live();
       } else if (type === "partial" && !d.mine) {
@@ -3556,15 +3557,15 @@ function practiceGreetWhenReady() {
 }
 /* Lines the partner hears while its own voice or its translation is still playing are echo from this phone's speaker. */
 const PRACTICE_ECHO_MS = 2500;
-async function practiceReply(heard, greet) {
+async function practiceReply(heard, greet, typed) {
   const t = state.test;
   if (!t || !t.practice || !state.partner) return;
   const text = String(heard || "").replace(/\s+/g, " ").trim();
-  if (!text && !greet) return;
-  if (!greet && (Date.now() < (t.aiUntil || 0) || (state.translating && Date.now() < (t.aiUntil || 0) + 15000))) return;
-  if (t.practiceBusy) { if (text) t.pendingHeard = text; return; }
+  if (!practiceAccepts({ text: text, greet: !!greet, typed: !!typed }, Date.now(), { aiUntil: t.aiUntil, translating: state.translating })) return;
+  /* A reply is on its way: keep this line for the next turn. Typed chat is never lost to a heard line. */
+  if (t.practiceBusy) { t.pending = practiceQueue(t.pending, text, typed); return; }
   t.practiceBusy = true;
-  const body = { id: state.callId, text: text, lang: t.lang, turns: t.turns, voice: !!t.vmic, greet: !!greet };
+  const body = { id: state.callId, text: text, lang: t.lang, turns: t.turns, voice: !!t.vmic, greet: !!greet, typed: !!typed };
   const res = await api("/v1/calls/practice", { method: "POST", body: JSON.stringify(body) }).catch(() => null);
   t.practiceBusy = false;
   if (state.test !== t || !t.practice) return;
@@ -3576,15 +3577,19 @@ async function practiceReply(heard, greet) {
     else if (reason === "quota") state.error = tr("The practice partner is busy. Try again in a moment.");
     else state.error = tr("The practice partner did not answer. Say something again.");
     if (host()) paint();
+    practiceNext(t);
     return;
   }
   if (state.error) { state.error = ""; if (host()) paint(); }
   t.turns = (t.turns || []).concat(greet ? [{ role: "partner", text: reply }] : [{ role: "you", text: text }, { role: "partner", text: reply }]).slice(-8);
   const spoken = res.data.audio ? playPracticeVoice(t, res.data.audio, res.data.audioMime) : 0;
   if (!spoken) state.partner.sendText(reply);
-  const next = t.pendingHeard;
-  t.pendingHeard = "";
-  if (next) practiceReply(next);
+  practiceNext(t);
+}
+function practiceNext(t) {
+  const next = t.pending;
+  t.pending = null;
+  if (next && next.text) practiceReply(next.text, false, next.typed);
 }
 /* 16-bit mono PCM, raw or in a WAV file, played into the partner's virtual microphone. Returns its length in ms, or 0. */
 function playPracticeVoice(t, b64, mime) {
@@ -3618,8 +3623,11 @@ function playPracticeVoice(t, b64, mime) {
     const src = ac.createBufferSource();
     src.buffer = buffer;
     src.connect(t.vmic);
-    src.start();
-    const ms = Math.round(buffer.duration * 1000);
+    /* Like a person, it finishes what it is saying before it answers the next message. */
+    const at = Math.max(ac.currentTime, t.voiceEnd || 0);
+    src.start(at);
+    t.voiceEnd = at + buffer.duration;
+    const ms = Math.round((t.voiceEnd - ac.currentTime) * 1000);
     t.aiUntil = Date.now() + ms + PRACTICE_ECHO_MS;
     return ms;
   } catch (err) { return 0; }
