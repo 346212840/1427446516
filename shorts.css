@@ -987,3 +987,15 @@ span.shorts-past-play { background: var(--line); color: var(--text); }
   font-size: 11px;
   line-height: 1.4;
 }
+.shorts-empty .shorts-open {
+  margin-top: 12px;
+  padding: 8px 18px;
+  border: 0;
+  border-radius: 9999px;
+  background: #eff3f4;
+  color: #0f1419;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
