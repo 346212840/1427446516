@@ -119,6 +119,8 @@ async function main() {
     const mid = await open("incall", 1024, 768, true);
     check(mid.stage.w >= 1022 && mid.compose && mid.compose.b <= mid.bar.t - 4, "1024x768 composer is not clear of the call bar");
     check(mid.grid.w <= 900, "1024x768 call column is stretched edge to edge");
+    const small = await open("incall", 800, 600, true);
+    check(!small.hscroll && small.compose && small.compose.b <= small.bar.t - 4 && small.compose.t >= small.chips.b, "800x600 composer does not fit above the call bar");
     /* Phones: identical with the switch on and off. */
     for (const name of ["incall", "sheet", "home", "testprep"]) {
       const on = await open(name, 393, 851, true);
