@@ -7032,5 +7032,7 @@ SI18n.addPack("ru", {
   "No accounts yet": "Пока нет аккаунтов",
   "Only unlocked accounts show here. Unlock to see every account you added.": "Здесь видны только разблокированные аккаунты. Разблокируйте, чтобы увидеть все добавленные аккаунты.",
   "Add a TikTok link or @handle to see when they go live.": "Добавьте ссылку TikTok или @имя, чтобы видеть, когда начинается эфир.",
-  "Added. It stays hidden while Shorts is locked.": "Добавлено. Аккаунт скрыт, пока Shorts заблокирован."
+  "Added. It stays hidden while Shorts is locked.": "Добавлено. Аккаунт скрыт, пока Shorts заблокирован.",
+  "Fresh live check in Shorts": "Свежая проверка эфиров в Shorts",
+  "Opening Live now re-checks accounts whose live state is more than two minutes old, three at a time. Off shows only the saved state.": "При открытии «В эфире сейчас» аккаунты, чей статус старше двух минут, проверяются заново, по три за раз. Если выключено, показывается только сохранённый статус."
 });

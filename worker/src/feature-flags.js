@@ -220,7 +220,12 @@ export const FEATURES = {
      with calendar file and reminders), Suggest another time or Decline.
      Rate limited per IP and device, no links, nothing about the owner shown.
      On by default; availability itself starts off. Off hides both. */
-  calls_owner_reach: { paths: ["/v1/calls/reach"] }
+  calls_owner_reach: { paths: ["/v1/calls/reach"] },
+  /* Opening Shorts Live now re-checks accounts whose saved live state is
+     over two minutes old (three at a time, at most 12). Client only, uses
+     the existing owner live route. On by default. Off shows only the
+     saved state. */
+  shorts_live_fresh: { paths: [] }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 

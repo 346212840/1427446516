@@ -7033,5 +7033,7 @@ SI18n.addPack("es", {
   "No accounts yet": "Aún no hay cuentas",
   "Only unlocked accounts show here. Unlock to see every account you added.": "Aquí solo se ven las cuentas desbloqueadas. Desbloquea para ver todas las cuentas que añadiste.",
   "Add a TikTok link or @handle to see when they go live.": "Añade un enlace de TikTok o un @usuario para ver cuándo empieza un directo.",
-  "Added. It stays hidden while Shorts is locked.": "Añadida. Seguirá oculta mientras Shorts esté bloqueado."
+  "Added. It stays hidden while Shorts is locked.": "Añadida. Seguirá oculta mientras Shorts esté bloqueado.",
+  "Fresh live check in Shorts": "Comprobación de directos al momento en Shorts",
+  "Opening Live now re-checks accounts whose live state is more than two minutes old, three at a time. Off shows only the saved state.": "Al abrir En directo ahora se vuelven a comprobar las cuentas cuyo estado tiene más de dos minutos, de tres en tres. Desactivado muestra solo el estado guardado."
 });

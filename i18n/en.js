@@ -7030,5 +7030,7 @@ SI18n.addPack("en", {
   "No accounts yet": "No accounts yet",
   "Only unlocked accounts show here. Unlock to see every account you added.": "Only unlocked accounts show here. Unlock to see every account you added.",
   "Add a TikTok link or @handle to see when they go live.": "Add a TikTok link or @handle to see when they go live.",
-  "Added. It stays hidden while Shorts is locked.": "Added. It stays hidden while Shorts is locked."
+  "Added. It stays hidden while Shorts is locked.": "Added. It stays hidden while Shorts is locked.",
+  "Fresh live check in Shorts": "Fresh live check in Shorts",
+  "Opening Live now re-checks accounts whose live state is more than two minutes old, three at a time. Off shows only the saved state.": "Opening Live now re-checks accounts whose live state is more than two minutes old, three at a time. Off shows only the saved state."
 });
