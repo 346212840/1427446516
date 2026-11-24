@@ -221,6 +221,10 @@ export const FEATURES = {
      Rate limited per IP and device, no links, nothing about the owner shown.
      On by default; availability itself starts off. Off hides both. */
   calls_owner_reach: { paths: ["/v1/calls/reach"] },
+  /* Unlock or lock one TikTok account from the Shorts Add account sheet
+     (owner/tiktok-unlocked.json). On by default. Off hides the buttons and
+     the route answers empty; the unlock list stays as it is. */
+  shorts_unlock_edit: { paths: ["/v1/owner/tiktok/unlock"] },
   /* Opening Shorts Live now re-checks accounts whose saved live state is
      over two minutes old (three at a time, at most 12). Client only, uses
      the existing owner live route. On by default. Off shows only the

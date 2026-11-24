@@ -50,7 +50,7 @@ import { PRESENCE_SCHEMA, ensurePresenceColumns, handleFriendPresence, handlePre
 import { NOTIFICATION_SCHEMA, drainOutbox, handleNotificationRoutes, notifyFollow, planRepostNotification, notifyLiveStarted, emitNotification } from "./notifications.js";
 import { MENTION_SCHEMA, commitBundled, handleBlockMuteRoutes, handleContentRoutes, planMentions } from "./mention-store.js";
 import { DISCORD_ALERT_SCHEMA, handleDiscordAlertRoutes } from "./discord-alerts.js";
-import { unlockedHandles } from "./tiktok-unlock.js";
+import { unlockedHandles, fixedUnlocked, setUnlocked as storeUnlocked } from "./tiktok-unlock.js";
 import { liveFetch, primeLiveCookies, releaseLiveCookies } from "./owner-key-net.js";
 import { handlePills } from "./pills.js";
 import { handleUnfurl } from "./unfurl.js";
@@ -4551,7 +4551,22 @@ async function requireOwner(request, env) {
 async function handleTikTokUnlocked(request, env) {
   const gate = await requireOwner(request, env);
   if (gate.error) return gate.error;
-  return json(200, { handles: await unlockedHandles(env) });
+  return json(200, { handles: await unlockedHandles(env), fixed: fixedUnlocked(env) });
+}
+
+// Unlock or lock one account from the Shorts sheet (switch shorts_unlock_edit).
+async function handleTikTokUnlockEdit(request, env) {
+  const gate = await requireOwner(request, env);
+  if (gate.error) return gate.error;
+  if (!env.DATA) return json(503, { error: "not_configured" });
+  const hit = await rateHit(env, "tiktok-unlock:" + gate.row.public_id, 60, 10 * 60 * 1000);
+  if (!hit.ok) return limited(hit);
+  const body = await readJson(request, 1000);
+  if (body.error) return json(400, { error: body.error });
+  if (typeof body.unlocked !== "boolean") return json(400, { error: "bad_request" });
+  const done = await storeUnlocked(env, body.handle, body.unlocked);
+  if (!done.ok) return json(done.error === "fixed" ? 409 : 400, { error: done.error });
+  return json(200, { handles: await unlockedHandles(env), fixed: fixedUnlocked(env) });
 }
 
 async function handleTikTokAccounts(request, env) {
@@ -6246,6 +6261,7 @@ async function route(request, env, ctx) {
     if (linked) return linked;
   }
   if (path === "/v1/owner/tiktok/unlocked" && request.method === "GET") return handleTikTokUnlocked(request, env);
+  if (path === "/v1/owner/tiktok/unlock" && request.method === "POST") return handleTikTokUnlockEdit(request, env);
   if (path === "/v1/owner/tiktok/accounts" && (request.method === "GET" || request.method === "POST")) return handleTikTokAccounts(request, env);
   const ownerAccount = path.match(/^\/v1\/owner\/tiktok\/accounts\/([^/]+)$/);
   if (ownerAccount && request.method === "DELETE") return handleTikTokAccountDelete(request, env, ownerAccount[1]);
