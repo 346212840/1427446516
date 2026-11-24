@@ -4109,8 +4109,9 @@ function unescapeJson(value) {
 
 function previewFromHtml(html, handle) {
   const text = String(html || "");
-  const low = text.toLowerCase();
-  if (low.indexOf("captcha") >= 0 || low.indexOf("captcha-verify") >= 0) return null;
+  // Every TikTok page lists its captcha scripts in the asset manifest, so
+  // the word alone is not a challenge. A challenge page has no profile data.
+  if (text.indexOf("captcha-verify") >= 0 && !/"uniqueId"\s*:/.test(text)) return null;
   let name = "";
   let avatar = "";
   let unique = "";
