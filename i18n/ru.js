@@ -7036,5 +7036,6 @@ SI18n.addPack("ru", {
   "Always unlocked": "Всегда разблокирован",
   "Couldn’t change this account. Try again.": "Не удалось изменить этот аккаунт. Попробуйте ещё раз.",
   "Unlock accounts in Shorts": "Разблокировка аккаунтов в Shorts",
-  "Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is.": "Разблокировать или заблокировать отдельный аккаунт TikTok в окне «Добавить аккаунт» в Shorts. Если выключено, кнопки скрыты, а список разблокированных не меняется."
+  "Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is.": "Разблокировать или заблокировать отдельный аккаунт TikTok в окне «Добавить аккаунт» в Shorts. Если выключено, кнопки скрыты, а список разблокированных не меняется.",
+  "Shorts is only for the owner of this app.": "Shorts доступен только владельцу этого приложения."
 });

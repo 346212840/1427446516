@@ -7037,5 +7037,6 @@ SI18n.addPack("es", {
   "Always unlocked": "Siempre desbloqueada",
   "Couldn’t change this account. Try again.": "No se pudo cambiar esta cuenta. Inténtalo de nuevo.",
   "Unlock accounts in Shorts": "Desbloquear cuentas en Shorts",
-  "Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is.": "Desbloquea o bloquea una cuenta de TikTok desde la hoja Añadir cuenta de Shorts. Desactivado oculta esos botones; la lista de desbloqueo queda como está."
+  "Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is.": "Desbloquea o bloquea una cuenta de TikTok desde la hoja Añadir cuenta de Shorts. Desactivado oculta esos botones; la lista de desbloqueo queda como está.",
+  "Shorts is only for the owner of this app.": "Shorts es solo para el propietario de esta app."
 });

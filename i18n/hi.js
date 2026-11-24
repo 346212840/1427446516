@@ -7024,5 +7024,6 @@ SI18n.addPack("hi", {
   "Always unlocked": "हमेशा अनलॉक",
   "Couldn’t change this account. Try again.": "यह खाता बदला नहीं जा सका। फिर से कोशिश करें।",
   "Unlock accounts in Shorts": "शॉर्ट्स में खाते अनलॉक करें",
-  "Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is.": "शॉर्ट्स की खाता जोड़ें शीट से किसी एक TikTok खाते को अनलॉक या लॉक करें। बंद करने पर ये बटन छिप जाते हैं; अनलॉक सूची जैसी है वैसी रहती है।"
+  "Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is.": "शॉर्ट्स की खाता जोड़ें शीट से किसी एक TikTok खाते को अनलॉक या लॉक करें। बंद करने पर ये बटन छिप जाते हैं; अनलॉक सूची जैसी है वैसी रहती है।",
+  "Shorts is only for the owner of this app.": "शॉर्ट्स केवल इस ऐप के मालिक के लिए है।"
 });
