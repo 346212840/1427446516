@@ -2240,7 +2240,7 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
   function friendsOffNow() {
     return !!(window.ViktorychFriendsPref && window.ViktorychFriendsPref.isOff());
   }
-const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "pills", "nostr", "regone_leaderboard", "regone_online", "regone_rooms", "regone_profile_stats", "nzlay_forum", "nzlay_forum_post", "nzlay_forum_regone", "nft", "bitchat", "feed_requests", "friends_off", "local_ai", "local_ai_setup", "ext_nicknames", "merged_profiles", "owner_inspector", "live_frame_grab", "app_repair", "auto_update", "swipe_tabs", "compact_header", "status_bar", "zoom_lock", "app_scale", "image_copy", "update_notice", "foryou_off", "status_icons", "side_panel", "ai_people", "gguf_models", "instant_limits", "ai_tools", "site_permissions", "notif_sounds", "owner_user_settings", "tiktok_auto_record", "ai_device_setup", "x_broadcast", "ai_auto_model", "article_reader", "storage_recordings", "home_live", "audio_convert", "telegram_account_send", "fish_audio", "local_voice", "calls", "calls_quiet_voice", "calls_pip", "calls_preview", "calls_turn_budget", "calls_bar", "calls_qr", "calls_onechat", "calls_setup", "calls_latency", "calls_live_stream", "calls_stream_play", "calls_short_eos", "calls_barge", "calls_duck", "calls_onescreen", "calls_bar_sheet", "calls_live_translate", "calls_schedule", "calls_orig_vol", "calls_rotate_qr", "calls_practice", "calls_hist_edit", "calls_eu_proxy", "calls_owner_reach", "calls_desktop", "shorts_unlock_edit", "shorts_live_fresh"];
+const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "pills", "nostr", "regone_leaderboard", "regone_online", "regone_rooms", "regone_profile_stats", "nzlay_forum", "nzlay_forum_post", "nzlay_forum_regone", "nft", "bitchat", "feed_requests", "friends_off", "local_ai", "local_ai_setup", "ext_nicknames", "merged_profiles", "owner_inspector", "live_frame_grab", "app_repair", "auto_update", "swipe_tabs", "compact_header", "status_bar", "zoom_lock", "app_scale", "image_copy", "update_notice", "foryou_off", "status_icons", "side_panel", "ai_people", "gguf_models", "instant_limits", "ai_tools", "site_permissions", "notif_sounds", "owner_user_settings", "tiktok_auto_record", "ai_device_setup", "x_broadcast", "ai_auto_model", "article_reader", "storage_recordings", "home_live", "audio_convert", "telegram_account_send", "fish_audio", "local_voice", "calls", "calls_quiet_voice", "calls_pip", "calls_preview", "calls_turn_budget", "calls_bar", "calls_qr", "calls_onechat", "calls_setup", "calls_latency", "calls_live_stream", "calls_stream_play", "calls_short_eos", "calls_barge", "calls_duck", "calls_onescreen", "calls_bar_sheet", "calls_live_translate", "calls_schedule", "calls_orig_vol", "calls_rotate_qr", "calls_practice", "calls_hist_edit", "calls_eu_proxy", "calls_owner_reach", "calls_desktop", "shorts_unlock_edit", "shorts_live_fresh", "linked_x_steady"];
   function serverOffList() {
     try {
       const list = JSON.parse(localStorage.getItem(SERVER_OFF_KEY) || "[]");
@@ -2396,7 +2396,8 @@ const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "
       calls_owner_reach: [tr("Call the owner"), tr("A Call the owner button and a Request a call form on the public Calls page. Calls ring you only while you are available in the Requests tab; requests wait there for Accept, Suggest another time or Decline. Off hides both.")],
       calls_desktop: [tr("Calls desktop layout"), tr("Call screens fill a computer window like Teams: centred content, larger tiles, chat as a side panel on wide windows and a centred call bar. Phones are unchanged. Off keeps the earlier layout.")],
       shorts_unlock_edit: [tr("Unlock accounts in Shorts"), tr("Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is.")],
-      shorts_live_fresh: [tr("Fresh live check in Shorts"), tr("Opening Live now re-checks accounts whose live state is more than two minutes old, three at a time. Off shows only the saved state.")]
+      shorts_live_fresh: [tr("Fresh live check in Shorts"), tr("Opening Live now re-checks accounts whose live state is more than two minutes old, three at a time. Off shows only the saved state.")],
+      linked_x_steady: [tr("Steady X profile reads"), tr("X profiles and linked X accounts retry a failed read, page further for replies and keep what they already showed. Off reads one page once.")]
     };
     const rows = SERVER_FEATURES.map((name) => {
       const on = !off.includes(name);
@@ -14895,13 +14896,41 @@ const here = parseRoute();
     return once().then((profile) => (profile && profile.handle ? profile : once()));
   }
 
+  /* fxtwitter's profile timeline answers a real account with an empty 404
+     now and then (about one call in four). A steady read tries it twice
+     more, then the Worker's cached mirror of the same page, so one bad
+     answer no longer empties an X profile or a merged linked account. */
+  function linkedXSteady() {
+    return !serverOffList().includes("linked_x_steady");
+  }
+
+  function fxSteadyRead(path, query, opts) {
+    const url = FX + path + "?" + query;
+    if (!linkedXSteady()) return fetchJson(url, opts);
+    const gaps = [500, 1200];
+    const retryable = (err) => {
+      if (err && (err.name === "AbortError" || err.name === "TimeoutError")) return false;
+      const status = Number(err && err.status) || 0;
+      return !status || status === 404 || status === 429 || status >= 500;
+    };
+    const attempt = (index) => fetchJson(url, opts).catch((err) => {
+      if (index >= gaps.length || !retryable(err)) throw err;
+      return new Promise((resolve) => setTimeout(resolve, gaps[index])).then(() => attempt(index + 1));
+    });
+    return attempt(0).catch((err) => {
+      const api = accountsApi();
+      if (!api) throw err;
+      return fetchJsonNow(api + "/v1/x" + path + "?" + query, opts && opts.fresh ? { fresh: true } : null);
+    });
+  }
+
   function fxTimeline(handle, kind, cursor, fresh) {
     if (LIVE.fxDown) return Promise.resolve(null);
     let path = "/2/profile/" + encodeURIComponent(handle) + (kind === "media" ? "/media" : "/statuses");
     const query = ["count=40"];
     if (kind === "replies" || kind === "home") query.push("with_replies=1");
     if (cursor) query.push("cursor=" + encodeURIComponent(cursor));
-    return fetchJson(FX + path + "?" + query.join("&"), fresh ? { fresh: true } : null).then((data) => {
+    return fxSteadyRead(path, query.join("&"), fresh ? { fresh: true } : null).then((data) => {
       const posts = [];
       let profile = null;
       const h = String(handle || "").toLowerCase();
@@ -14920,13 +14949,16 @@ const here = parseRoute();
     }).catch(() => null);
   }
 
-  function fxPages(handle, kind, cursor, left) {
+  /* want: keep paging (up to left more pages) until this many posts of the
+     kind arrived. The default 1 stops at the first page with anything. */
+  function fxPages(handle, kind, cursor, left, want) {
+    const need = Math.max(1, Number(want) || 1);
     return fxTimeline(handle, kind, cursor).then((pack) => {
       if (!pack) return null;
       const posts = takeFx(pack.posts, kind);
       const nextCursor = pack.cursor === cursor ? "" : pack.cursor;
-      if (posts.length || !pack.cursor || left <= 0 || pack.cursor === cursor) return { posts: posts, cursor: nextCursor, profile: pack.profile || null };
-      return fxPages(handle, kind, pack.cursor, left - 1).then((more) => {
+      if (posts.length >= need || !pack.cursor || left <= 0 || pack.cursor === cursor) return { posts: posts, cursor: nextCursor, profile: pack.profile || null };
+      return fxPages(handle, kind, pack.cursor, left - 1, need - posts.length).then((more) => {
         if (!more) return { posts: posts, cursor: "", profile: pack.profile || null };
         return { posts: posts.concat(more.posts), cursor: more.cursor, profile: pack.profile || more.profile || null };
       });
@@ -15187,16 +15219,35 @@ const here = parseRoute();
     row.saved = true;
   }
 
+  /* A refresh adds the newest page on top of what this visit already read,
+     so posts and replies that slid off the first page stay, and a failed
+     read keeps the last list instead of emptying it. */
+  function keepLiveList(fresh, old, failed) {
+    const before = Array.isArray(old) ? old : [];
+    if (failed) return before.slice();
+    const list = Array.isArray(fresh) ? fresh.slice() : [];
+    const seen = {};
+    list.forEach((post) => { if (post) seen[String(post.id || post.statusId || "")] = true; });
+    before.forEach((post) => {
+      const key = post ? String(post.id || post.statusId || "") : "";
+      if (!key || seen[key]) return;
+      seen[key] = true;
+      list.push(post);
+    });
+    return list.slice(0, 200);
+  }
+
   function loadXLive(row, handle) {
+    const steady = linkedXSteady();
     return Promise.all([fxHeader(handle), LIVE.fxDown ? nitterPosts(handle) : Promise.resolve(null)]).then((pair) => {
       const header = pair[0];
       const nitter = pair[1];
       const postsJob = nitter && nitter.length
         ? Promise.resolve({ posts: nitter.filter((post) => post.kind !== "reply"), cursor: "", source: "nitter" })
-        : fxPages(handle, "posts", "", 2).then((pack) => ({ posts: (pack && pack.posts) || [], cursor: (pack && pack.cursor) || "", source: "fxtwitter" }));
+        : fxPages(handle, "posts", "", 2, steady ? 12 : 1).then((pack) => ({ posts: (pack && pack.posts) || [], cursor: (pack && pack.cursor) || "", source: "fxtwitter", failed: !pack }));
       const repliesJob = nitter && nitter.some((post) => post.kind === "reply")
         ? Promise.resolve({ posts: nitter.filter((post) => post.kind === "reply"), cursor: "" })
-        : fxPages(handle, "replies", "", 1);
+        : fxPages(handle, "replies", "", steady ? 3 : 1, steady ? 12 : 1);
       const mediaJob = nitter && nitter.some((post) => (post.media || []).length)
         ? Promise.resolve({ posts: nitter.filter((post) => (post.media || []).length), cursor: "" })
         : fxPages(handle, "media", "", 1);
@@ -15207,12 +15258,25 @@ const here = parseRoute();
         if (header && header.error) row.errorDetail = header.error;
         row.limited = false;
         row.source = packs[0].source || "";
-        row.posts = packs[0].posts || [];
-        row.cursor.posts = packs[0].cursor || "";
-        row.replies = (packs[1] && packs[1].posts) || [];
-        row.cursor.replies = (packs[1] && packs[1].cursor) || "";
-        row.media = (packs[2] && packs[2].posts) || [];
-        row.cursor.media = (packs[2] && packs[2].cursor) || "";
+        if (steady) {
+          /* A saved catalog copy from an earlier failed read is not live;
+             a read that works now replaces it and turns paging back on. */
+          const oldPosts = row.saved ? [] : row.posts;
+          row.saved = false;
+          row.posts = keepLiveList(packs[0].posts, oldPosts, !!packs[0].failed);
+          if (!packs[0].failed) row.cursor.posts = packs[0].cursor || "";
+          row.replies = keepLiveList(packs[1] && packs[1].posts, row.replies, !packs[1]);
+          if (packs[1]) row.cursor.replies = packs[1].cursor || "";
+          row.media = keepLiveList(packs[2] && packs[2].posts, row.media, !packs[2]);
+          if (packs[2]) row.cursor.media = packs[2].cursor || "";
+        } else {
+          row.posts = packs[0].posts || [];
+          row.cursor.posts = packs[0].cursor || "";
+          row.replies = (packs[1] && packs[1].posts) || [];
+          row.cursor.replies = (packs[1] && packs[1].cursor) || "";
+          row.media = (packs[2] && packs[2].posts) || [];
+          row.cursor.media = (packs[2] && packs[2].cursor) || "";
+        }
         absorbSaved(row);
         row.posts.concat(row.replies, row.media).forEach(rememberLive);
         row.fetchedAt = Date.now();

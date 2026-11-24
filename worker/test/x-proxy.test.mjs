@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { Miniflare } from "miniflare";
 
-const STATE = { calls: 0, down: false };
+const STATE = { calls: 0, down: false, flaky: 0 };
 const EMPTY_QUERY = createHash("sha256").update("").digest("hex").slice(0, 16);
 
 function workerOptions(extra) {
@@ -24,6 +24,10 @@ function workerOptions(extra) {
       if (url.hostname !== "api.fxtwitter.com") return new Response("no", { status: 404 });
       STATE.calls += 1;
       if (STATE.down) return new Response("bad gateway", { status: 502 });
+      if (STATE.flaky > 0) {
+        STATE.flaky -= 1;
+        return new Response(JSON.stringify({ code: 404, results: [] }), { status: 404 });
+      }
       const handle = url.pathname.split("/")[3] || "";
       return new Response(
         JSON.stringify({
@@ -125,6 +129,30 @@ test("a shared secret gates the mirror when one is configured", async () => {
     assert.equal(allowed.status, 200);
     assert.equal(STATE.calls, 1);
   } finally {
+    await mf.dispose();
+  }
+});
+
+test("an empty 404 from fxtwitter is tried once more before giving up", async () => {
+  STATE.calls = 0;
+  STATE.down = false;
+  STATE.flaky = 1;
+  const mf = new Miniflare(workerOptions());
+  try {
+    const res = await get(mf, "/v1/x/2/profile/SampleAgency/statuses?with_replies=1");
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("x-cache"), "miss");
+    assert.equal(STATE.calls, 2, "one retry after the flaky 404");
+    const body = await res.json();
+    assert.equal(body.results[0].author.screen_name, "SampleAgency");
+
+    STATE.calls = 0;
+    STATE.flaky = 5;
+    const gone = await get(mf, "/v1/x/2/profile/OtherAgency/statuses");
+    assert.equal(gone.status, 502);
+    assert.equal(STATE.calls, 2, "a second 404 is not retried again");
+  } finally {
+    STATE.flaky = 0;
     await mf.dispose();
   }
 });

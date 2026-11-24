@@ -215,6 +215,10 @@ const PAGE_STEPS = [
     needs: ["pw", "browser"],
     paths: [file("linked_x_live_test.mjs"), /^app\.js$/, /^accounts\.js$/, /^linked-profiles\.js$/]
   }),
+  step("linked-x-steady", "node scripts/linked_x_steady_test.mjs", {
+    needs: ["pw", "browser"],
+    paths: [file("linked_x_steady_test.mjs"), /^app\.js$/, /^linked-profiles\.js$/]
+  }),
   step("action-speed", "node scripts/action_speed_test.mjs", {
     needs: ["pw", "browser"],
     paths: [file("action_speed_test.mjs"), file("action_speed_bench.mjs"), /^app\.js$/, /^accounts\.js$/]

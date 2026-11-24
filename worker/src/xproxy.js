@@ -14,6 +14,7 @@
 // X-Viktorych-Token header. The sync sends it only to this route.
 
 import { assertNotPaidX } from "./x-guard.js";
+import { readFlags } from "./feature-flags.js";
 
 const UPSTREAM = "https://api.fxtwitter.com";
 const PREFIX = "/v1/x";
@@ -22,6 +23,7 @@ const PARAMS = new Set(["with_replies", "count", "cursor"]);
 const FRESH_MS = 60 * 1000;
 const STALE_MS = 30 * 60 * 60 * 1000;
 const TIMEOUT_MS = 9000;
+const RETRY_MS = 600;
 const MAX_BYTES = 3_000_000;
 
 function reply(status, body, headers) {
@@ -98,18 +100,34 @@ export async function handleXProxy(request, env, url) {
 
   let upstream = null;
   let upstreamError = "";
-  const controller = typeof AbortController === "function" ? new AbortController() : null;
-  const timer = controller ? setTimeout(() => controller.abort(), TIMEOUT_MS) : null;
-  try {
-    assertNotPaidX(target.toString());
-    upstream = await fetch(target.toString(), {
-      headers: { accept: "application/json", "user-agent": "ViktorychAppXMirror/1" },
-      signal: controller ? controller.signal : undefined
-    });
-  } catch (err) {
-    upstreamError = String((err && err.message) || err || "fetch failed").slice(0, 120);
-  } finally {
-    if (timer) clearTimeout(timer);
+  async function readUpstream() {
+    upstream = null;
+    upstreamError = "";
+    const controller = typeof AbortController === "function" ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), TIMEOUT_MS) : null;
+    try {
+      assertNotPaidX(target.toString());
+      upstream = await fetch(target.toString(), {
+        headers: { accept: "application/json", "user-agent": "ViktorychAppXMirror/1" },
+        signal: controller ? controller.signal : undefined
+      });
+    } catch (err) {
+      upstreamError = String((err && err.message) || err || "fetch failed").slice(0, 120);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+  await readUpstream();
+  // fxtwitter answers a real account's timeline with an empty 404 now and
+  // then. One more try a moment later usually works (switch linked_x_steady).
+  const flaky = !upstream ? !/abort/i.test(upstreamError) : (upstream.status === 404 || upstream.status === 429 || upstream.status >= 500);
+  if (flaky) {
+    let off = {};
+    try { off = await readFlags(env); } catch (_) { off = {}; }
+    if (!off.linked_x_steady) {
+      await new Promise((resolve) => setTimeout(resolve, RETRY_MS));
+      await readUpstream();
+    }
   }
 
   if (upstream && upstream.ok) {
