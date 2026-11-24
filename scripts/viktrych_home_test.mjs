@@ -76,7 +76,7 @@ async function open(browser, origin, vp, prefs, lang) {
   const page = await context.newPage();
   await page.goto(origin + "/#/", { waitUntil: "domcontentloaded" });
   await page.waitForSelector("#app .topbar", { timeout: 20000 });
-  await page.waitForSelector("#lai-fab", { timeout: 20000 });
+  if (vp.width < 700) await page.waitForSelector("#lai-fab", { timeout: 20000 });
   await page.waitForTimeout(1500);
   return { context, page };
 }

@@ -5642,6 +5642,7 @@ SI18n.addPack("en", {
   "Runs on this device. Nothing you type is sent anywhere.": "Runs on this device. Nothing you type is sent anywhere.",
   "The Local AI page that changes settings from plain words. Models run on each person's device; nothing is sent to us.": "The Viktrych page that changes settings from plain words. Models run on each person's device; nothing is sent to us.",
   "A round button on every page that opens Local AI.": "A round button on every page that opens Viktrych.",
+  "A round button on phones that opens Local AI. On a computer, use the black square in the corner.": "A round button on phones that opens Viktrych. On a computer, use the black square in the corner.",
   "Ask Local AI": "Ask Viktrych",
   "Say what you want changed, like “bigger text” or “make it private”. It runs on this device.": "Say what you want changed, like “bigger text” or “make it private”. It runs on this device.",
   "Local AI is turned off right now.": "Viktrych is turned off right now.",

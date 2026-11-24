@@ -425,7 +425,7 @@ settings-registry.js|Order, folders and hidden items of the side menu.
 settings-registry.js|Which Inbox sections are merged, split or hidden.
 settings-registry.js|Order of the tabs on profiles.
 settings-registry.js|Keyboard shortcut choices on computers.
-settings-registry.js|Shows a floating Local AI button on every page.
+settings-registry.js|Shows a floating Local AI button on phones. On a computer, use the black square in the corner.
 settings-registry.js|Play videos in HD when possible. Off saves data.
 settings-registry.js|Keep live counts and lives updating while you scroll.
 settings-registry.js|One switch that lowers data use: smaller images, no autoplay, slower refresh.
