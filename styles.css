@@ -7698,10 +7698,10 @@ input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 2px var(
 .lai-fab { position: fixed; right: 20px; bottom: 20px; z-index: 19; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--blue); color: #fff; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3); }
 .lai-fab svg { width: 26px; height: 26px; fill: currentColor; }
 @media (max-width: 699px) { .lai-fab { right: 16px; bottom: calc(140px + env(safe-area-inset-bottom)); width: 48px; height: 48px; } }
-/* Desktop: the + post button and the Local AI button are squares like the
-   corner dock launchers (56px, 16px corners), stacked in one column above
-   them at the same right edge instead of sitting on top of them. Phones and
-   touch tablets keep the round buttons. */
+/* Desktop: the + post button is a square like the corner dock launchers
+   (56px, 16px corners), stacked in one column above them at the same right
+   edge. Viktrych uses only the black dock square on a desktop; the purple
+   floating button is for phones and touch tablets, which keep it round. */
 @media (min-width: 700px) and (hover: hover) and (pointer: fine) {
   html body:not(.sq-none) .lai-fab,
   html body:not(.sq-none) .fab {
@@ -7719,6 +7719,13 @@ input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 2px var(
   html body:has(.xdock.side-right .xdock-panel) .fab { bottom: calc(80px + var(--sq-lift, 0px) + var(--safe-b, env(safe-area-inset-bottom, 0px))); }
   html body:has(#lai-fab) .fab { bottom: calc(80px + var(--sq-lift, 0px) + var(--safe-b, env(safe-area-inset-bottom, 0px))); }
   html body:has(.xdock.side-right .xdock-panel):has(#lai-fab) .fab { bottom: calc(148px + var(--sq-lift, 0px) + var(--safe-b, env(safe-area-inset-bottom, 0px))); }
+  /* The purple floating button must not sit next to the black dock square. */
+  body:has(.xdock-panel[data-panel="ai"]) #lai-fab { display: none !important; }
+}
+@media not all and (min-width: 700px) and (hover: hover) and (pointer: fine) {
+  /* Phones, touch tablets and narrow windows: hide the dock's Viktrych
+     square so the purple button is the only entry. An open panel stays. */
+  .xdock-panel[data-panel="ai"]:not(.is-open) { display: none; }
 }
 /* Above a bottom bar the dock is lifted 53px (dock.css); lift the column too. */
 @media (orientation: portrait) and (min-width: 700px) and (max-width: 1279px) {
