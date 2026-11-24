@@ -814,6 +814,7 @@
       var marked = S.root.querySelector('.lai-msg[data-i="' + S.hit.index + '"]');
       if (marked && marked.scrollIntoView) marked.scrollIntoView({ block: "center" });
     }
+    paintPopChrome();
   }
   function paintBar() {
     if (!S.root) return;
@@ -896,9 +897,14 @@
     var h = host();
     if (act.indexOf("su-") === 0) { onSetupClick(act, el); return; }
     if (act === "setup-again") { S.menu = false; startSetup("full"); return; }
+    if (act === "dock-close") {
+      var dock = window.ViktorychDock;
+      if (dock && dock.close) dock.close("ai");
+      return;
+    }
     if (S.setup) return;
     if (act === "new") { S.chatId = ""; S.sideOpen = false; paint(); focusBox(); return; }
-    if (act === "side") { S.sideOpen = !S.sideOpen; S.root.classList.toggle("side-open", S.sideOpen); if (window.innerWidth >= 1000) { S.root.classList.toggle("side-hidden"); } return; }
+    if (act === "side") { S.sideOpen = !S.sideOpen; S.root.classList.toggle("side-open", S.sideOpen); if (window.innerWidth >= 1000 && !(S.root && S.root.classList.contains("lai-pop"))) { S.root.classList.toggle("side-hidden"); } return; }
     if (act === "open-chat") { S.chatId = el.getAttribute("data-id"); S.sideOpen = false; paint(); return; }
     if (act === "del-chat") { S.confirmChat = el.getAttribute("data-id"); paint(); return; }
     if (act === "del-chat-yes") {
@@ -1761,15 +1767,17 @@
       if (S.setup && S.setup.auto && S.setup.i === 0 && S.setup.mode !== now) { if (now) startSetup(now, true); else { S.setup = null; paint(); } }
       else if (!S.setup && now) startSetup(now, true);
     }
+    document.documentElement.classList.add("lai-on");
+    S.root.classList.remove("lai-pop");
     if (S.root.parentNode !== spot) {
       spot.appendChild(S.root);
     }
+    paintPopChrome();
     // Opening the chat puts the cursor in the box, like a mobile chat app, so the
     // keyboard is already up. Not during setup, and not over a field the
     // person is typing in elsewhere.
     var act0 = document.activeElement;
     if (!S.setup && (!act0 || act0 === document.body || act0.classList.contains("lai-input") || act0.hasAttribute("data-lai-kb"))) focusBox();
-    document.documentElement.classList.add("lai-on");
     var queryPrompt = route && route.query && route.query.get && route.query.get("q");
     if (queryPrompt && queryPrompt.trim()) {
       var qVal = queryPrompt.trim();
@@ -1783,10 +1791,77 @@
       }
     }
   }
+  function paintPopChrome() {
+    if (!S.root) return;
+    var pop = S.root.classList.contains("lai-pop");
+    var back = S.root.querySelector(".lai-back");
+    if (back) {
+      if (pop) {
+        back.setAttribute("href", "#/ai");
+        back.setAttribute("aria-label", tr("Open in a full page"));
+        back.setAttribute("data-tooltip", tr("Open in a full page"));
+        back.innerHTML = I.link;
+      } else {
+        back.setAttribute("href", "#/settings");
+        back.setAttribute("aria-label", tr("Back"));
+        back.removeAttribute("data-tooltip");
+        back.innerHTML = I.back;
+      }
+    }
+    var close = S.root.querySelector(".lai-dock-close");
+    if (pop && !close) {
+      close = document.createElement("button");
+      close.type = "button";
+      close.className = "lai-icon lai-dock-close";
+      close.setAttribute("data-lai", "dock-close");
+      close.setAttribute("aria-label", tr("Close"));
+      close.innerHTML = I.x;
+      var head = S.root.querySelector(".lai-head");
+      if (head) head.appendChild(close);
+    }
+    if (close) {
+      close.hidden = !pop;
+      close.setAttribute("aria-label", tr("Close"));
+      close.innerHTML = I.x;
+    }
+  }
+  function ensureRoot() {
+    if (S.root) return S.root;
+    S.root = build();
+    var need = setupNeed();
+    if (need) startSetup(need, true);
+    paint();
+    detectOnce().then(function () {
+      var m = currentModel();
+      if (!S.setup && m && m.engine !== "instant" && (S.have[m.id] || m.engine === "nano")) loadModel(m).catch(function () {});
+    });
+    micCheck();
+    return S.root;
+  }
+  function mountDock(host) {
+    if (!host) return;
+    if (document.documentElement.classList.contains("lai-on")) return;
+    ensureRoot();
+    var need = setupNeed();
+    if (!S.setup && need) startSetup(need, true);
+    S.root.classList.add("lai-pop");
+    if (S.root.parentNode !== host) host.appendChild(S.root);
+    paint();
+    paintPopChrome();
+    var act0 = document.activeElement;
+    if (!S.setup && (!act0 || act0 === document.body || act0.classList.contains("lai-input") || act0.hasAttribute("data-lai-kb"))) focusBox();
+  }
+  function unmountDock() {
+    if (!S.root) return;
+    S.root.classList.remove("lai-pop");
+    paintPopChrome();
+  }
   function unmount() {
     document.documentElement.classList.remove("lai-on");
+    var host = document.querySelector('.xdock-panel[data-panel="ai"] [data-lai-host]');
+    if (host && S.root) mountDock(host);
   }
-  if (window.SI18n && window.SI18n.onChange) window.SI18n.onChange(function () { if (S.root) paint(); });
+  if (window.SI18n && window.SI18n.onChange) window.SI18n.onChange(function () { if (S.root) { paint(); paintPopChrome(); } });
 
   function prewarm() {
     if (S.engine.state === "ready" || S.engine.state === "loading") return;
@@ -1798,5 +1873,5 @@
     }).catch(function () {});
   }
 
-  window.ViktorychLocalAIPage = { page: page, mount: mount, unmount: unmount, prewarm: prewarm, _state: S, send: send, setup: function () { startSetup("full"); } };
+  window.ViktorychLocalAIPage = { page: page, mount: mount, unmount: unmount, mountDock: mountDock, unmountDock: unmountDock, prewarm: prewarm, _state: S, send: send, setup: function () { startSetup("full"); } };
 })();

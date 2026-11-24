@@ -5505,6 +5505,7 @@ SI18n.addPack("hi", {
   "Previous 7 days": "पिछले 7 दिन",
   "Delete chat": "चैट मिटाएँ",
   "Local AI": "Viktrych",
+  "Open in a full page": "पूरे पेज पर खोलें",
   "Your chats stay on this device.": "आपकी चैट इसी डिवाइस पर रहती हैं।",
   "Make text bigger": "टेक्स्ट बड़ा करें",
   "Stop autoplay on mobile data": "मोबाइल डेटा पर ऑटोप्ले बंद करें",

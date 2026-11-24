@@ -5603,6 +5603,7 @@ SI18n.addPack("ru", {
   "Previous 7 days": "Последние 7 дней",
   "Delete chat": "Удалить чат",
   "Local AI": "Viktrych",
+  "Open in a full page": "Открыть на всю страницу",
   "Your chats stay on this device.": "Ваши чаты остаются на этом устройстве.",
   "Make text bigger": "Сделать текст крупнее",
   "Stop autoplay on mobile data": "Без автовоспроизведения по мобильной сети",

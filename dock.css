@@ -410,3 +410,13 @@ html[data-theme="default"] .xdock-menu {
   .xdock { bottom: var(--safe-b, env(safe-area-inset-bottom, 0px)); }
   .xdock-panel:not(.is-open) { width: 48px; height: 48px; margin-bottom: 8px; }
 }
+
+.xdock-lai {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+.xdock-lai .lai { flex: 1; min-height: 0; width: 100%; }
+.xdock-panel[data-panel="ai"]:has(.lai) .xdock-head { display: none; }
