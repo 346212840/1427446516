@@ -916,3 +916,104 @@
 .calls-reach-form input, .calls-reach-form textarea { width: 100%; box-sizing: border-box; font-size: 16px; }
 .calls-hp { position: absolute !important; left: -9999px; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .calls-reach-avail { display: grid; gap: .35rem; padding: .5rem 0 .75rem; }
+
+/* ---- desktop and window layout (calls_desktop) ----
+   Phones (under 700px wide) keep the layout above untouched. From 700px the
+   call screen fills the window like Teams or Meet: content is centred with a
+   comfortable maximum width, the call bar stays centred at a sensible width,
+   and from 1100px wide the conversation becomes a side panel so the tiles get
+   the rest of the window. Everything adapts as the window is resized. */
+@media (min-width: 700px) {
+  html[data-calls-desk] .calls-page { --desk-col: 880px; --desk-gap: 16px; }
+  /* The stand-alone page styles every <main> with margin: 0 auto, which shrank
+     the call stage to its content. The stage fills the window instead. */
+  html[data-calls-desk] .calls-page.live .calls-stage {
+    margin: 0; width: 100%; align-self: stretch; max-width: none;
+    padding-left: max(var(--desk-gap), calc((100% - var(--desk-col)) / 2));
+    padding-right: max(var(--desk-gap), calc((100% - var(--desk-col)) / 2));
+  }
+  html[data-calls-desk] .calls-page.live .calls-top { padding: 0 20px; }
+  html[data-calls-desk] .calls-page[data-onescreen="1"] .calls-grid,
+  html[data-calls-desk] .calls-page[data-onescreen="1"][data-conv="1"] .calls-grid { margin: 0; gap: 12px; }
+  html[data-calls-desk] .calls-page[data-onescreen="1"] .calls-stagechips,
+  html[data-calls-desk] .calls-page[data-onescreen="1"] .calls-origvol,
+  html[data-calls-desk] .calls-page[data-onescreen="1"] .calls-stage > .calls-chips { margin-left: 0; margin-right: 0; }
+  html[data-calls-desk] .calls-page .calls-stagechips { justify-content: center; }
+  html[data-calls-desk] .calls-page .calls-origvol { width: 100%; max-width: 560px; align-self: center; }
+  html[data-calls-desk] .calls-page[data-onescreen="1"] .calls-conv .calls-compose { margin: 0; }
+  /* The stage padding already keeps the bar clear, so the composer sits at the
+     bottom of the conversation instead of floating a bar's height above it. */
+  html[data-calls-desk] .calls-page[data-onescreen="1"][data-conv="1"] .calls-compose { bottom: 0; }
+  html[data-calls-desk] .calls-page.live:not([data-kb="1"]):has(.calls-bar[data-sheet="1"]) .calls-stage { padding-bottom: calc(var(--calls-bar-h, 104px) + 28px); }
+  /* Tiles grow with the window height instead of staying a thin strip. */
+  html[data-calls-desk] .calls-page[data-onescreen="1"] { --tile-h: clamp(132px, 22vh, 220px); }
+  html[data-calls-desk] .calls-page[data-onescreen="1"]:not([data-conv="1"]) { --tile-h: clamp(168px, 38vh, 420px); }
+  /* The tile row may shrink (an open sheet, a short window) but never overlaps the chips. */
+  html[data-calls-desk] .calls-page[data-onescreen="1"] .calls-grid,
+  html[data-calls-desk] .calls-page[data-onescreen="1"][data-conv="1"] .calls-grid { flex: 0 1 auto; min-height: 96px; grid-template-rows: minmax(0, var(--tile-h)); align-content: stretch; }
+  html[data-calls-desk] .calls-page[data-onescreen="1"] .calls-grid .calls-tile { height: auto; min-height: 0; max-height: none; }
+  html[data-calls-desk] .calls-page.live:not([data-conv="1"]) .calls-stage { justify-content: center; }
+  html[data-calls-desk] .calls-page .calls-testkind { flex: none; }
+  /* Captions float just above the call bar, never under it. */
+  html[data-calls-desk] .calls-page .calls-subs { bottom: calc(var(--calls-bar-h, 96px) + 24px); width: min(760px, calc(100% - 48px)); max-height: 40vh; }
+  /* The call bar: centred, never stretched, never cramped. */
+  html[data-calls-desk] .calls-bar[data-sheet="1"] { width: min(720px, calc(100vw - 32px)); }
+  html[data-calls-desk] .calls-bar[data-sheet="1"] .calls-bar-main { justify-content: center; }
+  html[data-calls-desk] .calls-bar[data-sheet="1"] .calls-handle { border: 0; background: transparent; padding: 0; color: inherit; }
+  html[data-calls-desk] .calls-bar[data-sheet="1"] .calls-handle:hover i { opacity: 1; }
+  html[data-calls-desk] .calls-sheet-tabs { flex-wrap: wrap; justify-content: center; overflow: visible; }
+  html[data-calls-desk] .calls-bar[data-sheet="1"][data-open="1"] .calls-bar-sheet { max-height: min(72vh, 40rem); }
+  html[data-calls-desk] .calls-sheet-body { max-height: min(60vh, 34rem); }
+  /* Test call set-up: centred in the window with room to breathe. */
+  html[data-calls-desk] .calls-solo .calls-prejoin { max-width: 1120px; padding: 24px 32px 40px; gap: 32px; }
+  html[data-calls-desk] .calls-solo .calls-sheet-tab, html[data-calls-desk] .calls-sheet-tab { padding: 0 11px; }
+}
+/* Tall enough for a stage: the tiles show the avatar large and centred, and
+   the test call set-up sits in the middle of the window. */
+@media (min-width: 700px) and (min-height: 640px) {
+  html[data-calls-desk] .calls-solo .calls-prejoin { min-height: calc(100vh - 56px); align-content: center; padding-bottom: 72px; }
+  html[data-calls-desk] .calls-solo .calls-preview .calls-tile { min-height: clamp(240px, 34vh, 400px); }
+  html[data-calls-desk] .calls-page[data-onescreen="1"] .calls-grid .calls-tile {
+    flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 10px; padding: 16px;
+  }
+  html[data-calls-desk] .calls-page[data-onescreen="1"] .calls-grid .calls-tile .calls-tmeta { flex: none; align-items: center; }
+  html[data-calls-desk] .calls-page[data-onescreen="1"] .calls-grid .calls-tile .calls-wave { margin-left: 0; position: absolute; right: 14px; top: 12px; }
+  html[data-calls-desk] .calls-page[data-onescreen="1"] .calls-grid .calls-ava { width: clamp(64px, 9vh, 104px); height: clamp(64px, 9vh, 104px); font-size: clamp(26px, 3.6vh, 42px); }
+}
+/* Wide windows: the conversation is a side panel, the stage keeps the rest. */
+@media (min-width: 1100px) and (min-height: 560px) {
+  html[data-calls-desk] .calls-page { --desk-side: clamp(340px, 26vw, 440px); --desk-col: 1240px; }
+  html[data-calls-desk] .calls-page.live[data-conv="1"] .calls-stage {
+    padding-left: 24px;
+    padding-right: calc(var(--desk-side) + 40px);
+  }
+  html[data-calls-desk] .calls-page.live[data-conv="1"] .calls-grid { width: 100%; max-width: var(--desk-col); align-self: center; }
+  html[data-calls-desk] .calls-page[data-onescreen="1"][data-conv="1"] .calls-stage { overflow: hidden; }
+  html[data-calls-desk] .calls-page.live[data-conv="1"] .calls-stage { justify-content: center; }
+  html[data-calls-desk] .calls-page[data-onescreen="1"][data-conv="1"] { --tile-h: clamp(168px, 46vh, 520px); }
+  html[data-calls-desk] .calls-page.live[data-conv="1"] .calls-conv,
+  html[data-calls-desk] .calls-page[data-onescreen="1"][data-conv="1"] .calls-conv {
+    position: absolute; top: 4px; right: 16px; bottom: 16px; width: var(--desk-side); margin: 0; min-height: 0; z-index: 4;
+    border: 1px solid var(--c-line); border-radius: 20px; background: var(--c-card); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+  }
+  html[data-calls-desk] .calls-page[data-onescreen="1"][data-conv="1"] .calls-conv .calls-compose { position: static; margin: 0; border-width: 1px 0 0; border-radius: 0; }
+  html[data-calls-desk] .calls-page[data-onescreen="1"][data-conv="1"] .calls-convbody { padding: 6px 12px; }
+  /* The bar and its pop-ups centre under the stage, beside the panel. */
+  html[data-calls-desk] .calls-page.live[data-conv="1"] .calls-bar,
+  html[data-calls-desk] .calls-page.live[data-conv="1"] .calls-pop { left: calc((100% - var(--desk-side) - 16px) / 2); }
+  html[data-calls-desk] .calls-page.live[data-conv="1"] .calls-bar[data-sheet="1"] { width: min(720px, calc(100vw - var(--desk-side) - 80px)); }
+  html[data-calls-desk] .calls-page.live[data-conv="1"][data-panel="1"] .calls-conv { display: none; }
+  html[data-calls-desk] .calls-page.live[data-conv="1"][data-panel="1"] .calls-stage { padding-right: 404px; }
+}
+/* Home: the call list sits in a full-height column and the main area centres
+   in the space beside it. */
+@media (min-width: 700px) {
+  html[data-calls-desk] .calls-solo.calls-home { grid-template-columns: clamp(260px, 28vw, 400px) minmax(0, 1fr); }
+  html[data-calls-desk] .calls-solo .calls-side { order: 1; border-bottom: 0; border-right: 1px solid var(--c-line); position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+  html[data-calls-desk] .calls-solo .calls-main { order: 2; margin: 0 auto; max-width: 760px; padding: 28px clamp(20px, 3vw, 48px) 48px; }
+  html[data-calls-desk] .calls-solo .calls-side .calls-tabs { overflow-x: auto; scrollbar-width: none; padding: 0 8px; gap: 0; }
+  html[data-calls-desk] .calls-solo .calls-side .calls-tabs::-webkit-scrollbar { display: none; }
+  html[data-calls-desk] .calls-solo .calls-side .calls-tab { flex: none; padding: 0 12px; white-space: nowrap; }
+}
+/* The Available switch in Requests keeps the list's side padding (it ran edge to edge). */
+html[data-calls-desk] .calls-side .calls-reach-avail { padding: 8px 16px 12px; }

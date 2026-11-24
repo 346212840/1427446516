@@ -76,6 +76,19 @@ function onescreenFlagOn() {
   } catch (err) { return true; }
 }
 
+/* Owner switch calls_desktop, on unless the server list says off: the call
+   screens fill a desktop window (centred content, side chat panel when wide).
+   Phones keep their layout either way; the CSS only applies from 700px. */
+function deskFlagOn() {
+  try {
+    const list = JSON.parse(localStorage.getItem("viktorychapp-server-off") || "[]");
+    return !(Array.isArray(list) && list.indexOf("calls_desktop") >= 0);
+  } catch (err) { return true; }
+}
+function markDesk() {
+  try { document.documentElement.toggleAttribute("data-calls-desk", deskFlagOn()); } catch (err) { /* no DOM */ }
+}
+
 /* Owner switch calls_duck, on unless the server list says off. */
 function duckFlagOn() {
   try {
@@ -2442,6 +2455,7 @@ function installName() {
 
 
 function page(route) {
+  markDesk();
   loadDevice();
   state.route = route || state.route;
   const r = state.route || { name: "calls" };
