@@ -64,7 +64,7 @@ function workerOptions() {
         if (url.pathname.indexOf("@blocked_name") >= 0) {
           return new Response("<html>captcha-verify</html>", { status: 200, headers: { "content-type": "text/html" } });
         }
-        const html = '<html><meta property="og:title" content="Sample (@sample_name)"><meta property="og:image" content="https://cdn.example/a.jpg">' +
+        const html = '<html><script>{"captcha-sg":["static/js/async/captcha-sg.js"]}</script><meta property="og:title" content="Sample (@sample_name)"><meta property="og:image" content="https://cdn.example/a.jpg">' +
           '<script>"uniqueId":"sample_name","nickname":"Sample","avatarLarger":"https:\\/\\/cdn.example\\/a.jpg"</script></html>';
         return new Response(html, { status: 200, headers: { "content-type": "text/html" } });
       }
