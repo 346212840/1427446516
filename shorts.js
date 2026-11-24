@@ -25,6 +25,11 @@
   var tapTimer = 0;
   var addedAccounts = [];
   var addingAccount = false;
+  /* The Add account sheet survives an app repaint: open state, note and typed text live here, not in the DOM. */
+  var sheetOpen = false;
+  var sheetNoteText = "";
+  var sheetDraft = "";
+  var sheetTyping = false;
   var accountsLoaded = false;
   var livePaintKey = "";
   var recordingsState = "idle";
@@ -821,6 +826,17 @@
     return ordered;
   }
 
+  function liveEmptyHtml() {
+    var locked = isLocked();
+    var title = locked ? tr("Shorts is locked") : tr("No accounts yet");
+    var text = locked ? tr("Only unlocked accounts show here. Unlock to see every account you added.") : tr("Add a TikTok link or @handle to see when they go live.");
+    var action = locked
+      ? '<button type="button" class="shorts-open" data-shorts="toggle-lock">' + hooks.esc(tr("Unlock Shorts")) + "</button>"
+      : (ownerHere() ? '<button type="button" class="shorts-open" data-shorts="accounts">' + hooks.esc(tr("Add account")) + "</button>" : "");
+    return '<article class="shorts-slide shorts-empty" data-kind="live"><div class="shorts-stage"><div class="shorts-offline">' +
+      "<h2>" + hooks.esc(title) + "</h2><p>" + hooks.esc(text) + "</p>" + action + "</div></div></article>";
+  }
+
   function liveSlide(row) {
     var handle = String((row && row.handle) || "");
     var profile = "https://www.tiktok.com/@" + encodeURIComponent(handle) + "/live";
@@ -945,14 +961,14 @@
   function accountSheet() {
     if (!ownerHere()) return "";
     var locked = isLocked();
-    return '<div class="shorts-sheet" id="shorts-accounts" hidden>' +
+    return '<div class="shorts-sheet" id="shorts-accounts"' + (sheetOpen ? "" : " hidden") + ">" +
       '<div class="shorts-sheet-card" role="dialog" aria-labelledby="shorts-accounts-title">' +
       '<div class="shorts-sheet-head"><h2 id="shorts-accounts-title">' + hooks.esc(tr("Add account")) + "</h2>" +
       '<button type="button" class="shorts-sheet-x" data-shorts="close-accounts" aria-label="' + hooks.esc(tr("Close")) + '">×</button></div>' +
       '<form class="shorts-add-form">' +
-      '<input name="handle" autocomplete="off" spellcheck="false" placeholder="' + hooks.esc(tr("Add account URL or @handle")) + '" aria-label="' + hooks.esc(tr("Add account URL or @handle")) + '">' +
+      '<input name="handle" autocomplete="off" spellcheck="false" value="' + hooks.esc(sheetDraft) + '" placeholder="' + hooks.esc(tr("Add account URL or @handle")) + '" aria-label="' + hooks.esc(tr("Add account URL or @handle")) + '">' +
       '<button type="submit">' + hooks.esc(tr("Add account")) + "</button></form>" +
-      '<p class="shorts-accounts-note" id="shorts-accounts-note"></p>' +
+      '<p class="shorts-accounts-note" id="shorts-accounts-note">' + hooks.esc(sheetNoteText) + "</p>" +
       '<div class="shorts-lock-panel">' +
       '<div class="shorts-lock-info"><b>' + hooks.esc(tr("Locked mode")) + "</b><small>" + hooks.esc(tr("When locked, only unlocked accounts are visible.")) + "</small></div>" +
       '<button type="button" class="shorts-lock-toggle' + (locked ? " on" : "") + '" data-shorts="toggle-lock">' + lockSvg(locked) + "<span>" + hooks.esc(locked ? tr("Locked") : tr("Unlocked")) + "</span></button>" +
@@ -1149,7 +1165,7 @@
     else slides = orderedNow().map(liveSlide).join("");
     if (!slides) {
       slides = live
-        ? (pane === "past" ? pastListHtml() : '<article class="shorts-slide" data-kind="live"><div class="shorts-stage"></div></article>')
+        ? (pane === "past" ? pastListHtml() : liveEmptyHtml())
         : '<article class="shorts-slide"><div class="shorts-stage"><div class="shorts-offline"><h2>' + hooks.esc(tr("No posts yet")) + "</h2></div></div></article>";
     }
     return '<div class="shorts-page"><div class="shorts-top">' + mhead() + tabs(live) + (live ? subtabs(pane) : "") + "</div>" +
@@ -2026,14 +2042,14 @@
       return;
     }
     patchSince();
-    var key = "now\n" + rows.map(function (row) {
+    var key = "now\n" + (isLocked() ? "L" : "U") + (ownerHere() ? "o" : "") + "\n" + rows.map(function (row) {
       var rec = row.record || {};
       return [row.handle, row.live ? 1 : 0, row.viewers || 0, row.since || 0, row.lastLiveAt || "", row.title || "", rec.state || "", rec.key || ""].join("\n");
     }).join("\n");
     if (key === livePaintKey && feed.querySelector(".shorts-slide")) return;
     livePaintKey = key;
     var slides = rows.map(liveSlide).join("");
-    flipFeed(feed, slides || '<article class="shorts-slide" data-kind="live"><div class="shorts-stage"></div></article>');
+    flipFeed(feed, slides || liveEmptyHtml());
     armPreview();
   }
 
@@ -3814,6 +3830,7 @@
   }
 
   function accountsNote(text) {
+    sheetNoteText = text || "";
     var note = document.getElementById("shorts-accounts-note");
     if (note) note.textContent = text || "";
   }
@@ -3853,6 +3870,7 @@
     var sheet = document.getElementById("shorts-accounts");
     if (!sheet) return;
     sheet.hidden = false;
+    sheetOpen = true;
     accountsNote("");
     renderAdded();
     var input = sheet.querySelector("input");
@@ -3861,6 +3879,8 @@
   }
 
   function closeAccounts() {
+    sheetOpen = false;
+    sheetTyping = false;
     var sheet = document.getElementById("shorts-accounts");
     if (sheet) sheet.hidden = true;
   }
@@ -3892,7 +3912,9 @@
       renderAdded();
       var form = document.querySelector(".shorts-add-form");
       if (form) form.reset();
+      sheetDraft = "";
       var lines = [];
+      if (accountRow && accountRow.handle && isLocked() && !isUnlocked(accountRow.handle)) lines.push(tr("Added. It stays hidden while Shorts is locked."));
       if (result.body && result.body.preview === false) lines.push(tr("Couldn’t preview this profile. It will still be saved."));
       lines.push(tr("New videos show up after the next sync."));
       accountsNote(lines.join(" "));
@@ -4006,6 +4028,22 @@
     }
   }
 
+  function sheetInput(target) {
+    return !!(target && target.tagName === "INPUT" && target.closest && target.closest(".shorts-add-form"));
+  }
+  function onSheetInput(event) {
+    if (sheetInput(event.target)) sheetDraft = event.target.value || "";
+  }
+  function onSheetFocus(event) {
+    if (sheetInput(event.target)) sheetTyping = true;
+  }
+  function onSheetBlur(event) {
+    var target = event.target;
+    if (!sheetInput(target)) return;
+    /* A repaint removes the box while it has focus; that is not the person leaving it. */
+    setTimeout(function () { if (target.isConnected) sheetTyping = false; }, 0);
+  }
+
   function onAddSubmit(event) {
     event.preventDefault();
     var input = event.target.querySelector("input");
@@ -4094,6 +4132,15 @@
       root.addEventListener("click", onPageClick);
       var form = root.querySelector(".shorts-add-form");
       if (form) form.addEventListener("submit", onAddSubmit);
+      root.addEventListener("input", onSheetInput);
+      root.addEventListener("focusin", onSheetFocus);
+      root.addEventListener("focusout", onSheetBlur);
+    }
+    if (sheetOpen && sheetTyping) {
+      var typing = document.querySelector(".shorts-add-form input");
+      if (typing && document.activeElement !== typing) {
+        try { typing.focus({ preventScroll: true }); typing.setSelectionRange(typing.value.length, typing.value.length); } catch (err) { /* focus is best effort */ }
+      }
     }
     var feed = document.getElementById("shorts-feed");
     if (!feed) return;
@@ -4185,6 +4232,8 @@
 
   function unmount() {
     document.documentElement.classList.remove("shorts-on");
+    sheetOpen = false;
+    sheetTyping = false;
     document.removeEventListener("keydown", onKey, true);
     clearInterval(poll);
     poll = 0;

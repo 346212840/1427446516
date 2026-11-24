@@ -7028,5 +7028,10 @@ SI18n.addPack("es", {
   "No call requests yet.": "Aún no hay solicitudes de llamada.",
   "Suggest another time": "Proponer otra hora",
   "A Call the owner button and a Request a call form on the public Calls page. Calls ring you only while you are available in the Requests tab; requests wait there for Accept, Suggest another time or Decline. Off hides both.": "Un botón Llamar al propietario y un formulario Pedir una llamada en la página pública de Llamadas. Las llamadas solo te suenan mientras estés disponible en la pestaña Solicitudes; las solicitudes esperan allí a Aceptar, Proponer otra hora o Rechazar. Desactivado oculta ambos.",
-  "{ms} ms before you stopped": "{ms} ms antes de que dejaras de hablar"
+  "{ms} ms before you stopped": "{ms} ms antes de que dejaras de hablar",
+  "Shorts is locked": "Shorts está bloqueado",
+  "No accounts yet": "Aún no hay cuentas",
+  "Only unlocked accounts show here. Unlock to see every account you added.": "Aquí solo se ven las cuentas desbloqueadas. Desbloquea para ver todas las cuentas que añadiste.",
+  "Add a TikTok link or @handle to see when they go live.": "Añade un enlace de TikTok o un @usuario para ver cuándo empieza un directo.",
+  "Added. It stays hidden while Shorts is locked.": "Añadida. Seguirá oculta mientras Shorts esté bloqueado."
 });

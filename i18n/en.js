@@ -7025,5 +7025,10 @@ SI18n.addPack("en", {
   "No call requests yet.": "No call requests yet.",
   "Suggest another time": "Suggest another time",
   "A Call the owner button and a Request a call form on the public Calls page. Calls ring you only while you are available in the Requests tab; requests wait there for Accept, Suggest another time or Decline. Off hides both.": "A Call the owner button and a Request a call form on the public Calls page. Calls ring you only while you are available in the Requests tab; requests wait there for Accept, Suggest another time or Decline. Off hides both.",
-  "{ms} ms before you stopped": "{ms} ms before you stopped"
+  "{ms} ms before you stopped": "{ms} ms before you stopped",
+  "Shorts is locked": "Shorts is locked",
+  "No accounts yet": "No accounts yet",
+  "Only unlocked accounts show here. Unlock to see every account you added.": "Only unlocked accounts show here. Unlock to see every account you added.",
+  "Add a TikTok link or @handle to see when they go live.": "Add a TikTok link or @handle to see when they go live.",
+  "Added. It stays hidden while Shorts is locked.": "Added. It stays hidden while Shorts is locked."
 });
