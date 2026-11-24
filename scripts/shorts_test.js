@@ -181,6 +181,21 @@ assert(/id="shorts-accounts" hidden/.test(emptyLocked), "The account sheet start
 shorts.setUnlocked(["sampleclip"]);
 shorts.setLocked(true);
 
+console.log("Testing stale live rows...");
+{
+  const now = Date.parse("2026-11-24T12:00:00Z");
+  shorts.setLiveState([
+    { handle: "freshclip", live: true, checkedAt: "2026-11-24T11:59:30Z" },
+    { handle: "oldclip", live: false, checkedAt: "2026-11-24T11:50:00Z" },
+    { handle: "nocheck", live: false }
+  ]);
+  const due = shorts.staleRows([{ handle: "freshclip" }, { handle: "oldclip" }, { handle: "nocheck" }], now).map((row) => row.handle);
+  assert.deepStrictEqual(due, ["oldclip", "nocheck"], "Only rows checked over two minutes ago (or never) are re-checked");
+  const many = Array.from({ length: 20 }, (_, i) => ({ handle: "bulk" + i }));
+  assert.strictEqual(shorts.staleRows(many, now).length, 12, "At most 12 re-checks per pass");
+  shorts.setLiveState([]);
+}
+
 console.log("Testing site-wide isolation when locked...");
 assert.strictEqual(shorts.isUnlocked("sampleclip"), true, "the configured account is unlocked");
 assert.strictEqual(shorts.isUnlocked("lockclip"), false, "the added account stays locked");

@@ -7025,5 +7025,7 @@ SI18n.addPack("hi", {
   "Couldn’t change this account. Try again.": "यह खाता बदला नहीं जा सका। फिर से कोशिश करें।",
   "Unlock accounts in Shorts": "शॉर्ट्स में खाते अनलॉक करें",
   "Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is.": "शॉर्ट्स की खाता जोड़ें शीट से किसी एक TikTok खाते को अनलॉक या लॉक करें। बंद करने पर ये बटन छिप जाते हैं; अनलॉक सूची जैसी है वैसी रहती है।",
+  "Fresh live check in Shorts": "शॉर्ट्स में ताज़ा लाइव जांच",
+  "Opening Live now re-checks accounts whose live state is more than two minutes old, three at a time. Off shows only the saved state.": "अभी लाइव खोलने पर उन खातों की फिर से जांच होती है जिनकी लाइव स्थिति दो मिनट से पुरानी है, एक बार में तीन। बंद करने पर केवल सहेजी गई स्थिति दिखती है।",
   "Shorts is only for the owner of this app.": "शॉर्ट्स केवल इस ऐप के मालिक के लिए है।"
 });

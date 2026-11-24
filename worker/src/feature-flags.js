@@ -224,7 +224,12 @@ export const FEATURES = {
   /* Unlock or lock one TikTok account from the Shorts Add account sheet
      (owner/tiktok-unlocked.json). On by default. Off hides the buttons and
      the route answers empty; the unlock list stays as it is. */
-  shorts_unlock_edit: { paths: ["/v1/owner/tiktok/unlock"] }
+  shorts_unlock_edit: { paths: ["/v1/owner/tiktok/unlock"] },
+  /* Opening Shorts Live now re-checks accounts whose saved live state is
+     over two minutes old (three at a time, at most 12). Client only, uses
+     the existing owner live route. On by default. Off shows only the
+     saved state. */
+  shorts_live_fresh: { paths: [] }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 
