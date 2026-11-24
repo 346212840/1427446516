@@ -16152,7 +16152,9 @@ const here = parseRoute();
       url: String(o.url || ""),
       own: !!o.own,
       original: String(o.original || o.name || ""),
-      personId: String(o.personId || "")
+      personId: String(o.personId || ""),
+      manageId: String(o.manageId || ""),
+      siteOwner: !!o.siteOwner
     };
     const name = esc(o.name || o.handle || tr("Profile"));
     const count = o.count ? `<div class="profile-chrome-count">${esc(o.count)}</div>` : "";
@@ -16180,6 +16182,24 @@ const here = parseRoute();
     return `<button class="bell-choice" type="button" data-act="${act}" ${attrs || ""}><span class="bell-choice-label">${esc(label)}</span></button>`;
   }
 
+  /* Id or handle for Settings › Accounts › Manage settings, only for a
+     member account the signed-in owner can already manage there. */
+  function ownerManageKey(target) {
+    if (!target || target.own || target.siteOwner) return "";
+    if (!ownerInspectorOn() || serverOffList().includes("owner_user_settings")) return "";
+    const ok = (value) => {
+      const text = String(value || "").replace(/^@/, "");
+      return /^[A-Za-z0-9_-]{1,64}$/.test(text) ? text : "";
+    };
+    const direct = ok(target.manageId);
+    if (direct) return direct;
+    const feed = String(target.feedId || "");
+    const fromFeed = feed.match(/^app:([A-Za-z0-9_-]{1,64})$/);
+    if (fromFeed) return fromFeed[1];
+    if (target.platform === "app") return ok(target.handle);
+    return "";
+  }
+
   function profileSheets() {
     const target = STATE.profileTarget;
     const menu = STATE.profileMenu;
@@ -16204,6 +16224,8 @@ const here = parseRoute();
         rows.push(profileSheetRow("nick-edit", tr("Set custom name"), `data-platform="${esc(target.platform || "x")}" data-handle="${esc(target.handle)}" data-original="${esc(target.original || target.name || "")}"${target.personId ? ` data-person="${esc(target.personId)}"` : ""}`));
       }
       rows.push(profileSheetRow("share", tr("Share"), `data-kind="profile" data-id="${esc(target.feedId || link)}"`));
+      const manageKey = ownerManageKey(target);
+      if (manageKey) rows.push(`<a class="bell-choice" href="#/settings/accounts-inspector/manage:${encodeURIComponent(manageKey)}" data-act="close-profile-menu"><span class="bell-choice-label">${esc(tr("Manage settings"))}</span></a>`);
       if (!target.own && soundsOn() && soundSenderKey(target)) rows.push(profileSheetRow("profile-sound", tr("Notification sound")));
       if (!target.own && (target.feedId || target.handle)) rows.push(profileSheetRow("profile-mute", tr("Mute"), `data-id="${esc(target.feedId || (target.platform + ":" + target.handle))}"`));
       if (!target.own && (target.feedId || target.handle) && target.platform !== "app") rows.push(profileSheetRow("busy-menu", tr("Posting volume"), `data-key="${esc(target.feedId || ((target.platform || "x") + ":" + String(target.handle || "").toLowerCase()))}" data-name="${esc(target.name || "")}" data-handle="${esc(target.handle || "")}" data-platform="${esc(target.platform || "x")}"`));

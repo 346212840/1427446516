@@ -129,6 +129,10 @@ test("only the owner manages settings; locks hold through member syncs", async (
   assert.equal((await call(route, { method: "PUT", token: other.token, body: { values: { appearance: "dim" } } })).status, 403);
   assert.equal((await call("/v1/owner/user-settings/" + owner.account.publicId, { token: owner.token })).status, 403);
   assert.equal((await call("/v1/owner/user-settings/nobody123", { token: owner.token })).status, 404);
+  const byHandle = await call("/v1/owner/user-settings/" + member.account.handle, { token: owner.token });
+  assert.equal(byHandle.status, 200, JSON.stringify(byHandle.body));
+  assert.equal(byHandle.body.id, id);
+  assert.equal((await call("/v1/owner/user-settings/" + member.account.handle, { token: other.token })).status, 403);
 
   // The member synced their own choices first.
   const first = await call("/v1/sync", { method: "PUT", token: member.token, body: { payload: { appearance: "default", autoplay: "all", follows: ["x:demo"], prefsAt: { appearance: 1 } } } });

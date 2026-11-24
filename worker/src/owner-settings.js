@@ -10,8 +10,10 @@
    owners cannot be managed. Each change writes an owner_access_log row.
 
    GET /v1/owner/user-settings/:id   settings, locks and the schema
-   PUT /v1/owner/user-settings/:id   { values: { key: value }, locks: { key: true|false } } */
+   PUT /v1/owner/user-settings/:id   { values: { key: value }, locks: { key: true|false } }
+   :id is the account public id, or the account's username. */
 
+import { inspectHandle } from "../../shared/handle-skeleton.js";
 import { logOwnerView } from "./owner-view.js";
 import { readFlags } from "./feature-flags.js";
 
@@ -409,6 +411,17 @@ async function writeProfileColumns(env, id, account, payload) {
   await env.DB.prepare("UPDATE accounts SET display_name = ?, bio = ?, location = ?, website = ?, protected_account = ?, private_follows = ?, profile_less = ?, hide_avatar = ? WHERE public_id = ?").bind(nameOut, bio, location, website, protectedAccount, privateFollows, profileLess, hideAvatar, id).run();
 }
 
+async function findManagedAccount(env, raw) {
+  const id = String(raw || "");
+  if (!id) return null;
+  const cols = "SELECT public_id, handle, owner, display_name, bio, location, website, protected_account, private_follows, profile_less, hide_avatar FROM accounts";
+  const byId = await env.DB.prepare(cols + " WHERE public_id = ?").bind(id).first();
+  if (byId) return byId;
+  const checked = inspectHandle(id.replace(/^@/, ""));
+  if (!checked.ok || !checked.skeleton) return null;
+  return env.DB.prepare(cols + " WHERE skeleton = ?").bind(checked.skeleton).first();
+}
+
 export async function handleOwnerUserSettings(request, env, path, deps) {
   const gate = await deps.requireOwner(request, env);
   if (gate.error) return gate.error;
@@ -423,7 +436,7 @@ export async function handleOwnerUserSettings(request, env, path, deps) {
   const m = path.match(/^\/v1\/owner\/user-settings\/([A-Za-z0-9_-]{1,64})$/);
   if (!m) return deps.json(404, { error: "not_found" });
 
-  const target = await env.DB.prepare("SELECT public_id, handle, owner, display_name, bio, location, website, protected_account, private_follows, profile_less, hide_avatar FROM accounts WHERE public_id = ?").bind(m[1]).first();
+  const target = await findManagedAccount(env, m[1]);
   if (!target) return deps.json(404, { error: "not_found" });
   const id = String(target.public_id);
   if (Number(target.owner) === 1) return deps.json(403, { error: "owner_account" });
