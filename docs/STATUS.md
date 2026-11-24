@@ -61,6 +61,8 @@ If a guest's connection drops, their phone can ask the host to restart it, and t
 
 When the other person hangs up, the remaining phone is told the call has ended instead of trying to reconnect.
 
+On a computer (`calls_desktop`, on by default) the call screens fill the window like Teams or Meet. From 700px wide the call stage uses the whole window with centred content, tiles grow with the window height, the call bar stays centred at up to 720px with the slide-up handle visible, all sheet tabs fit, and captions and the composer stay above the bar. From 1100px wide (and 560px tall) the conversation becomes a side panel and the bar centres under the stage beside it. The home screen keeps the call list in a full-height column with the main area centred beside it, and the test call set-up sits in the middle of the window. Phones under 700px are unchanged. `scripts/calls_desktop_layout_test.mjs` checks 1920x1080, 1280x720, 1024x768 and 800x600 against snapshots in `scripts/fixtures/calls-desktop/` and that a phone looks the same with the switch on. Off keeps the earlier layout.
+
 ## How to work on this repo
 
 Any person or agent can take over from this section. Rules for shipping, checks and merges are here. Longer history is in `docs/HANDOFF.md`. The agent guide is `AGENTS.md`.
