@@ -229,7 +229,12 @@ export const FEATURES = {
      over two minutes old (three at a time, at most 12). Client only, uses
      the existing owner live route. On by default. Off shows only the
      saved state. */
-  shorts_live_fresh: { paths: [] }
+  shorts_live_fresh: { paths: [] },
+  /* X profiles and merged linked X accounts: a failed fxtwitter timeline
+     read is tried again (the browser twice, then the /v1/x mirror; the
+     mirror once), replies page up to three pages, and a refresh keeps what
+     was already shown. On by default. Off reads one page once, as before. */
+  linked_x_steady: { paths: [] }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 

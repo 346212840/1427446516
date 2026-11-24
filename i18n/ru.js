@@ -7039,5 +7039,7 @@ SI18n.addPack("ru", {
   "Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is.": "Разблокировать или заблокировать отдельный аккаунт TikTok в окне «Добавить аккаунт» в Shorts. Если выключено, кнопки скрыты, а список разблокированных не меняется.",
   "Fresh live check in Shorts": "Свежая проверка эфиров в Shorts",
   "Opening Live now re-checks accounts whose live state is more than two minutes old, three at a time. Off shows only the saved state.": "При открытии «В эфире сейчас» аккаунты, чей статус старше двух минут, проверяются заново, по три за раз. Если выключено, показывается только сохранённый статус.",
-  "Shorts is only for the owner of this app.": "Shorts доступен только владельцу этого приложения."
+  "Shorts is only for the owner of this app.": "Shorts доступен только владельцу этого приложения.",
+  "Steady X profile reads": "Надёжная загрузка профилей X",
+  "X profiles and linked X accounts retry a failed read, page further for replies and keep what they already showed. Off reads one page once.": "Профили X и привязанные аккаунты X повторяют неудачную загрузку, подгружают больше страниц ответов и сохраняют уже показанное. Выключено: одна страница, одна попытка."
 });
