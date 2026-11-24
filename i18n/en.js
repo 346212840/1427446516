@@ -7039,6 +7039,8 @@ SI18n.addPack("en", {
   "Fresh live check in Shorts": "Fresh live check in Shorts",
   "Opening Live now re-checks accounts whose live state is more than two minutes old, three at a time. Off shows only the saved state.": "Opening Live now re-checks accounts whose live state is more than two minutes old, three at a time. Off shows only the saved state.",
   "Shorts is only for the owner of this app.": "Shorts is only for the owner of this app.",
+  "Calls desktop layout": "Calls desktop layout",
+  "Call screens fill a computer window like Teams: centred content, larger tiles, chat as a side panel on wide windows and a centred call bar. Phones are unchanged. Off keeps the earlier layout.": "Call screens fill a computer window like Teams: centred content, larger tiles, chat as a side panel on wide windows and a centred call bar. Phones are unchanged. Off keeps the earlier layout.",
   "Steady X profile reads": "Steady X profile reads",
   "X profiles and linked X accounts retry a failed read, page further for replies and keep what they already showed. Off reads one page once.": "X profiles and linked X accounts retry a failed read, page further for replies and keep what they already showed. Off reads one page once."
 });

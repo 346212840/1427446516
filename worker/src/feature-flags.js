@@ -221,6 +221,11 @@ export const FEATURES = {
      Rate limited per IP and device, no links, nothing about the owner shown.
      On by default; availability itself starts off. Off hides both. */
   calls_owner_reach: { paths: ["/v1/calls/reach"] },
+  /* Desktop window layout for the call screens: centred content, tiles that
+     grow with the window, the conversation as a side panel on wide windows and
+     a centred call bar. Phones are unchanged. On by default. Off keeps the
+     earlier layout. Client only. */
+  calls_desktop: { paths: [] },
   /* Unlock or lock one TikTok account from the Shorts Add account sheet
      (owner/tiktok-unlocked.json). On by default. Off hides the buttons and
      the route answers empty; the unlock list stays as it is. */
