@@ -306,6 +306,7 @@ const NAV_STEPS = [
   step("x-icons", "node scripts/x_icons_test.mjs", { needs: ["pw", "browser"], paths: [file("x_icons_test.mjs"), /^gifts-ui\.js$/, ...APP] }),
   step("viktrych", "node scripts/viktrych_test.mjs", { needs: ["pw", "browser"], paths: [file("viktrych_test.mjs"), /^local-ai-ui\.js$/, /^dock\.js$/, ...APP] }),
   step("viktrych-home", "node scripts/viktrych_home_test.mjs", { needs: ["pw", "browser"], paths: [file("viktrych_home_test.mjs"), /^local-ai-ui\.js$/, /^local-ai\.css$/, ...APP] }),
+  step("viktrych-dock", "node scripts/viktrych_dock_test.mjs", { needs: ["pw", "browser"], paths: [file("viktrych_dock_test.mjs"), /^local-ai-ui\.js$/, /^local-ai\.css$/, /^dock\.(js|css)$/, ...APP] }),
   step("header-frames", "node scripts/header_frames_test.mjs", { needs: ["pw", "browser"], paths: [file("header_frames_test.mjs"), ...APP] }),
   step("tabs-look", "node scripts/tabs_look_test.mjs", { needs: ["pw", "browser"], paths: [file("tabs_look_test.mjs"), ...APP] }),
   step("status-icons", "node scripts/status_icons_test.mjs", { needs: ["pw", "browser"], paths: [file("status_icons_test.mjs"), ...APP] }),
@@ -342,7 +343,7 @@ const SHARDS = {
 
 const NAV_SHARDS = {
   "nav-reach": ["home-reach"],
-  "nav-shell": ["nav-custom", "bottom-nav", "dock", "profile-tabs-order", "profile-tabs", "post-ring", "x-icons", "viktrych", "viktrych-home"],
+  "nav-shell": ["nav-custom", "bottom-nav", "dock", "profile-tabs-order", "profile-tabs", "post-ring", "x-icons", "viktrych", "viktrych-home", "viktrych-dock"],
   "nav-layout": ["landscape", "phone-resize", "app-repair", "swipe-tabs", "compact-header", "header-stable", "header-frames", "tabs-look", "status-icons", "side-panel", "site-permissions", "notif-sounds", "quote-gutter", "zoom-lock", "update-notice", "profile-layout", "menu-pages", "article-reader"],
   "nav-pages": ["about-layout", "points-layout", "stories-layout", "ios"]
 };

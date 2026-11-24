@@ -166,7 +166,7 @@
     return kind === "chat" ? !!prefs.chatOpen : !!prefs.aiOpen;
   }
   function label(kind) {
-    return kind === "ai" ? AI_CONFIG.name : tr("Chat");
+    return kind === "ai" ? tr("Local AI") : tr("Chat");
   }
   function demoOn() {
     var flag = "";
@@ -371,26 +371,16 @@
       }
       return '<div class="xdock-log">' + threadLog() + "</div>" + readonlyHtml();
     }
-    var provider = activeProvider();
-    if (!provider || ui.aiView === "soon") {
-      return '<div class="xdock-log">' + aiLog() + "</div>";
-    }
-    if (ui.aiView === "history") {
-      return '<label class="xdock-search"><input data-dock-search="ai" type="search" placeholder="' + esc(tr("Search")) + '" aria-label="' + esc(tr("Search")) + '" value="' + esc(ui.aiQuery) + '"></label><div class="xdock-log">' + historyLog() + "</div>";
-    }
-    var banner = provider.id === "echo" ? '<div class="xdock-banner">' + esc(tr("Local echo. No model is connected.")) + "</div>" : "";
-    return banner + '<div class="xdock-log" aria-live="polite">' + aiLog() + "</div>" + filesHtml() + chipsHtml() + composeHtml();
+    return '<div class="xdock-lai" data-lai-host="1"></div>';
   }
   function viewName(kind) {
     if (kind === "chat") return ui.chatView === "thread" ? "thread" : "list";
-    if (!activeProvider()) return "soon";
-    if (ui.aiView === "history") return "history";
-    return activeProvider().id === "echo" ? "echo" : "talk";
+    return "lai";
   }
   function panelHtml(kind) {
     var open = opened(kind);
     var box = boxFor(kind);
-    var mode = kind === "ai" ? ' data-ai-mode="' + (activeProvider() ? "chat" : "soon") + '"' : "";
+    var mode = kind === "ai" ? ' data-ai-mode="lai"' : "";
     return '<section class="xdock-panel' + (open ? " is-open is-settled" : "") + '" data-panel="' + kind + '" role="region" aria-label="' + esc(label(kind)) + '" aria-expanded="' + (open ? "true" : "false") + '"' + mode + ' style="--dock-w:' + box.w + "px;--dock-h:" + box.h + 'px">' +
       launcherHtml(kind) +
       '<div class="xdock-sheet"><header class="xdock-head" data-dock="collapse" data-panel="' + kind + '">' + headInner(kind) + '</header><div class="xdock-body" data-view="' + viewName(kind) + '">' + bodyHtml(kind) + '</div><div class="xdock-live vh" aria-live="polite"></div><button class="xdock-resize" type="button" data-dock="resize" data-panel="' + kind + '" aria-label="' + esc(tr("Resize")) + '"></button></div></section>';
@@ -404,7 +394,7 @@
   }
   function settingsHtml() {
     var prefs = read();
-    var name = AI_CONFIG.name;
+    var name = tr("Local AI");
     function toggle(key, on, text) {
       return '<button class="tab-switch' + (on ? " on" : "") + '" type="button" role="switch" aria-checked="' + (on ? "true" : "false") + '" data-act="dock-pref" data-key="' + key + '" data-value="' + (on ? "0" : "1") + '"><span>' + esc(text) + "</span><i></i></button>";
     }
@@ -452,7 +442,26 @@
     panel.style.setProperty("--dock-h", box.h + "px");
     var open = opened(kind);
     panel.setAttribute("aria-expanded", open ? "true" : "false");
-    if (kind === "ai") panel.setAttribute("data-ai-mode", activeProvider() ? "chat" : "soon");
+    if (kind === "ai") panel.setAttribute("data-ai-mode", "lai");
+  }
+  function parkLai(panel) {
+    if (!panel) return;
+    var live = panel.querySelector(".lai");
+    if (live && live.parentNode) live.parentNode.removeChild(live);
+  }
+  function attachLai(panel) {
+    if (!panel) return;
+    if (document.documentElement && document.documentElement.classList.contains("lai-on")) return;
+    var host = panel.querySelector("[data-lai-host]");
+    if (!host) return;
+    function go() {
+      if (document.documentElement && document.documentElement.classList.contains("lai-on")) return;
+      var page = root.ViktorychLocalAIPage;
+      if (page && page.mountDock) page.mountDock(host);
+    }
+    if (root.ViktorychLocalAIPage && root.ViktorychLocalAIPage.mountDock) { go(); return; }
+    var lazy = root.ViktorychLazy;
+    if (lazy && lazy.ensure) lazy.ensure("localai").then(go, function () {});
   }
   function fill(kind, force) {
     var panel = panelEl(kind);
@@ -462,6 +471,19 @@
     if (head) head.innerHTML = headInner(kind);
     if (!body) return;
     var view = viewName(kind);
+    if (kind === "ai") {
+      var host = body.querySelector("[data-lai-host]");
+      if (force || !host) {
+        parkLai(panel);
+        body.innerHTML = bodyHtml(kind);
+        body.setAttribute("data-view", "lai");
+      }
+      // Only mount while the square is open, so a closed dock never
+      // loads the chat or steals keyboard focus from the page.
+      if (opened("ai")) attachLai(panel);
+      else parkLai(panel);
+      return;
+    }
     if (force || body.getAttribute("data-view") !== view) {
       body.innerHTML = bodyHtml(kind);
       body.setAttribute("data-view", view);
@@ -505,10 +527,14 @@
     ["ai", "chat"].forEach(function (kind) {
       var panel = host.querySelector('[data-panel="' + kind + '"]');
       if (!shown(kind)) {
-        if (panel) panel.remove();
+        if (panel) {
+          if (kind === "ai") parkLai(panel);
+          panel.remove();
+        }
         return;
       }
       if (!panel || rebuild) {
+        if (panel && kind === "ai") parkLai(panel);
         var next = shell(kind);
         if (panel) panel.replaceWith(next);
         else if (kind === "ai") host.insertBefore(next, host.firstChild);
@@ -1036,7 +1062,8 @@
     },
     debug: function () { return { chat: read(), ui: ui, chatMem: chatMem }; },
     mount: boot,
-    paint: paint
+    paint: paint,
+    close: function (kind) { setOpen(kind, false, true); }
   };
 
   if (doc() && doc().readyState === "loading") doc().addEventListener("DOMContentLoaded", boot);

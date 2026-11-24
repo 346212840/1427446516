@@ -5601,6 +5601,7 @@ SI18n.addPack("en", {
   "Previous 7 days": "Previous 7 days",
   "Delete chat": "Delete chat",
   "Local AI": "Viktrych",
+  "Open in a full page": "Open in a full page",
   "Your chats stay on this device.": "Your chats stay on this device.",
   "Make text bigger": "Make text bigger",
   "Stop autoplay on mobile data": "Stop autoplay on mobile data",
