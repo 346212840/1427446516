@@ -36,7 +36,7 @@ export async function handleCallPractice(request, env, path, url, deps, h) {
   if (!heard && !greet) return deps.json(400, { error: "text" });
   const lang = h.normalizeLang(body.lang) || "en";
   const turns = Array.isArray(body.turns) ? body.turns.slice(-6) : [];
-  const prompt = greet ? practiceGreet(lang) : practiceTalk(heard, lang, turns);
+  const prompt = greet ? practiceGreet(lang) : practiceTalk(heard, lang, turns, body.typed === true);
   const picked = await h.pickKey(env, row, who, self, body);
   if (!picked.key) return deps.json(200, { text: heard, reply: "", lang: lang, reason: picked.source === "ringing" ? "ringing" : "nokey" });
   const out = await h.generateText(env, picked.key, prompt);
