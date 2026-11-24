@@ -135,6 +135,8 @@ The Shorts Live tab on the published site is the watch page. It is TikTok only. 
 
 Opening Live now re-checks accounts whose saved live state is more than two minutes old (`shorts_live_fresh`, on by default): three at a time, at most 12 per pass, again with the minute board refresh and when the tab comes back, and not more than once a minute per account. A live that started since the last server check shows within seconds instead of waiting for the cron. A blocked check never turns a live account off. Client only; it uses the existing owner live route. Off shows only the saved state.
 
+A signed-in account that is not the owner and opens a Shorts link now reads "Shorts is only for the owner of this app.", and a signed-out visit reads "Sign in to see this"; both used to say "Reload the page.", which never helped (idea from the old PR #650, rebuilt on current main).
+
 Add account shows the TikTok name and picture again. Every TikTok page lists its captcha scripts, so the profile preview used to read every page as a challenge and saved the account with no name or picture ("Couldn't preview this profile"). Only a `captcha-verify` page with no profile data counts as a challenge now.
 
 The Add account sheet stays open while the page repaints, so the note after adding (and anything half typed) is kept and a second account can be added right away; it used to close itself after every add or lock change. Adding while Shorts is locked says the account stays hidden until unlock. An empty Live now tab explains itself: locked with nothing unlocked shows "Shorts is locked" with an Unlock button, and unlocked with no accounts shows "No accounts yet" with Add account (it used to be a blank black screen).

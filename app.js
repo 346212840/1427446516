@@ -22857,7 +22857,9 @@ if (STATE.histClear) {
       if (!shortsEnabled()) return "";
       if (window.ViktorychShorts && window.ViktorychShorts.visible()) return window.ViktorychShorts.page(route);
       if (!window.ViktorychShorts) { ensureLazy("shorts"); return lazySkeleton(tr("Shorts")); }
-      return pageHead(tr("Shorts")) + emptyBlock(tr("Shorts"), tr("Reload the page."));
+      /* The module is loaded and says this viewer cannot see Shorts: say why instead of asking for a reload. */
+      const shortsViewer = window.ViktorychAccounts && window.ViktorychAccounts.account ? window.ViktorychAccounts.account() : null;
+      return pageHead(tr("Shorts")) + emptyBlock(tr("Shorts"), shortsViewer ? tr("Shorts is only for the owner of this app.") : tr("Sign in to see this"));
     }
     if (route.name === "localai") {
       if (!localAiOn()) return pageHead(tr("Local AI")) + emptyBlock(tr("Local AI"), tr("Local AI is turned off right now."));
