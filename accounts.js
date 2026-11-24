@@ -5754,7 +5754,9 @@ function signupPayload() {
         handle: account.handle || "",
         feedId: account.publicId ? "app:" + account.publicId : "",
         url: "",
-        own: false
+        own: false,
+        manageId: account.publicId || "",
+        siteOwner: !!account.owner
       }, "") : "";
       return blockedTop + '<div class="empty"><h2>' + esc(tr("You're blocked")) + '</h2><p>' + esc(tr("This account has blocked you. You can’t see their posts or profile.")) + '</p></div>';
     }
@@ -5819,6 +5821,8 @@ function signupPayload() {
       feedId: account.publicId ? "app:" + account.publicId : "",
       url: "",
       own: !!mine,
+      manageId: account.publicId || "",
+      siteOwner: !!account.owner,
       count: count === "" ? "" : tn("posts", Number(count), { count: count })
     }, banner) : banner;
     top = birthdayBanner + top;

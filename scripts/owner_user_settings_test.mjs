@@ -4,7 +4,9 @@
    and the stored value stays the owner's. Owner: Accounts → an account →
    Manage settings lists the settings with a value control and a Lock button
    per row and Lock all per group; each change is one PUT to the Worker. The
-   owner switch hides the row and the page. Demo data only. */
+   owner switch hides the row and the page. A profile's ⋯ menu shows
+   Manage settings only for the owner, opening that same page for the
+   account on the profile. Demo data only. */
 import { pathToFileURL } from "node:url";
 import { sharedStaticServer } from "./smoke_runtime.mjs";
 import http from "node:http";
@@ -109,6 +111,24 @@ function mock(page, log, who) {
     }
     if (url.pathname === "/v1/owner/inspector/accounts/42") {
       return reply(route, 200, { id: "42", handle: "demo_member", name: "Demo Member", owner: false, createdAt: 1, lastActive: 2, online: false, profile: {}, names: [{ handle: "demo_member", primary: true, audience: {} }], displayNames: [], counts: {}, communities: [], requests: [], reports: { total: 0, byStatus: {} }, moderation: {}, sessions: { active: 0, devices: 0, types: [] }, storage: {}, linked: {}, email: { stored: false }, kind: { own: "", owner: "" }, signIn: [] });
+    }
+    if (url.pathname === "/v1/profile/demo_member") {
+      const account = { handle: "demo_member", displayName: "Demo Member", owner: false, avatar: "", viewerFriendStatus: "none" };
+      if (who && who.profileId) account.publicId = who.profileId;
+      return reply(route, 200, { account, reposts: [], identities: [] });
+    }
+    if (url.pathname === "/v1/profile/demo_owner") {
+      return reply(route, 200, { account: { handle: "demo_owner", displayName: "Demo", publicId: "100", owner: true, avatar: "" }, reposts: [], identities: [] });
+    }
+    if (url.pathname === "/v1/profile/user_b") {
+      return reply(route, 200, { account: { handle: "user_b", displayName: "User B", publicId: "100000000002", owner: false, avatar: "" }, reposts: [], identities: [] });
+    }
+    if (url.pathname === "/v1/profile/demo_other_owner") {
+      return reply(route, 200, { account: { handle: "demo_other_owner", displayName: "Other Owner", owner: true, avatar: "" }, reposts: [], identities: [] });
+    }
+    if (url.pathname === "/v1/owner/user-settings/demo_member" || url.pathname === "/v1/owner/user-settings/100000000002") {
+      if (method === "GET") return reply(route, 200, { id: url.pathname.endsWith("demo_member") ? "42" : "100000000002", handle: url.pathname.endsWith("demo_member") ? "demo_member" : "user_b", settings: state.settings, locks: state.locks, schema: SCHEMA, groups: ["look", "feed", "media", "privacy", "language"] });
+      return reply(route, 200, { id: "42", handle: "demo_member", settings: state.settings, locks: state.locks });
     }
     return reply(route, 200, {});
   });
@@ -225,6 +245,53 @@ async function switchedOff(browser, origin) {
   await context.close();
 }
 
+async function openMore(page, origin, hash, label) {
+  await page.goto(origin + "/index.html" + hash, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("[data-act='profile-more']", { timeout: 20000 }).catch(() => fail(label + ": no profile ⋯ button"));
+  await page.click("[data-act='profile-more']");
+  await page.waitForSelector(".profile-menu", { timeout: 8000 }).catch(() => fail(label + ": ⋯ menu did not open"));
+  return page.$$eval(".profile-menu a[href], .profile-menu button", (els) => els.map((el) => ({ href: el.getAttribute("href") || "", text: (el.textContent || "").trim() })));
+}
+
+async function profileMenu(browser, origin) {
+  async function menu(opts, hash, label) {
+    const { context, page, errors } = await newPage(browser, origin, opts);
+    const rows = await openMore(page, origin, hash, label);
+    if (errors.length) fail(label + ": page errors " + errors.join(" | "));
+    const manage = rows.filter((row) => /Manage settings/.test(row.text) || /accounts-inspector\/manage:/.test(row.href));
+    await context.close();
+    return manage;
+  }
+
+  const ownerOnMember = await menu({ handle: "demo_owner", owner: true }, "#/@demo_member", "owner on member");
+  if (ownerOnMember.length !== 1) fail("owner on member: expected one Manage settings entry, got " + JSON.stringify(ownerOnMember));
+  if (ownerOnMember[0].href !== "#/settings/accounts-inspector/manage:demo_member") fail("owner on member: href " + ownerOnMember[0].href);
+
+  const opened = await newPage(browser, origin, { handle: "demo_owner", owner: true });
+  const rows = await openMore(opened.page, origin, "#/@demo_member", "owner open");
+  const href = (rows.find((row) => /Manage settings/.test(row.text)) || {}).href;
+  if (!href) fail("owner open: no Manage settings row " + JSON.stringify(rows));
+  await opened.page.click('a[href="' + href + '"]');
+  await opened.page.waitForSelector(".oi-manage .oi-ms-row", { timeout: 15000 }).catch(() => fail("owner open: manage page did not load"));
+  if (opened.errors.length) fail("owner open: page errors " + opened.errors.join(" | "));
+  await opened.context.close();
+
+  const byId = await menu({ handle: "demo_owner", owner: true }, "#/@user_b", "owner with id");
+  if (byId.length !== 1 || byId[0].href !== "#/settings/accounts-inspector/manage:100000000002") fail("owner with id: " + JSON.stringify(byId));
+
+  const memberView = await menu({ handle: "demo_member" }, "#/@user_b", "member");
+  if (memberView.length) fail("member: Manage settings was visible " + JSON.stringify(memberView));
+
+  const own = await menu({ handle: "demo_owner", owner: true }, "#/@demo_owner", "own profile");
+  if (own.length) fail("own profile: Manage settings was visible " + JSON.stringify(own));
+
+  const otherOwner = await menu({ handle: "demo_owner", owner: true }, "#/@demo_other_owner", "other owner");
+  if (otherOwner.length) fail("other owner: Manage settings was visible " + JSON.stringify(otherOwner));
+
+  const off = await menu({ handle: "demo_owner", owner: true, off: true }, "#/@demo_member", "switch off");
+  if (off.length) fail("switch off: Manage settings was visible " + JSON.stringify(off));
+}
+
 const chromium = await loadPlaywright();
 const server = await startServer();
 const origin = "http://127.0.0.1:" + server.address().port;
@@ -236,6 +303,7 @@ try {
   await notifyPermission(browser, origin, "deny");
   await notifyPermission(browser, origin, "off");
   await switchedOff(browser, origin);
+  await profileMenu(browser, origin);
   console.log("owner user settings ok");
 } finally {
   await browser.close();
