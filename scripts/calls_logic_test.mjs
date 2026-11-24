@@ -1411,7 +1411,7 @@ console.log("calls logic ok", JSON.stringify(report));
     assert.ok(list.includes(file), "FEATURE_FILES.calls includes " + file);
     assert.ok(shell.includes(file), "the main shell precaches " + file);
   }
-  assert.ok(standalone.includes("viktorych-calls-shell-v7") && standalone.includes("../shared/call-reach.js"), "the stand-alone Calls cache is bumped and caches the reach helper");
+  assert.ok(standalone.includes("viktorych-calls-shell-v8") && standalone.includes("../shared/call-reach.js") && standalone.includes("../shared/call-practice.js"), "the stand-alone Calls cache is bumped and caches the reach helper");
   assert.ok(standalone.includes("../shared/call-pip.js") && standalone.includes("../shared/call-preview.js"), "the stand-alone Calls page caches pip and preview");
   console.log("calls feature files ok");
 }
@@ -1482,9 +1482,39 @@ console.log("calls logic ok", JSON.stringify(report));
   assert.ok(page.includes('practiceReply("", true)'), "the practice partner speaks first");
   assert.ok(!/setTimeout\([^;]*practiceReply/.test(page) && page.includes("function practiceGreetWhenReady()") && page.includes('if (d.code === "translating-ready" && !d.mine) state.test.rxReady = true;'), "it greets once the call and translator are ready, with no timer");
   assert.ok(page.includes("The practice partner did not answer. Say something again."), "a missing reply is shown, never silent");
-  assert.ok(page.includes("PRACTICE_ECHO_MS") && page.includes("t.pendingHeard"), "its own echo is ignored and a line said while it thinks is kept");
+  assert.ok(page.includes("PRACTICE_ECHO_MS") && page.includes("t.pending = practiceQueue(t.pending, text, typed)") && page.includes("practiceNext(t)"), "its own echo is ignored and a line said while it thinks is kept");
   assert.ok(worker.includes("TTS_MODELS") && worker.includes('responseModalities: ["AUDIO"]'), "the Worker voices the reply with Gemini speech");
   console.log("calls practice voice ok");
+}
+
+{
+  /* Typed chat in a practice call always reaches the AI partner, even while its voice or translation is playing. */
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const root = path.join(path.dirname(new URL(import.meta.url).pathname), "..");
+  const { practiceAccepts, practiceQueue, practiceTalk } = await import("../shared/call-practice.js");
+  const now = 100000;
+  const speaking = { aiUntil: now + 5000, translating: true };
+  assert.equal(practiceAccepts({ text: "how are you", typed: true }, now, speaking), true, "typed chat is answered while the partner is talking");
+  assert.equal(practiceAccepts({ text: "hola", typed: false }, now, speaking), false, "a heard line during its own voice is echo and is dropped");
+  assert.equal(practiceAccepts({ text: "hola" }, now + 6000, { aiUntil: now + 5000, translating: true }), false, "a heard line while its translation still plays is dropped");
+  assert.equal(practiceAccepts({ text: "hola" }, now + 21000, { aiUntil: now + 5000, translating: false }), true, "a heard line after the partner is quiet is answered");
+  assert.equal(practiceAccepts({ text: "  ", typed: true }, now, {}), false, "an empty message is not sent to the AI");
+  assert.equal(practiceAccepts({ text: "", greet: true }, now, speaking), true, "the greeting always goes");
+  let q = practiceQueue(null, "first", true);
+  q = practiceQueue(q, "echo hola", false);
+  assert.deepEqual(q, { text: "first", typed: true }, "a heard line never replaces waiting typed chat");
+  q = practiceQueue(q, "second", true);
+  assert.deepEqual(q, { text: "first second", typed: true }, "two typed messages are answered together");
+  assert.deepEqual(practiceQueue({ text: "old", typed: false }, "typed", true), { text: "typed", typed: true }, "typed chat replaces a waiting heard line");
+  assert.ok(practiceTalk("hi", "es", [], true).includes("They just typed in the call chat"), "the AI knows the message was typed");
+  const page = fs.readFileSync(path.join(root, "calls.js"), "utf8");
+  const worker = fs.readFileSync(path.join(root, "worker/src/call-practice.js"), "utf8");
+  assert.ok(page.includes("practiceReply(d.original || d.translation, false, !!d.typed)"), "the partner passes typed chat as typed");
+  assert.ok(page.includes("practiceAccepts({ text: text, greet: !!greet, typed: !!typed }") && !page.includes("pendingHeard"), "the call page uses the shared rule and the typed-safe queue");
+  assert.ok(page.includes("t.voiceEnd = at + buffer.duration"), "a queued reply waits for the current one to finish");
+  assert.ok(worker.includes("practiceTalk(heard, lang, turns, body.typed === true)"), "the Worker tells the AI the message was typed");
+  console.log("calls practice typed chat ok");
 }
 
 {
