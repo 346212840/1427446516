@@ -171,6 +171,16 @@ assert(liveHtmlLocked.includes("added accounts"), "Account sheet must contain ad
 assert(liveHtmlUnlocked.includes("@lockclip"), "Account sheet must list the added account when unlocked");
 assert(liveHtmlUnlocked.includes("Locked behind"), "Account sheet must show Locked behind pill");
 
+console.log("Testing empty Live states...");
+shorts.setUnlocked([]);
+shorts.setLocked(true);
+const emptyLocked = shorts.page({ live: true, livePane: "now" });
+assert(emptyLocked.includes("Shorts is locked") && emptyLocked.includes("shorts-empty"), "Locked Live with nothing unlocked must say Shorts is locked");
+assert(/shorts-empty[\s\S]*data-shorts="toggle-lock"/.test(emptyLocked), "The locked empty state must offer Unlock");
+assert(/id="shorts-accounts" hidden/.test(emptyLocked), "The account sheet starts closed");
+shorts.setUnlocked(["sampleclip"]);
+shorts.setLocked(true);
+
 console.log("Testing site-wide isolation when locked...");
 assert.strictEqual(shorts.isUnlocked("sampleclip"), true, "the configured account is unlocked");
 assert.strictEqual(shorts.isUnlocked("lockclip"), false, "the added account stays locked");
