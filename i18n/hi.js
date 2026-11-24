@@ -5546,6 +5546,7 @@ SI18n.addPack("hi", {
   "Runs on this device. Nothing you type is sent anywhere.": "इसी डिवाइस पर चलता है। आपका लिखा कहीं नहीं भेजा जाता।",
   "The Local AI page that changes settings from plain words. Models run on each person's device; nothing is sent to us.": "Viktrych पेज जो आसान शब्दों से सेटिंग बदलता है। मॉडल हर व्यक्ति के डिवाइस पर चलते हैं; हमें कुछ नहीं भेजा जाता।",
   "A round button on every page that opens Local AI.": "हर पेज पर एक गोल बटन जो Viktrych खोलता है।",
+  "A round button on phones that opens Local AI. On a computer, use the black square in the corner.": "फ़ोन पर एक गोल बटन Viktrych खोलता है। कंप्यूटर पर कोने का काला वर्ग इस्तेमाल करें।",
   "Ask Local AI": "Viktrych से पूछें",
   "Say what you want changed, like “bigger text” or “make it private”. It runs on this device.": "बताएँ क्या बदलना है, जैसे “बड़ा टेक्स्ट” या “प्राइवेट कर दो”। यह इसी डिवाइस पर चलता है।",
   "Local AI is turned off right now.": "Viktrych अभी बंद है।",

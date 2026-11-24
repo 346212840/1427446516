@@ -19831,7 +19831,7 @@ const here = parseRoute();
         ${serverOffList().includes("foryou_off") ? "" : homeFeatureSwitch("forYou", tr("For you"), tr("The For You tab and its ranking. Off makes Following your Home, loads nothing for it and clears its saved data."))}
         ${sw("story-notes", notesOn, tr("Show notes"), tr("Notes sit above stories. Turn this off to hide them."))}
         ${friendsOffNow() ? "" : sw("toggle-privacy-pref", friendsOn, tr("Friends panel"), tr("Show active friends beside the home feed."), ` data-key="friendsRail"`)}
-        ${localAiOn() ? sw("ai-fab", !!st.aiFab, tr("Local AI button"), tr("A round button on every page that opens Local AI."), "") : ""}
+        ${localAiOn() ? sw("ai-fab", !!st.aiFab, tr("Local AI button"), tr("A round button on phones that opens Local AI. On a computer, use the black square in the corner."), "") : ""}
         ${localAiSetupOn() ? `<div class="set-list">${settingsRow("#/ai?setup=1", tr("Set up Local AI again"), tr("Check this device, pick a model and choose how Local AI works."))}</div>` : ""}`)}
       ${sec(tr("Your feed"), `${sw("pz-feed", st.forYouReposts !== false, tr("Show reposts"), "", ` data-key="forYouReposts"`)}
         ${sw("pz-feed", st.forYouReplies !== false, tr("Show replies in tab"), "", ` data-key="forYouReplies"`)}
@@ -19902,9 +19902,33 @@ const here = parseRoute();
     try { kb.focus({ preventScroll: true }); } catch (err) { /* old browser */ }
     setTimeout(() => kb.remove(), 1500);
   }, true);
+  /* On a desktop (700px+ with a mouse) the black square dock launcher is
+     the Viktrych entry. The purple floating button stays on phones and
+     when that dock square is off. */
+  function aiDockDesktopMq() {
+    return window.matchMedia ? window.matchMedia("(min-width: 700px) and (hover: hover) and (pointer: fine)") : null;
+  }
+  function aiDockDesktopEntry() {
+    const mq = aiDockDesktopMq();
+    if (!mq || !mq.matches) return false;
+    return !!(document.querySelector('.xdock-panel[data-panel="ai"]'));
+  }
+  let aiFabMqBound = false;
+  function bindAiFabMq() {
+    if (aiFabMqBound) return;
+    aiFabMqBound = true;
+    const mq = aiDockDesktopMq();
+    const onChange = () => paintAiFab(parseRoute());
+    if (mq) {
+      if (mq.addEventListener) mq.addEventListener("change", onChange);
+      else if (mq.addListener) mq.addListener(onChange);
+    }
+    document.addEventListener("vk-dock-paint", onChange);
+  }
   function paintAiFab(route) {
+    bindAiFabMq();
     let fab = document.getElementById("lai-fab");
-    const want = localAiOn() && !!(STATE.settings && STATE.settings.aiFab) && route && route.name !== "localai" && route.name !== "watch" && route.name !== "shorts" && route.name !== "tv";
+    const want = localAiOn() && !!(STATE.settings && STATE.settings.aiFab) && route && route.name !== "localai" && route.name !== "watch" && route.name !== "shorts" && route.name !== "tv" && !aiDockDesktopEntry();
     if (!want) { if (fab) fab.remove(); return; }
     if (!fab) {
       fab = document.createElement("a");
