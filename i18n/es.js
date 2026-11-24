@@ -7042,5 +7042,7 @@ SI18n.addPack("es", {
   "Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is.": "Desbloquea o bloquea una cuenta de TikTok desde la hoja Añadir cuenta de Shorts. Desactivado oculta esos botones; la lista de desbloqueo queda como está.",
   "Fresh live check in Shorts": "Comprobación de directos al momento en Shorts",
   "Opening Live now re-checks accounts whose live state is more than two minutes old, three at a time. Off shows only the saved state.": "Al abrir En directo ahora se vuelven a comprobar las cuentas cuyo estado tiene más de dos minutos, de tres en tres. Desactivado muestra solo el estado guardado.",
-  "Shorts is only for the owner of this app.": "Shorts es solo para el propietario de esta app."
+  "Shorts is only for the owner of this app.": "Shorts es solo para el propietario de esta app.",
+  "Calls desktop layout": "Diseño de escritorio de llamadas",
+  "Call screens fill a computer window like Teams: centred content, larger tiles, chat as a side panel on wide windows and a centred call bar. Phones are unchanged. Off keeps the earlier layout.": "Las pantallas de llamada llenan la ventana del ordenador como en Teams: contenido centrado, mosaicos más grandes, el chat como panel lateral en ventanas anchas y una barra de llamada centrada. En el teléfono no cambia nada. Desactivado mantiene el diseño anterior."
 });

@@ -7029,5 +7029,7 @@ SI18n.addPack("hi", {
   "Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is.": "शॉर्ट्स की खाता जोड़ें शीट से किसी एक TikTok खाते को अनलॉक या लॉक करें। बंद करने पर ये बटन छिप जाते हैं; अनलॉक सूची जैसी है वैसी रहती है।",
   "Fresh live check in Shorts": "शॉर्ट्स में ताज़ा लाइव जांच",
   "Opening Live now re-checks accounts whose live state is more than two minutes old, three at a time. Off shows only the saved state.": "अभी लाइव खोलने पर उन खातों की फिर से जांच होती है जिनकी लाइव स्थिति दो मिनट से पुरानी है, एक बार में तीन। बंद करने पर केवल सहेजी गई स्थिति दिखती है।",
-  "Shorts is only for the owner of this app.": "शॉर्ट्स केवल इस ऐप के मालिक के लिए है।"
+  "Shorts is only for the owner of this app.": "शॉर्ट्स केवल इस ऐप के मालिक के लिए है।",
+  "Calls desktop layout": "कॉल का डेस्कटॉप लेआउट",
+  "Call screens fill a computer window like Teams: centred content, larger tiles, chat as a side panel on wide windows and a centred call bar. Phones are unchanged. Off keeps the earlier layout.": "कॉल स्क्रीन Teams की तरह कंप्यूटर की पूरी विंडो भरती हैं: बीच में सामग्री, बड़ी टाइलें, चौड़ी विंडो में चैट साइड पैनल में और बीच में कॉल बार। फ़ोन पर कुछ नहीं बदलता। बंद करने पर पुराना लेआउट रहता है।"
 });

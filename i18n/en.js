@@ -7039,5 +7039,7 @@ SI18n.addPack("en", {
   "Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is.": "Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is.",
   "Fresh live check in Shorts": "Fresh live check in Shorts",
   "Opening Live now re-checks accounts whose live state is more than two minutes old, three at a time. Off shows only the saved state.": "Opening Live now re-checks accounts whose live state is more than two minutes old, three at a time. Off shows only the saved state.",
-  "Shorts is only for the owner of this app.": "Shorts is only for the owner of this app."
+  "Shorts is only for the owner of this app.": "Shorts is only for the owner of this app.",
+  "Calls desktop layout": "Calls desktop layout",
+  "Call screens fill a computer window like Teams: centred content, larger tiles, chat as a side panel on wide windows and a centred call bar. Phones are unchanged. Off keeps the earlier layout.": "Call screens fill a computer window like Teams: centred content, larger tiles, chat as a side panel on wide windows and a centred call bar. Phones are unchanged. Off keeps the earlier layout."
 });
