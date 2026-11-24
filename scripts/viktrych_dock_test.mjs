@@ -188,12 +188,13 @@ try {
     await page.screenshot({ path: path.join(SHOTS, "pop-full-1440x900.png"), fullPage: false });
   }
 
-  // Leave the page via the same in-app hash change a person uses.
-  await page.evaluate(() => { location.hash = "#/"; });
+  // Leave the page via the same in-app Home link a person uses.
+  const home = page.getByRole("link", { name: "Home", exact: true }).first();
+  await home.click();
   await page.waitForFunction(() => {
     const hash = location.hash || "";
     return hash.indexOf("#/ai") !== 0 && !document.documentElement.classList.contains("lai-on");
-  }, { timeout: 20000 });
+  }, null, { timeout: 20000 });
 
   await context.close();
   console.log("viktrych-dock test ok");

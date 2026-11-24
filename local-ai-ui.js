@@ -1848,8 +1848,6 @@
     if (S.root.parentNode !== host) host.appendChild(S.root);
     paint();
     paintPopChrome();
-    var act0 = document.activeElement;
-    if (!S.setup && (!act0 || act0 === document.body || act0.classList.contains("lai-input") || act0.hasAttribute("data-lai-kb"))) focusBox();
   }
   function unmountDock() {
     if (!S.root) return;
@@ -1858,10 +1856,16 @@
   }
   function unmount() {
     document.documentElement.classList.remove("lai-on");
-    var host = document.querySelector('.xdock-panel[data-panel="ai"] [data-lai-host]');
-    if (host && S.root) mountDock(host);
+    var panel = document.querySelector('.xdock-panel[data-panel="ai"]');
+    var host = panel && panel.querySelector("[data-lai-host]");
+    if (host && S.root && panel.classList.contains("is-open")) mountDock(host);
   }
   if (window.SI18n && window.SI18n.onChange) window.SI18n.onChange(function () { if (S.root) { paint(); paintPopChrome(); } });
+  if (window.addEventListener) {
+    window.addEventListener("hashchange", function () {
+      if ((location.hash || "").indexOf("#/ai") !== 0) unmount();
+    });
+  }
 
   function prewarm() {
     if (S.engine.state === "ready" || S.engine.state === "loading") return;

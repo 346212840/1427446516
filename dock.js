@@ -478,7 +478,10 @@
         body.innerHTML = bodyHtml(kind);
         body.setAttribute("data-view", "lai");
       }
-      attachLai(panel);
+      // Only mount while the square is open, so a closed dock never
+      // loads the chat or steals keyboard focus from the page.
+      if (opened("ai")) attachLai(panel);
+      else parkLai(panel);
       return;
     }
     if (force || body.getAttribute("data-view") !== view) {
