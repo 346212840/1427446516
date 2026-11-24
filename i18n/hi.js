@@ -7015,5 +7015,9 @@ SI18n.addPack("hi", {
   "No call requests yet.": "अभी कोई कॉल अनुरोध नहीं।",
   "Suggest another time": "दूसरा समय सुझाएं",
   "A Call the owner button and a Request a call form on the public Calls page. Calls ring you only while you are available in the Requests tab; requests wait there for Accept, Suggest another time or Decline. Off hides both.": "सार्वजनिक कॉल पेज पर मालिक को कॉल करें बटन और कॉल का अनुरोध करें फ़ॉर्म। कॉल केवल तभी आती हैं जब आप अनुरोध टैब में उपलब्ध हों; अनुरोध वहां स्वीकार करें, दूसरा समय सुझाएं या अस्वीकार करें के लिए रुकते हैं। बंद करने पर दोनों छिप जाते हैं।",
-  "{ms} ms before you stopped": "आपके रुकने से {ms} मि.से. पहले"
+  "{ms} ms before you stopped": "आपके रुकने से {ms} मि.से. पहले",
+  "Always unlocked": "हमेशा अनलॉक",
+  "Couldn’t change this account. Try again.": "यह खाता बदला नहीं जा सका। फिर से कोशिश करें।",
+  "Unlock accounts in Shorts": "शॉर्ट्स में खाते अनलॉक करें",
+  "Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is.": "शॉर्ट्स की खाता जोड़ें शीट से किसी एक TikTok खाते को अनलॉक या लॉक करें। बंद करने पर ये बटन छिप जाते हैं; अनलॉक सूची जैसी है वैसी रहती है।"
 });

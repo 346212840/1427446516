@@ -133,6 +133,8 @@ Not live. The package is `docker/tiktok-live/` and it is not on the published si
 
 The Shorts Live tab on the published site is the watch page. It is TikTok only. Add account saves the handle for the owner. Shorts starts locked, so a new account stays off the grid until Shorts is unlocked or that handle is on the unlock list. A live check then shows a watch button only when TikTok says the account is live. Playback is the public HLS in the page (hls.js, muted, origin when TikTok offers it, no cookies sent to the CDN). A block or a missing room does not play. A missing `owner/tiktok.json` used to drop that check; a check now creates the catalog so a reload still shows the live. That persistence fix is in this change, not on the published site yet. Watching a live does not require the always-on recorder. Past lives do.
 
+One account can be unlocked or locked from the Add account sheet (`shorts_unlock_edit`, on by default): Unlock on an added account, Lock on an unlocked one. The list changes at once and rolls back with a note if the server says no. `POST /v1/owner/tiktok/unlock` (owner only, rate limited) writes `owner/tiktok-unlocked.json`; handles from the `TIKTOK_UNLOCKED` secret show "Always unlocked" and cannot be locked from the app (409). `GET /v1/owner/tiktok/unlocked` also returns that `fixed` list. Off hides the buttons and the route answers empty; the list stays as it is.
+
 ## Speed log
 
 Desktop, CPU slowed 4×, unless a row says otherwise. Each row is the change that landed.

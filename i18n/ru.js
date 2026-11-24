@@ -7027,5 +7027,9 @@ SI18n.addPack("ru", {
   "No call requests yet.": "Запросов на звонок пока нет.",
   "Suggest another time": "Предложить другое время",
   "A Call the owner button and a Request a call form on the public Calls page. Calls ring you only while you are available in the Requests tab; requests wait there for Accept, Suggest another time or Decline. Off hides both.": "Кнопка «Позвонить владельцу» и форма «Запросить звонок» на публичной странице звонков. Звонки поступают, только пока вы доступны на вкладке «Запросы»; запросы ждут там: Принять, Предложить другое время или Отклонить. Выключено скрывает оба.",
-  "{ms} ms before you stopped": "за {ms} мс до конца фразы"
+  "{ms} ms before you stopped": "за {ms} мс до конца фразы",
+  "Always unlocked": "Всегда разблокирован",
+  "Couldn’t change this account. Try again.": "Не удалось изменить этот аккаунт. Попробуйте ещё раз.",
+  "Unlock accounts in Shorts": "Разблокировка аккаунтов в Shorts",
+  "Unlock or lock one TikTok account from the Shorts Add account sheet. Off hides those buttons; the unlock list stays as it is.": "Разблокировать или заблокировать отдельный аккаунт TikTok в окне «Добавить аккаунт» в Shorts. Если выключено, кнопки скрыты, а список разблокированных не меняется."
 });
