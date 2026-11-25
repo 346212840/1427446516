@@ -351,7 +351,18 @@ def r2_call(method: str, account: str, token: str, key: str, body: bytes | None 
         return err.code, payload, dict(getattr(err, "headers", {}) or {})
 
 
+def _r2_allow(key: str) -> bool:
+    try:
+        import r2_budget
+    except ImportError:
+        return True
+    return r2_budget.allow(key)
+
+
 def upload_verified(account: str, token: str, key: str, path: Path, base: str = API_BASE) -> int:
+    # R2 spending guard: skip optional writes near the free allowance.
+    if not _r2_allow(key):
+        return 0
     payload = path.read_bytes()
     status, _body, _headers = r2_call("PUT", account, token, key, payload, base)
     if status not in {200, 201, 204}:

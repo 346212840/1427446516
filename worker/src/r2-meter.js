@@ -35,12 +35,12 @@ const DEDUPE_MS = 15 * 60 * 1000;
 const DEDUPE_MAX_BYTES = 1024 * 1024;
 const DEDUPE_KEYS = 400;
 
-const HIGH = [
+export const HIGH = [
   /^backup\/tg-forget\//, /^deletions\.json$/, /^media\//, /^post-media\//, /^srv\//, /^uploads\//,
   /^users\//, /^accounts\//, /^sealed\//, /^exports\//, /^stories\/(?!telegram\/)/, /^profile_banners\//,
   /^highlights\//, /^cnotes\//, /^newsletter/, /^follows\//, /^lists\//
 ];
-const LOW = [
+export const LOW = [
   /^backups?\//, /^lastgood\//, /^live-buf\//, /^ops\//, /^x-cache\//, /^unfurl\//, /^sync\//,
   /^pulse\//, /^comments\//, /^data\/communities\//, /^discord\//, /^archive\//, /^ytm?\//, /^vsr\//,
   /^snap\//, /^loop\//, /^tg\//, /^stories\/telegram\//, /^owner\/tiktok-watch\.json$/,

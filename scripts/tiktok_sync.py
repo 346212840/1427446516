@@ -918,7 +918,18 @@ def r2_get(key: str) -> bytes | None:
         return None
 
 
+def _r2_allow(key: str) -> bool:
+    try:
+        import r2_budget
+    except ImportError:
+        return True
+    return r2_budget.allow(key)
+
+
 def r2_put(key: str, payload: bytes) -> bool:
+    # R2 spending guard: skip optional writes near the free allowance.
+    if not _r2_allow(key):
+        return False
     token, account = cloudflare_env()
     if not token or not account:
         return False
