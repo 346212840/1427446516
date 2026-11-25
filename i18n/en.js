@@ -7045,5 +7045,9 @@ SI18n.addPack("en", {
   "Steady X profile reads": "Steady X profile reads",
   "X profiles and linked X accounts retry a failed read, page further for replies and keep what they already showed. Off reads one page once.": "X profiles and linked X accounts retry a failed read, page further for replies and keep what they already showed. Off reads one page once.",
   "Follow many TikTok accounts": "Follow many TikTok accounts",
-  "Follow up to 2000 TikTok accounts in Shorts. Off keeps the old limit of 50 for new accounts; nothing already added is removed.": "Follow up to 2000 TikTok accounts in Shorts. Off keeps the old limit of 50 for new accounts; nothing already added is removed."
+  "Follow up to 2000 TikTok accounts in Shorts. Off keeps the old limit of 50 for new accounts; nothing already added is removed.": "Follow up to 2000 TikTok accounts in Shorts. Off keeps the old limit of 50 for new accounts; nothing already added is removed.",
+  "R2 spending guard": "R2 spending guard",
+  "Counts every R2 call and stops backups and caches at 70% of the free monthly allowance, and everything except uploads and deletions at 85%. Off lifts those steps; the stop at 95% always stays, so R2 never bills.": "Counts every R2 call and stops backups and caches at 70% of the free monthly allowance, and everything except uploads and deletions at 85%. Off lifts those steps; the stop at 95% always stays, so R2 never bills.",
+  "Spending freeze": "Spending freeze",
+  "On: stops every R2 write and read at once except uploads and deletions, as if the free allowance were 85% used. Off by default.": "On: stops every R2 write and read at once except uploads and deletions, as if the free allowance were 85% used. Off by default."
 });

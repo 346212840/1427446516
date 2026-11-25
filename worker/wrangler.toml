@@ -55,6 +55,11 @@ SIGNUP_GUARD = "on"
 # Per-client request cap kept in isolate memory (src/guard.js). Keep this
 # "on". Tests that send many requests from one address leave it unset.
 REQUEST_GUARD = "on"
+# R2 spending guard (src/r2-meter.js): counts every R2 call and stops before
+# the free monthly allowance. Keep this "on". Tests leave it unset.
+# R2_CYCLE_DAY is the day of the month the Cloudflare billing cycle starts.
+R2_CAPS = "on"
+R2_CYCLE_DAY = "21"
 # One flag. "owner" hides TikTok and Shorts except for the owner account.
 # "all" shows them to everyone. Keep this in step with accounts.config.js.
 TIKTOK_AUDIENCE = "owner"

@@ -7047,5 +7047,9 @@ SI18n.addPack("ru", {
   "Steady X profile reads": "Надёжная загрузка профилей X",
   "X profiles and linked X accounts retry a failed read, page further for replies and keep what they already showed. Off reads one page once.": "Профили X и привязанные аккаунты X повторяют неудачную загрузку, подгружают больше страниц ответов и сохраняют уже показанное. Выключено: одна страница, одна попытка.",
   "Follow many TikTok accounts": "Много аккаунтов TikTok",
-  "Follow up to 2000 TikTok accounts in Shorts. Off keeps the old limit of 50 for new accounts; nothing already added is removed.": "Отслеживайте до 2000 аккаунтов TikTok в Shorts. Если выключено, для новых аккаунтов действует прежний предел в 50; уже добавленные не удаляются."
+  "Follow up to 2000 TikTok accounts in Shorts. Off keeps the old limit of 50 for new accounts; nothing already added is removed.": "Отслеживайте до 2000 аккаунтов TikTok в Shorts. Если выключено, для новых аккаунтов действует прежний предел в 50; уже добавленные не удаляются.",
+  "R2 spending guard": "Защита от расходов R2",
+  "Counts every R2 call and stops backups and caches at 70% of the free monthly allowance, and everything except uploads and deletions at 85%. Off lifts those steps; the stop at 95% always stays, so R2 never bills.": "Считает каждый вызов R2 и останавливает резервные копии и кэши на 70% бесплатного месячного лимита, а всё, кроме загрузок и удалений, — на 85%. Если выключено, эти шаги снимаются; остановка на 95% остаётся всегда, так что R2 никогда не выставит счёт.",
+  "Spending freeze": "Заморозка расходов",
+  "On: stops every R2 write and read at once except uploads and deletions, as if the free allowance were 85% used. Off by default.": "Включено: сразу останавливает все записи и чтения R2, кроме загрузок и удалений, как будто бесплатный лимит израсходован на 85%. По умолчанию выключено."
 });

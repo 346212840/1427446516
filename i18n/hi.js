@@ -7035,5 +7035,9 @@ SI18n.addPack("hi", {
   "Steady X profile reads": "X प्रोफ़ाइल की स्थिर लोडिंग",
   "X profiles and linked X accounts retry a failed read, page further for replies and keep what they already showed. Off reads one page once.": "X प्रोफ़ाइल और जुड़े X खाते विफल लोड को दोबारा आज़माते हैं, जवाबों के और पेज लाते हैं और पहले दिखाया हुआ बनाए रखते हैं। बंद होने पर एक पेज एक बार पढ़ा जाता है।",
   "Follow many TikTok accounts": "कई TikTok खाते फ़ॉलो करें",
-  "Follow up to 2000 TikTok accounts in Shorts. Off keeps the old limit of 50 for new accounts; nothing already added is removed.": "शॉर्ट्स में 2000 तक TikTok खाते फ़ॉलो करें। बंद करने पर नए खातों के लिए पुरानी 50 की सीमा रहती है; पहले से जोड़ा कुछ भी नहीं हटता।"
+  "Follow up to 2000 TikTok accounts in Shorts. Off keeps the old limit of 50 for new accounts; nothing already added is removed.": "शॉर्ट्स में 2000 तक TikTok खाते फ़ॉलो करें। बंद करने पर नए खातों के लिए पुरानी 50 की सीमा रहती है; पहले से जोड़ा कुछ भी नहीं हटता।",
+  "R2 spending guard": "R2 खर्च सुरक्षा",
+  "Counts every R2 call and stops backups and caches at 70% of the free monthly allowance, and everything except uploads and deletions at 85%. Off lifts those steps; the stop at 95% always stays, so R2 never bills.": "हर R2 कॉल गिनता है और मुफ़्त मासिक सीमा के 70% पर बैकअप और कैश रोक देता है, और 85% पर अपलोड और हटाने के अलावा सब कुछ। बंद करने पर ये कदम हट जाते हैं; 95% पर रोक हमेशा रहती है, इसलिए R2 कभी बिल नहीं करता।",
+  "Spending freeze": "खर्च रोक",
+  "On: stops every R2 write and read at once except uploads and deletions, as if the free allowance were 85% used. Off by default.": "चालू: अपलोड और हटाने के अलावा हर R2 लिखना और पढ़ना तुरंत रोक देता है, मानो मुफ़्त सीमा 85% इस्तेमाल हो चुकी हो। डिफ़ॉल्ट रूप से बंद।"
 });

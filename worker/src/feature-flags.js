@@ -243,7 +243,15 @@ export const FEATURES = {
   /* Follow up to 2000 TikTok accounts in Shorts (and unlock as many). On by
      default. Off keeps the old cap of 50 for new adds; nothing already
      saved is dropped. */
-  tiktok_accounts_many: { paths: [] }
+  tiktok_accounts_many: { paths: [] },
+  /* R2 spending guard (src/r2-meter.js): counts every R2 call and stops
+     backups and caches at 70% of the free monthly allowance, everything but
+     uploads and deletions at 85%. On by default. Off lifts those two steps;
+     the stop at 95% always applies, so R2 never bills. */
+  r2_caps: { paths: [] },
+  /* Spending freeze. Off by default. On: at once stops every R2 write and
+     read except uploads and deletions, as if the budget were at 85%. */
+  spend_kill_switch: { paths: [], defaultOff: true }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 

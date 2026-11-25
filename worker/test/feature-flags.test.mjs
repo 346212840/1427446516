@@ -77,7 +77,7 @@ test("the owner can turn heavy features fully off", async () => {
 
   let pub = await call("/v1/features");
   assert.equal(pub.status, 200);
-  assert.deepEqual(pub.body.off, ["nostr", "nft", "telegram_account_send", "fish_audio", "calls"], "Nostr, gift NFTs, account voice send, Fish Audio and Calls start off until the owner turns them on");
+  assert.deepEqual(pub.body.off, ["nostr", "nft", "telegram_account_send", "fish_audio", "calls", "spend_kill_switch"], "Nostr, gift NFTs, account voice send, Fish Audio, Calls and the spending freeze start off until the owner turns them on");
   assert.equal(pub.body.features.includes("storage_recordings"), true);
   assert.equal(pub.body.features.includes("image_copy"), true);
   assert.equal(pub.body.off.includes("image_copy"), false);
@@ -89,15 +89,15 @@ test("the owner can turn heavy features fully off", async () => {
     assert.equal(res.status, 204, path + " is off by default");
   }
   const nostrOn = await call("/v1/owner/features", { method: "POST", token: owner.body.token, body: { name: "nostr", off: false } });
-  assert.deepEqual(nostrOn.body.off, ["nft", "telegram_account_send", "fish_audio", "calls"]);
+  assert.deepEqual(nostrOn.body.off, ["nft", "telegram_account_send", "fish_audio", "calls", "spend_kill_switch"]);
   const nftOn = await call("/v1/owner/features", { method: "POST", token: owner.body.token, body: { name: "nft", off: false } });
-  assert.deepEqual(nftOn.body.off, ["telegram_account_send", "fish_audio", "calls"]);
+  assert.deepEqual(nftOn.body.off, ["telegram_account_send", "fish_audio", "calls", "spend_kill_switch"]);
   const nftConfig = await call("/v1/nft/config");
   assert.equal(nftConfig.status, 200);
   assert.equal(nftConfig.body.ready, false, "on but without a contract address, nothing can be minted");
   assert.equal((await call("/v1/nostr/posts/" + "a".repeat(32))).status, 404, "on: unknown posts have no Nostr link");
   pub = await call("/v1/features");
-  assert.deepEqual(pub.body.off, ["telegram_account_send", "fish_audio", "calls"]);
+  assert.deepEqual(pub.body.off, ["telegram_account_send", "fish_audio", "calls", "spend_kill_switch"]);
   assert.ok(pub.body.features.includes("shorts") && pub.body.features.includes("stories") && pub.body.features.includes("lives") && pub.body.features.includes("telegram"));
 
   const denied = await call("/v1/owner/features", { method: "POST", token: member.token, body: { name: "shorts", off: true } });
@@ -115,7 +115,7 @@ test("the owner can turn heavy features fully off", async () => {
     assert.equal(res.status, 200, JSON.stringify(res.body));
   }
   pub = await call("/v1/features");
-  assert.deepEqual(pub.body.off.sort(), ["calls", "fish_audio", "lives", "shorts", "stories", "telegram", "telegram_account_send"]);
+  assert.deepEqual(pub.body.off.sort(), ["calls", "fish_audio", "lives", "shorts", "spend_kill_switch", "stories", "telegram", "telegram_account_send"]);
 
   const checks = [
     ["/v1/owner/tiktok", "GET", owner.body.token, 204],
@@ -144,7 +144,7 @@ test("the owner can turn heavy features fully off", async () => {
   assert.equal(row.state, "live", "the live sweep does not run while lives are off");
 
   const on = await call("/v1/owner/features", { method: "POST", token: owner.body.token, body: { name: "lives", off: false } });
-  assert.deepEqual(on.body.off.sort(), ["calls", "fish_audio", "shorts", "stories", "telegram", "telegram_account_send"]);
+  assert.deepEqual(on.body.off.sort(), ["calls", "fish_audio", "shorts", "spend_kill_switch", "stories", "telegram", "telegram_account_send"]);
   await worker.scheduled({ cron: "* * * * *", scheduledTime: new Date(Date.now() + 120 * 1000) });
   row = await db.prepare("SELECT state FROM live_sessions WHERE id = 'stale-live'").first();
   assert.equal(row.state, "ended", "the live sweep runs again once lives are back on");

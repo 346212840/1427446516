@@ -20,6 +20,7 @@ import { handleFish } from "./fish-audio.js";
 import { handleCommunityRoute, COMMUNITY_SCHEMA } from "./communities.js";
 import { handleFederationRoute, FEDERATION_SCHEMA, isPublicFederationRoute } from "./federation.js";
 import { usageReport } from "./usage.js";
+import { meterEnv, meterOn, syncR2Usage, syncDue, currentBudget, meterStats, flushMeter } from "./r2-meter.js";
 import { quotaPct, refreshQuota, d1ReadPct } from "./quota.js";
 import { withD1Saver } from "./d1-saver.js";
 import { guardClass, guardKey, takeToken, noteGuardTier, tokenGuardKey, publishPulse, pulseResponse } from "./guard.js";
@@ -6259,7 +6260,18 @@ async function route(request, env, ctx) {
     if (gate.error) return gate.error;
     const report = Object.assign({}, await usageReport(env, Date.now()));
     report.pool = await poolUsage(env);
+    if (meterOn(env)) report.r2Budget = Object.assign(await currentBudget(env, Date.now()), meterStats());
     return json(200, report);
+  }
+  // R2 spending guard (src/r2-meter.js): the owner and the sync jobs (bot
+  // secret) read the current level before optional R2 writes.
+  if (path === "/v1/r2-budget" && request.method === "GET") {
+    if (!bearerIsBot(env, request)) {
+      const gate = await requireOwner(request, env);
+      if (gate.error) return gate.error;
+    }
+    if (!meterOn(env)) return json(200, { on: false });
+    return json(200, Object.assign({ on: true }, await currentBudget(env, Date.now())), { "cache-control": "no-store" });
   }
   if (path === "/v1/owner/accounts" && (request.method === "GET" || request.method === "POST")) return handleAddedAccounts(request, env, url);
   const addedAccount = path.match(/^\/v1\/owner\/accounts\/([^/]+)$/);
@@ -6655,6 +6667,7 @@ export async function withEtag(request, response) {
 /* Render's job loop: the offloaded jobs, all at once, against the same D1/R2.
    Each job keeps its own inner pool limits. */
 export async function runBackgroundJobs(env, at, only) {
+  env = meterEnv(env, null);
   bindRequestOwner(env);
   const now = Number(at) || Date.now();
   const off = await readFlags(env, now);
@@ -6689,6 +6702,8 @@ export default {
   async fetch(request, env, ctx) {
     let path = "";
     try {
+      // Every R2 call is counted and checked against the free allowance.
+      env = meterEnv(env, ctx);
       bindRequestOwner(env);
       const url = new URL(request.url);
       path = url.pathname;
@@ -6705,11 +6720,13 @@ export default {
       const response = scopeLimit(await withEtag(request, await withBlocks(request, await withDisplayNames(request, env, await withD1Saver(request, () => route(request, env, ctx), saverDeps(ctx)), displayNameDeps(env)))));
       return withCors(request, env, response);
     } catch (err) {
+      if (err && err.code === "r2_budget") return withCors(request, env, json(503, { error: "storage_budget" }, { "retry-after": "3600" }));
       logError(areaFor(path, request.method), err);
       return json(500, { error: "unavailable" });
     }
   },
   async scheduled(event, env, ctx) {
+    env = meterEnv(env, ctx);
     bindRequestOwner(env);
     const at = Number(event && event.scheduledTime) || Date.now();
     // Features the owner turned off do no cron work at all.
@@ -6743,6 +6760,8 @@ export default {
     if (minute === 23) jobs.push(sweepNewsletters(env.DATA, at).catch(() => 0));
     if (minute === 7) jobs.push(refreshWanted(env, at).catch(() => null));
     jobs.push(publishPulse(env, at));
+    // R2 spending guard: this cycle's totals from Cloudflare analytics.
+    if (syncDue(at)) jobs.push(syncR2Usage(env, at).catch((err) => logError("r2-meter", err)));
     jobs.push(maybeBackupD1(env, at));
     // Every ten minutes outside quiet hours: keep the Render backup awake.
     jobs.push(warmRender(env, at).catch(() => null));
@@ -6755,7 +6774,7 @@ export default {
       for (let i = 0; i < results.length; i++) {
         if (results[i].status === "rejected") logError("cron", results[i].reason);
       }
-    });
+    }).then(() => flushMeter(env).catch(() => null));
     if (ctx && ctx.waitUntil) ctx.waitUntil(all);
     else await all;
   }
