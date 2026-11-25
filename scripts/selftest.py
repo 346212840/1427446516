@@ -8,6 +8,7 @@ import html as html_lib
 import json
 import os
 import re
+import hashlib
 import shutil
 import sys
 import tempfile
@@ -304,6 +305,40 @@ def accounts_wall_checks() -> None:
                 and (site / "feeds.json").is_file() is False,
                 "a shell deploy keeps the remote catalog and still locks the wall",
             )
+
+            shell(site)
+            uploaded.clear()
+            (source / "comments").mkdir(exist_ok=True)
+            comment = b'{"replies":[{"id":"1"}]}\n'
+            (source / "comments" / "1001.json").write_bytes(comment)
+            (source / "comments" / "1002.json").write_bytes(b'{"replies":[{"id":"2"}]}\n')
+            saved_lists = []
+            original_digests = accounts_publish.load_publish_digests
+            original_save = accounts_publish.save_publish_digests
+            accounts_publish.fetch_health = up
+            accounts_publish.upload = fake_upload
+            accounts_publish.load_publish_digests = lambda now=None: ({"comments/1001.json": hashlib.sha256(comment).hexdigest()}, 1000.0)
+            accounts_publish.save_publish_digests = lambda digests, at: saved_lists.append((dict(digests), at))
+            try:
+                code = accounts_publish.publish(site, source)
+            finally:
+                accounts_publish.fetch_health = original_health
+                accounts_publish.upload = original_upload
+                accounts_publish.load_publish_digests = original_digests
+                accounts_publish.save_publish_digests = original_save
+            check(
+                code == 0
+                and "comments/1001.json" not in uploaded
+                and "comments/1002.json" in uploaded
+                and "lastgood/comments/1002.json" in uploaded
+                and "feeds.json" in uploaded
+                and len(saved_lists) == 1
+                and saved_lists[0][1] == 1000.0
+                and set(saved_lists[0][0]) == {"comments/1001.json", "comments/1002.json"},
+                "an unchanged comments file is not uploaded to R2 again and the digest list keeps its age",
+            )
+            check(accounts_publish.fresh_digests({"at": 0, "files": {"a": "b"}}, 2 * 86400)[0] == {}, "a digest list older than a day is ignored")
+            shutil.rmtree(source / "comments", ignore_errors=True)
 
             probed = []
 

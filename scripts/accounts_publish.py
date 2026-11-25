@@ -181,6 +181,55 @@ def upload(key: str, payload: bytes) -> None:
     _request(url, payload, "PUT")
 
 
+# R2 bills every PutObject. Each deploy re-uploaded every comments/ and data/
+# file plus its lastgood/ copy (about 6,000 writes a day) even when nothing
+# changed. A small digest list in R2 lets unchanged files be skipped. Digests
+# older than a day are ignored, so everything is re-sent at least daily.
+DIGEST_KEY = "sync/publish-digests.json"
+DIGEST_MAX_AGE = 24 * 3600
+
+
+def dedupe_key(key: str) -> bool:
+    return key.startswith("comments/") or key.startswith("data/")
+
+
+def load_publish_digests(now: float | None = None) -> tuple:
+    """(digests, list start time). Empty when missing, unreadable or stale."""
+    started = now if now is not None else time.time()
+    account = _account()
+    token = _token()
+    if not account or not token:
+        return {}, started
+    url = f"https://api.cloudflare.com/client/v4/accounts/{account}/r2/buckets/viktorych-data/objects/{DIGEST_KEY}"
+    req = urllib.request.Request(url, headers={"Authorization": "Bearer " + token})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as res:
+            doc = json.loads(res.read().decode("utf-8"))
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+        return {}, started
+    return fresh_digests(doc, started)
+
+
+def fresh_digests(doc, now: float) -> tuple:
+    if not isinstance(doc, dict) or not isinstance(doc.get("files"), dict):
+        return {}, now
+    try:
+        at = float(doc.get("at") or 0)
+    except (TypeError, ValueError):
+        at = 0.0
+    if now - at > DIGEST_MAX_AGE or at > now + 3600:
+        return {}, now
+    return {str(k): str(v) for k, v in doc["files"].items()}, at
+
+
+def save_publish_digests(digests: dict, started: float) -> None:
+    payload = json.dumps({"at": started, "files": digests}, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    try:
+        upload(DIGEST_KEY, payload)
+    except (urllib.error.URLError, TimeoutError, OSError):
+        print("[accounts] digest list not saved; the next deploy re-sends")
+
+
 def remote_exists(key: str) -> bool:
     """True when R2 already has this object. A miss or a transport error is False.
 
@@ -422,6 +471,8 @@ def publish(site: Path, source: Path, preserve_remote: bool = False) -> int:
             from r2_catalog import usable_catalog
 
             hashes, deletion_salt = load_deletions(api)
+            digests, digests_at = load_publish_digests() if any(dedupe_key(k) for k in files) else (None, 0.0)
+            saved = dict(digests or {})
             for key in sorted(files):
                 payload = files[key].read_bytes()
                 if not usable_catalog(payload, key):
@@ -432,8 +483,15 @@ def publish(site: Path, source: Path, preserve_remote: bool = False) -> int:
                     print("[accounts] deletion scrub skipped")
                 if not usable_catalog(payload, key):
                     continue
+                digest = hashlib.sha256(payload).hexdigest() if digests is not None and dedupe_key(key) else ""
+                if digest and digests.get(key) == digest:
+                    continue
                 upload(key, payload)
                 upload("lastgood/" + key, payload)
+                if digest:
+                    saved[key] = digest
+            if digests is not None and saved != digests:
+                save_publish_digests(saved, digests_at)
             owner = source / "owner" / "tiktok.json"
             if owner.is_file():
                 payload = owner.read_bytes()
