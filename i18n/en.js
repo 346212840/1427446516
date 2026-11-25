@@ -7043,5 +7043,7 @@ SI18n.addPack("en", {
   "Calls desktop layout": "Calls desktop layout",
   "Call screens fill a computer window like Teams: centred content, larger tiles, chat as a side panel on wide windows and a centred call bar. Phones are unchanged. Off keeps the earlier layout.": "Call screens fill a computer window like Teams: centred content, larger tiles, chat as a side panel on wide windows and a centred call bar. Phones are unchanged. Off keeps the earlier layout.",
   "Steady X profile reads": "Steady X profile reads",
-  "X profiles and linked X accounts retry a failed read, page further for replies and keep what they already showed. Off reads one page once.": "X profiles and linked X accounts retry a failed read, page further for replies and keep what they already showed. Off reads one page once."
+  "X profiles and linked X accounts retry a failed read, page further for replies and keep what they already showed. Off reads one page once.": "X profiles and linked X accounts retry a failed read, page further for replies and keep what they already showed. Off reads one page once.",
+  "Follow many TikTok accounts": "Follow many TikTok accounts",
+  "Follow up to 2000 TikTok accounts in Shorts. Off keeps the old limit of 50 for new accounts; nothing already added is removed.": "Follow up to 2000 TikTok accounts in Shorts. Off keeps the old limit of 50 for new accounts; nothing already added is removed."
 });

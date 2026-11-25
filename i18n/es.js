@@ -7046,5 +7046,7 @@ SI18n.addPack("es", {
   "Calls desktop layout": "Diseño de escritorio de llamadas",
   "Call screens fill a computer window like Teams: centred content, larger tiles, chat as a side panel on wide windows and a centred call bar. Phones are unchanged. Off keeps the earlier layout.": "Las pantallas de llamada llenan la ventana del ordenador como en Teams: contenido centrado, mosaicos más grandes, el chat como panel lateral en ventanas anchas y una barra de llamada centrada. En el teléfono no cambia nada. Desactivado mantiene el diseño anterior.",
   "Steady X profile reads": "Lectura estable de perfiles de X",
-  "X profiles and linked X accounts retry a failed read, page further for replies and keep what they already showed. Off reads one page once.": "Los perfiles de X y las cuentas de X vinculadas reintentan una lectura fallida, cargan más páginas de respuestas y conservan lo que ya mostraban. Desactivado lee una sola página una vez."
+  "X profiles and linked X accounts retry a failed read, page further for replies and keep what they already showed. Off reads one page once.": "Los perfiles de X y las cuentas de X vinculadas reintentan una lectura fallida, cargan más páginas de respuestas y conservan lo que ya mostraban. Desactivado lee una sola página una vez.",
+  "Follow many TikTok accounts": "Seguir muchas cuentas de TikTok",
+  "Follow up to 2000 TikTok accounts in Shorts. Off keeps the old limit of 50 for new accounts; nothing already added is removed.": "Sigue hasta 2000 cuentas de TikTok en Shorts. Desactivado mantiene el límite anterior de 50 para cuentas nuevas; no se quita nada de lo ya añadido."
 });

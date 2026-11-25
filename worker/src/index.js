@@ -4030,7 +4030,16 @@ async function serveKeptOriginal(request, env, key, allowAny) {
 }
 
 const TIKTOK_ACCOUNTS_KEY = "owner/tiktok-accounts.json";
-const TIKTOK_ACCOUNT_CAP = 50;
+// The list is one small R2 JSON object (about 200 bytes per account), so
+// thousands fit. 50 was an early guess, not a storage limit; it stays only
+// as the cap when the tiktok_accounts_many switch is off.
+const TIKTOK_ACCOUNT_CAP = 2000;
+const TIKTOK_ACCOUNT_CAP_SMALL = 50;
+
+async function tiktokAccountCap(env) {
+  const off = await readFlags(env);
+  return off && off.tiktok_accounts_many ? TIKTOK_ACCOUNT_CAP_SMALL : TIKTOK_ACCOUNT_CAP;
+}
 
 function emptyTikTokAccounts() {
   return { added: [], removed: [] };
@@ -4582,7 +4591,7 @@ async function handleTikTokAccounts(request, env) {
     return json(200, { added: doc.added.map(publicTikTokAccount) });
   }
   if (request.method === "POST") {
-    const hit = await rateHit(env, bucket + ":add", 20, 60 * 60 * 1000);
+    const hit = await rateHit(env, bucket + ":add", 300, 60 * 60 * 1000);
     if (!hit.ok) return limited(hit);
     const body = await readJson(request, 2000);
     if (body.error) return json(400, { error: body.error });
@@ -4593,13 +4602,14 @@ async function handleTikTokAccounts(request, env) {
     if (await bannedKeys(env, ["tiktok:" + typed])) return json(403, { error: "banned" });
     const doc = await readTikTokAccounts(env);
     const existing = doc.added.find((item) => tiktokRowMatches(item, typed));
-    if (!existing && doc.added.length >= TIKTOK_ACCOUNT_CAP) return json(400, { error: "full" });
+    const cap = await tiktokAccountCap(env);
+    if (!existing && doc.added.length >= cap) return json(400, { error: "full", cap });
     const preview = await previewTikTokProfile(typed);
     const handle = preview.handle && sameTikTokHandle(preview.handle, typed) && TIKTOK_HANDLE.test(preview.handle) ? preview.handle : typed;
     doc.removed = doc.removed.filter((item) => !sameTikTokHandle(item, handle) && !sameTikTokHandle(item, typed));
     let row = doc.added.find((item) => tiktokRowMatches(item, handle) || tiktokRowMatches(item, typed));
     if (!row) {
-      if (doc.added.length >= TIKTOK_ACCOUNT_CAP) return json(400, { error: "full" });
+      if (doc.added.length >= cap) return json(400, { error: "full", cap });
       row = {
         handle,
         name: preview.name || "",

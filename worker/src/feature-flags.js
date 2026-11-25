@@ -239,7 +239,11 @@ export const FEATURES = {
      read is tried again (the browser twice, then the /v1/x mirror; the
      mirror once), replies page up to three pages, and a refresh keeps what
      was already shown. On by default. Off reads one page once, as before. */
-  linked_x_steady: { paths: [] }
+  linked_x_steady: { paths: [] },
+  /* Follow up to 2000 TikTok accounts in Shorts (and unlock as many). On by
+     default. Off keeps the old cap of 50 for new adds; nothing already
+     saved is dropped. */
+  tiktok_accounts_many: { paths: [] }
 };
 export const FEATURE_NAMES = Object.keys(FEATURES);
 

@@ -148,8 +148,8 @@
   function saveAcctCache() {
     try {
       localStorage.setItem(ACCT_KEY, JSON.stringify({
-        added: addedAccounts.slice(0, 60).map(function (row) { return { handle: row.handle, name: row.name || "", avatar: typeof row.avatar === "string" && row.avatar.indexOf("https://") === 0 ? row.avatar : "", builtIn: !!row.builtIn }; }),
-        unlocked: unlockedAccounts.slice(0, 60)
+        added: addedAccounts.slice(0, 2000).map(function (row) { return { handle: row.handle, name: row.name || "", avatar: typeof row.avatar === "string" && row.avatar.indexOf("https://") === 0 ? row.avatar : "", builtIn: !!row.builtIn }; }),
+        unlocked: unlockedAccounts.slice(0, 2000)
       }));
     } catch (err) { /* private mode */ }
   }
@@ -1889,15 +1889,21 @@
   function freshOn() {
     return !!(ownerHere() && (!window.ViktorychServerFeature || window.ViktorychServerFeature("shorts_live_fresh")));
   }
+  /* With hundreds of accounts only 12 fit in one pass, so the ones never
+     checked or checked longest ago go first; each minute's pass takes the
+     next oldest, and every account gets its turn. */
   function staleRows(rows, now) {
-    return (rows || []).filter(function (row) {
+    var due = [];
+    (rows || []).forEach(function (row, index) {
       var key = foldHandle(row && row.handle);
-      if (!key) return false;
-      if (freshTried[key] && now - freshTried[key] < 60000) return false;
+      if (!key) return;
+      if (freshTried[key] && now - freshTried[key] < 60000) return;
       var status = liveStatus(row.handle) || {};
       var at = Date.parse(status.checkedAt || "") || 0;
-      return !at || now - at > FRESH_AGE_MS;
-    }).slice(0, 12);
+      if (!at || now - at > FRESH_AGE_MS) due.push({ row: row, at: at, index: index });
+    });
+    due.sort(function (a, b) { return a.at - b.at || a.index - b.index; });
+    return due.slice(0, 12).map(function (item) { return item.row; });
   }
   function refreshStale() {
     if (typeof document !== "undefined" && document.visibilityState === "hidden") return;

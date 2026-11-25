@@ -7033,5 +7033,7 @@ SI18n.addPack("hi", {
   "Calls desktop layout": "कॉल का डेस्कटॉप लेआउट",
   "Call screens fill a computer window like Teams: centred content, larger tiles, chat as a side panel on wide windows and a centred call bar. Phones are unchanged. Off keeps the earlier layout.": "कॉल स्क्रीन Teams की तरह कंप्यूटर की पूरी विंडो भरती हैं: बीच में सामग्री, बड़ी टाइलें, चौड़ी विंडो में चैट साइड पैनल में और बीच में कॉल बार। फ़ोन पर कुछ नहीं बदलता। बंद करने पर पुराना लेआउट रहता है।",
   "Steady X profile reads": "X प्रोफ़ाइल की स्थिर लोडिंग",
-  "X profiles and linked X accounts retry a failed read, page further for replies and keep what they already showed. Off reads one page once.": "X प्रोफ़ाइल और जुड़े X खाते विफल लोड को दोबारा आज़माते हैं, जवाबों के और पेज लाते हैं और पहले दिखाया हुआ बनाए रखते हैं। बंद होने पर एक पेज एक बार पढ़ा जाता है।"
+  "X profiles and linked X accounts retry a failed read, page further for replies and keep what they already showed. Off reads one page once.": "X प्रोफ़ाइल और जुड़े X खाते विफल लोड को दोबारा आज़माते हैं, जवाबों के और पेज लाते हैं और पहले दिखाया हुआ बनाए रखते हैं। बंद होने पर एक पेज एक बार पढ़ा जाता है।",
+  "Follow many TikTok accounts": "कई TikTok खाते फ़ॉलो करें",
+  "Follow up to 2000 TikTok accounts in Shorts. Off keeps the old limit of 50 for new accounts; nothing already added is removed.": "शॉर्ट्स में 2000 तक TikTok खाते फ़ॉलो करें। बंद करने पर नए खातों के लिए पुरानी 50 की सीमा रहती है; पहले से जोड़ा कुछ भी नहीं हटता।"
 });

@@ -190,7 +190,12 @@ console.log("Testing stale live rows...");
     { handle: "nocheck", live: false }
   ]);
   const due = shorts.staleRows([{ handle: "freshclip" }, { handle: "oldclip" }, { handle: "nocheck" }], now).map((row) => row.handle);
-  assert.deepStrictEqual(due, ["oldclip", "nocheck"], "Only rows checked over two minutes ago (or never) are re-checked");
+  assert.deepStrictEqual(due, ["nocheck", "oldclip"], "Only rows checked over two minutes ago (or never) are re-checked, never-checked first");
+  shorts.setLiveState(Array.from({ length: 30 }, (_, i) => ({ handle: "aged" + i, live: false, checkedAt: new Date(now - (i + 3) * 60000).toISOString() })));
+  const oldest = shorts.staleRows(Array.from({ length: 30 }, (_, i) => ({ handle: "aged" + i })), now).map((row) => row.handle);
+  assert.strictEqual(oldest.length, 12, "Still at most 12 re-checks per pass with many accounts");
+  assert.strictEqual(oldest[0], "aged29", "The account checked longest ago goes first");
+  assert(!oldest.includes("aged0"), "The most recently checked account waits for a later pass");
   const many = Array.from({ length: 20 }, (_, i) => ({ handle: "bulk" + i }));
   assert.strictEqual(shorts.staleRows(many, now).length, 12, "At most 12 re-checks per pass");
   shorts.setLiveState([]);
