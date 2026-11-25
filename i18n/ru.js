@@ -7045,5 +7045,7 @@ SI18n.addPack("ru", {
   "Calls desktop layout": "Раскладка звонков для компьютера",
   "Call screens fill a computer window like Teams: centred content, larger tiles, chat as a side panel on wide windows and a centred call bar. Phones are unchanged. Off keeps the earlier layout.": "Экраны звонка заполняют окно компьютера, как в Teams: контент по центру, крупные плитки, чат боковой панелью в широком окне и панель звонка по центру. На телефоне ничего не меняется. Выключено — прежняя раскладка.",
   "Steady X profile reads": "Надёжная загрузка профилей X",
-  "X profiles and linked X accounts retry a failed read, page further for replies and keep what they already showed. Off reads one page once.": "Профили X и привязанные аккаунты X повторяют неудачную загрузку, подгружают больше страниц ответов и сохраняют уже показанное. Выключено: одна страница, одна попытка."
+  "X profiles and linked X accounts retry a failed read, page further for replies and keep what they already showed. Off reads one page once.": "Профили X и привязанные аккаунты X повторяют неудачную загрузку, подгружают больше страниц ответов и сохраняют уже показанное. Выключено: одна страница, одна попытка.",
+  "Follow many TikTok accounts": "Много аккаунтов TikTok",
+  "Follow up to 2000 TikTok accounts in Shorts. Off keeps the old limit of 50 for new accounts; nothing already added is removed.": "Отслеживайте до 2000 аккаунтов TikTok в Shorts. Если выключено, для новых аккаунтов действует прежний предел в 50; уже добавленные не удаляются."
 });

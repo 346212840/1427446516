@@ -565,3 +565,27 @@ test("owner unlocks and locks one account from the sheet", async () => {
   assert.equal(off.status, 200);
   assert.deepEqual(off.body.handles, ["fixed_clip"]);
 });
+
+test("the owner can follow many TikTok accounts (past the old cap of 50)", async () => {
+  assert.ok(ownerToken, "owner signed up in the first test");
+  const DATA = await mf.getR2Bucket("DATA");
+  const rows = Array.from({ length: 120 }, (_, i) => ({ handle: "bulk_clip" + i, name: "", avatar: "", addedAt: "2026-11-25T00:00:00Z" }));
+  await DATA.put("owner/tiktok-accounts.json", JSON.stringify({ added: rows, removed: [] }));
+  for (let i = 0; i < 25; i++) {
+    const added = await call("/v1/owner/tiktok/accounts", { method: "POST", ip: "203.0.113.120", token: ownerToken, body: { handle: "more_clip" + i } });
+    assert.equal(added.status, 200, "add number " + (121 + i) + " is accepted and not rate limited");
+  }
+  const list = await call("/v1/owner/tiktok/accounts", { ip: "203.0.113.121", token: ownerToken });
+  assert.equal(list.status, 200);
+  assert.equal(list.body.added.length, 145, "nothing is trimmed on save");
+  const off = await call("/v1/owner/features", { method: "POST", ip: "203.0.113.122", token: ownerToken, body: { name: "tiktok_accounts_many", off: true } });
+  assert.equal(off.status, 200);
+  const full = await call("/v1/owner/tiktok/accounts", { method: "POST", ip: "203.0.113.123", token: ownerToken, body: { handle: "one_more_clip" } });
+  assert.equal(full.status, 400);
+  assert.equal(full.body.error, "full");
+  assert.equal(full.body.cap, 50);
+  const kept = await call("/v1/owner/tiktok/accounts", { ip: "203.0.113.124", token: ownerToken });
+  assert.equal(kept.body.added.length, 145, "switching off never drops saved accounts");
+  const on = await call("/v1/owner/features", { method: "POST", ip: "203.0.113.125", token: ownerToken, body: { name: "tiktok_accounts_many", off: false } });
+  assert.equal(on.status, 200);
+});

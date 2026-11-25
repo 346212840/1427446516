@@ -59,7 +59,7 @@ export function fixedUnlocked(env) {
 }
 
 const UNLOCK_KEY = "owner/tiktok-unlocked.json";
-export const UNLOCK_CAP = 200;
+export const UNLOCK_CAP = 2000;
 
 /* Unlock or lock one handle in owner/tiktok-unlocked.json. Returns
    { ok, error } where error is "fixed" (in the secret) or "full". */
