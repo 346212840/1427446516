@@ -5400,6 +5400,12 @@ def gdrive_checks() -> None:
     import secret_scan
     check(secret_scan.selftest() == 0, "the secret and personal-data scan catches its samples")
     check(secret_scan.report(secret_scan.scan(secret_scan.git_files(False), False)) == 0, "no secret or personal data in the tracked tree")
+    import r2_budget
+
+    check(r2_budget.selftest() == 0, "the sync jobs check the Worker's R2 spending level before optional writes")
+    for name in ("telegram_backup", "tiktok_sync", "tiktok_record", "discord_live", "backup_full", "ia_to_r2", "radio_loop", "accounts_publish"):
+        text = (ROOT / "scripts" / (name + ".py")).read_text(encoding="utf-8")
+        check("if not _r2_allow(" in text, "%s asks the R2 spending guard before it writes" % name)
 
 
 if __name__ == "__main__":

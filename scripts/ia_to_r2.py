@@ -208,7 +208,18 @@ def object_exists(token: str, account: str, key: str) -> bool:
     return status == 200
 
 
+def _r2_allow(key: str) -> bool:
+    try:
+        import r2_budget
+    except ImportError:
+        return True
+    return r2_budget.allow(key)
+
+
 def put_object(token: str, account: str, key: str, body: bytes, content_type: str) -> None:
+    # R2 spending guard: skip optional writes near the free allowance.
+    if not _r2_allow(key):
+        return
     status, payload = _api(token, account, key, "PUT", body, content_type)
     if status not in {200, 201, 204}:
         detail = r2_usage.scrub(payload[:160].decode("utf-8", "replace"), _secrets())

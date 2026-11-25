@@ -233,7 +233,18 @@ def find_bucket() -> str:
     raise SystemExit("no R2 bucket holds loop/current.json")
 
 
+def _r2_allow(key: str) -> bool:
+    try:
+        import r2_budget
+    except ImportError:
+        return True
+    return r2_budget.allow(key)
+
+
 def put_object(bucket: str, key: str, path: Path, content_type: str, cache: str) -> None:
+    # R2 spending guard: skip optional writes near the free allowance.
+    if not _r2_allow(key):
+        return
     quoted = urllib.parse.quote(key, safe="/")
     url = "https://api.cloudflare.com/client/v4/accounts/%s/r2/buckets/%s/objects/%s" % (
         _account(),

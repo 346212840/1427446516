@@ -1634,7 +1634,18 @@ def delete_object(token: str, account: str, bucket: str, key: str) -> None:
     cf_json("DELETE", url, token)
 
 
+def _r2_allow(key: str) -> bool:
+    try:
+        import r2_budget
+    except ImportError:
+        return True
+    return r2_budget.allow(key)
+
+
 def put_bytes(token: str, account: str, bucket: str, key: str, payload: bytes, content_type: str) -> None:
+    # R2 spending guard: skip optional writes near the free allowance.
+    if not _r2_allow(key):
+        return
     url = f"https://api.cloudflare.com/client/v4/accounts/{account}/r2/buckets/{urllib.parse.quote(bucket)}/objects/{quote_key(key)}"
     cf_json("PUT", url, token, payload, content_type)
 
@@ -1700,6 +1711,9 @@ def put_object_file(token: str, account: str, bucket: str, key: str, path: Path,
     A dropped connection is retried against the same key. If the first PUT
     already landed, the retry sees that size and does not write it again.
     """
+    # R2 spending guard: skip optional writes near the free allowance.
+    if not _r2_allow(key):
+        return
     url = f"https://api.cloudflare.com/client/v4/accounts/{account}/r2/buckets/{urllib.parse.quote(bucket)}/objects/{quote_key(key)}"
     if shutil.which("curl") is None and run is None:
         if path.stat().st_size > 80 * 1024 * 1024:

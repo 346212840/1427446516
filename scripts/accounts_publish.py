@@ -174,7 +174,18 @@ def catalog_seed(path: Path) -> bool:
     return isinstance(doc, dict) and doc.get("catalogSeed") is True
 
 
+def _r2_allow(key: str) -> bool:
+    try:
+        import r2_budget
+    except ImportError:
+        return True
+    return r2_budget.allow(key)
+
+
 def upload(key: str, payload: bytes) -> None:
+    # R2 spending guard: skip optional writes near the free allowance.
+    if not _r2_allow(key):
+        return
     account = _account()
     quoted = urllib.parse.quote(key, safe="/")
     url = f"https://api.cloudflare.com/client/v4/accounts/{account}/r2/buckets/viktorych-data/objects/{quoted}"

@@ -254,3 +254,16 @@ test("GET /v1/r2-budget shows levels to anyone and no counts", async () => {
   assert.equal(body.pctA, 80);
   assert.equal(body.classA, undefined, "raw counts stay owner-only");
 });
+
+test("the sync jobs sort keys exactly like the Worker", async () => {
+  const { HIGH, LOW } = await import("../src/r2-meter.js");
+  const { readFile } = await import("node:fs/promises");
+  const py = await readFile(new URL("../../scripts/r2_budget.py", import.meta.url), "utf8");
+  const list = (name) => {
+    const block = py.split("\n" + name + " = [")[1].split("\n]")[0];
+    return [...block.matchAll(/r"([^"]+)"/g)].map((m) => m[1]);
+  };
+  const js = (rows) => rows.map((re) => re.source.replace(/\\\//g, "/"));
+  assert.deepEqual(list("HIGH"), js(HIGH));
+  assert.deepEqual(list("LOW"), js(LOW));
+});

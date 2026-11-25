@@ -947,7 +947,18 @@ def probe_bitrate(url: str) -> int:
         return 0
 
 
+def _r2_allow(key: str) -> bool:
+    try:
+        import r2_budget
+    except ImportError:
+        return True
+    return r2_budget.allow(key)
+
+
 def r2_put_file(key: str, path: Path, content_type: str) -> bool:
+    # R2 spending guard: skip optional writes near the free allowance.
+    if not _r2_allow(key):
+        return False
     token, account = cloudflare_env()
     if not token or not account:
         return False
