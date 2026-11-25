@@ -6265,13 +6265,18 @@ async function route(request, env, ctx) {
   }
   // R2 spending guard (src/r2-meter.js): the owner and the sync jobs (bot
   // secret) read the current level before optional R2 writes.
+  // Anyone gets the levels and percentages only (the GitHub sync jobs read
+  // this before optional writes); the owner and the bot secret get counts.
   if (path === "/v1/r2-budget" && request.method === "GET") {
-    if (!bearerIsBot(env, request)) {
-      const gate = await requireOwner(request, env);
-      if (gate.error) return gate.error;
-    }
     if (!meterOn(env)) return json(200, { on: false });
-    return json(200, Object.assign({ on: true }, await currentBudget(env, Date.now())), { "cache-control": "no-store" });
+    const budget = await currentBudget(env, Date.now());
+    let full = bearerIsBot(env, request);
+    if (!full && bearer(request)) {
+      const gate = await requireOwner(request, env);
+      full = !gate.error;
+    }
+    const body = full ? Object.assign({ on: true }, budget) : { on: true, cycle: budget.cycle, write: budget.write, read: budget.read, pctA: budget.pctA, pctB: budget.pctB, pctS: budget.pctS, stale: budget.stale, kill: budget.kill };
+    return json(200, body, { "cache-control": "no-store" });
   }
   if (path === "/v1/owner/accounts" && (request.method === "GET" || request.method === "POST")) return handleAddedAccounts(request, env, url);
   const addedAccount = path.match(/^\/v1\/owner\/accounts\/([^/]+)$/);

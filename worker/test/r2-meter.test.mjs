@@ -39,7 +39,7 @@ function fakeDb(start, flags) {
       return null;
     }
   });
-  return { DB: { prepare: (sql) => stmt(sql, []) }, rows, writes };
+  return { DB: { prepare: (sql) => stmt(sql, []), batch: async () => [], exec: async () => ({}) }, rows, writes };
 }
 
 function fakeBucket() {
@@ -237,4 +237,20 @@ test("the cron reads this cycle's totals from analytics", async () => {
   assert.equal(budget.write, "ok");
   assert.equal(budget.pctA, 18);
   assert.equal(budget.pctS, 60);
+});
+
+test("GET /v1/r2-budget shows levels to anyone and no counts", async () => {
+  const worker = await import("../src/index.js");
+  const cycle = cycleKey(Date.now(), 21);
+  resetMeter();
+  forgetFlags();
+  const db = fakeDb({ cycle, a: 12, ext_a: 800000, ext_local_a: 12, ext_at: Date.now() });
+  const env = { DB: db.DB, DATA: fakeBucket(), R2_CAPS: "on", ALLOWED_ORIGINS: "https://app.example.test" };
+  const res = await worker.default.fetch(new Request("https://api.example.test/v1/r2-budget"), env, { waitUntil() {} });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.on, true);
+  assert.equal(body.write, "soft");
+  assert.equal(body.pctA, 80);
+  assert.equal(body.classA, undefined, "raw counts stay owner-only");
 });
