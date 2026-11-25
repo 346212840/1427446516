@@ -2500,7 +2500,60 @@ def fetch_manifest(token: str, account: str, bucket: str, directory: Path) -> di
     return None
 
 
-def save_manifest(cf: dict, manifest: dict, directory: Path) -> None:
+# R2 bills every PutObject (Class A, 1M free a month). Saving the manifest
+# after every copied file cost about 28k writes a day, most of the free
+# allowance. The local file is written every time; the R2 copy at most once
+# per MANIFEST_SAVE_SEC, only when it changed, and always at the end of a run
+# (flush_manifest, also on SIGTERM). A run cut off hard loses at most that
+# window; the Telegram index still skips files already copied.
+MANIFEST_SAVE_SEC = float(os.environ.get("TELEGRAM_MANIFEST_SAVE_SEC") or 300)
+_MANIFEST_STATE = {"at": 0.0, "digest": "", "pending": None}
+
+
+def manifest_digest(manifest: dict) -> str:
+    text = json.dumps(manifest, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def save_manifest(cf: dict, manifest: dict, directory: Path, force: bool = False) -> None:
+    bucket = str(cf.get("manifest_bucket") or "")
+    if not bucket:
+        _save_manifest_now(cf, manifest, directory)
+        return
+    digest = manifest_digest(manifest)
+    if digest == _MANIFEST_STATE["digest"]:
+        _MANIFEST_STATE["pending"] = None
+        return
+    now = time.time()
+    if not force and now - _MANIFEST_STATE["at"] < MANIFEST_SAVE_SEC:
+        _MANIFEST_STATE["pending"] = (cf, manifest, directory)
+        try:
+            payload = (json.dumps(manifest, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8")
+            (directory / "telegram-manifest.json").write_bytes(payload)
+        except OSError:
+            pass
+        return
+    _MANIFEST_STATE["pending"] = None
+    _MANIFEST_STATE["at"] = now
+    _save_manifest_now(cf, manifest, directory)
+    _MANIFEST_STATE["digest"] = manifest_digest(manifest)
+
+
+def flush_manifest() -> None:
+    """Writes a deferred manifest to R2 now (end of a run, or SIGTERM)."""
+    pending = _MANIFEST_STATE.get("pending")
+    if not pending:
+        return
+    cf, manifest, directory = pending
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+        save_manifest(cf, manifest, directory, force=True)
+    except Exception as err:
+        log("[telegram-backup] manifest flush failed")
+        log(scrub(str(err), current_secrets()))
+
+
+def _save_manifest_now(cf: dict, manifest: dict, directory: Path) -> None:
     bucket = str(cf.get("manifest_bucket") or "")
     token = str(cf.get("token") or "")
     account = str(cf.get("account") or "")
@@ -2723,6 +2776,7 @@ def preflight() -> int:
         log(scrub(str(err), current_secrets()))
         return 1
     finally:
+        flush_manifest()
         shutil.rmtree(directory, ignore_errors=True)
     local = needs_local(rows)
     work = False
@@ -3327,6 +3381,7 @@ def backup(loop_only: bool = False, shard: tuple[int, int] | None = None) -> int
         log(scrub(str(err), current_secrets()))
         return 1
     finally:
+        flush_manifest()
         shutil.rmtree(directory, ignore_errors=True)
 
 
@@ -3868,6 +3923,29 @@ process.stdout.write([
     for name in SNAPSHOT_KEYS:
         check('"' + name + '"' in worker_src.split("const TG_SNAPSHOT_KEYS")[1].split(";")[0], "the Worker reads the %s snapshot" % name)
     check("TG_PRIVATE_KEY.test(decoded)" in worker_src, "snapshots and uploads are not served on /tg")
+    saved_now = globals()["_save_manifest_now"]
+    puts = []
+    try:
+        globals()["_save_manifest_now"] = lambda c, m, d: puts.append(json.dumps(m, sort_keys=True))
+        _MANIFEST_STATE.update({"at": 0.0, "digest": "", "pending": None})
+        throttle_dir = Path(tempfile.mkdtemp(prefix="tg-manifest-"))
+        fake_cf = {"manifest_bucket": "bucket-test", "token": "t", "account": "a"}
+        doc = {"v": 1, "files": []}
+        save_manifest(fake_cf, doc, throttle_dir)
+        for i in range(25):
+            doc["files"].append({"key": "post-media/%04d.jpg" % i})
+            save_manifest(fake_cf, doc, throttle_dir)
+        check(len(puts) == 1, "26 manifest saves in one window write R2 once")
+        check((throttle_dir / "telegram-manifest.json").is_file(), "the local manifest copy is always current")
+        flush_manifest()
+        check(len(puts) == 2 and '"post-media/0024.jpg"' in puts[-1], "the end of a run flushes the latest manifest to R2")
+        flush_manifest()
+        save_manifest(fake_cf, doc, throttle_dir, force=True)
+        check(len(puts) == 2, "an unchanged manifest is never written again")
+        shutil.rmtree(throttle_dir, ignore_errors=True)
+    finally:
+        globals()["_save_manifest_now"] = saved_now
+        _MANIFEST_STATE.update({"at": 0.0, "digest": "", "pending": None})
     print("telegram backup selftest ok")
     return 0
 
@@ -3885,6 +3963,14 @@ def continuous_loop(loop_only: bool = False, shard: tuple[int, int] | None = Non
 
 def main(argv: list | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
+    try:
+        import signal
+
+        # A cancelled or timed-out job gets SIGTERM: leave through the finally
+        # blocks so a deferred manifest still reaches R2.
+        signal.signal(signal.SIGTERM, lambda signum, frame: sys.exit(143))
+    except (ImportError, ValueError, OSError):
+        pass
     try:
         if "--selftest" in args:
             return selftest()

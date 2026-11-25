@@ -12,6 +12,7 @@ TikTok lives are not recorded. The saved file is the original, not a re-encode.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -315,13 +316,39 @@ def r2_json(cf: dict, bucket: str, key: str, dest: Path) -> dict:
     return data if isinstance(data, dict) else {}
 
 
+# R2 bills every PutObject. The archive, gallery and catalog were written
+# after every account even when nothing changed (about 1,800 writes a day).
+# Each key remembers the digest of what R2 holds and skips equal writes.
+_SAVED_DIGEST: dict = {}
+
+
+def remember_remote(key: str, path: Path) -> None:
+    try:
+        if path.is_file():
+            _SAVED_DIGEST[key] = hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        pass
+
+
+def put_unchanged(key: str, payload: bytes) -> bool:
+    return _SAVED_DIGEST.get(key) == hashlib.sha256(payload).hexdigest()
+
+
+def put_changed(cf: dict, bucket: str, key: str, payload: bytes, mime: str) -> bool:
+    if put_unchanged(key, payload):
+        return False
+    tb.put_bytes(cf["token"], cf["account"], bucket, key, payload, mime)
+    _SAVED_DIGEST[key] = hashlib.sha256(payload).hexdigest()
+    return True
+
+
 def put_text(cf: dict, bucket: str, key: str, text: str) -> None:
-    tb.put_bytes(cf["token"], cf["account"], bucket, key, text.encode("utf-8"), "text/plain; charset=utf-8")
+    put_changed(cf, bucket, key, text.encode("utf-8"), "text/plain; charset=utf-8")
 
 
 def put_file(cf: dict, bucket: str, key: str, path: Path) -> None:
     if path.is_file() and path.stat().st_size > 0:
-        tb.put_bytes(cf["token"], cf["account"], bucket, key, path.read_bytes(), "application/octet-stream")
+        put_changed(cf, bucket, key, path.read_bytes(), "application/octet-stream")
 
 
 def text_file(path: Path) -> str:
@@ -340,7 +367,7 @@ def fetch_bytes(cf: dict, bucket: str, key: str, dest: Path) -> None:
 
 def put_json(cf: dict, bucket: str, key: str, data: dict) -> None:
     payload = (json.dumps(data, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8")
-    tb.put_bytes(cf["token"], cf["account"], bucket, key, payload, "application/json")
+    put_changed(cf, bucket, key, payload, "application/json")
 
 
 def open_destination(directory: Path):
@@ -926,6 +953,9 @@ def extract() -> int:
         archive.write_text(r2_text(cf, bucket, ARCHIVE_KEY, directory / "remote-archive.txt"), encoding="utf-8")
         fetch_bytes(cf, bucket, GALLERY_KEY, photos)
         catalog = r2_json(cf, bucket, CATALOG_KEY, directory / "remote-catalog.json")
+        remember_remote(ARCHIVE_KEY, directory / "remote-archive.txt")
+        remember_remote(GALLERY_KEY, photos)
+        remember_remote(CATALOG_KEY, directory / "remote-catalog.json")
         links_doc = r2_json(cf, bucket, LINKS_KEY, directory / "remote-links.json")
         links = [row for row in (links_doc.get("items") or []) if isinstance(row, dict) and row.get("key")]
         try:
@@ -1260,6 +1290,28 @@ def selftest() -> int:
         tb.store_loaded = saved_store
         tb.probe_saved = saved_probe
         globals()["notice_pause"] = saved_pause
+    real_put = tb.put_bytes
+    sent = []
+    try:
+        tb.put_bytes = lambda token, account, bucket, key, payload, mime: sent.append(key)
+        _SAVED_DIGEST.clear()
+        fake = {"token": "t", "account": "a"}
+        put_json(fake, "bucket-test", CATALOG_KEY, {"a": 1})
+        put_json(fake, "bucket-test", CATALOG_KEY, {"a": 1})
+        put_text(fake, "bucket-test", ARCHIVE_KEY, "one")
+        put_text(fake, "bucket-test", ARCHIVE_KEY, "one")
+        put_text(fake, "bucket-test", ARCHIVE_KEY, "two")
+        check(sent == [CATALOG_KEY, ARCHIVE_KEY, ARCHIVE_KEY], "an unchanged archive or catalog is not written to R2 again")
+        seed = Path(tempfile.mkdtemp(prefix="me-seed-"))
+        (seed / "r.txt").write_text("same", encoding="utf-8")
+        _SAVED_DIGEST.clear()
+        remember_remote(ARCHIVE_KEY, seed / "r.txt")
+        put_text(fake, "bucket-test", ARCHIVE_KEY, "same")
+        check(sent.count(ARCHIVE_KEY) == 2, "a copy equal to what R2 already holds is skipped")
+        shutil.rmtree(seed, ignore_errors=True)
+    finally:
+        tb.put_bytes = real_put
+        _SAVED_DIGEST.clear()
     print("media extract selftest ok")
     return 0
 
