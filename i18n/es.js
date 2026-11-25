@@ -7048,5 +7048,9 @@ SI18n.addPack("es", {
   "Steady X profile reads": "Lectura estable de perfiles de X",
   "X profiles and linked X accounts retry a failed read, page further for replies and keep what they already showed. Off reads one page once.": "Los perfiles de X y las cuentas de X vinculadas reintentan una lectura fallida, cargan más páginas de respuestas y conservan lo que ya mostraban. Desactivado lee una sola página una vez.",
   "Follow many TikTok accounts": "Seguir muchas cuentas de TikTok",
-  "Follow up to 2000 TikTok accounts in Shorts. Off keeps the old limit of 50 for new accounts; nothing already added is removed.": "Sigue hasta 2000 cuentas de TikTok en Shorts. Desactivado mantiene el límite anterior de 50 para cuentas nuevas; no se quita nada de lo ya añadido."
+  "Follow up to 2000 TikTok accounts in Shorts. Off keeps the old limit of 50 for new accounts; nothing already added is removed.": "Sigue hasta 2000 cuentas de TikTok en Shorts. Desactivado mantiene el límite anterior de 50 para cuentas nuevas; no se quita nada de lo ya añadido.",
+  "R2 spending guard": "Protección de gasto de R2",
+  "Counts every R2 call and stops backups and caches at 70% of the free monthly allowance, and everything except uploads and deletions at 85%. Off lifts those steps; the stop at 95% always stays, so R2 never bills.": "Cuenta cada llamada a R2 y detiene copias de seguridad y cachés al 70% de la cuota gratuita mensual, y todo salvo subidas y borrados al 85%. Desactivado quita esos pasos; el corte al 95% se mantiene siempre, así R2 nunca cobra.",
+  "Spending freeze": "Congelar gastos",
+  "On: stops every R2 write and read at once except uploads and deletions, as if the free allowance were 85% used. Off by default.": "Activado: detiene al instante toda escritura y lectura en R2 salvo subidas y borrados, como si la cuota gratuita estuviera usada al 85%. Desactivado por defecto."
 });
