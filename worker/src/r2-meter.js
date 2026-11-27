@@ -22,6 +22,7 @@
 
    Active when the Worker var R2_CAPS is "on". Tests leave it unset. */
 
+import { awaitShared } from "./shared-once.js";
 import { readFlags } from "./feature-flags.js";
 
 export const FREE = { classA: 1000000, classB: 10000000, storageBytes: 10 * 1000 * 1000 * 1000 };
@@ -170,6 +171,10 @@ function cycleDay(env) {
 
 let schema = null;
 function ensureSchema(env) {
+  return awaitShared(() => startSchema(env), () => { schema = null; });
+}
+
+function startSchema(env) {
   if (!schema) {
     schema = env.DB.prepare("CREATE TABLE IF NOT EXISTS r2_meter (cycle TEXT PRIMARY KEY, a INTEGER NOT NULL DEFAULT 0, b INTEGER NOT NULL DEFAULT 0, ext_a INTEGER NOT NULL DEFAULT 0, ext_b INTEGER NOT NULL DEFAULT 0, ext_local_a INTEGER NOT NULL DEFAULT 0, ext_local_b INTEGER NOT NULL DEFAULT 0, ext_at INTEGER NOT NULL DEFAULT 0, storage INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL DEFAULT 0)").run()
       .catch((err) => { schema = null; throw err; });
