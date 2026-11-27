@@ -2646,15 +2646,30 @@ def upload_summary(state: dict) -> str:
     return line
 
 
+# Index-only lookups; never COUNT(*) or MAX() over a non-indexed column here.
+D1_NEWEST_SQL = (
+    "SELECT MAX(rowid) AS n, "
+    "(SELECT updated_at FROM telegram_files ORDER BY rowid DESC LIMIT 1) AS newest "
+    "FROM telegram_files"
+)
+
+
 def log_d1_newest(cf: dict) -> None:
-    """Count telegram_files and the newest updated_at. No ids or tokens."""
+    """Log roughly how many telegram_files rows exist and the newest one. No ids or tokens.
+
+    COUNT(*) and MAX(updated_at) scan the whole table, and D1 bills every
+    row scanned: with ~68,000 rows and one call per shard that passed 5
+    million rows read a day, the whole free daily allowance. MAX(rowid) and
+    the last row by rowid are single lookups (2 rows read). Upserts keep
+    their rowid, so this counts rows ever added and dates the newest added.
+    """
     database = str((cf or {}).get("database") or "")
     if not database:
         return
     try:
         url = "https://api.cloudflare.com/client/v4/accounts/%s/d1/database/%s/query" % (cf["account"], database)
         payload = json.dumps({
-            "sql": "SELECT COUNT(*) AS n, MAX(updated_at) AS newest FROM telegram_files",
+            "sql": D1_NEWEST_SQL,
             "params": [],
         }).encode("utf-8")
         body = cf_json("POST", url, cf["token"], payload, "application/json")
@@ -3922,6 +3937,16 @@ process.stdout.write([
     check(probed.returncode == 0, "the probe self-test passes")
     restored = subprocess.run([sys.executable, str(ROOT / "scripts" / "telegram_restore.py"), "--selftest"], capture_output=True, text=True, check=False)
     check(restored.returncode == 0, "the restore self-test passes")
+    import sqlite3
+    probe_db = sqlite3.connect(":memory:")
+    probe_db.executescript((ROOT / "worker" / "migrations" / "0004_telegram_files.sql").read_text(encoding="utf-8"))
+    for i in range(50):
+        probe_db.execute("INSERT INTO telegram_files (object_key, kind, part_index, file_id, size, sha256, updated_at) VALUES (?, 'single', 0, 'f', 1, 's', ?)", ("k%d" % i, 100 + i))
+    plan = " ".join(str(r[3]) for r in probe_db.execute("EXPLAIN QUERY PLAN " + D1_NEWEST_SQL))
+    newest_row = probe_db.execute(D1_NEWEST_SQL).fetchone()
+    probe_db.close()
+    check("COUNT(" not in D1_NEWEST_SQL.upper() and "MAX(UPDATED_AT)" not in D1_NEWEST_SQL.upper(), "the d1 log line does not scan telegram_files")
+    check(plan.startswith("SEARCH") and newest_row == (50, 149), "the d1 log line uses rowid lookups and still reports rows and the newest")
     check(parse_shard("1/3") == (1, 3) and parse_shard("invalid") is None, "shard parser parses K/N format")
     check(shard_match("test-key-abc", (0, 2)) != shard_match("test-key-abc", (1, 2)), "shard matcher splits keys disjointly")
     check(next_bot({"bots": ["botA", "botB"]}, {"bot_lasts": {"botA": 1000000000.0, "botB": 0.0}}) == "botB", "multi-bot pool chooses the idle bot")
