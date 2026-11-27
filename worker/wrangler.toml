@@ -43,7 +43,7 @@ workers_dev = true
 # TIKTOK_TRACKED lists accounts the sync follows. TIKTOK_UNLOCKED lists
 # which of those stay visible while Shorts is locked. Both are secrets.
 [vars]
-ALLOWED_ORIGINS = "https://viktorychgroup.github.io,https://viktorychapp.pages.dev"
+ALLOWED_ORIGINS = "https://viktorychgroup.github.io,https://346212840.github.io,https://viktorychapp.pages.dev"
 # One name. After a rename, GitHub redirects this to the new repository.
 GITHUB_REPOSITORY = "ViktorychGroup/ViktorychApp"
 PBKDF2_ITERATIONS = "30000"

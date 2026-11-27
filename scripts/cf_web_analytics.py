@@ -16,7 +16,7 @@ import urllib.request
 from pathlib import Path
 
 API = "https://api.cloudflare.com/client/v4"
-HOSTS = ("viktorychgroup.github.io", "viktorychapp.pages.dev")
+HOSTS = ("viktorychgroup.github.io", "346212840.github.io", "viktorychapp.pages.dev")
 
 
 def scrub(text: str) -> str:

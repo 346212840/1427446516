@@ -2,6 +2,11 @@
 
 Written 2026-11-21 (UTC). The Pages directory is the repository name, read from the address on github.io and from `GITHUB_REPOSITORY` when the site is published. The Cloudflare mirror stays `https://viktorychapp.pages.dev/`. Latest D1 migration is `0138_call_history_edit.sql`. Telegram expiry is a column added at runtime, not a new migration. This is a snapshot: check `gh pr list` and `git log origin/main` before acting on it. Update this file at the end of every PR.
 
+
+## Owner rename (in progress)
+
+The owner account and repository are being renamed to their numeric ids: owner `346212840`, repository `1427446516`, Pages at `https://346212840.github.io/1427446516/`. The Worker, backup server, passkey host list and short-link check accept both the old and the new github.io host until the move is done. When the old owner/name answers 404, the Worker finds the repository by its id (`GITHUB_REPOSITORY_ID`, default `1427446516`). Cloudflare names (`viktorychapp.pages.dev`, the `viktorych-accounts` Worker, D1 and R2) are not renamed.
+
 ## Calls
 
 The slide-up call bar (`calls_bar_sheet`) now holds every Calls setting as tabs one tap away: Controls, Languages, Sound (translation, original and call volume), Microphone, Captions, Invite, Settings (voice, pronunciations, Gemini key, connection and EU route) and the Test or Practice partner during a test. Tiles in the sheet open their section in place instead of a second sheet or a deep screen; the section scrolls inside the sheet and a drag there scrolls instead of closing it. The practice partner greets as soon as the call is connected and the translator is ready (or the call is in text), with no timer. The home screen has a single Test call button. With a mouse, bar buttons (Mute, Leave, the handle) work again: the bar used to capture the pointer on press, which sent the click to the bar instead of the button.

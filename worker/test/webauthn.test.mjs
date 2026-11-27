@@ -187,6 +187,7 @@ test.after(async () => {
 test("relying party id follows the host", () => {
   assert.equal(rpIdForOrigin("https://viktorychgroup.github.io"), "viktorychgroup.github.io");
   assert.equal(rpIdForOrigin("https://viktorychapp.pages.dev"), "viktorychapp.pages.dev");
+  assert.equal(rpIdForOrigin("https://346212840.github.io"), "346212840.github.io");
   assert.equal(rpIdForOrigin("https://preview.viktorychapp.pages.dev/app"), "preview.viktorychapp.pages.dev");
   assert.equal(rpIdForOrigin("http://127.0.0.1:8765"), "127.0.0.1");
   assert.equal(rpIdForOrigin("http://localhost:8080"), "localhost");
