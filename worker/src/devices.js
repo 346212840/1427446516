@@ -7,6 +7,8 @@
    signing out) leaves that copy unreadable, and the removed device wipes
    itself the next time it can reach the server. */
 
+import { awaitShared } from "./shared-once.js";
+
 const TYPES = ["phone", "tablet", "desktop", "tv", "other"];
 const SCHEMA = [
   "CREATE TABLE IF NOT EXISTS session_devices (token_hash TEXT PRIMARY KEY, public_id TEXT NOT NULL, name TEXT NOT NULL DEFAULT '', type TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL, last_seen INTEGER NOT NULL DEFAULT 0)",
@@ -17,6 +19,10 @@ const SCHEMA = [
 let ready = null;
 
 function ensureDeviceSchema(env) {
+  return awaitShared(() => startDeviceSchema(env), () => { ready = null; });
+}
+
+function startDeviceSchema(env) {
   if (!ready) {
     ready = env.DB.batch(SCHEMA.map((sql) => env.DB.prepare(sql))).catch((err) => { ready = null; throw err; });
   }

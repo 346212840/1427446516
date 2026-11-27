@@ -3,6 +3,8 @@
    The flags live in D1; each isolate keeps them for 30 seconds so the check
    costs nothing on most requests. */
 
+import { awaitShared } from "./shared-once.js";
+
 export const FEATURES = {
   shorts: { paths: ["/v1/owner/tiktok", "/v1/owner/live", "/v1/owner/live-resume"] },
   stories: { paths: ["/v1/stories", "/v1/story-bar"] },
@@ -276,6 +278,10 @@ let memoAt = 0;
 let schema = null;
 
 function ensureFlagSchema(env) {
+  return awaitShared(() => startFlagSchema(env), () => { schema = null; });
+}
+
+function startFlagSchema(env) {
   if (!schema) {
     schema = env.DB.prepare("CREATE TABLE IF NOT EXISTS feature_flags (name TEXT PRIMARY KEY, off INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL DEFAULT 0)").run()
       .catch((err) => { schema = null; throw err; });

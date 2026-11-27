@@ -1,3 +1,4 @@
+import { awaitShared } from "./shared-once.js";
 import { normalizeTikTokInput, parseTikTokInput, resolveTikTokShort } from "./tiktok-input.js";
 import { mentionSuggest } from "./mention-suggest.js";
 import { bindOwner, inspectHandle, ownerHandle, ownerSkeleton } from "../../shared/handle-skeleton.js";
@@ -347,7 +348,13 @@ async function slowHash(number, saltBytes, rounds) {
   return bytesToB64(new Uint8Array(bits));
 }
 
+/* Tables and one-time migrations, once per isolate. A setup promise left
+   behind by a cancelled request is dropped and run again (shared-once.js). */
 function ensureSchema(env) {
+  return awaitShared(() => startSchema(env), () => { schemaReady = null; mediaReady = null; });
+}
+
+function startSchema(env) {
   if (!schemaReady) {
     schemaReady = env.DB.batch([
       env.DB.prepare("CREATE TABLE IF NOT EXISTS accounts (public_id TEXT PRIMARY KEY, handle TEXT NOT NULL, skeleton TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL, avatar TEXT NOT NULL DEFAULT '', banner TEXT NOT NULL DEFAULT '', bio TEXT NOT NULL DEFAULT '', location TEXT NOT NULL DEFAULT '', website TEXT NOT NULL DEFAULT '', hide_avatar TEXT NOT NULL DEFAULT '', avatar_empty TEXT NOT NULL DEFAULT 'default', banner_empty TEXT NOT NULL DEFAULT 'default', private_follows INTEGER NOT NULL DEFAULT 0, profile_less INTEGER NOT NULL DEFAULT 0, owner INTEGER NOT NULL DEFAULT 0, number_lookup TEXT NOT NULL UNIQUE, number_hash TEXT NOT NULL, salt TEXT NOT NULL, created_at INTEGER NOT NULL)"),
@@ -6784,7 +6791,10 @@ export default {
     } catch (err) {
       if (err && err.code === "r2_budget") return withCors(request, env, json(503, { error: "storage_budget" }, { "retry-after": "3600" }));
       logError(areaFor(path, request.method), err);
-      return json(500, { error: "unavailable" });
+      // With CORS headers, so the app sees a 500 it can retry instead of a
+      // blocked request.
+      try { return withCors(request, env, json(500, { error: "unavailable" })); }
+      catch (corsErr) { return json(500, { error: "unavailable" }); }
     }
   },
   async scheduled(event, env, ctx) {
