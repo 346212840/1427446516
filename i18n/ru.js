@@ -7053,5 +7053,13 @@ SI18n.addPack("ru", {
   "R2 spending guard": "Защита от расходов R2",
   "Counts every R2 call and stops backups and caches at 70% of the free monthly allowance, and everything except uploads and deletions at 85%. Off lifts those steps; the stop at 95% always stays, so R2 never bills.": "Считает каждый вызов R2 и останавливает резервные копии и кэши на 70% бесплатного месячного лимита, а всё, кроме загрузок и удалений, — на 85%. Если выключено, эти шаги снимаются; остановка на 95% остаётся всегда, так что R2 никогда не выставит счёт.",
   "Spending freeze": "Заморозка расходов",
-  "On: stops every R2 write and read at once except uploads and deletions, as if the free allowance were 85% used. Off by default.": "Включено: сразу останавливает все записи и чтения R2, кроме загрузок и удалений, как будто бесплатный лимит израсходован на 85%. По умолчанию выключено."
+  "On: stops every R2 write and read at once except uploads and deletions, as if the free allowance were 85% used. Off by default.": "Включено: сразу останавливает все записи и чтения R2, кроме загрузок и удалений, как будто бесплатный лимит израсходован на 85%. По умолчанию выключено.",
+  "That sign-in link from the old app did not work. Sign in here instead.": "Ссылка для входа из старого приложения не сработала. Войдите здесь.",
+  "That sign-in link from the old app expired. Open the old app again for a new one, or sign in here.": "Срок действия ссылки для входа из старого приложения истёк. Откройте старое приложение снова, чтобы получить новую, или войдите здесь.",
+  "You're signed in at the new address": "Вы вошли по новому адресу",
+  "Passkeys from the old address only work there. Add a passkey for this address so you can sign in here next time.": "Ключи доступа со старого адреса работают только там. Добавьте ключ доступа для этого адреса, чтобы в следующий раз входить здесь.",
+  "App moved notice": "Уведомление о переезде",
+  "People still on the old installed app get a post and a notification that open the new address, signed in with a one-time link.": "Те, кто ещё пользуется старым установленным приложением, получают пост и уведомление, которые открывают новый адрес с входом по одноразовой ссылке.",
+  "This app moved to a new address.": "Приложение переехало на новый адрес.",
+  "Open the new app": "Открыть новое приложение"
 });

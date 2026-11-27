@@ -2240,7 +2240,7 @@ parsed.historyPause = cleanHistoryPause(parsed.historyPause);
   function friendsOffNow() {
     return !!(window.ViktorychFriendsPref && window.ViktorychFriendsPref.isOff());
   }
-const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "pills", "nostr", "regone_leaderboard", "regone_online", "regone_rooms", "regone_profile_stats", "nzlay_forum", "nzlay_forum_post", "nzlay_forum_regone", "nft", "bitchat", "feed_requests", "friends_off", "local_ai", "local_ai_setup", "ext_nicknames", "merged_profiles", "owner_inspector", "live_frame_grab", "app_repair", "auto_update", "swipe_tabs", "compact_header", "status_bar", "zoom_lock", "app_scale", "image_copy", "update_notice", "foryou_off", "status_icons", "side_panel", "ai_people", "gguf_models", "instant_limits", "ai_tools", "site_permissions", "notif_sounds", "owner_user_settings", "tiktok_auto_record", "ai_device_setup", "x_broadcast", "ai_auto_model", "article_reader", "storage_recordings", "home_live", "audio_convert", "telegram_account_send", "fish_audio", "local_voice", "calls", "calls_quiet_voice", "calls_pip", "calls_preview", "calls_turn_budget", "calls_bar", "calls_qr", "calls_onechat", "calls_setup", "calls_latency", "calls_live_stream", "calls_stream_play", "calls_short_eos", "calls_barge", "calls_duck", "calls_onescreen", "calls_bar_sheet", "calls_live_translate", "calls_schedule", "calls_orig_vol", "calls_rotate_qr", "calls_practice", "calls_hist_edit", "calls_eu_proxy", "calls_owner_reach", "calls_desktop", "shorts_unlock_edit", "shorts_live_fresh", "linked_x_steady", "tiktok_accounts_many", "r2_caps", "spend_kill_switch", "owner_recovery"];
+const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "pills", "nostr", "regone_leaderboard", "regone_online", "regone_rooms", "regone_profile_stats", "nzlay_forum", "nzlay_forum_post", "nzlay_forum_regone", "nft", "bitchat", "feed_requests", "friends_off", "local_ai", "local_ai_setup", "ext_nicknames", "merged_profiles", "owner_inspector", "live_frame_grab", "app_repair", "auto_update", "swipe_tabs", "compact_header", "status_bar", "zoom_lock", "app_scale", "image_copy", "update_notice", "foryou_off", "status_icons", "side_panel", "ai_people", "gguf_models", "instant_limits", "ai_tools", "site_permissions", "notif_sounds", "owner_user_settings", "tiktok_auto_record", "ai_device_setup", "x_broadcast", "ai_auto_model", "article_reader", "storage_recordings", "home_live", "audio_convert", "telegram_account_send", "fish_audio", "local_voice", "calls", "calls_quiet_voice", "calls_pip", "calls_preview", "calls_turn_budget", "calls_bar", "calls_qr", "calls_onechat", "calls_setup", "calls_latency", "calls_live_stream", "calls_stream_play", "calls_short_eos", "calls_barge", "calls_duck", "calls_onescreen", "calls_bar_sheet", "calls_live_translate", "calls_schedule", "calls_orig_vol", "calls_rotate_qr", "calls_practice", "calls_hist_edit", "calls_eu_proxy", "calls_owner_reach", "calls_desktop", "shorts_unlock_edit", "shorts_live_fresh", "linked_x_steady", "tiktok_accounts_many", "r2_caps", "spend_kill_switch", "owner_recovery", "app_moved"];
   function serverOffList() {
     try {
       const list = JSON.parse(localStorage.getItem(SERVER_OFF_KEY) || "[]");
@@ -2278,8 +2278,37 @@ const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "
     if (!force && Date.now() - at < 10 * 60 * 1000) return Promise.resolve(serverOffList());
     return fetch(api + "/v1/features").then((res) => res.ok ? res.json() : null).then((body) => {
       if (body && Array.isArray(body.off)) storeServerOff(body.off);
+      if (body && body.moved && typeof body.moved.url === "string") showMovedBanner(body.moved.url);
       return serverOffList();
     }).catch(() => serverOffList());
+  }
+  /* The Worker names a new address when this copy runs at a retired one
+     (after an owner or repository rename). One tap opens it, signed in with a
+     one-time code when there is a session. */
+  function showMovedBanner(url) {
+    let target = "";
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol === "https:" && parsed.origin !== location.origin) target = parsed.origin + parsed.pathname;
+    } catch (err) { target = ""; }
+    if (!target || document.getElementById("app-moved")) return;
+    const bar = document.createElement("div");
+    bar.id = "app-moved";
+    bar.setAttribute("role", "status");
+    bar.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:10000;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px;background:#1d9bf0;color:#fff;font:600 15px/1.3 system-ui,sans-serif;text-align:center";
+    bar.innerHTML = `<span>${esc(tr("This app moved to a new address."))}</span><button type="button" style="border:0;border-radius:999px;padding:8px 16px;background:#fff;color:#0f1419;font:inherit;cursor:pointer">${esc(tr("Open the new app"))}</button>`;
+    bar.querySelector("button").addEventListener("click", () => {
+      /* The tab opens inside the tap; the address is filled in after the
+         one-time code arrives, so a popup blocker does not stop it. */
+      let win = null;
+      try { win = window.open("about:blank", "_blank"); if (win) win.opener = null; } catch (err) { win = null; }
+      const go = (href) => { if (win) { try { win.location.href = href; return; } catch (err) { /* replaced below */ } } location.href = href; };
+      if (!accountToken()) { go(target); return; }
+      accountCall("/v1/moved/handoff", { method: "POST", body: {} }).then((res) => {
+        go(res && res.status === 200 && typeof res.url === "string" && res.url.indexOf(target) === 0 ? res.url : target);
+      }).catch(() => go(target));
+    });
+    (document.body || document.documentElement).appendChild(bar);
   }
   let ownerFeatureState = null;
   function loadOwnerFeatures() {
@@ -2333,6 +2362,7 @@ const SERVER_FEATURES = ["contacts", "shorts", "stories", "lives", "telegram", "
       bitchat: [tr("Nearby chat (Bitchat)"), tr("The backup chat offered when nothing else loads: Bluetooth on the TV app, public Nostr area chat in browsers.")],
       feed_requests: [tr("Source requests"), tr("Only you add accounts and feeds. Others press the same buttons to send you a request you allow, block or ban.")],
       friends_off: [tr("Friends switch"), tr("Lets each person turn Friends off: no friend requests, no friends lists, counts or online status.")],
+      app_moved: [tr("App moved notice"), tr("People still on the old installed app get a post and a notification that open the new address, signed in with a one-time link.")],
       owner_recovery: [tr("Owner recovery"), tr("A one-time owner sign-in with a code you set as a Worker secret, typed in the recovery code box. It does nothing until that secret is set.")],
       owner_inspector: [tr("Owner inspector"), tr("Accounts in Settings: every account with all its usernames and details, only for you. Each look is logged.")],
       local_ai: [tr("Local AI"), tr("The Local AI page that changes settings from plain words. Models run on each person's device; nothing is sent to us.")],

@@ -7051,5 +7051,13 @@ SI18n.addPack("en", {
   "R2 spending guard": "R2 spending guard",
   "Counts every R2 call and stops backups and caches at 70% of the free monthly allowance, and everything except uploads and deletions at 85%. Off lifts those steps; the stop at 95% always stays, so R2 never bills.": "Counts every R2 call and stops backups and caches at 70% of the free monthly allowance, and everything except uploads and deletions at 85%. Off lifts those steps; the stop at 95% always stays, so R2 never bills.",
   "Spending freeze": "Spending freeze",
-  "On: stops every R2 write and read at once except uploads and deletions, as if the free allowance were 85% used. Off by default.": "On: stops every R2 write and read at once except uploads and deletions, as if the free allowance were 85% used. Off by default."
+  "On: stops every R2 write and read at once except uploads and deletions, as if the free allowance were 85% used. Off by default.": "On: stops every R2 write and read at once except uploads and deletions, as if the free allowance were 85% used. Off by default.",
+  "That sign-in link from the old app did not work. Sign in here instead.": "That sign-in link from the old app did not work. Sign in here instead.",
+  "That sign-in link from the old app expired. Open the old app again for a new one, or sign in here.": "That sign-in link from the old app expired. Open the old app again for a new one, or sign in here.",
+  "You're signed in at the new address": "You're signed in at the new address",
+  "Passkeys from the old address only work there. Add a passkey for this address so you can sign in here next time.": "Passkeys from the old address only work there. Add a passkey for this address so you can sign in here next time.",
+  "App moved notice": "App moved notice",
+  "People still on the old installed app get a post and a notification that open the new address, signed in with a one-time link.": "People still on the old installed app get a post and a notification that open the new address, signed in with a one-time link.",
+  "This app moved to a new address.": "This app moved to a new address.",
+  "Open the new app": "Open the new app"
 });

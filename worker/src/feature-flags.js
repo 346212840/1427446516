@@ -43,6 +43,11 @@ export const FEATURES = {
   // the recovery code box. On so a locked-out owner can reach it; it does
   // nothing until the owner sets that secret, and each value works once.
   owner_recovery: { paths: ["/v1/recovery/owner"] },
+  // The app moved (owner and repository renamed). Requests from the old
+  // github.io address get a post and a notification that open the new
+  // address with a one-time sign-in code; /v1/features names the new address.
+  // On by default. Off: nothing is added and /v1/moved answers empty.
+  app_moved: { paths: ["/v1/moved"] },
   nostr: { paths: ["/v1/nostr", "/.well-known/nostr.json"], defaultOff: true },
   // Off until the owner turns it on and sets NFT_CONTRACT: optional gift NFTs.
   nft: { paths: ["/v1/nft"], defaultOff: true },

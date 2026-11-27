@@ -7041,5 +7041,13 @@ SI18n.addPack("hi", {
   "R2 spending guard": "R2 खर्च सुरक्षा",
   "Counts every R2 call and stops backups and caches at 70% of the free monthly allowance, and everything except uploads and deletions at 85%. Off lifts those steps; the stop at 95% always stays, so R2 never bills.": "हर R2 कॉल गिनता है और मुफ़्त मासिक सीमा के 70% पर बैकअप और कैश रोक देता है, और 85% पर अपलोड और हटाने के अलावा सब कुछ। बंद करने पर ये कदम हट जाते हैं; 95% पर रोक हमेशा रहती है, इसलिए R2 कभी बिल नहीं करता।",
   "Spending freeze": "खर्च रोक",
-  "On: stops every R2 write and read at once except uploads and deletions, as if the free allowance were 85% used. Off by default.": "चालू: अपलोड और हटाने के अलावा हर R2 लिखना और पढ़ना तुरंत रोक देता है, मानो मुफ़्त सीमा 85% इस्तेमाल हो चुकी हो। डिफ़ॉल्ट रूप से बंद।"
+  "On: stops every R2 write and read at once except uploads and deletions, as if the free allowance were 85% used. Off by default.": "चालू: अपलोड और हटाने के अलावा हर R2 लिखना और पढ़ना तुरंत रोक देता है, मानो मुफ़्त सीमा 85% इस्तेमाल हो चुकी हो। डिफ़ॉल्ट रूप से बंद।",
+  "That sign-in link from the old app did not work. Sign in here instead.": "पुराने ऐप का साइन-इन लिंक काम नहीं किया। यहाँ साइन इन करें।",
+  "That sign-in link from the old app expired. Open the old app again for a new one, or sign in here.": "पुराने ऐप का साइन-इन लिंक समाप्त हो गया। नया लिंक पाने के लिए पुराना ऐप फिर से खोलें, या यहाँ साइन इन करें।",
+  "You're signed in at the new address": "आप नए पते पर साइन इन हैं",
+  "Passkeys from the old address only work there. Add a passkey for this address so you can sign in here next time.": "पुराने पते की पासकी सिर्फ़ वहीं काम करती हैं। इस पते के लिए पासकी जोड़ें ताकि अगली बार यहाँ साइन इन कर सकें।",
+  "App moved notice": "ऐप के पते में बदलाव की सूचना",
+  "People still on the old installed app get a post and a notification that open the new address, signed in with a one-time link.": "जो लोग अब भी पुराना इंस्टॉल किया ऐप इस्तेमाल कर रहे हैं, उन्हें एक पोस्ट और सूचना मिलती है जो एक बार के लिंक से साइन इन करके नया पता खोलती है।",
+  "This app moved to a new address.": "यह ऐप नए पते पर चला गया है।",
+  "Open the new app": "नया ऐप खोलें"
 });
