@@ -32,7 +32,7 @@
 
   function knownHost(hostname) {
     var host = String(hostname || "").toLowerCase();
-    if (host === SHORT_HOST || host === "viktorychgroup.github.io") return true;
+    if (host === SHORT_HOST || host === "viktorychgroup.github.io" || host === "346212840.github.io") return true;
     return host.length > SHORT_HOST.length + 1 && host.slice(-(SHORT_HOST.length + 1)) === "." + SHORT_HOST;
   }
   /* Where share links point: the short address on the live sites, the

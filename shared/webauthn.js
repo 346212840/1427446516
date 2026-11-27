@@ -59,7 +59,7 @@ export function rpIdForOrigin(origin) {
   const local = host === "localhost" || host === "127.0.0.1";
   if (url.protocol !== "https:" && !local) return "";
   if (local) return host;
-  if (host === "viktorychgroup.github.io" || host === "viktorychapp.pages.dev") return host;
+  if (host === "viktorychgroup.github.io" || host === "346212840.github.io" || host === "viktorychapp.pages.dev") return host;
   if (host.endsWith(".viktorychapp.pages.dev") || host.endsWith(".viktorychgroup.github.io")) return host;
   return "";
 }

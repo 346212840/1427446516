@@ -207,3 +207,48 @@ test("worker source does not call api.github.com with raw fetch", () => {
   walk(root);
   assert.deepEqual(bad, []);
 });
+
+test("an owner rename that answers 404 is found again by the repository id", async () => {
+  const seen = [];
+  const fetcher = async (url, init) => {
+    seen.push(init.method + " " + url);
+    if (url.startsWith("https://api.github.com/repos/OldOwner/Gone")) return new Response("{}", { status: 404 });
+    if (url === "https://api.github.com/repositories/1427446516") {
+      return new Response(JSON.stringify({ full_name: "NewOwner/Kept" }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    if (url === "https://api.github.com/repos/NewOwner/Kept/actions/workflows/sync.yml/dispatches") return new Response(null, { status: 204 });
+    return new Response("{}", { status: 500 });
+  };
+  const env = { GITHUB_REPOSITORY: "OldOwner/Gone" };
+  const init = { method: "POST", body: JSON.stringify({ ref: "main" }) };
+  const first = await githubFetch(env, "/actions/workflows/sync.yml/dispatches", init, fetcher);
+  const second = await githubFetch(env, "/actions/workflows/sync.yml/dispatches", init, fetcher);
+  assert.equal(first.status, 204);
+  assert.equal(second.status, 204);
+  assert.deepEqual(seen, [
+    "POST https://api.github.com/repos/OldOwner/Gone/actions/workflows/sync.yml/dispatches",
+    "GET https://api.github.com/repositories/1427446516",
+    "POST https://api.github.com/repos/NewOwner/Kept/actions/workflows/sync.yml/dispatches",
+    "POST https://api.github.com/repos/NewOwner/Kept/actions/workflows/sync.yml/dispatches"
+  ]);
+  const name = await resolveRepository({ GITHUB_REPOSITORY: "OldOwner/Gone2" }, async (url) => {
+    if (url.endsWith("/repos/OldOwner/Gone2")) return new Response("{}", { status: 404 });
+    return new Response(JSON.stringify({ full_name: "NewOwner/Kept" }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  assert.equal(name, "NewOwner/Kept");
+});
+
+test("a real 404 under the current name costs one id lookup, then none", async () => {
+  const seen = [];
+  const fetcher = async (url, init) => {
+    seen.push(init.method + " " + url);
+    if (url === "https://api.github.com/repositories/1427446516") {
+      return new Response(JSON.stringify({ full_name: "Same/Repo" }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return new Response("{}", { status: 404 });
+  };
+  const env = { GITHUB_REPOSITORY: "Same/Repo" };
+  assert.equal((await githubFetch(env, "/contents/missing", { method: "GET" }, fetcher)).status, 404);
+  assert.equal((await githubFetch(env, "/contents/missing", { method: "GET" }, fetcher)).status, 404);
+  assert.equal(seen.length, 3);
+});

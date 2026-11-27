@@ -3,7 +3,16 @@
    answers a request for the old name with a redirect, and that target is
    the name used for Pages and for workflow dispatch. */
 export const REPO = "ViktorychGroup/ViktorychApp";
+/* The repository's numeric id never changes. When the owner account is
+   renamed, the old owner/name can answer 404 instead of a redirect; the id
+   still finds the repository. */
+export const REPO_ID = "1427446516";
 const cache = new Map();
+
+export function configuredRepositoryId(env) {
+  const raw = String((env && env.GITHUB_REPOSITORY_ID) || "").trim();
+  return /^\d+$/.test(raw) ? raw : REPO_ID;
+}
 
 export function configuredRepository(env) {
   const raw = String((env && (env.GITHUB_REPOSITORY || env.REPO)) || "").trim();
@@ -111,6 +120,14 @@ export async function resolveRepository(env, fetcher) {
     });
     const status = res && res.status;
     const location = res && res.headers && res.headers.get && res.headers.get("location");
+    if (status === 404) {
+      const full = await nameForRepositoryId(env, configuredRepositoryId(env), f);
+      if (full) {
+        cache.set(start, full);
+        return full;
+      }
+      return start;
+    }
     if (moved(status) && location) {
       const named = repoFromRedirect(location);
       if (named) {
@@ -147,6 +164,17 @@ export async function githubFetch(env, path, init, fetcher) {
   const opts = Object.assign({}, init || {}, { redirect: "manual" });
   const res = await f(githubApi(repo, path), opts);
   const status = res && res.status;
+  if (status === 404 && !cache.has(key)) {
+    /* An owner rename can leave the old owner/name unanswered. Ask by id,
+       resend the call there, and remember the current name. */
+    let full = "";
+    try { full = await nameForRepositoryId(env, configuredRepositoryId(env), f); }
+    catch (err) { full = ""; }
+    if (!full) return res;
+    cache.set(key, full);
+    if (full === repo) return res;
+    return f(githubApi(full, path), opts);
+  }
   const location = res && res.headers && res.headers.get && res.headers.get("location");
   if (!moved(status) || !location) return res;
   const named = repoFromRedirect(location);
