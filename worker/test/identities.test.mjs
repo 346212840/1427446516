@@ -20,7 +20,7 @@ function workerOptions() {
       ACCOUNT_PEPPER: "pepper-test",
       OWNER_CLAIM_CODE: "claim-test",
       OWNER_HANDLE: "mirathorn",
-      ALLOWED_ORIGINS: "https://viktorychgroup.github.io,http://127.0.0.1:8080",
+      ALLOWED_ORIGINS: "https://346212840.github.io,http://127.0.0.1:8080",
       PBKDF2_ITERATIONS: "1000"
     },
     async outboundService(request) {
@@ -138,7 +138,7 @@ test("social profile challenge generation, bio verification, and post verificati
   assert.equal(failRes.body.error, "verification_code_not_found");
 
   // 3. Verification succeeds when bio contains the challenge code!
-  twitterMockUsers["alice_x"].description = `Verifying identity on ViktorychApp: ${code}`;
+  twitterMockUsers["alice_x"].description = `Verifying identity on 1427446516: ${code}`;
   const okRes = await call("/v1/account/identities/verify", {
     method: "POST",
     token: user.token,

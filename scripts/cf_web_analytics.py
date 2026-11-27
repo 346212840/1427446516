@@ -16,7 +16,7 @@ import urllib.request
 from pathlib import Path
 
 API = "https://api.cloudflare.com/client/v4"
-HOSTS = ("viktorychgroup.github.io", "346212840.github.io", "viktorychapp.pages.dev")
+HOSTS = ("346212840.github.io", "viktorychapp.pages.dev")
 
 
 def scrub(text: str) -> str:
@@ -27,7 +27,7 @@ def analytics_notice() -> str:
     return "\n".join([
         "[analytics] Web Analytics was not added. This is not a new GitHub secret.",
         "[analytics] 1. Open the Cloudflare dashboard → Analytics & logs → Web Analytics → Add a site.",
-        "[analytics] 2. Add host viktorychapp.pages.dev. Add viktorychgroup.github.io as a second site if you want the GitHub Pages host too.",
+        "[analytics] 2. Add host viktorychapp.pages.dev. Add 346212840.github.io as a second site if you want the GitHub Pages host too.",
         "[analytics] 3. Choose the JavaScript snippet. Leave it cookieless (the default). There is no DNS change.",
         "[analytics] 4. On the Pages project: Workers & Pages → viktorychapp → Settings → Web Analytics → Enable. That injects the beacon on *.pages.dev.",
         "[analytics] 5. For GitHub Pages, copy the snippet into index.html just before </body>. The token in data-cf-beacon is public. Do not store it as a GitHub secret.",

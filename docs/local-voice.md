@@ -1,6 +1,6 @@
 # Local voice on a Windows PC
 
-Audio Studio → Type to Voice → Local voice talks only to `http://127.0.0.1:8080` on the owner's computer. Phones do not show it. The token, the weights, and the reference clips stay on that PC. Nothing is uploaded to ViktorychApp.
+Audio Studio → Type to Voice → Local voice talks only to `http://127.0.0.1:8080` on the owner's computer. Phones do not show it. The token, the weights, and the reference clips stay on that PC. Nothing is uploaded to 1427446516.
 
 The page reads the text, guesses the language, and lets the owner override it. Auto then picks an engine that lists that language. Forcing an engine that does not list the language is ignored, and the note says Auto picked another.
 

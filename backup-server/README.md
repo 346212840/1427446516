@@ -1,6 +1,6 @@
-# ViktorychApp Backup Accounts Backend
+# 1427446516 Backup Accounts Backend
 
-Backup accounts API for **ViktorychApp**. It answers `/v1/*` whenever the
+Backup accounts API for **1427446516**. It answers `/v1/*` whenever the
 primary Cloudflare Worker is out of free daily requests (HTTP 429, Error 1027)
 or temporarily down.
 
@@ -36,7 +36,7 @@ there is nothing to sync. Both endpoints are views of the same database.
 ## Deploy on Render (free, no credit card)
 
 1. Sign in at [render.com](https://render.com) with GitHub.
-2. **New +** → **Blueprint**, choose the `ViktorychApp` repository. Render
+2. **New +** → **Blueprint**, choose the `1427446516` repository. Render
    detects `render.yaml`.
 3. Fill in these environment variables:
 

@@ -581,7 +581,7 @@
       return '<button class="cm-chip' + (state.filter === id ? " on" : "") + '" type="button" data-cm="filter" data-filter="' + id + '">' + esc(label) + "</button>";
     };
     var sourceLabel = isForum(name || currentSub()) ? tr("Forum") : tr("Reddit");
-    return '<div class="cm-filter-bar" role="tablist">' + chip("all", tr("All")) + chip("reddit", sourceLabel) + chip("app", tr("ViktorychApp")) + "</div>";
+    return '<div class="cm-filter-bar" role="tablist">' + chip("all", tr("All")) + chip("reddit", sourceLabel) + chip("app", tr("1427446516")) + "</div>";
   }
   function tabs() {
     var tab = function (id, label) {
@@ -735,7 +735,7 @@
     '</article>';
   }
 
-  /* ViktorychApp Native Post Card — Same Upvote/Downvote System & Layout */
+  /* 1427446516 Native Post Card — Same Upvote/Downvote System & Layout */
   function appCard(name, post, isThread) {
     var author = post.author || {};
     var bag = state.internal[name] || {};
@@ -753,7 +753,7 @@
           '<span class="cm-app-handle">@' + esc(authorHandle) + '</span>' +
           '<span>•</span>' +
           '<span class="cm-reddit-time">' + esc(timeAgo(Number(post.createdAt) || Date.now())) + '</span>' +
-          '<span class="cm-app-badge">' + esc(tr("Only on ViktorychApp")) + '</span>' +
+          '<span class="cm-app-badge">' + esc(tr("Only on 1427446516")) + '</span>' +
         '</div>' +
         '<a class="cm-reddit-text" href="' + href + '" style="font-size:15px;text-decoration:none;">' + esc(post.body || "") + '</a>' +
         '<div class="cm-reddit-actions">' +
@@ -1533,7 +1533,7 @@
             '<div class="cm-facepile"><span class="cm-face-dot d1"></span><span class="cm-face-dot d2"></span><span class="cm-face-dot d3"></span></div>' +
             '<span><b>' + esc(count(doc.subscribers || (forum ? 0 : 2800000))) + '</b> ' + esc(memberLabel) + '</span>' +
             (host ? '<span class="cm-sep">·</span><a class="cm-forum-link" href="' + esc(sourceUrl) + '" target="_blank" rel="noopener noreferrer">' + esc(host) + ' ' + svgExternal + '</a>' : "") +
-            (bag && bag.members ? '<span class="cm-sep">·</span><span><b>' + esc(count(bag.members)) + '</b> ' + esc(tr("ViktorychApp members")) + '</span>' : "") +
+            (bag && bag.members ? '<span class="cm-sep">·</span><span><b>' + esc(count(bag.members)) + '</b> ' + esc(tr("1427446516 members")) + '</span>' : "") +
           '</div>' +
           (doc.about ? '<p class="cm-hero-about">' + esc(doc.about) + '</p>' : "") +
           rulesAccordion +
@@ -1655,7 +1655,7 @@
             '<span class="cm-app-handle">@' + esc(aAuthorHandle) + '</span>' +
             '<span>•</span>' +
             '<span class="cm-reddit-time">' + esc(timeAgo(Number(item.post.createdAt) || item.created)) + '</span>' +
-            '<span class="cm-app-badge">' + esc(tr("Only on ViktorychApp")) + '</span>' +
+            '<span class="cm-app-badge">' + esc(tr("Only on 1427446516")) + '</span>' +
           '</div>' +
           '<div class="cm-comment-text">' + esc(item.post.body || "") + '</div>' +
           '<div class="cm-comment-actions">' +

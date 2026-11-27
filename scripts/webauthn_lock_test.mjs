@@ -124,7 +124,7 @@ async function main() {
       ACCOUNT_PEPPER: "pepper-test",
       OWNER_CLAIM_CODE: "claim-test",
       OWNER_HANDLE: "owner-test",
-      ALLOWED_ORIGINS: origin + ",https://viktorychgroup.github.io,https://viktorychapp.pages.dev",
+      ALLOWED_ORIGINS: origin + ",https://346212840.github.io,https://viktorychapp.pages.dev",
       PBKDF2_ITERATIONS: "1000"
     }
   });

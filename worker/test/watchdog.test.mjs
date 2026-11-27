@@ -108,7 +108,7 @@ test("a full run re-enables, redeploys, and opens an issue only when Actions sto
     if (url.startsWith(PAGES + "version.json")) return reply(200, { sha: "oldsha" });
     if (url.endsWith("/dispatches")) return reply(204, "");
     if (url.endsWith("/issues") && method === "POST") return reply(201, { number: 77 });
-    if (url === PAGES) return reply(200, "<title>ViktorychApp</title>");
+    if (url === PAGES) return reply(200, "<title>1427446516</title>");
     if (url.includes("pages.dev")) return reply(200, "{}");
     return reply(404, "{}");
   };

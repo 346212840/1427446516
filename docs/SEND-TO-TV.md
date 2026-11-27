@@ -34,6 +34,6 @@ runs only on the phone: no server calls, no Cast registration, no new host.
 
 ## Short address (owner step)
 
-A free org Pages site gives `https://viktorychgroup.github.io/`. See HANDOFF "Short TV address".
-After it is live, change `DEFAULT_HOST` in `send-tv.js` to `viktorychgroup.github.io` if it should
+A free org Pages site gives `https://346212840.github.io/`. See HANDOFF "Short TV address".
+After it is live, change `DEFAULT_HOST` in `send-tv.js` to `346212840.github.io` if it should
 replace `viktorychapp.pages.dev` on the Send to my TV page.

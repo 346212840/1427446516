@@ -1,4 +1,4 @@
-/* contacts.css - Contacts in the look of Google Contacts, built on ViktorychApp's X theme variables. */
+/* contacts.css - Contacts in the look of Google Contacts, built on 1427446516's X theme variables. */
 .gc-host { container-type: inline-size; container-name: gc; width: 100%; }
 .gc-root {
   --g-bg: var(--bg, #000); --g-text: var(--text, #e7e9ea); --g-muted: var(--muted, #71767b); --g-line: var(--line, #2f3336);

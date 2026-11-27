@@ -1,6 +1,6 @@
 # iOS support
 
-ViktorychApp is aimed at iPhone and iPad in Safari and as an installed Home Screen app. The layout is checked in Playwright’s WebKit with the iPhone 11 and iPad viewports. A real device is still the owner’s check for the keyboard, the notch, and Add to Home Screen.
+1427446516 is aimed at iPhone and iPad in Safari and as an installed Home Screen app. The layout is checked in Playwright’s WebKit with the iPhone 11 and iPad viewports. A real device is still the owner’s check for the keyboard, the notch, and Add to Home Screen.
 
 ## Versions
 

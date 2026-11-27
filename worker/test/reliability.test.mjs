@@ -23,7 +23,7 @@ function workerOptions() {
     bindings: {
       ACCOUNT_PEPPER: "pepper-test",
       OWNER_CLAIM_CODE: "claim-test",
-      ALLOWED_ORIGINS: "https://viktorychgroup.github.io,http://127.0.0.1:8080",
+      ALLOWED_ORIGINS: "https://346212840.github.io,http://127.0.0.1:8080",
       PBKDF2_ITERATIONS: "1000"
     }
   };
@@ -54,9 +54,9 @@ async function gunzip(bytes) {
 }
 
 test("mirror paths stay on the app and ignore other hosts", () => {
-  assert.equal(mirror.appRoot("https://viktorychgroup.github.io", "/Example/index.html", "viktorychgroup.github.io"), "https://viktorychgroup.github.io/Example/");
+  assert.equal(mirror.appRoot("https://346212840.github.io", "/Example/index.html", "346212840.github.io"), "https://346212840.github.io/Example/");
   assert.equal(mirror.appRoot("https://viktorychapp.pages.dev", "/index.html", "viktorychapp.pages.dev"), "https://viktorychapp.pages.dev/");
-  assert.equal(mirror.relativeTo("https://viktorychgroup.github.io/Example/", "https://viktorychgroup.github.io/Example/app.js?v=1"), "app.js?v=1");
+  assert.equal(mirror.relativeTo("https://346212840.github.io/Example/", "https://346212840.github.io/Example/app.js?v=1"), "app.js?v=1");
   assert.equal(mirror.rewrite("https://viktorychapp.pages.dev/", "shared/mirror.js"), "https://viktorychapp.pages.dev/shared/mirror.js");
   assert.equal(mirror.rewrite("https://viktorychapp.pages.dev/", "../app.js"), "");
   assert.equal(mirror.failoverStatus(0), true);
@@ -70,7 +70,7 @@ test("mirror paths stay on the app and ignore other hosts", () => {
   assert.equal(mirror.mirrorHost("viktorychapp.pages.dev.evil.example"), false);
   assert.equal(mirror.mirrorHost("viktorychapp.pages.dev"), true);
   assert.equal(mirror.mirrorHost("abc.viktorychapp.pages.dev"), true);
-  assert.equal(mirror.mirrorHost("viktorychgroup.github.io"), true);
+  assert.equal(mirror.mirrorHost("346212840.github.io"), true);
   assert.equal(mirror.normalizeBase("__MIRROR_PAGES__"), "");
 });
 

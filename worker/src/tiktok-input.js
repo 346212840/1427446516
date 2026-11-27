@@ -50,7 +50,7 @@ export async function resolveTikTokShort(url, fetchFn) {
   let current = url;
   for (let hop = 0; hop < 3; hop++) {
     let res;
-    try { res = await fetchFn(current, { method: "GET", redirect: "manual", headers: { "user-agent": "Mozilla/5.0 (compatible; ViktorychApp)" } }); } catch (err) { return ""; }
+    try { res = await fetchFn(current, { method: "GET", redirect: "manual", headers: { "user-agent": "Mozilla/5.0 (compatible; 1427446516)" } }); } catch (err) { return ""; }
     const where = res && res.headers && res.headers.get ? res.headers.get("location") : "";
     if (!where) return "";
     let next;

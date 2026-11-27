@@ -135,7 +135,7 @@ def previous_from_payload(payload) -> dict:
 def build_doc(sha: str, built: str, notes: list[str]) -> dict:
     full = valid_sha(sha)
     return {
-        "name": "ViktorychApp",
+        "name": "1427446516",
         "sha": full,
         "short": full[:7] if full else "",
         "built": built,
@@ -242,9 +242,9 @@ def selftest() -> None:
     assert clean_title("Thanks @octocat for the player (#3)") == "Thanks for the player"
     assert clean_title("Merge pull request #9 from octocat/fix") == ""
     assert title_from_message("Merge branch 'main' into feature") == ""
-    merge = "Merge pull request #180 from ViktorychGroup/cursor/live-playback-past-1d23\n\nPlay owner lives through a fallback chain\n"
+    merge = "Merge pull request #180 from 346212840/cursor/live-playback-past-1d23\n\nPlay owner lives through a fallback chain\n"
     assert title_from_message(merge) == "Play owner lives through a fallback chain"
-    assert "ViktorychGroup" not in title_from_message(merge)
+    assert "346212840" not in title_from_message(merge)
     commits = [
         {"commit": {"message": "Merge pull request #1 from someone/old\n\nOlder fix"}},
         {"commit": {"message": "A normal commit by someone"}},
@@ -256,7 +256,7 @@ def selftest() -> None:
     assert all("someone" not in note and "@" not in note for note in notes)
     doc = build_doc("abcdef1234567890", "2026-10-27T00:00:00Z", notes)
     assert doc["sha"] == "abcdef1234567890" and doc["short"] == "abcdef1"
-    assert doc["name"] == "ViktorychApp" and doc["changelog"] == notes
+    assert doc["name"] == "1427446516" and doc["changelog"] == notes
     assert pages_version_url("Example/Widget").endswith("/Widget/version.json")
     assert pages_version_url("octocat/octocat.github.io") == "https://octocat.github.io/version.json"
     assert build_doc("not-a-sha", "t", [])["sha"] == ""

@@ -60,7 +60,7 @@ test.before(async () => {
       ACCOUNT_PEPPER: "pepper-test",
       OWNER_CLAIM_CODE: "claim-test",
       OWNER_HANDLE: OWNER,
-      ALLOWED_ORIGINS: "https://viktorychgroup.github.io",
+      ALLOWED_ORIGINS: "https://346212840.github.io",
       PBKDF2_ITERATIONS: "1000",
       GITHUB_DISPATCH_TOKEN: "dispatch-test"
     },

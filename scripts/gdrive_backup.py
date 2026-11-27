@@ -6,14 +6,14 @@ GDRIVE_RCLONE_TOKEN is a user OAuth token for rclone with scope drive.file.
 A service account is not used. When the secret is missing this prints a
 notice and exits 0. The token is never printed.
 
-Drive folder: ViktorychApp-backup/
+Drive folder: 1427446516-backup/
   music/   ViktorychMusic song audio
   covers/  song covers
   radio/   radio loop audio
   tiktok/  TikTok videos that are not on ia_tiktok_allow
   media/   video files whose source is not allowed on Internet Archive
 
-ViktorychApp account data is not uploaded. Files already stored are skipped
+1427446516 account data is not uploaded. Files already stored are skipped
 by SHA-256. Each run stops after a byte cap and a file cap.
 """
 
@@ -38,7 +38,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ia_backup  # noqa: E402
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-FOLDER = "ViktorychApp-backup"
+FOLDER = "1427446516-backup"
 SECRET_ENV = "GDRIVE_RCLONE_TOKEN"
 REMOTE = "gdrive:" + FOLDER
 MAX_NEW_BYTES = 400 * 1024 * 1024

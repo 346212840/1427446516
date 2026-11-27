@@ -32,8 +32,8 @@ function staticChecks() {
   if (short.pairUrl("abc234") !== SHORT + "/p/ABC234") fail("pair link is not short: " + short.pairUrl("abc234"));
   if (short.cleanCode("O0I1L5") !== "") fail("ambiguous letters must not make a code");
   if (short.display("/tv") !== "viktorychapp.pages.dev/tv") fail("typed address is wrong");
-  if (short.shareBase({ hostname: "viktorychgroup.github.io", origin: "https://viktorychgroup.github.io", pathname: "/ViktorychApp/" }) !== SHORT + "/") fail("share links on GitHub Pages should use the short address");
-  if (!/^https:\/\/viktorychgroup\.github\.io\/[^/]+\/$/.test(short.otherBase({ hostname: "viktorychapp.pages.dev" })) && short.otherBase({ hostname: "viktorychapp.pages.dev" }) !== "__GITHUB_PAGES__") fail("other address is wrong");
+  if (short.shareBase({ hostname: "346212840.github.io", origin: "https://346212840.github.io", pathname: "/1427446516/" }) !== SHORT + "/") fail("share links on GitHub Pages should use the short address");
+  if (!/^https:\/\/346212840\.github\.io\/[^/]+\/$/.test(short.otherBase({ hostname: "viktorychapp.pages.dev" })) && short.otherBase({ hostname: "viktorychapp.pages.dev" }) !== "__GITHUB_PAGES__") fail("other address is wrong");
   const redirects = read("_redirects").split("\n").map((l) => l.trim().split(/\s+/).join(" ")).join("\n");
   for (const line of ["/p/:code /?pair=:code 302", "/join /?join=1 302", "/go / 302"]) {
     if (!redirects.includes(line)) fail("_redirects is missing " + line);

@@ -12,7 +12,7 @@ def appVersion = 8
 def appVersionName = "1.7.0"
 def host = "viktorychapp.pages.dev"
 // If the short address does not load, the WebView falls back to GitHub Pages.
-def fallbackHost = "viktorychgroup.github.io"
+def fallbackHost = "346212840.github.io"
 
 // A per-user build (the "Custom app name" builder) passes TV_APP_LABEL and
 // TV_APP_ICON. It keeps the same package, key and versionCode as the base
@@ -29,7 +29,7 @@ def iconRes = customIcon == "default" ? "ic_launcher" : "ic_" + customIcon
 def bannerRes = customIcon == "default" ? "banner" : "banner_" + customIcon
 def startQuery = "?tv=1&src=tvapp&tvapp=" + appVersion + (isCustom ? "&tvcustom=1" : "") + "#/home"
 def startUrl = "https://" + host + "/" + startQuery
-def fallbackUrl = "https://" + fallbackHost + "/ViktorychApp/" + startQuery
+def fallbackUrl = "https://" + fallbackHost + "/1427446516/" + startQuery
 
 android {
     namespace "app.viktorych.tv"
@@ -43,7 +43,7 @@ android {
         manifestPlaceholders = [
             hostName: host,
             defaultUrl: startUrl,
-            launcherName: isCustom ? customLabel : "ViktorychApp",
+            launcherName: isCustom ? customLabel : "1427446516",
             appIcon: "@mipmap/" + iconRes,
             appBanner: "@drawable/" + bannerRes,
             themeColor: "#000000",

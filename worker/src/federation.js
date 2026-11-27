@@ -1,4 +1,4 @@
-/** Identity lookup for ViktorychApp: Nostr NIP-05 only.
+/** Identity lookup for 1427446516: Nostr NIP-05 only.
  * Our profiles are not published to the fediverse. There is no ActivityPub
  * actor, WebFinger, inbox, outbox or follower list; fediverse profiles can
  * only be followed as feeds from the app.

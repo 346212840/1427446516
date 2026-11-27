@@ -14,21 +14,21 @@ vm.runInNewContext(fs.readFileSync(path.join(root, "shared/app-base.js"), "utf8"
 const base = sandbox.ViktorychAppBase;
 
 test("a different directory is an old install and the current one is kept", () => {
-  assert.equal(base.directoryOf("https://viktorychgroup.github.io/Alpha/index.html"), "/Alpha/");
-  assert.equal(base.directoryOf("https://viktorychgroup.github.io/Beta/sw.js"), "/Beta/");
-  assert.equal(base.foreignScope("https://viktorychgroup.github.io/Beta/", "https://viktorychgroup.github.io/Alpha/"), true);
-  assert.equal(base.foreignScope("https://viktorychgroup.github.io/Beta/", "https://viktorychgroup.github.io/Beta/"), false);
+  assert.equal(base.directoryOf("https://346212840.github.io/Alpha/index.html"), "/Alpha/");
+  assert.equal(base.directoryOf("https://346212840.github.io/Beta/sw.js"), "/Beta/");
+  assert.equal(base.foreignScope("https://346212840.github.io/Beta/", "https://346212840.github.io/Alpha/"), true);
+  assert.equal(base.foreignScope("https://346212840.github.io/Beta/", "https://346212840.github.io/Beta/"), false);
   assert.equal(base.foreignScope("https://viktorychapp.pages.dev/", "https://viktorychapp.pages.dev/"), false);
 });
 
 test("adopting the new path unregisters only the other directory", async () => {
   const dropped = [];
   const regs = [
-    { scope: "https://viktorychgroup.github.io/Alpha/", unregister: () => { dropped.push("Alpha"); return Promise.resolve(true); } },
-    { scope: "https://viktorychgroup.github.io/Beta/", unregister: () => { dropped.push("Beta"); return Promise.resolve(true); } }
+    { scope: "https://346212840.github.io/Alpha/", unregister: () => { dropped.push("Alpha"); return Promise.resolve(true); } },
+    { scope: "https://346212840.github.io/Beta/", unregister: () => { dropped.push("Beta"); return Promise.resolve(true); } }
   ];
-  const gone = await base.adopt(regs, "https://viktorychgroup.github.io/Beta/app.html");
-  assert.equal(String(gone[0]), "https://viktorychgroup.github.io/Alpha/");
+  const gone = await base.adopt(regs, "https://346212840.github.io/Beta/app.html");
+  assert.equal(String(gone[0]), "https://346212840.github.io/Alpha/");
   assert.equal(dropped.map(String).join(","), "Alpha");
 });
 

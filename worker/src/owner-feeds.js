@@ -21,7 +21,7 @@ const X_KEY = "owner/added-accounts.json";
 const TIKTOK_KEY = "owner/tiktok-accounts.json";
 const ACCOUNT_CAP = 80;
 const GROUP_CAP = 40;
-const UA = "ViktorychApp/1.0";
+const UA = "1427446516/1.0";
 
 function emptyCatalog() {
   return { accounts: [], groups: [], places: [], removed: [] };

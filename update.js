@@ -814,10 +814,10 @@
     } else state.workingSince = 0;
     var kind = visible ? statusKind(state, look, now) : "";
     box.status.hidden = !kind;
-    box.statusText.textContent = kind ? tr("Updating ViktorychApp…") : "";
+    box.statusText.textContent = kind ? tr("Updating 1427446516…") : "";
     box.status.classList.toggle("upd-reduce", reduce);
-    box.brand.textContent = tr("ViktorychApp");
-    box.logo.alt = tr("ViktorychApp");
+    box.brand.textContent = tr("1427446516");
+    box.logo.alt = tr("1427446516");
     var title = tr("Update available");
     if (state.phase === "done") title = tr("You're up to date");
     else if (state.phase === "error") title = tr("The update didn't finish.");
@@ -1348,7 +1348,7 @@
     var logo = document.createElement("img");
     logo.className = "upd-wn-logo";
     logo.src = "icons/icon-192.png";
-    logo.alt = tr("ViktorychApp");
+    logo.alt = tr("1427446516");
     logo.width = 72;
     logo.height = 72;
     hero.appendChild(logo);

@@ -2602,7 +2602,7 @@ async function bindSession(active) {
   try {
     if (!active) { ms.playbackState = "none"; return; }
     const icon = new URL(standalone() ? "icon-192.png" : "calls/icon-192.png", standalone() ? new URL("./", location.href) : document.baseURI).href;
-    ms.metadata = new window.MediaMetadata({ title: state.test ? tr("Test call") : tr("Calls"), artist: state.peerName || tr("Guest"), album: "ViktorychApp", artwork: [{ src: icon, sizes: "192x192", type: "image/png" }] });
+    ms.metadata = new window.MediaMetadata({ title: state.test ? tr("Test call") : tr("Calls"), artist: state.peerName || tr("Guest"), album: "1427446516", artwork: [{ src: icon, sizes: "192x192", type: "image/png" }] });
     ms.playbackState = state.muted ? "paused" : "playing";
     if (ms.setMicrophoneActive) ms.setMicrophoneActive(!state.muted);
     if (ms.setCameraActive) ms.setCameraActive(false);

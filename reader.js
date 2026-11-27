@@ -167,7 +167,7 @@ function ensure() {
   scrollEl = el("div", "rd-scroll");
   scrollEl.tabIndex = -1;
   var copy = el("div", "rd-copy");
-  copy.appendChild(el("p", "rd-note", tr("Reading view of a public page. ViktorychApp is not the publisher.")));
+  copy.appendChild(el("p", "rd-note", tr("Reading view of a public page. 1427446516 is not the publisher.")));
   var title = el("h1", "rd-title");
   title.id = "rd-title";
   var byline = el("p", "rd-byline");

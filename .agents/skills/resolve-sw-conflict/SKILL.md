@@ -1,6 +1,6 @@
 ---
 name: resolve-sw-conflict
-description: Resolves a merge conflict in sw.js (and the i18n packs) the ViktorychApp way. Use when a PR is DIRTY because of sw.js, the cache-bust stamp, or i18n files.
+description: Resolves a merge conflict in sw.js (and the i18n packs) the 1427446516 way. Use when a PR is DIRTY because of sw.js, the cache-bust stamp, or i18n files.
 ---
 
 # Resolve an sw.js conflict

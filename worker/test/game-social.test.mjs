@@ -39,14 +39,14 @@ function workerOptions(mode) {
       ACCOUNT_PEPPER: "pepper-test",
       OWNER_CLAIM_CODE: "claim-test",
       OWNER_HANDLE: "owner_synth",
-      ALLOWED_ORIGINS: "https://viktorychgroup.github.io,http://127.0.0.1:8080",
+      ALLOWED_ORIGINS: "https://346212840.github.io,http://127.0.0.1:8080",
       PBKDF2_ITERATIONS: "1000"
     },
     async outboundService(request) {
       const url = new URL(request.url);
       if (url.hostname === "nzlay.com" && url.pathname === "/pages/top100") {
         outbound.top++;
-        assert.match(request.headers.get("user-agent") || "", /ViktorychApp/);
+        assert.match(request.headers.get("user-agent") || "", /1427446516/);
         if (mode === "broken") return new Response("<html><body>maintenance</body></html>", { headers: { "content-type": "text/html" } });
         return new Response(TOP_HTML, { headers: { "content-type": "text/html" } });
       }

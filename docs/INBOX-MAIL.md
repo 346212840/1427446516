@@ -48,7 +48,7 @@ keep the password, so it is deliberately not offered.
 
 The wizard (Inbox › Add › Mail) runs in this order: consent, provider, guide,
 form. The guide has copy-ready rules that move SimpleLogin forwards and code
-mail into a `ViktorychApp` folder (a label, in Gmail), plus direct links to
+mail into a `1427446516` folder (a label, in Gmail), plus direct links to
 the provider's IMAP, app-password and filter settings. Those three steps only
 exist on the provider's own site, so the app links to them and does not embed
 them. Some Outlook.com accounts no longer accept app passwords over IMAP, and
@@ -65,7 +65,7 @@ FIDO security key sign in by pasting an API key instead.
 
 Free SimpleLogin accounts cannot add extra mailboxes. Aliases therefore
 forward to the member's sign-up address, which is the same mailbox that Mail
-reads, and the filter moves those messages into `ViktorychApp`.
+reads, and the filter moves those messages into `1427446516`.
 
 ## SMS codes
 

@@ -23,7 +23,7 @@ function workerOptions(extra) {
       ACCOUNT_PEPPER: "pepper-test",
       OWNER_CLAIM_CODE: "claim-test",
       OWNER_HANDLE: "user_owner",
-      ALLOWED_ORIGINS: "https://viktorychgroup.github.io,http://127.0.0.1:8080",
+      ALLOWED_ORIGINS: "https://346212840.github.io,http://127.0.0.1:8080",
       PBKDF2_ITERATIONS: "1000"
     }, extra || {}),
     outboundService: async (request) => {
@@ -162,12 +162,12 @@ test("money checkout, verified webhook, unopened refund", async () => {
 
     const noTerms = await call("/v1/store/checkout", { method: "POST", token: ada.token, body: { kind: "gift", itemId: "crown", handle: "user_mb" } });
     assert.equal(noTerms.status, 400);
-    const started = await call("/v1/store/checkout", { method: "POST", token: ada.token, body: { kind: "gift", itemId: "crown", handle: "user_mb", message: "hi", accept: true, returnUrl: "https://viktorychgroup.github.io/Example/" } });
+    const started = await call("/v1/store/checkout", { method: "POST", token: ada.token, body: { kind: "gift", itemId: "crown", handle: "user_mb", message: "hi", accept: true, returnUrl: "https://346212840.github.io/Example/" } });
     assert.equal(started.status, 201, JSON.stringify(started.body));
     assert.equal(started.body.url.startsWith("https://checkout.stripe.com/"), true);
     const sent = stripeCalls.find((row) => row.path === "/v1/checkout/sessions");
     assert.ok(sent.body.includes("unit_amount%5D=699"));
-    assert.ok(sent.body.includes(encodeURIComponent("https://viktorychgroup.github.io/Example/#/store/orders?paid=")));
+    assert.ok(sent.body.includes(encodeURIComponent("https://346212840.github.io/Example/#/store/orders?paid=")));
 
     const event = JSON.stringify({ type: "checkout.session.completed", data: { object: { payment_status: "paid", payment_intent: "pi_test_1", client_reference_id: started.body.id, metadata: { order_id: started.body.id } } } });
     const forged = await call("/v1/pay/webhook/stripe", { method: "POST", raw: event, headers: { "stripe-signature": "t=1,v1=00" } });

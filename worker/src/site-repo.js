@@ -2,7 +2,7 @@
    GITHUB_REPOSITORY is the one configured name. After a rename, GitHub
    answers a request for the old name with a redirect, and that target is
    the name used for Pages and for workflow dispatch. */
-export const REPO = "ViktorychGroup/ViktorychApp";
+export const REPO = "346212840/1427446516";
 /* The repository's numeric id never changes. When the owner account is
    renamed, the old owner/name can answer 404 instead of a redirect; the id
    still finds the repository. */

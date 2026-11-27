@@ -139,6 +139,6 @@ export function attachPoolRoom(server, pool, getEnv, options) {
     if (head && head.length) socket.unshift(head);
     if (!pool.poolAccept(room, peer)) peer.close(1013, "full");
   });
-  console.log("[ViktorychApp Backup Backend] sharing pool room: on");
+  console.log("[1427446516 Backup Backend] sharing pool room: on");
   return room;
 }

@@ -1,6 +1,6 @@
 # vsr-playback-2
 
-This directory is the sanitized contract for the ViktorychApp agent. It is not a recording and it contains no key.
+This directory is the sanitized contract for the 1427446516 agent. It is not a recording and it contains no key.
 
 `vsr-playback-2.manifest.example.json` is the plaintext shape **after** a local age decrypt of `manifest.age`. On disk the package has:
 

@@ -117,15 +117,16 @@
     return fill(lookup(key), vars);
   }
 
-  // Full product: brand.name plus brand.app (ViktorychApp), brand.music
-  // (ViktorychMusic), or brand.search (ViktorychSearch). Tight labels use
-  // brand.short: pwa (ViktorychApp), musicShort (ViktorychMusic), and
-  // searchShort (ViktorychSearch). A rebrand edits those pack values.
+  // Full product: brand.name alone (1427446516), or plus brand.music
+  // (1427446516 Music), or brand.search (1427446516 Search). Tight labels use
+  // brand.short: pwa (1427446516), musicShort (1427446516 Music), and
+  // searchShort (1427446516 Search). A rebrand edits those pack values.
   // No separator, so a space or a translated suffix belongs in the pack value.
   function productName(kind) {
     var tight = kind === "pwa" || kind === "musicShort" || kind === "searchShort";
     var stem = tight ? t("brand.short") : t("brand.name");
-    var suffix = t("brand.app");
+    // The app itself is named by the stem alone (the numeric project name).
+    var suffix = "";
     if (kind === "music" || kind === "musicShort") suffix = t("brand.music");
     else if (kind === "search" || kind === "searchShort") suffix = t("brand.search");
     return stem + suffix;

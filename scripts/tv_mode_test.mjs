@@ -173,7 +173,7 @@ async function main() {
 
     // 3. Inside the installed app with an older version: update banner, no install card.
     const app = await open(browser, port, "Mozilla/5.0 (Linux; Android 12; wv) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36", "/index.html?tv=1&src=tvapp&tvapp=1#/home");
-    await app.page.route("**/tv/version.json", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ versionCode: 99, versionName: "9.9.9", release: "https://github.com/ViktorychGroup/ViktorychApp/releases/latest/download/ViktorychTV.apk" }) }));
+    await app.page.route("**/tv/version.json", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ versionCode: 99, versionName: "9.9.9", release: "https://github.com/346212840/1427446516/releases/latest/download/ViktorychTV.apk" }) }));
     let banner = true;
     try { await app.page.waitForSelector('[data-tv-update-card="home"] a', { timeout: 15000 }); } catch (err) { banner = false; }
     check(banner, "the app shows Update available when tv/version.json is newer");

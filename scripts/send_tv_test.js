@@ -46,8 +46,8 @@ assert(fire.includes("apps.apple.com/app/id947984433") && !fire.includes("play.g
 const other = load("Mozilla/5.0 (X11; Linux x86_64)").api.page({ brand: "other" });
 assert(!other.includes("play.google.com") && other.includes("Any TV with a browser"), "generic guide needs no app");
 
-const custom = load("Android", { tvHost: "viktorychgroup.github.io" });
-assert.strictEqual(custom.api.link(), "https://viktorychgroup.github.io/?tv=1", "owner can switch to the short org address");
+const custom = load("Android", { tvHost: "346212840.github.io" });
+assert.strictEqual(custom.api.link(), "https://346212840.github.io/?tv=1", "owner can switch to the short org address");
 const bad = load("Android", { tvHost: "javascript:alert(1)" });
 assert.strictEqual(bad.api.host(), "viktorychapp.pages.dev", "bad hosts fall back");
 

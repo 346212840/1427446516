@@ -22,7 +22,7 @@ if (!scriptPath) {
 const PORT = parseInt(process.env.PORT || "10000", 10);
 const HOST = process.env.HOST || "0.0.0.0";
 const DATA_DIR = process.env.DATA_DIR || path.resolve(__dirname, "./data");
-const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS || "https://viktorychgroup.github.io,https://346212840.github.io,https://viktorychapp.pages.dev,http://127.0.0.1:8080,http://localhost:8080,http://localhost:5173";
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS || "https://346212840.github.io,https://viktorychgroup.github.io,https://viktorychapp.pages.dev,http://127.0.0.1:8080,http://localhost:8080,http://localhost:5173";
 
 const REQUEST_TIMEOUT_MS = Number(process.env.REQUEST_TIMEOUT_MS) || 28000;
 // Render's free workspace includes 5 GB of outbound bandwidth a month. Going
@@ -302,9 +302,9 @@ async function main() {
     if (String(process.env.RENDER_JOBS || "1") !== "0" && typeof worker.runBackgroundJobs === "function") {
       startJobLoop(worker, remote);
     }
-    console.log("[ViktorychApp Backup Backend] shared Cloudflare D1 + R2 mode");
-    console.log("[ViktorychApp Backup Backend] D1 database: " + stats.d1DatabaseId);
-    console.log("[ViktorychApp Backup Backend] R2 bucket: " + stats.r2Bucket);
+    console.log("[1427446516 Backup Backend] shared Cloudflare D1 + R2 mode");
+    console.log("[1427446516 Backup Backend] D1 database: " + stats.d1DatabaseId);
+    console.log("[1427446516 Backup Backend] R2 bucket: " + stats.r2Bucket);
   } else if (!(await miniflareAvailable())) {
     // The production image ships without Miniflare. Without Cloudflare
     // credentials there is nothing safe to serve: answer 503 so clients stay
@@ -314,7 +314,7 @@ async function main() {
       status: 503,
       headers: { "content-type": "application/json", "retry-after": "3600", "access-control-allow-origin": "*" }
     });
-    console.error("[ViktorychApp Backup Backend] not configured: " + stats.localReason + ". Set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in the Render dashboard.");
+    console.error("[1427446516 Backup Backend] not configured: " + stats.localReason + ". Set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in the Render dashboard.");
   } else {
     const local = await localEnv();
     dispatch = async (request) => {
@@ -326,7 +326,7 @@ async function main() {
       });
     };
     dispose = local.dispose;
-    console.log("[ViktorychApp Backup Backend] local Miniflare mode (set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID for shared mode)");
+    console.log("[1427446516 Backup Backend] local Miniflare mode (set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID for shared mode)");
   }
 
   const server = http.createServer(async (req, res) => {
@@ -468,16 +468,16 @@ async function main() {
       const pool = await import(pathToFileURL(path.resolve(path.dirname(scriptPath), "peer-pool.js")).href);
       await attachPoolRoom(server, pool, () => remote);
     } catch (err) {
-      console.error("[ViktorychApp Backup Backend] sharing pool room failed:", err && err.message);
+      console.error("[1427446516 Backup Backend] sharing pool room failed:", err && err.message);
     }
   }
 
   server.listen(PORT, HOST, () => {
-    console.log(`[ViktorychApp Backup Backend] running at http://${HOST}:${PORT} (${stats.mode})`);
+    console.log(`[1427446516 Backup Backend] running at http://${HOST}:${PORT} (${stats.mode})`);
   });
 
   const shutdown = () => {
-    console.log("\n[ViktorychApp Backup Backend] shutting down...");
+    console.log("\n[1427446516 Backup Backend] shutting down...");
     server.close(async () => {
       await persistEgress();
       await dispose();
@@ -539,7 +539,7 @@ function startJobLoop(worker, env) {
   };
   setTimeout(tick, Number(process.env.RENDER_JOBS_FIRST_MS) || 5000);
   setInterval(tick, 60000).unref();
-  console.log("[ViktorychApp Backup Backend] background jobs: on");
+  console.log("[1427446516 Backup Backend] background jobs: on");
 }
 
 function readBody(req) {
@@ -552,6 +552,6 @@ function readBody(req) {
 }
 
 main().catch((err) => {
-  console.error("[ViktorychApp Backup Backend] failed to start:", err);
+  console.error("[1427446516 Backup Backend] failed to start:", err);
   process.exit(1);
 });

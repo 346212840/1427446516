@@ -1,6 +1,6 @@
 # Accounts
 
-ViktorychApp accounts live in this Worker. The number that signs someone in is created on the server, shown once, and stored only as a PBKDF2-SHA256 hash. A separate HMAC-SHA256 lookup, keyed with `ACCOUNT_PEPPER`, finds the row without scanning the table and without keeping the number.
+1427446516 accounts live in this Worker. The number that signs someone in is created on the server, shown once, and stored only as a PBKDF2-SHA256 hash. A separate HMAC-SHA256 lookup, keyed with `ACCOUNT_PEPPER`, finds the row without scanning the table and without keeping the number.
 
 The Pages site stays public until this API is actually deployed. `accounts.config.js` in git has `gate: false`. The Sync feeds workflow calls `GET /v1/health` and, only when `ready` and `data` are both true, uploads the feed files to the private R2 bucket and rewrites the Pages artifact so `gate` is true. Until the Cloudflare secrets exist, that check fails closed and the current public site is what gets published.
 
@@ -108,7 +108,7 @@ npm run dev
 
 `.dev.vars.example` uses 1000 PBKDF2 iterations so local checks finish quickly. Production uses 30000 (`PBKDF2_ITERATIONS` in `wrangler.toml`, about 4 ms of CPU; Workers allows at most 100000). Each stored hash records its rounds as `p2:<rounds>:<hash>`. Hashes from before that format used `PBKDF2_LEGACY_ITERATIONS` (8000), and a good sign-in rewrites an older or weaker hash at the current rounds, so nobody has to reset. Recovery codes are random 12-character codes and keep the legacy cost, since ten are hashed in one request. Lower `PBKDF2_ITERATIONS` if sign-up starts failing on CPU time; existing hashes keep working because they carry their own rounds. The local claim code and pepper in the example file are not the production secrets.
 
-CORS allows `https://viktorychgroup.github.io` and `https://viktorychapp.pages.dev`. Preview hosts `*.viktorychapp.pages.dev` are allowed in code as well. The example file also allows `http://127.0.0.1:8080` and `http://localhost:8080` for local screenshots. A signed-in account uses the same Worker on both site origins. Browser storage stays on the origin you signed in from; signing in on the other origin restores follows and settings through sync.
+CORS allows `https://346212840.github.io` and `https://viktorychapp.pages.dev`. Preview hosts `*.viktorychapp.pages.dev` are allowed in code as well. The example file also allows `http://127.0.0.1:8080` and `http://localhost:8080` for local screenshots. A signed-in account uses the same Worker on both site origins. Browser storage stays on the origin you signed in from; signing in on the other origin restores follows and settings through sync.
 
 Workers Logs are on in `wrangler.toml` (`head_sampling_rate = 1`). Error lines are short codes. Tokens and account numbers are not written. No extra secret is required. Daily D1 copies live in R2; see [docs/d1-backup.md](../docs/d1-backup.md). D1 Time Travel is still the 7-day point-in-time restore.
 

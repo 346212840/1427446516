@@ -4,7 +4,7 @@ import test from "node:test";
 import { Miniflare } from "miniflare";
 import { monthKey, capBytes, estimateBytes, turnUsage, mintTurn, TURN_SCHEMA, ACTIVE_RESERVE, RING_RESERVE, TURN_TTL_SECONDS, DEFAULT_CAP_BYTES, BYTES_PER_SECOND } from "../src/call-turn.js";
 
-const ORIGIN = "https://viktorychgroup.github.io";
+const ORIGIN = "https://346212840.github.io";
 const KEY_ID = "keyid-" + "a".repeat(20);
 const API_TOKEN = "tok-" + "b".repeat(30);
 const SECRET = "mock-credential-value";

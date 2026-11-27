@@ -765,7 +765,7 @@ def selftest() -> int:
         LIVE_SW = "http://127.0.0.1:%d/sw.js" % port
         LIVE_VERSION = "http://127.0.0.1:%d/version.json" % port
         (directory / "version.json").write_text(json.dumps({
-            "name": "ViktorychApp", "sha": previous, "short": previous[:7],
+            "name": "1427446516", "sha": previous, "short": previous[:7],
         }) + "\n", encoding="utf-8")
         ci_uploads = {"n": 0}
 

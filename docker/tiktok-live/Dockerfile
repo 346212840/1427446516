@@ -1,4 +1,4 @@
-# Always-on TikTok LIVE recorder for ViktorychApp.
+# Always-on TikTok LIVE recorder for 1427446516.
 #
 # Self-contained: the image clones the public repository, so a Hugging Face
 # Docker Space needs only this file and the README in docker/tiktok-live/space/.
@@ -9,7 +9,7 @@
 #   docker run --env-file tiktok-live.env -p 7860:7860 viktorych-tiktok-live
 FROM python:3.12-slim-bookworm
 
-ARG VIKTORYCH_REPO=https://github.com/ViktorychGroup/ViktorychApp.git
+ARG VIKTORYCH_REPO=https://github.com/346212840/1427446516.git
 ARG VIKTORYCH_REF=main
 ARG TARGETARCH
 

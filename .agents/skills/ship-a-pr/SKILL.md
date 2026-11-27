@@ -1,6 +1,6 @@
 ---
 name: ship-a-pr
-description: Takes a change from a topic branch to a merged, live PR on ViktorychApp. Use when the owner says ship, merge, continue the queue, or after finishing a fix or feature.
+description: Takes a change from a topic branch to a merged, live PR on 1427446516. Use when the owner says ship, merge, continue the queue, or after finishing a fix or feature.
 ---
 
 # Ship a PR

@@ -195,7 +195,7 @@ async function handleX(url, env, deps) {
     const target = base + "/" + encodeURIComponent(handle) + "/" + tab + (cursor ? "?cursor=" + encodeURIComponent(cursor) : "");
     let page = null;
     try {
-      const res = await timed(deps, target, { headers: { accept: "text/html", "user-agent": "ViktorychApp/1.0 (+" + appContact() + ")" }, redirect: "follow" });
+      const res = await timed(deps, target, { headers: { accept: "text/html", "user-agent": "1427446516/1.0 (+" + appContact() + ")" }, redirect: "follow" });
       if (res.ok) page = parseNitterList(await readCapped(res));
       else if (res.status === 404) {
         const out = reply(200, { items: [], cursor: "", missing: true, source: "nitter" }, GRAPH_MISS_TTL_S);

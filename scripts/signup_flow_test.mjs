@@ -737,7 +737,7 @@ async function layoutPass(page, viewport) {
   if (metrics.wall !== "1") notes.push(viewport.name + ": wall not up");
   if (!metrics.appHidden) notes.push(viewport.name + ": logged-out app content is visible");
   if (metrics.overflowX > 1) notes.push(viewport.name + ": horizontal overflow " + metrics.overflowX);
-  if (metrics.heading.trim() !== "ViktorychApp") notes.push(viewport.name + ": landing heading missing");
+  if (metrics.heading.trim() !== "1427446516") notes.push(viewport.name + ": landing heading missing");
   for (const key of ["create", "signIn"]) {
     const b = metrics[key];
     if (!b || b.width < 8 || b.height < 8) { notes.push(viewport.name + ": " + key + " missing"); continue; }
@@ -775,7 +775,7 @@ async function layoutPass(page, viewport) {
   await leaveSetup(page);
   await page.waitForFunction(() => !document.querySelector(".acct-modal"));
   await page.getByRole("button", { name: "Log in" }).first().click();
-  await page.getByRole("heading", { name: "Sign in to ViktorychApp" }).waitFor();
+  await page.getByRole("heading", { name: "Sign in to 1427446516" }).waitFor();
   const loginFields = await page.evaluate(() => {
     const form = document.getElementById("acct-login-form");
     const user = document.getElementById("acct-login-user");
@@ -801,7 +801,7 @@ async function layoutPass(page, viewport) {
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await page.getByRole("heading", { name: "Settings" }).waitFor();
   const prefs = await page.locator(".acct-modal").innerText();
-  if (prefs.includes("Sign in to ViktorychApp")) notes.push(viewport.name + ": settings opened sign-in");
+  if (prefs.includes("Sign in to 1427446516")) notes.push(viewport.name + ": settings opened sign-in");
   if (!/Language and appearance stay on this device/.test(prefs)) notes.push(viewport.name + ": logged-out settings missing");
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Terms of Service" }).first().click();
@@ -912,7 +912,7 @@ async function firstRun(page) {
         home: /No posts yet/.test(text),
         missing: /load posts/.test(text),
         follow: /Find accounts to follow/.test(text),
-        happening: /ViktorychApp/.test(text)
+        happening: /1427446516/.test(text)
       };
     });
     notes.push("timeline did not open " + JSON.stringify(state));
@@ -974,7 +974,7 @@ async function firstRun(page) {
   await page.waitForFunction(() => !document.querySelector(".modal"));
   await openPage(page, "/#/settings");
   await logOut(page);
-  await page.getByRole("heading", { name: "ViktorychApp" }).waitFor({ timeout: 20000 });
+  await page.getByRole("heading", { name: "1427446516" }).waitFor({ timeout: 20000 });
   await openLogin(page);
   await page.evaluate(() => {
     const input = document.querySelector("#acct-accountNumber");
@@ -1012,7 +1012,7 @@ async function firstRun(page) {
   }
   await openPage(page, "/#/settings");
   await logOut(page);
-  await page.getByRole("heading", { name: "ViktorychApp" }).waitFor({ timeout: 20000 });
+  await page.getByRole("heading", { name: "1427446516" }).waitFor({ timeout: 20000 });
   await openSignup(page);
   await page.locator("#acct-displayName").fill("Second Reader");
   await page.locator(".acct-modal [data-acct='next']").click();

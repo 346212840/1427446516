@@ -23,7 +23,7 @@ function workerOptions(extra) {
       ACCOUNT_PEPPER: "pepper-test",
       OWNER_CLAIM_CODE: "claim-test",
       OWNER_HANDLE: "mirathorn",
-      ALLOWED_ORIGINS: "https://viktorychgroup.github.io,http://127.0.0.1:8080",
+      ALLOWED_ORIGINS: "https://346212840.github.io,http://127.0.0.1:8080",
       PBKDF2_ITERATIONS: "1000"
     }, extra || {})
   };
@@ -801,11 +801,11 @@ test("archive copies are public and account objects stay hidden", async () => {
   });
   await bindings.DATA.put("owner/tiktok.json", "{}");
   const ok = await mf.dispatchFetch("https://accounts.test/v1/archive/" + name, {
-    headers: { Origin: "https://viktorychgroup.github.io" }
+    headers: { Origin: "https://346212840.github.io" }
   });
   assert.equal(ok.status, 200);
   assert.equal(ok.headers.get("content-type"), "image/jpeg");
-  assert.equal(ok.headers.get("access-control-allow-origin"), "https://viktorychgroup.github.io");
+  assert.equal(ok.headers.get("access-control-allow-origin"), "https://346212840.github.io");
   assert.equal(new Uint8Array(await ok.arrayBuffer())[0], 0xff);
   const missing = await mf.dispatchFetch("https://accounts.test/v1/archive/" + "cd".repeat(32) + ".jpg");
   assert.equal(missing.status, 404);
@@ -817,7 +817,7 @@ test("reposts and quotes stay on the account and show on that profile", async ()
   const preflight = await mf.dispatchFetch("https://accounts.test/v1/reposts", {
     method: "OPTIONS",
     headers: {
-      Origin: "https://viktorychgroup.github.io",
+      Origin: "https://346212840.github.io",
       "Access-Control-Request-Method": "DELETE"
     }
   });

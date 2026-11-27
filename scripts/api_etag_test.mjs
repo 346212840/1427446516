@@ -23,7 +23,7 @@ const windowMock = {
   dispatchEvent: () => true,
   CustomEvent: function () {},
   t: (key) => key,
-  SI18n: { productName: () => "ViktorychApp" },
+  SI18n: { productName: () => "1427446516" },
   VIKTORYCH_ACCOUNTS: { api: "https://api.test", gate: false },
   fetch: (url, init) => fakeFetch(url, init),
   location: { hash: "#/", replace() {} },

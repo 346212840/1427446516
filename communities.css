@@ -87,7 +87,7 @@
 .cm-rule-num { width: 22px; height: 22px; border-radius: 50%; background: var(--chip, rgba(255,255,255,.08)); color: var(--text); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex: none; }
 .cm-rule-title { font-weight: 700; color: var(--text); margin-bottom: 2px; }
 
-/* Filter Chips (All / Reddit / ViktorychApp) */
+/* Filter Chips (All / Reddit / 1427446516) */
 .cm-filter-bar { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--line); overflow-x: auto; background: var(--bg); }
 .cm-chip { display: inline-flex; align-items: center; height: 32px; padding: 0 14px; border-radius: 9999px; font-size: 13px; font-weight: 600; line-height: 16px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; transition: all .15s ease; font-family: var(--font); white-space: nowrap; flex: none; max-width: 220px; overflow: hidden; box-sizing: border-box; }
 .cm-chip:hover { background: var(--hover); color: var(--text); }

@@ -270,7 +270,7 @@ export function rowsFromWidget(gid, html, now) {
 
 async function widgetRead(gid, fetcher, now) {
   const url = "https://vk.com/widget_community.php?app=0&width=400px&_ver=1&gid=" + gid + "&mode=4&height=1200";
-  const res = await fetcher(url, { headers: { "accept-language": "en", "user-agent": "Mozilla/5.0 (compatible; ViktorychApp)" } });
+  const res = await fetcher(url, { headers: { "accept-language": "en", "user-agent": "Mozilla/5.0 (compatible; 1427446516)" } });
   if (!res || !res.ok) throw new Error("vk_widget_" + (res ? res.status : 0));
   const bytes = await res.arrayBuffer();
   const type = String(res.headers.get("content-type") || "");

@@ -1,4 +1,4 @@
-/* Privacy: on a desktop the tab title is only "ViktorychApp" on every page,
+/* Privacy: on a desktop the tab title is only "1427446516" on every page,
    with no page name, count, search or person's name, whoever writes
    document.title. Phones keep page titles. Demo data only. */
 import http from "node:http";
@@ -94,12 +94,12 @@ async function desktop(browser, origin) {
     await page.evaluate((h) => { location.hash = h; }, hash);
     await page.waitForTimeout(1200);
     const t = await page.title();
-    if (t !== "ViktorychApp") fail("desktop " + hash + ": the tab title is only ViktorychApp, got " + JSON.stringify(t));
+    if (t !== "1427446516") fail("desktop " + hash + ": the tab title is only 1427446516, got " + JSON.stringify(t));
   }
   // Any script that writes a page name or a count is put back right away.
-  await page.evaluate(() => { document.title = "(3) Demo page / ViktorychApp"; });
+  await page.evaluate(() => { document.title = "(3) Demo page / 1427446516"; });
   await page.waitForTimeout(300);
-  if ((await page.title()) !== "ViktorychApp") fail("desktop: a page title written by another script is put back");
+  if ((await page.title()) !== "1427446516") fail("desktop: a page title written by another script is put back");
   // Settle check: the guard does not fight itself (no endless rewrites).
   const before = titles.length;
   await page.waitForTimeout(1500);

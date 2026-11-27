@@ -32,7 +32,7 @@ test.before(async () => {
     compatibilityDate: "2026-01-15",
     d1Databases: ["DB"],
     r2Buckets: ["DATA"],
-    bindings: { ACCOUNT_PEPPER: "pepper-test", OWNER_CLAIM_CODE: "claim-test", OWNER_HANDLE: "mirathorn", ALLOWED_ORIGINS: "https://viktorychgroup.github.io", PBKDF2_ITERATIONS: "1000" }
+    bindings: { ACCOUNT_PEPPER: "pepper-test", OWNER_CLAIM_CODE: "claim-test", OWNER_HANDLE: "mirathorn", ALLOWED_ORIGINS: "https://346212840.github.io", PBKDF2_ITERATIONS: "1000" }
   });
   bindings = await mf.getBindings();
 });

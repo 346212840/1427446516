@@ -21,7 +21,7 @@ const SECONDS = Number(opt("seconds", 120));
 const API = String(opt("api", "https://viktorych-accounts.viktorych-accounts.workers.dev")).replace(/\/$/, "");
 const PULSE = String(opt("pulse", "https://pub-bf9b5e3ebb2b421aa49e7af484f3c22d.r2.dev/pulse/v1.json"));
 const BURST = Number(opt("burst", 140));
-const ORIGIN = "https://viktorychgroup.github.io";
+const ORIGIN = "https://346212840.github.io";
 
 const stats = {};
 function note(kind, ms, status) {

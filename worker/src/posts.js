@@ -427,7 +427,7 @@ async function searchGifs(request, env, deps) {
   let res;
   try {
     res = await fetch("https://gifcities.org/api/v1/gifsearch?limit=12&q=" + encodeURIComponent(q), {
-      headers: { accept: "application/json", "user-agent": "ViktorychApp/1.0" }
+      headers: { accept: "application/json", "user-agent": "1427446516/1.0" }
     });
   } catch (err) {
     return deps.json(503, { error: "unavailable" });
@@ -456,7 +456,7 @@ async function gifFile(request, env, deps) {
   if (target.protocol !== "https:" || !gifHostOk(target.hostname)) return deps.json(400, { error: "bad_query" });
   let res;
   try {
-    res = await fetch(target.toString(), { headers: { "user-agent": "ViktorychApp/1.0", accept: "image/gif,image/*" } });
+    res = await fetch(target.toString(), { headers: { "user-agent": "1427446516/1.0", accept: "image/gif,image/*" } });
   } catch (err) { return deps.json(503, { error: "unavailable" }); }
   if (!res || !res.ok) return deps.json(503, { error: "unavailable" });
   const bytes = new Uint8Array(await res.arrayBuffer());

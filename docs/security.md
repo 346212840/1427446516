@@ -20,7 +20,7 @@ Settings → Security lists passkeys for the current site, and can add or remove
 
 | Origin | rpId |
 | --- | --- |
-| `https://viktorychgroup.github.io` | `viktorychgroup.github.io` |
+| `https://346212840.github.io` | `346212840.github.io` |
 | `https://viktorychapp.pages.dev` | `viktorychapp.pages.dev` |
 | `https://<preview>.viktorychapp.pages.dev` | that full preview host |
 | `http://127.0.0.1` or `http://localhost` | `127.0.0.1` or `localhost` (the port is not part of the rpId) |

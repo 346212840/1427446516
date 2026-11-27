@@ -13,7 +13,7 @@ import java.util.List;
 import app.viktorych.tv.R;
 
 /** Suggestions for the search screen and for the TV's own search: "Search
- *  ViktorychApp for …" and matching recent searches. Read only, and it
+ *  1427446516 for …" and matching recent searches. Read only, and it
  *  reads nothing but this app's own recent searches. */
 public final class SuggestProvider extends ContentProvider {
     private static final String[] COLUMNS = {

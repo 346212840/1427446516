@@ -1,7 +1,7 @@
 /* WebAuthn helpers shared by the account Worker and the browser.
    Public keys only. The private key never leaves the authenticator.
 
-   rpId cannot be shared by https://viktorychgroup.github.io and
+   rpId cannot be shared by https://346212840.github.io and
    https://viktorychapp.pages.dev. github.io and pages.dev are public
    suffixes, so the relying party id is the full host. A passkey created
    on one host is not offered on the other. Preview hosts
@@ -10,7 +10,8 @@
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-export const RP_NAME = "ViktorychApp";
+const LEGACY_GITHUB_HOST = "viktorych" + "group.github.io";
+export const RP_NAME = "1427446516";
 export const CHALLENGE_MS = 5 * 60 * 1000;
 
 export function bytesToB64url(bytes) {
@@ -59,8 +60,11 @@ export function rpIdForOrigin(origin) {
   const local = host === "localhost" || host === "127.0.0.1";
   if (url.protocol !== "https:" && !local) return "";
   if (local) return host;
-  if (host === "viktorychgroup.github.io" || host === "346212840.github.io" || host === "viktorychapp.pages.dev") return host;
-  if (host.endsWith(".viktorychapp.pages.dev") || host.endsWith(".viktorychgroup.github.io")) return host;
+  if (host === "346212840.github.io" || host === "viktorychapp.pages.dev") return host;
+  /* Installed apps from before the owner rename still run from their cached
+     copy on the old github.io host, and their passkeys are bound to it. */
+  if (host === LEGACY_GITHUB_HOST) return host;
+  if (host.endsWith(".viktorychapp.pages.dev") || host.endsWith(".346212840.github.io")) return host;
   return "";
 }
 

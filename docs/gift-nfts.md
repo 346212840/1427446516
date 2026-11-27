@@ -1,7 +1,7 @@
 # Gift NFTs (optional, off by default)
 
 People can turn a gift they received into a collectible NFT on Base, from
-their own wallet. It costs ViktorychApp nothing to run:
+their own wallet. It costs 1427446516 nothing to run:
 
 - **Lazy minting.** Nothing is minted ahead of time. The person who received
   the gift mints it and their wallet pays the network fee. The contract takes
@@ -20,7 +20,7 @@ their own wallet. It costs ViktorychApp nothing to run:
 - **Our own art only.** Only the 75 illustrations marked SAFE TO SELL in
   [GIFTS-LICENSES.md](GIFTS-LICENSES.md) are offered (`NFT_ART` in
   `nft-ui.js`). Noto emoji gifts and limited editions are never offered.
-- **Collectibles only.** Not an investment. ViktorychApp never buys one back,
+- **Collectibles only.** Not an investment. 1427446516 never buys one back,
   pays out for one, or turns Viktorychs into money. No card data is involved.
 - **Gifts work without a wallet.** The button only appears on your own
   received gifts when the switch is on and a contract is set. Minting doesn't

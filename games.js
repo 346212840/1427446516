@@ -163,7 +163,7 @@
     return window.SI18n.relTime(new Date(ms).toISOString());
   }
   function appName() {
-    return window.SI18n && window.SI18n.productName ? window.SI18n.productName("app") : "ViktorychApp";
+    return window.SI18n && window.SI18n.productName ? window.SI18n.productName("app") : "1427446516";
   }
   function shareText() {
     var path = location.pathname || "/";

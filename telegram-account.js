@@ -168,7 +168,7 @@
         useWSS: true,
         floodSleepThreshold: 0,
         autoReconnect: false,
-        deviceModel: "ViktorychApp",
+        deviceModel: "1427446516",
         appVersion: "1.0"
       });
       return client.connect().then(function () {
