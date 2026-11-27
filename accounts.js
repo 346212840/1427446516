@@ -3607,6 +3607,12 @@ function signupPayload() {
       paint();
     });
   }
+  function ownerRecoveryOff() {
+    try {
+      var list = JSON.parse(localStorage.getItem("viktorychapp-server-off") || "[]");
+      return Array.isArray(list) && list.indexOf("owner_recovery") >= 0;
+    } catch (err) { return false; }
+  }
   function doRecover() {
     if (authBusy) return;
     var code = String(form.recovery || "").trim();
@@ -3618,7 +3624,10 @@ function signupPayload() {
     }
     authBusy = true;
     paint();
-    api("/v1/recovery/restore", { method: "POST", body: { code: code } }).then(function (res) {
+    /* A long value is the owner recovery code (a Worker secret the owner
+       set), not one of the 12-character account recovery codes. */
+    var ownerPath = code.replace(/\s+/g, "").length >= 24 && !ownerRecoveryOff();
+    api(ownerPath ? "/v1/recovery/owner" : "/v1/recovery/restore", { method: "POST", body: { code: code } }).then(function (res) {
       authBusy = false;
       if (!res || res.status !== 200 || !res.token || !res.accountNumber) {
         errorText = errorMessage((res && res.error) || "recovery_invalid");

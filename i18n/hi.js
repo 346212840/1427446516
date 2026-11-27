@@ -5429,6 +5429,8 @@ SI18n.addPack("hi", {
   "{count} locked follows": "{count} लॉक किए गए फ़ॉलो",
   "{in} received · {out} sent": "{in} मिले · {out} भेजे",
   "Owner inspector": "मालिक इंस्पेक्टर",
+  "Owner recovery": "मालिक रिकवरी",
+  "A one-time owner sign-in with a code you set as a Worker secret, typed in the recovery code box. It does nothing until that secret is set.": "Worker सीक्रेट के रूप में आपके रखे कोड से मालिक का एक बार का साइन-इन, जिसे रिकवरी कोड वाले बॉक्स में लिखा जाता है। जब तक वह सीक्रेट सेट न हो, यह कुछ नहीं करता।",
   "Accounts in Settings: every account with all its usernames and details, only for you. Each look is logged.": "सेटिंग में अकाउंट: हर अकाउंट अपने सभी यूज़रनेम और विवरण के साथ, सिर्फ़ आपके लिए। हर बार देखना लॉग होता है।",
   "The site owner can see account details, including private usernames, for moderation. Each look is logged.": "साइट का मालिक मॉडरेशन के लिए अकाउंट का विवरण, निजी यूज़रनेम समेत, देख सकता है। हर बार देखना लॉग होता है।",
   "1 hidden username": "1 छिपा यूज़रनेम",

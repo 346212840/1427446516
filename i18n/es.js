@@ -5528,6 +5528,8 @@ SI18n.addPack("es", {
   "{count} locked follows": "{count} seguimientos bloqueados",
   "{in} received · {out} sent": "{in} recibidas · {out} enviadas",
   "Owner inspector": "Inspector del propietario",
+  "Owner recovery": "Recuperación del propietario",
+  "A one-time owner sign-in with a code you set as a Worker secret, typed in the recovery code box. It does nothing until that secret is set.": "Un inicio de sesión único del propietario con un código que guardas como secreto del Worker, escrito en la casilla del código de recuperación. No hace nada hasta que guardes ese secreto.",
   "Accounts in Settings: every account with all its usernames and details, only for you. Each look is logged.": "Cuentas en Configuración: todas las cuentas con sus nombres de usuario y detalles, solo para ti. Cada consulta queda registrada.",
   "The site owner can see account details, including private usernames, for moderation. Each look is logged.": "El propietario del sitio puede ver los detalles de las cuentas, incluidos los nombres de usuario privados, para moderar. Cada consulta queda registrada.",
   "1 hidden username": "1 nombre de usuario oculto",

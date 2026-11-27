@@ -5527,6 +5527,8 @@ SI18n.addPack("ru", {
   "{count} locked follows": "Скрытых подписок: {count}",
   "{in} received · {out} sent": "{in} получено · {out} отправлено",
   "Owner inspector": "Инспектор владельца",
+  "Owner recovery": "Восстановление владельца",
+  "A one-time owner sign-in with a code you set as a Worker secret, typed in the recovery code box. It does nothing until that secret is set.": "Одноразовый вход владельца по коду, который вы сохраняете как секрет Worker, в поле кода восстановления. Ничего не делает, пока этот секрет не задан.",
   "Accounts in Settings: every account with all its usernames and details, only for you. Each look is logged.": "Аккаунты в настройках: все аккаунты со всеми именами пользователя и сведениями, только для вас. Каждый просмотр записывается.",
   "The site owner can see account details, including private usernames, for moderation. Each look is logged.": "Владелец сайта может видеть сведения об аккаунтах, включая скрытые имена пользователя, для модерации. Каждый просмотр записывается.",
   "1 hidden username": "1 скрытое имя пользователя",
