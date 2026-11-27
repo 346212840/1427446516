@@ -39,6 +39,10 @@ export const FEATURES = {
   // Private custom names for accounts from other networks. On by default.
   ext_nicknames: { paths: ["/v1/nicknames/external"] },
   // Off until the owner turns it on: NIP-05 names and post links to Nostr events.
+  // Owner recovery with the OWNER_RECOVERY_CODE Worker secret, entered in
+  // the recovery code box. On so a locked-out owner can reach it; it does
+  // nothing until the owner sets that secret, and each value works once.
+  owner_recovery: { paths: ["/v1/recovery/owner"] },
   nostr: { paths: ["/v1/nostr", "/.well-known/nostr.json"], defaultOff: true },
   // Off until the owner turns it on and sets NFT_CONTRACT: optional gift NFTs.
   nft: { paths: ["/v1/nft"], defaultOff: true },

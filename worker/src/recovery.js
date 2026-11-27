@@ -6,8 +6,13 @@ const CODE_COUNT = 10;
 
 export const RECOVERY_SCHEMA = [
   "CREATE TABLE IF NOT EXISTS recovery_codes (code_lookup TEXT PRIMARY KEY, public_id TEXT NOT NULL, code_hash TEXT NOT NULL, salt TEXT NOT NULL, created_at INTEGER NOT NULL, used_at INTEGER NOT NULL DEFAULT 0)",
-  "CREATE INDEX IF NOT EXISTS recovery_codes_account ON recovery_codes(public_id, created_at)"
+  "CREATE INDEX IF NOT EXISTS recovery_codes_account ON recovery_codes(public_id, created_at)",
+  "CREATE TABLE IF NOT EXISTS owner_recovery_used (code_lookup TEXT PRIMARY KEY, used_at INTEGER NOT NULL)"
 ];
+
+/* The shortest owner recovery code the Worker accepts. A shorter secret is
+   treated as unset, so a weak value can never sign anyone in. */
+export const OWNER_RECOVERY_MIN = 24;
 
 export function normalizeCode(value) {
   return String(value || "").toUpperCase().replace(/[^A-Z2-9]/g, "").slice(0, 12);
@@ -108,4 +113,43 @@ export async function handleRecoveryRegenerate(request, env, deps) {
   if (!gate.ok) return deps.limited(gate);
   const recoveryCodes = await issueRecoveryCodes(env, session.public_id, deps);
   return deps.json(200, { recoveryCodes: recoveryCodes });
+}
+
+/* Owner recovery: the owner sets the Worker secret OWNER_RECOVERY_CODE
+   himself (dashboard or `npx wrangler secret put OWNER_RECOVERY_CODE`).
+   Entering that value once signs in to the owner account with a new
+   account number and new recovery codes, so a new passkey can be added.
+   Each value works once: a keyed hash of a used value is kept, and the same
+   value is refused afterwards. Unset or short secret: the route answers 404.
+   The plain value is never stored, logged or returned. */
+export async function handleOwnerRecover(request, env, deps) {
+  const secret = String(env.OWNER_RECOVERY_CODE || "");
+  if (!env.ACCOUNT_PEPPER || secret.replace(/\s+/g, "").length < OWNER_RECOVERY_MIN) return deps.json(404, { error: "not_found" });
+  const ip = deps.clientIp(request);
+  const gate = await deps.rateHit(env, "orc:" + ip, 5, 60 * 60 * 1000);
+  if (!gate.ok) return deps.limited(gate);
+  const all = await deps.rateHit(env, "orc-all", 30, 60 * 60 * 1000);
+  if (!all.ok) return deps.limited(all);
+  const body = await deps.readJson(request, 2000);
+  if (body.error) return deps.json(400, { error: body.error });
+  /* Phone keyboards capitalize this box, so case and spaces do not count. */
+  const code = String(body.code || "").replace(/\s+/g, "").toUpperCase();
+  const given = await deps.hmacHex(env.ACCOUNT_PEPPER, "owner-recovery:" + code);
+  const wanted = await deps.hmacHex(env.ACCOUNT_PEPPER, "owner-recovery:" + secret.replace(/\s+/g, "").toUpperCase());
+  if (!code || !deps.timingEqual(given, wanted)) return deps.json(401, { error: "recovery_invalid" });
+  const owner = await env.DB.prepare("SELECT public_id FROM accounts WHERE owner = 1").first();
+  if (!owner) return deps.json(401, { error: "recovery_invalid" });
+  if (await deps.blockDeletedLogin(env, owner.public_id)) return deps.json(410, { error: "account_deleted" });
+  const marked = await env.DB.prepare("INSERT OR IGNORE INTO owner_recovery_used (code_lookup, used_at) VALUES (?, ?)").bind(wanted, Date.now()).run();
+  if (!marked || !marked.meta || Number(marked.meta.changes) !== 1) return deps.json(401, { error: "recovery_invalid" });
+  const accountNumber = await rotateAccountNumber(env, owner.public_id, deps);
+  const recoveryCodes = await issueRecoveryCodes(env, owner.public_id, deps);
+  const accountRow = await env.DB.prepare("SELECT " + deps.accountCols + " FROM accounts WHERE public_id = ?").bind(owner.public_id).first();
+  const token = await deps.mintSession(env, owner.public_id);
+  return deps.json(200, {
+    token: token,
+    accountNumber: accountNumber,
+    recoveryCodes: recoveryCodes,
+    account: await deps.presentAccount(env, request, accountRow, true)
+  });
 }

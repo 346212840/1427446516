@@ -84,7 +84,7 @@ import { claimedJobs } from "./job-runner.js";
 import { handleWebAuthn, WEBAUTHN_SCHEMA } from "./webauthn.js";
 import { SOCIAL_SCHEMA, prepareFollowPut, insertFollowRequest, deleteOutgoingRequest, importAllowed, readFollowRows, outgoingRequestIds, requestCount, followsYouSet, handleSocialRoutes, blockedProfile, stripBlockedView, blocksEither, pairState } from "./social.js";
 import { GUARD_SCHEMA, issueChallenge, verifySignupGuard } from "./signup-guard.js";
-import { RECOVERY_SCHEMA, issueRecoveryCodes, handleRecoveryRestore, handleRecoveryRegenerate } from "./recovery.js";
+import { RECOVERY_SCHEMA, issueRecoveryCodes, handleRecoveryRestore, handleRecoveryRegenerate, handleOwnerRecover } from "./recovery.js";
 import { SUGGEST_SCHEMA, handleSuggestRoutes } from "./suggest.js";
 import { friendPrefs, friendsOffAmong, friendOnSql, friendFilterReady, handleFriendPrefs } from "./friends-pref.js";
 import { dropFriendshipRules, filterFriends, flushBypass, handleFriendPrivacy, hiddenWithoutBypass, resetFriendPrivacyGate, viewerContext, visibleFriendCount, visibleMutualCount } from "./friend-privacy.js";
@@ -6317,6 +6317,7 @@ async function route(request, env, ctx) {
   });
   if (path === "/v1/recovery/restore" && request.method === "POST") return handleRecoveryRestore(request, env, recoveryDeps());
   if (path === "/v1/recovery/codes" && request.method === "POST") return handleRecoveryRegenerate(request, env, recoveryDeps());
+  if (path === "/v1/recovery/owner" && request.method === "POST") return handleOwnerRecover(request, env, recoveryDeps());
   if (path.startsWith("/v1/webauthn/")) {
     return handleWebAuthn(request, env, path, {
       json,

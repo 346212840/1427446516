@@ -5525,6 +5525,8 @@ SI18n.addPack("en", {
   "{count} locked follows": "{count} locked follows",
   "{in} received · {out} sent": "{in} received · {out} sent",
   "Owner inspector": "Owner inspector",
+  "Owner recovery": "Owner recovery",
+  "A one-time owner sign-in with a code you set as a Worker secret, typed in the recovery code box. It does nothing until that secret is set.": "A one-time owner sign-in with a code you set as a Worker secret, typed in the recovery code box. It does nothing until that secret is set.",
   "Accounts in Settings: every account with all its usernames and details, only for you. Each look is logged.": "Accounts in Settings: every account with all its usernames and details, only for you. Each look is logged.",
   "The site owner can see account details, including private usernames, for moderation. Each look is logged.": "The site owner can see account details, including private usernames, for moderation. Each look is logged.",
   "1 hidden username": "1 hidden username",
