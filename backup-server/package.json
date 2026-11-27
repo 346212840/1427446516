@@ -3,7 +3,7 @@
   "version": "1.2.0",
   "type": "module",
   "private": true,
-  "description": "Backup accounts backend for ViktorychApp (shared Cloudflare D1 + R2). Production needs no npm packages.",
+  "description": "Backup accounts backend for 1427446516 (shared Cloudflare D1 + R2). Production needs no npm packages.",
   "engines": {
     "node": ">=22"
   },

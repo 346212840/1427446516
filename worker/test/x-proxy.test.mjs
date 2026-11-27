@@ -16,7 +16,7 @@ function workerOptions(extra) {
     compatibilityDate: "2026-01-15",
     r2Buckets: ["DATA"],
     bindings: Object.assign(
-      { ALLOWED_ORIGINS: "https://viktorychgroup.github.io" },
+      { ALLOWED_ORIGINS: "https://346212840.github.io" },
       extra || {}
     ),
     async outboundService(request) {

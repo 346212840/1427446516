@@ -13,10 +13,10 @@ import {
 } from "../../shared/webauthn.js";
 
 const ORIGINS = [
-  "https://viktorychgroup.github.io",
+  "https://346212840.github.io",
   "https://viktorychapp.pages.dev",
-  "https://preview.viktorychgroup.github.io",
-  "http://viktorychgroup.github.io",
+  "https://preview.346212840.github.io",
+  "http://346212840.github.io",
   "http://127.0.0.1:8080"
 ].join(",");
 
@@ -185,20 +185,19 @@ test.after(async () => {
 });
 
 test("relying party id follows the host", () => {
-  assert.equal(rpIdForOrigin("https://viktorychgroup.github.io"), "viktorychgroup.github.io");
-  assert.equal(rpIdForOrigin("https://viktorychapp.pages.dev"), "viktorychapp.pages.dev");
   assert.equal(rpIdForOrigin("https://346212840.github.io"), "346212840.github.io");
+  assert.equal(rpIdForOrigin("https://viktorychapp.pages.dev"), "viktorychapp.pages.dev");
   assert.equal(rpIdForOrigin("https://preview.viktorychapp.pages.dev/app"), "preview.viktorychapp.pages.dev");
   assert.equal(rpIdForOrigin("http://127.0.0.1:8765"), "127.0.0.1");
   assert.equal(rpIdForOrigin("http://localhost:8080"), "localhost");
-  assert.equal(rpIdForOrigin("http://viktorychgroup.github.io"), "");
+  assert.equal(rpIdForOrigin("http://346212840.github.io"), "");
   assert.equal(rpIdForOrigin("https://evil.github.io"), "");
   assert.equal(rpIdForOrigin("https://evil.example"), "");
 });
 
 test("passkey signup, login, a second key, and the failures", async () => {
-  const origin = "https://viktorychgroup.github.io";
-  const rpId = "viktorychgroup.github.io";
+  const origin = "https://346212840.github.io";
+  const rpId = "346212840.github.io";
   const key = await authenticator(-7);
   const ip = "203.0.113.70";
 
@@ -213,7 +212,7 @@ test("passkey signup, login, a second key, and the failures", async () => {
   const insecure = await call("/v1/webauthn/signup/options", {
     method: "POST",
     ip: "203.0.113.71",
-    origin: "http://viktorychgroup.github.io",
+    origin: "http://346212840.github.io",
     body: { displayName: "Guest", handle: "guestbox" }
   });
   assert.equal(insecure.status, 403);
@@ -491,8 +490,8 @@ test("passkey signup, login, a second key, and the failures", async () => {
 });
 
 test("a passkey sign-up follows the owner and imports nothing else", async () => {
-  const origin = "https://viktorychgroup.github.io";
-  const rpId = "viktorychgroup.github.io";
+  const origin = "https://346212840.github.io";
+  const rpId = "346212840.github.io";
   const db = await mf.getD1Database("DB");
   await db.prepare("INSERT INTO accounts (public_id, handle, skeleton, display_name, avatar, banner, bio, owner, number_lookup, number_hash, salt, created_at, profile_less) VALUES ('900000000001', 'ownerbox', 'ownerbox', 'Owner', '', '', '', 1, 'x', 'x', 'x', ?, 0) ON CONFLICT DO NOTHING").bind(Date.now()).run();
   const ownerRow = await db.prepare("SELECT public_id FROM accounts WHERE owner = 1").first();

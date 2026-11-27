@@ -4,7 +4,7 @@ import test from "node:test";
 import { Miniflare } from "miniflare";
 import { tempExpiry, tempBlockedPointsRoute, TEMP_CHOICES } from "../src/temp-accounts.js";
 
-const ORIGIN = "https://viktorychgroup.github.io";
+const ORIGIN = "https://346212840.github.io";
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 
@@ -70,7 +70,7 @@ test.before(async () => {
       ACCOUNT_PEPPER: "pepper-test",
       OWNER_CLAIM_CODE: "claim-test",
       OWNER_HANDLE: "mirathorn",
-      ALLOWED_ORIGINS: "https://viktorychgroup.github.io,http://127.0.0.1:8080",
+      ALLOWED_ORIGINS: "https://346212840.github.io,http://127.0.0.1:8080",
       PBKDF2_ITERATIONS: "1000"
     }
   });

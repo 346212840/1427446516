@@ -1,4 +1,4 @@
-# AGENTS.md: ViktorychApp guide for AI coding agents
+# AGENTS.md: 1427446516 guide for AI coding agents
 
 This is the single source of truth for any AI agent working in this repository (Google Antigravity, Gemini, Codex, Cursor, Claude Code or anything else). Read it fully before you change anything. Then read `docs/HANDOFF.md` (history and merge queue), `docs/STATUS.md` (what is live and open right now) and `docs/LOW-USAGE.md` (how to keep usage low). If this file and another doc disagree, the stricter rule wins; tell the owner about the conflict.
 
@@ -6,7 +6,7 @@ The repository is public and will be opened to contributors. Write every commit,
 
 ## 1. What the project is
 
-ViktorychApp is an X.com clone shipped as a PWA. It mixes its own accounts and posts with posts streamed from other networks (X, Reddit, TikTok, Telegram, VK, Discord, forums such as NZlay, Nostr and more), normalized into one post shape.
+1427446516 is an X.com clone shipped as a PWA. It mixes its own accounts and posts with posts streamed from other networks (X, Reddit, TikTok, Telegram, VK, Discord, forums such as NZlay, Nostr and more), normalized into one post shape.
 
 | Piece | Where | Notes |
 | --- | --- | --- |

@@ -443,7 +443,7 @@
     return !!(window.matchMedia && window.matchMedia(DESKTOP_TITLE_MQ).matches);
   }
   function plainAppTitle() {
-    return productName("app") || "ViktorychApp";
+    return productName("app") || "1427446516";
   }
   function pinDesktopTitle() {
     const fix = () => {
@@ -19852,7 +19852,7 @@ const here = parseRoute();
   }
 
   function customizeSample() {
-    const name = productName("app") || "ViktorychApp";
+    const name = productName("app") || "1427446516";
     const stat = (cls, path, count) => `<span class="action ${cls}"><span class="ic">${icon(path)}</span>${count ? `<span class="count">${esc(count)}</span>` : ""}</span>`;
     return `<div class="pz-preview" aria-label="${esc(tr("Preview"))}"><article class="post pz-sample" aria-hidden="true">
       <div class="post-row">
@@ -20099,7 +20099,7 @@ const here = parseRoute();
     const max = api ? api.MAX : 20;
     const modeBtn = (id, label) => `<button class="outline${pref.mode === id ? " on" : ""}" type="button" role="radio" aria-checked="${pref.mode === id ? "true" : "false"}" data-act="logo-mode" data-mode="${id}">${esc(label)}</button>`;
     const used = api ? api.length(pref.text) : pref.text.length;
-    const field = pref.mode === "text" ? `<div class="logo-field"><label class="logo-label" for="logo-text">${esc(tr("Logo text"))}</label><input id="logo-text" class="logo-input" type="text" maxlength="${max * 2}" autocomplete="off" spellcheck="false" dir="auto" value="${esc(pref.text)}" placeholder="${esc(productName("app") || "ViktorychApp")}" aria-describedby="logo-count"><span id="logo-count" class="phandle logo-count" aria-live="polite">${used}/${max}</span><button class="outline logo-reset" type="button" data-act="logo-reset">${esc(tr("Reset to default"))}</button></div>` : "";
+    const field = pref.mode === "text" ? `<div class="logo-field"><label class="logo-label" for="logo-text">${esc(tr("Logo text"))}</label><input id="logo-text" class="logo-input" type="text" maxlength="${max * 2}" autocomplete="off" spellcheck="false" dir="auto" value="${esc(pref.text)}" placeholder="${esc(productName("app") || "1427446516")}" aria-describedby="logo-count"><span id="logo-count" class="phandle logo-count" aria-live="polite">${used}/${max}</span><button class="outline logo-reset" type="button" data-act="logo-reset">${esc(tr("Reset to default"))}</button></div>` : "";
     return `<h2>${esc(tr("Sidebar logo"))}</h2>
         <p class="phandle">${esc(tr("Only you see this. It shows on wide screens where the sidebar has the logo."))}</p>
         <div class="theme-row" role="radiogroup" aria-label="${esc(tr("Sidebar logo"))}">
@@ -26121,7 +26121,7 @@ if (route.name === "music" && window.SIntelMusic && window.SIntelMusic.titleFor)
       addBlock(act === "block-post" ? "posts" : "accounts", key);
       saveSettings();
       if (act === "block-account" && post.appPost && post.authorId && signedAccount()) {
-        // A ViktorychApp account is also muted on the server, so it is gone on every device.
+        // A 1427446516 account is also muted on the server, so it is gone on every device.
         accountCall("/v1/mutes", { method: "POST", body: { accountId: post.authorId } }).then(() => { publicStamp = 0; schedulePublicPosts(); }).catch(() => {});
       }
       if (window.ViktorychCommunities && window.ViktorychCommunities.requestRender) { /* communities redraw with the app */ }

@@ -15,7 +15,7 @@ import { SOURCE_HOSTS, cleanId, statusId, openUrl, extractFor, present } from ".
 const LIVE_TTL_S = 60;
 const QUIET_TTL_S = 5 * 60;
 const TIMEOUT_MS = 6000;
-const UA = "Mozilla/5.0 (compatible; ViktorychApp/1.0; +" + appContact() + ")";
+const UA = "Mozilla/5.0 (compatible; 1427446516/1.0; +" + appContact() + ")";
 const HOSTS = new Set(SOURCE_HOSTS);
 
 function reply(status, body, maxAge) {

@@ -22,7 +22,7 @@ const child = spawn(process.execPath, [path.resolve(__dirname, "server.mjs")], {
     ACCOUNT_PEPPER: "test-pepper-1234",
     SIGNUP_GUARD: "off",
     PBKDF2_ITERATIONS: "1000",
-    ALLOWED_ORIGINS: "https://viktorychgroup.github.io,http://127.0.0.1:8080"
+    ALLOWED_ORIGINS: "https://346212840.github.io,http://127.0.0.1:8080"
   }),
   stdio: ["ignore", "pipe", "pipe"]
 });
@@ -59,7 +59,7 @@ try {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "Origin": "https://viktorychgroup.github.io"
+      "Origin": "https://346212840.github.io"
     },
     body: JSON.stringify({
       handle: "backup_user",
@@ -75,7 +75,7 @@ try {
   const sessionRes = await fetch(`http://127.0.0.1:${TEST_PORT}/v1/session`, {
     headers: {
       "Authorization": "Bearer " + signupBody.token,
-      "Origin": "https://viktorychgroup.github.io"
+      "Origin": "https://346212840.github.io"
     }
   });
   const sessionBody = await sessionRes.json();
@@ -87,7 +87,7 @@ try {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "Origin": "https://viktorychgroup.github.io"
+      "Origin": "https://346212840.github.io"
     },
     body: JSON.stringify({
       accountNumber: signupBody.accountNumber

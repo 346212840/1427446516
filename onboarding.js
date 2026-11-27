@@ -590,7 +590,7 @@
     return text;
   }
   function appName() {
-    return (window.SI18n && window.SI18n.productName && window.SI18n.productName("app")) || "ViktorychApp";
+    return (window.SI18n && window.SI18n.productName && window.SI18n.productName("app")) || "1427446516";
   }
   function esc(value) {
     return String(value == null ? "" : value).replace(/[&<>"']/g, function (ch) {

@@ -43,7 +43,7 @@ test.before(async () => {
     compatibilityDate: "2026-01-15",
     d1Databases: ["DB"],
     r2Buckets: ["DATA"],
-    bindings: { ACCOUNT_PEPPER: "pepper-test", OWNER_CLAIM_CODE: "claim-test", OWNER_HANDLE: "user_owner", ALLOWED_ORIGINS: "https://viktorychgroup.github.io", PBKDF2_ITERATIONS: "1000", DHL_API_KEY: "test-key" },
+    bindings: { ACCOUNT_PEPPER: "pepper-test", OWNER_CLAIM_CODE: "claim-test", OWNER_HANDLE: "user_owner", ALLOWED_ORIGINS: "https://346212840.github.io", PBKDF2_ITERATIONS: "1000", DHL_API_KEY: "test-key" },
     outboundService: async (req) => {
       const url = new URL(req.url);
       if (url.hostname === "api-eu.dhl.com") {

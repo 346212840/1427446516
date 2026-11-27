@@ -135,7 +135,7 @@
   var SHORT_URL = "viktorychapp.pages.dev/tv";
   // Inside the app the download leaves the WebView for the system browser,
   // so the update link points at the release asset on github.com.
-  var RELEASE_APK = "https://github.com/ViktorychGroup/ViktorychApp/releases/latest/download/ViktorychTV.apk";
+  var RELEASE_APK = "https://github.com/346212840/1427446516/releases/latest/download/ViktorychTV.apk";
 
   function checkUpdate() {
     var b = boot();
@@ -333,7 +333,7 @@
   function installCardHtml(where) {
     return '<div class="tv-app-card" data-tv-app-card="' + esc(where) + '">' +
       '<div class="tv-app-copy"><strong>' + esc(tr("Get the TV app")) + '</strong>' +
-      '<span>' + esc(tr("Put ViktorychApp on your TV home screen. One download, then press Install.")) + '</span></div>' +
+      '<span>' + esc(tr("Put 1427446516 on your TV home screen. One download, then press Install.")) + '</span></div>' +
       '<a class="tv-app-get" href="' + APK + '" download="ViktorychTV.apk" type="application/vnd.android.package-archive" data-tv-get="1">' + esc(tr("Install TV app")) + '</a>' +
       '<a class="tv-app-how" href="' + TV_PAGE + '">' + esc(tr("How to install")) + '</a>' +
       (where === "home" ? '<button class="tv-app-x" type="button" data-tv-hint-close="1" aria-label="' + esc(tr("Not now")) + '">&times;</button>' : "") +

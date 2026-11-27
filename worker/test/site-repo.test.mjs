@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { configuredRepository, githubFetch, pagesBase, repoFromRedirect, repositoryIdFromRedirect, resolveRepository } from "../src/site-repo.js";
 
 test("the configured name is the current repository", () => {
-  assert.equal(configuredRepository({}), "ViktorychGroup/ViktorychApp");
+  assert.equal(configuredRepository({}), "346212840/1427446516");
   assert.equal(configuredRepository({ GITHUB_REPOSITORY: "Example/Renamed" }), "Example/Renamed");
   assert.equal(pagesBase("Example/Renamed"), "https://example.github.io/Renamed/");
 });

@@ -25,7 +25,7 @@ function boot(net) {
       if (vars) Object.keys(vars).forEach((name) => { text = text.split("{" + name + "}").join(String(vars[name])); });
       return text;
     },
-    SI18n: { productName: () => "ViktorychApp" },
+    SI18n: { productName: () => "1427446516" },
     VIKTORYCH_ACCOUNTS: { api: "https://accounts.test", gate: false },
     localStorage: {
       getItem: (key) => (Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null),

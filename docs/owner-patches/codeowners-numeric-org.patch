@@ -1,0 +1,49 @@
+diff --git a/.github/CODEOWNERS b/.github/CODEOWNERS
+index e870f6bc..cb55578e 100644
+--- a/.github/CODEOWNERS
++++ b/.github/CODEOWNERS
+@@ -1,25 +1,25 @@
+ # Every change needs a review from the maintainers team. Create the team
+ # (Organization -> Teams -> New team "maintainers") and add only the owner.
+ # Turn on "Require review from Code Owners" in the main branch ruleset.
+-*                       @ViktorychGroup/maintainers
++*                       @346212840/maintainers
+ 
+ # Highest risk: anything that runs with secrets, deploys, stores data,
+ # handles sign-in, or touches money.
+-/.github/               @ViktorychGroup/maintainers
+-/worker/                @ViktorychGroup/maintainers
+-/worker/migrations/     @ViktorychGroup/maintainers
+-/backup-server/         @ViktorychGroup/maintainers
+-/docker/                @ViktorychGroup/maintainers
+-/android-tv/            @ViktorychGroup/maintainers
+-/scripts/               @ViktorychGroup/maintainers
+-/sw.js                  @ViktorychGroup/maintainers
+-/accounts.js            @ViktorychGroup/maintainers
+-/accounts.config.js     @ViktorychGroup/maintainers
+-/passkeys.js            @ViktorychGroup/maintainers
+-/app-lock.js            @ViktorychGroup/maintainers
+-/vault.js               @ViktorychGroup/maintainers
+-/owner-keys.js          @ViktorychGroup/maintainers
+-/gifts-ui.js            @ViktorychGroup/maintainers
+-/render.yaml            @ViktorychGroup/maintainers
+-/SECURITY.md            @ViktorychGroup/maintainers
+-/CONTRIBUTING.md        @ViktorychGroup/maintainers
++/.github/               @346212840/maintainers
++/worker/                @346212840/maintainers
++/worker/migrations/     @346212840/maintainers
++/backup-server/         @346212840/maintainers
++/docker/                @346212840/maintainers
++/android-tv/            @346212840/maintainers
++/scripts/               @346212840/maintainers
++/sw.js                  @346212840/maintainers
++/accounts.js            @346212840/maintainers
++/accounts.config.js     @346212840/maintainers
++/passkeys.js            @346212840/maintainers
++/app-lock.js            @346212840/maintainers
++/vault.js               @346212840/maintainers
++/owner-keys.js          @346212840/maintainers
++/gifts-ui.js            @346212840/maintainers
++/render.yaml            @346212840/maintainers
++/SECURITY.md            @346212840/maintainers
++/CONTRIBUTING.md        @346212840/maintainers

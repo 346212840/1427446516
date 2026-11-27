@@ -1,6 +1,6 @@
 ---
 name: triage-failed-actions
-description: Investigates, fixes and re-runs failed GitHub Actions runs on ViktorychApp (PR checks or scheduled workflows) so nothing is abandoned. Use when a check is red or the watchdog reports failures.
+description: Investigates, fixes and re-runs failed GitHub Actions runs on 1427446516 (PR checks or scheduled workflows) so nothing is abandoned. Use when a check is red or the watchdog reports failures.
 ---
 
 # Triage failed Actions

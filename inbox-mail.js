@@ -41,15 +41,15 @@
       imap: "https://mail.yandex.com/#setup/client",
       appPassword: "https://id.yandex.com/security/app-passwords",
       filters: "https://mail.yandex.com/#setup/filters",
-      steps: function () { return [tr("Open Yandex Mail settings › Mail clients and turn on IMAP (portal password or app password)."), tr("Open Yandex ID › Security › App passwords, choose Mail, name it ViktorychApp and copy the password."), tr("Create a folder named ViktorychApp."), tr("Settings › Message filtering › Create filter, then paste the rule below.")]; },
-      rule: function () { return tr("If: From contains \"simplelogin\"\nOr: To contains \"@{alias-domain}\"\nThen: Move to folder \"ViktorychApp\"\nApply to existing messages: on"); }
+      steps: function () { return [tr("Open Yandex Mail settings › Mail clients and turn on IMAP (portal password or app password)."), tr("Open Yandex ID › Security › App passwords, choose Mail, name it 1427446516 and copy the password."), tr("Create a folder named 1427446516."), tr("Settings › Message filtering › Create filter, then paste the rule below.")]; },
+      rule: function () { return tr("If: From contains \"simplelogin\"\nOr: To contains \"@{alias-domain}\"\nThen: Move to folder \"1427446516\"\nApply to existing messages: on"); }
     },
     gmail: {
       name: "Gmail",
       imap: "https://mail.google.com/mail/u/0/#settings/fwdandpop",
       appPassword: "https://myaccount.google.com/apppasswords",
       filters: "https://mail.google.com/mail/u/0/#settings/filters",
-      steps: function () { return [tr("Turn on 2-Step Verification for your Google account (app passwords need it)."), tr("Open Google Account › App passwords, name it ViktorychApp and copy the 16-letter password."), tr("Create a label named ViktorychApp. In IMAP a label is a folder."), tr("Settings › Filters › Create a new filter, paste the search below, then choose Skip the Inbox and Apply the label ViktorychApp.")]; },
+      steps: function () { return [tr("Turn on 2-Step Verification for your Google account (app passwords need it)."), tr("Open Google Account › App passwords, name it 1427446516 and copy the 16-letter password."), tr("Create a label named 1427446516. In IMAP a label is a folder."), tr("Settings › Filters › Create a new filter, paste the search below, then choose Skip the Inbox and Apply the label 1427446516.")]; },
       rule: function () { return "from:(simplelogin.co OR simplelogin.io) OR to:(@{alias-domain})"; }
     },
     outlook: {
@@ -57,16 +57,16 @@
       imap: "https://outlook.live.com/mail/0/options/mail/accounts/popImap",
       appPassword: "https://account.live.com/proofs/AppPassword",
       filters: "https://outlook.live.com/mail/0/options/mail/rules",
-      steps: function () { return [tr("Turn on two-step verification for your Microsoft account."), tr("Open Security › App passwords and create one. Some Outlook.com accounts no longer allow IMAP with an app password; if the test fails, use Yandex or Gmail."), tr("Create a folder named ViktorychApp."), tr("Settings › Mail › Rules › Add new rule, then use the rule below.")]; },
-      rule: function () { return tr("Condition: From includes \"simplelogin\"\nAction: Move to \"ViktorychApp\"\nStop processing more rules: on"); }
+      steps: function () { return [tr("Turn on two-step verification for your Microsoft account."), tr("Open Security › App passwords and create one. Some Outlook.com accounts no longer allow IMAP with an app password; if the test fails, use Yandex or Gmail."), tr("Create a folder named 1427446516."), tr("Settings › Mail › Rules › Add new rule, then use the rule below.")]; },
+      rule: function () { return tr("Condition: From includes \"simplelogin\"\nAction: Move to \"1427446516\"\nStop processing more rules: on"); }
     },
     mailru: {
       name: "Mail.ru",
       imap: "https://e.mail.ru/settings/programs",
       appPassword: "https://account.mail.ru/user/2-step-auth/passwords",
       filters: "https://e.mail.ru/settings/filters",
-      steps: function () { return [tr("Open Settings › Mail programs and allow IMAP access."), tr("Open Security › Passwords for external apps, create one for ViktorychApp and copy it."), tr("Create a folder named ViktorychApp."), tr("Settings › Filters › Add filter, then use the rule below.")]; },
-      rule: function () { return tr("If: From contains \"simplelogin\"\nThen: Move to folder \"ViktorychApp\""); }
+      steps: function () { return [tr("Open Settings › Mail programs and allow IMAP access."), tr("Open Security › Passwords for external apps, create one for 1427446516 and copy it."), tr("Create a folder named 1427446516."), tr("Settings › Filters › Add filter, then use the rule below.")]; },
+      rule: function () { return tr("If: From contains \"simplelogin\"\nThen: Move to folder \"1427446516\""); }
     }
   };
 
@@ -260,7 +260,7 @@
     var err = w.error ? '<p class="mail-err" role="alert">' + esc(errorText(w.error)) + "</p>" : "";
     if (w.step === "consent") {
       return '<h2 class="mail-h2">' + esc(tr("What the app can see")) + '</h2><ul class="mail-list">' +
-        [tr("Only the one folder you choose (we suggest a new folder named ViktorychApp)."),
+        [tr("Only the one folder you choose (we suggest a new folder named 1427446516)."),
           tr("The sender, subject and date of messages in that folder."),
           tr("A message's text only when you open it."),
           tr("Nothing in any other folder. The app never lists your folders."),
@@ -288,7 +288,7 @@
         '<form class="mail-form" data-mail-form autocomplete="off">' +
         '<label class="mail-lab">' + esc(tr("Email address")) + '<input name="user" type="email" inputmode="email" autocomplete="username" required value="' + esc(f.user || "") + '"></label>' +
         '<label class="mail-lab">' + esc(tr("App password")) + '<input name="pass" type="password" autocomplete="current-password" required></label>' +
-        '<label class="mail-lab">' + esc(tr("Folder")) + '<input name="folder" required value="' + esc(f.folder || "ViktorychApp") + '"></label>' +
+        '<label class="mail-lab">' + esc(tr("Folder")) + '<input name="folder" required value="' + esc(f.folder || "1427446516") + '"></label>' +
         '<label class="mail-check"><input type="checkbox" name="allowInbox"' + (f.allowInbox ? " checked" : "") + "> " + esc(tr("Allow reading INBOX (not recommended)")) + "</label>" +
         '<h3 class="sms-h">' + esc(tr("Filters")) + "</h3>" +
         '<label class="mail-lab">' + esc(tr("Only these senders (one per line, optional)")) + '<textarea name="from" rows="3">' + esc((f.from || []).join("\n")) + "</textarea></label>" +
@@ -445,13 +445,13 @@
     } else if (kind === "activate") {
       slCall("/api/auth/activate", { method: "POST", anon: true, body: { email: s.email, code: v("code") } }).then(function (r) {
         if (r.status !== 200) { s.error = r.status === 410 ? tr("Too many wrong codes. Ask for a new one.") : slError(r); finish(); return; }
-        return slCall("/api/auth/login", { method: "POST", anon: true, body: { email: s.email, password: s.pass, device: "ViktorychApp" } }).then(slAfterLogin).then(finish);
+        return slCall("/api/auth/login", { method: "POST", anon: true, body: { email: s.email, password: s.pass, device: "1427446516" } }).then(slAfterLogin).then(finish);
       });
     } else if (kind === "login") {
       s.email = v("email");
-      slCall("/api/auth/login", { method: "POST", anon: true, body: { email: s.email, password: raw("password"), device: "ViktorychApp" } }).then(slAfterLogin).then(finish);
+      slCall("/api/auth/login", { method: "POST", anon: true, body: { email: s.email, password: raw("password"), device: "1427446516" } }).then(slAfterLogin).then(finish);
     } else if (kind === "mfa") {
-      slCall("/api/auth/mfa", { method: "POST", anon: true, body: { mfa_token: v("otp"), mfa_key: s.mfaKey, device: "ViktorychApp" } }).then(function (r) {
+      slCall("/api/auth/mfa", { method: "POST", anon: true, body: { mfa_token: v("otp"), mfa_key: s.mfaKey, device: "1427446516" } }).then(function (r) {
         if (r.status === 200 && r.data.api_key) return slSaveKey(r.data.api_key);
         s.error = slError(r);
         return null;
@@ -470,7 +470,7 @@
       slCall("/api/v2/mailboxes").then(function (mb) {
         var boxes = mb.status === 200 ? (mb.data.mailboxes || []) : [];
         var def = boxes.find(function (b) { return b.default; }) || boxes[0];
-        return slCall("/api/v3/alias/custom/new", { method: "POST", body: { alias_prefix: v("prefix").toLowerCase(), signed_suffix: opt.signed_suffix, mailbox_ids: def ? [def.id] : [], note: "ViktorychApp codes" } });
+        return slCall("/api/v3/alias/custom/new", { method: "POST", body: { alias_prefix: v("prefix").toLowerCase(), signed_suffix: opt.signed_suffix, mailbox_ids: def ? [def.id] : [], note: "1427446516 codes" } });
       }).then(function (r) {
         if (r.status === 201) { s.step = "aliases"; slLoadAliases(); } else s.error = slError(r);
         finish();
@@ -480,7 +480,7 @@
   function slRandom() {
     var s = state.sl;
     s.busy = true; repaint();
-    slCall("/api/alias/random/new", { method: "POST", body: { note: "ViktorychApp codes" } }).then(function (r) {
+    slCall("/api/alias/random/new", { method: "POST", body: { note: "1427446516 codes" } }).then(function (r) {
       s.busy = false;
       if (r.status === 201) slLoadAliases(); else { s.error = slError(r); repaint(); }
     });
@@ -501,7 +501,7 @@
     if (!s.step) {
       return '<h2 class="mail-h2">' + esc(tr("Email aliases")) + '</h2><ul class="mail-list">' +
         [tr("A free SimpleLogin account gives you aliases: addresses you hand out instead of your real one."),
-          tr("Mail to an alias forwards to your own mailbox. Your Mail filter can then move code emails into your ViktorychApp folder."),
+          tr("Mail to an alias forwards to your own mailbox. Your Mail filter can then move code emails into your 1427446516 folder."),
           tr("Sign-up and sign-in happen right here. Your password goes only to SimpleLogin and is never stored; the key it returns stays encrypted on this device.")].map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") +
         '</ul><div class="mail-row">' + btn(tr("Create free account"), "data-sl-step=\"signup\"", "primary") + btn(tr("Sign in"), "data-sl-step=\"login\"") + "</div>";
     }

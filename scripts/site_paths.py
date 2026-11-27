@@ -56,4 +56,4 @@ def cdn_data() -> str:
 
 def user_agent() -> str:
     web = github_web()
-    return f"ViktorychApp-preview/1.0 (+{web})" if web else "ViktorychApp-preview/1.0"
+    return f"1427446516-preview/1.0 (+{web})" if web else "1427446516-preview/1.0"

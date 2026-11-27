@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { Miniflare } from "miniflare";
 
-const ORIGIN = "https://viktorychgroup.github.io";
+const ORIGIN = "https://346212840.github.io";
 let mf;
 
 function workerOptions(extra) {

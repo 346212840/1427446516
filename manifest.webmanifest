@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "ViktorychApp",
-  "short_name": "ViktorychApp",
+  "name": "1427446516",
+  "short_name": "1427446516",
   "description": "An X-style home for posts from X, Threads, Instagram, YouTube, VK, Discord, Telegram, and RSS. Install for full screen, offline reading, Share Target, and desktop window controls.",
   "scope": "./",
   "start_url": "./#/home",
@@ -144,8 +144,8 @@
       ]
     },
     {
-      "name": "ViktorychMusic",
-      "short_name": "ViktorychMusic",
+      "name": "1427446516 Music",
+      "short_name": "1427446516 Music",
       "url": "./#/music",
       "icons": [
         {

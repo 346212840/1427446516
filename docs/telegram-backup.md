@@ -21,7 +21,7 @@ The manifest is `backup/telegram-manifest.json` in the private R2 bucket (prefer
 2. Create a private channel. Add the bot as an administrator. Give it permission to post messages.
 3. Get the channel id. Forward a post from the channel to [@username_to_id_bot](https://t.me/username_to_id_bot), or open the channel in Telegram Web (`https://web.telegram.org`) and copy the `-100…` id. That value is `TELEGRAM_CHANNEL_ID`.
 4. Open <https://my.telegram.org>, then **API development tools**. Create an application if you do not already have one. Copy `api_id` and `api_hash`. Those values are `TELEGRAM_API_ID` and `TELEGRAM_API_HASH`.
-5. Add the four GitHub Actions secrets at <https://github.com/ViktorychGroup/ViktorychApp/settings/secrets/actions/new>. Use these names exactly:
+5. Add the four GitHub Actions secrets at <https://github.com/346212840/1427446516/settings/secrets/actions/new>. Use these names exactly:
    - `TELEGRAM_BOT_TOKEN`
    - `TELEGRAM_CHANNEL_ID`
    - `TELEGRAM_API_ID`

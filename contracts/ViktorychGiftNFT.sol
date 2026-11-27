@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-// Gift NFTs for ViktorychApp. Lazy minting: nothing exists until a person
+// Gift NFTs for 1427446516. Lazy minting: nothing exists until a person
 // mints a gift they received, from their own wallet, paying the network fee.
 // The contract takes no money, has no sale, royalty or withdraw function, and
 // holds no funds. Deploy steps are in docs/gift-nfts.md (an owner step).

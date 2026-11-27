@@ -13,7 +13,7 @@ test("GET /v1/watchdog answers without a database", async () => {
     modulesRules: [{ type: "ESModule", include: ["**/*.js"], fallthrough: true }],
     compatibilityDate: "2026-01-15",
     r2Buckets: ["DATA"],
-    bindings: { ACCOUNT_PEPPER: "pepper-test", ALLOWED_ORIGINS: "https://viktorychgroup.github.io" }
+    bindings: { ACCOUNT_PEPPER: "pepper-test", ALLOWED_ORIGINS: "https://346212840.github.io" }
   });
   try {
     const res = await mf.dispatchFetch("https://accounts.test/v1/watchdog", { headers: { "CF-Connecting-IP": "203.0.113.10" } });

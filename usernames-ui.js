@@ -467,7 +467,7 @@
     var g = deps.platformGlyph ? deps.platformGlyph(platformOf(p)) : "";
     return g || '<span class="xn-letter">' + esc(platformName(p).slice(0, 1)) + "</span>";
   }
-  function netName(p) { return p === "app" ? "ViktorychApp" : platformName(p); }
+  function netName(p) { return p === "app" ? "1427446516" : platformName(p); }
   /* Settings > Usernames > Your nicknames for others, drawn like X's native
      settings: one list row per name (tap opens the Edit name sheet, which
      also resets it) and an accent "Add a custom name" row. No raw form

@@ -530,7 +530,7 @@ def _read_public(url: str, timeout: int = 20) -> tuple[int, str, str]:
     from x_guard import assert_not_x_api
 
     assert_not_x_api(url)
-    request = urllib.request.Request(url, headers={"User-Agent": "ViktorychApp/1.0", "Accept": "*/*"})
+    request = urllib.request.Request(url, headers={"User-Agent": "1427446516/1.0", "Accept": "*/*"})
 
     class _Stop(urllib.request.HTTPRedirectHandler):
         def redirect_request(self, req, fp, code, msg, headers, newurl):

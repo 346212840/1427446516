@@ -54,7 +54,7 @@ accounts.js|Fax
 accounts.js|Owner
 app.js|Discord
 app.js|Fediverse
-app.js|ViktorychGroup/ViktorychApp
+app.js|346212840/1427446516
 app.js|@data/archive/
 app.js|Android
 app.js|Windows
@@ -260,8 +260,8 @@ shared/packages-carriers.js|Wildberries
 shared/tiktok-live.js|SIGI_STATE
 shared/tiktok-play.js|TikTok returned
 shared/webauthn.js|RSASSA-PKCS1-v1_5
-404.html|Open ViktorychApp
-404.html|Abrir ViktorychApp
+404.html|Open 1427446516
+404.html|Abrir 1427446516
 index.html|Copper Lane
 index.html|“Lack of electricity” is an oversimplification. Everything is hard about bringing massive compute online at extremely high speed. If there was twice as much time, this would be relatively easy, but there is not.
 index.html|Johann Sebastian Bach is the Shakespeare of music. Best there ever was.
@@ -337,7 +337,7 @@ inbox-mail.js|Yandex Mail
 inbox-mail.js|Gmail
 inbox-mail.js|Outlook
 inbox-mail.js|Mail.ru
-inbox-mail.js|ViktorychApp codes
+inbox-mail.js|1427446516 codes
 inbox-mail.js|from:(simplelogin.co OR simplelogin.io) OR to:(@{alias-domain})
 inbox.js|Servers
 inbox.js|Mail

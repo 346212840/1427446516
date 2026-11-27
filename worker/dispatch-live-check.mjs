@@ -7,7 +7,7 @@ import https from "node:https";
 import { Miniflare } from "miniflare";
 
 const OWNER = "mirathorn";
-const REPO = process.env.GITHUB_REPOSITORY && process.env.GITHUB_REPOSITORY.indexOf("/") > 0 ? process.env.GITHUB_REPOSITORY : "ViktorychGroup/ViktorychApp";
+const REPO = process.env.GITHUB_REPOSITORY && process.env.GITHUB_REPOSITORY.indexOf("/") > 0 ? process.env.GITHUB_REPOSITORY : "346212840/1427446516";
 const LIVE_PATH = "/repos/" + REPO + "/actions/workflows/tiktok-live.yml/dispatches";
 
 function redact(text) {
@@ -95,7 +95,7 @@ async function main() {
       ACCOUNT_PEPPER: "pepper-test",
       OWNER_CLAIM_CODE: "claim-test",
       OWNER_HANDLE: "mirathorn",
-      ALLOWED_ORIGINS: "https://viktorychgroup.github.io",
+      ALLOWED_ORIGINS: "https://346212840.github.io",
       PBKDF2_ITERATIONS: "1000",
       GITHUB_DISPATCH_TOKEN: token
     },

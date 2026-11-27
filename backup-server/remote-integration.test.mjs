@@ -16,7 +16,7 @@ try {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_PORT = 8992;
 const APP_PORT = 8993;
-const ORIGIN = "https://viktorychgroup.github.io";
+const ORIGIN = "https://346212840.github.io";
 const database = new DatabaseSync(":memory:");
 const objects = new Map();
 database.exec(fs.readFileSync(path.resolve(__dirname, "../worker/migrations/0075_job_runner.sql"), "utf8"));

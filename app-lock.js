@@ -375,7 +375,7 @@ async function setup(options) {
   const challenge = randomBytes(32);
   const publicKey = hydrateCreation({
     challenge: bytesToB64url(challenge),
-    rp: { name: "ViktorychApp", id: location.hostname },
+    rp: { name: "1427446516", id: location.hostname },
     user: { id: bytesToB64url(userId), name: "app-lock", displayName: "app-lock" },
     pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
     timeout: 60000,

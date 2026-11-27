@@ -120,7 +120,7 @@ def compose(fill: str) -> tuple[str, str]:
         max(heavy_box[2], light_box[2]),
         max(heavy_box[3], light_box[3]),
     )
-    full = fit(black, heavy, light, box, fill, "ViktorychApp")
+    full = fit(black, heavy, light, box, fill, "1427446516")
     si = fit_si(black, heavy, fill)
     return full, si
 
@@ -225,7 +225,7 @@ def favicon_svg(si: str) -> str:
     y = (size - draw_h) / 2
     return (
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
-        "<!-- ViktorychApp -->"
+        "<!-- 1427446516 -->"
         '<rect width="32" height="32" rx="7" fill="#000"/>'
         f'<g transform="translate({x:.2f} {y:.2f}) scale({scale:.6f})">'
         f'<path fill="#fff" d="{path_of(si)}"/></g></svg>'
@@ -396,7 +396,7 @@ def icon_svg(size: int, kind: str, si, sub) -> str:
         bg = f'<rect width="{size}" height="{size}" rx="{radius}" fill="#fff"/>'
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 {size} {size}">'
-        f"<!-- ViktorychApp -->{bg}{body}</svg>"
+        f"<!-- 1427446516 -->{bg}{body}</svg>"
     )
 
 
@@ -409,7 +409,7 @@ def favicon_document(si) -> str:
     body = centered(group, target, draw_h, size)
     return (
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
-        "<!-- ViktorychApp -->"
+        "<!-- 1427446516 -->"
         '<rect width="32" height="32" rx="6" fill="#fff"/>'
         f"{body}</svg>"
     )

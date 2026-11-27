@@ -25,7 +25,7 @@ function roundCoord(value) {
   return Math.round(Number(value) * 100) / 100;
 }
 
-const APP_UA = "ViktorychApp/1.0 (+" + appContact() + ")";
+const APP_UA = "1427446516/1.0 (+" + appContact() + ")";
 const GEO_FRESH_MS = 24 * 60 * 60 * 1000;
 
 function jsonResponse(status, body, extra) {

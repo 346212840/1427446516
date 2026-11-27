@@ -1,6 +1,6 @@
 ---
 name: add-feature-with-switch
-description: Adds a new ViktorychApp feature behind its own owner on/off switch, X-style, translated and tested. Use for any new feature or new external service.
+description: Adds a new 1427446516 feature behind its own owner on/off switch, X-style, translated and tested. Use for any new feature or new external service.
 ---
 
 # Add a feature with its own switch

@@ -4,7 +4,7 @@ import test from "node:test";
 import { Miniflare } from "miniflare";
 import { verifyManifest, sha256Hex, poolEnabled, poolRescue, poolFacts, admitUpload, acceptPoolMessage, cleanPoolSignal, headStart, manifestObjectName, UPLOAD_DAY_CAP } from "../../shared/peer-pool.js";
 
-const ORIGIN = "https://viktorychgroup.github.io";
+const ORIGIN = "https://346212840.github.io";
 let mf;
 let pub;
 
@@ -58,7 +58,7 @@ test.before(async () => {
     bindings: {
       ACCOUNT_PEPPER: "pepper-test",
       OWNER_CLAIM_CODE: "claim-test",
-      ALLOWED_ORIGINS: "https://viktorychgroup.github.io",
+      ALLOWED_ORIGINS: "https://346212840.github.io",
       PBKDF2_ITERATIONS: "1000",
       POOL_SIGN_JWK: JSON.stringify(priv)
     }

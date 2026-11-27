@@ -17,7 +17,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
-ALLOWED_HOSTS = ("localhost", "127.0.0.1", "viktorychgroup.github.io", "346212840.github.io", "viktorychapp.pages.dev")
+ALLOWED_HOSTS = ("localhost", "127.0.0.1", "346212840.github.io", "viktorychapp.pages.dev")
 
 
 def origin_ok(origin: str) -> bool:
@@ -30,7 +30,7 @@ def origin_ok(origin: str) -> bool:
         return False
     if host in ALLOWED_HOSTS:
         return True
-    return host.endswith(".viktorychgroup.github.io") or host.endswith(".viktorychapp.pages.dev")
+    return host.endswith(".346212840.github.io") or host.endswith(".viktorychapp.pages.dev")
 
 
 class Proxy(BaseHTTPRequestHandler):

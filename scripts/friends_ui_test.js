@@ -48,7 +48,7 @@ const windowMock = {
     }
     return s;
   },
-  SI18n: { productName: () => "ViktorychApp" },
+  SI18n: { productName: () => "1427446516" },
   VIKTORYCH_ACCOUNTS: { api: "https://accounts.test", gate: false },
   localStorage: {
     getItem: (k) => localStorageStore[k] || null,

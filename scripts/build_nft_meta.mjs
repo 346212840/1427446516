@@ -51,7 +51,7 @@ export function metadata(index, id) {
   const cid = rawCid(bytes);
   return {
     name: "Viktorych gift: " + title(id),
-    description: "A collectible copy of a gift from ViktorychApp, made by the person who received it. Original art made for ViktorychApp. A collectible only: not an investment, with no cash value, buy-back or payout from ViktorychApp.",
+    description: "A collectible copy of a gift from 1427446516, made by the person who received it. Original art made for 1427446516. A collectible only: not an investment, with no cash value, buy-back or payout from 1427446516.",
     image: PAGES + "/icons/gifts/" + id + ".webp",
     external_url: PAGES + "/",
     attributes: [{ trait_type: "Art", value: id }, { trait_type: "Index", value: index }],

@@ -104,7 +104,7 @@ export async function exportDatabase(env, at) {
   const tables = rows.filter((row) => row.type === "table");
   const rest = rows.filter((row) => row.type !== "table");
   const chunks = [];
-  chunks.push("-- ViktorychApp D1 backup\n");
+  chunks.push("-- 1427446516 D1 backup\n");
   chunks.push("-- day: " + dayStamp(at) + "\n");
   chunks.push("PRAGMA foreign_keys=OFF;\nBEGIN;\n");
   for (let i = 0; i < tables.length; i++) {

@@ -14,7 +14,7 @@ const windowMock = {
   dispatchEvent: () => true,
   CustomEvent: function () {},
   t: (key) => key,
-  SI18n: { productName: () => "ViktorychApp" },
+  SI18n: { productName: () => "1427446516" },
   VIKTORYCH_ACCOUNTS: { api: "", gate: false },
   location: { hash: "#/", replace() {} },
   matchMedia: () => ({ matches: false }),

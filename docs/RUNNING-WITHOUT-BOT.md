@@ -1,6 +1,6 @@
 # Running the site with no assistant
 
-This is the plain-language guide for keeping ViktorychApp alive for months with nobody (and no AI assistant) working on it. Written 2026-10-29.
+This is the plain-language guide for keeping 1427446516 alive for months with nobody (and no AI assistant) working on it. Written 2026-10-29.
 
 The short version: **the site runs itself.** GitHub Actions refreshes the feeds and republishes the site every 30 minutes; app-code pushes also publish directly through **Publish app**. The Cloudflare Worker serves accounts and data, and once an hour its watchdog checks everything and repairs what it can. When something needs you, you get a GitHub email, a red pill at the top of the app (owner only), and optionally a Telegram message.
 
@@ -36,7 +36,7 @@ The source sync also heals itself: each request is retried with backoff, every f
 
 1. **Give the Worker's GitHub token Issues access and a long life.**
    1. Open github.com → your avatar → Settings → Developer settings → Personal access tokens → Fine-grained tokens.
-   2. Open the token you saved as the repository secret `WORKER_DISPATCH_TOKEN` (the one with access to ViktorychGroup/ViktorychApp and Actions: Read and write).
+   2. Open the token you saved as the repository secret `WORKER_DISPATCH_TOKEN` (the one with access to 346212840/1427446516 and Actions: Read and write).
    3. Look at its expiry date. If it ends within the time you plan to be away, click **Regenerate token**, pick the longest expiry offered ("No expiration" if your organization allows it, otherwise the maximum), and copy the new value.
    4. Under Repository permissions make sure these are set: **Actions: Read and write**, **Contents: Read-only**, **Issues: Read and write**, **Metadata: Read-only**. Click **Update**.
    5. If you regenerated it: open the repository → Settings → Secrets and variables → Actions → `WORKER_DISPATCH_TOKEN` → Update secret → paste → Update. Within 30 minutes `worker-dispatch-secret.yml` copies it into the Worker as `GITHUB_DISPATCH_TOKEN`. To copy it at once instead: Actions tab → "Worker dispatch secret" → Run workflow.

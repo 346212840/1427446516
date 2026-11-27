@@ -35,7 +35,7 @@ test("every mail provider has a native guide and a filter rule", () => {
   for (const id of ["yandex", "gmail", "outlook", "mailru"]) {
     assert.ok(P[id].name, id);
     assert.ok(P[id].steps().length >= 2, id);
-    assert.ok(P[id].rule().includes("ViktorychApp") || P[id].rule().includes("simplelogin"), id);
+    assert.ok(P[id].rule().includes("1427446516") || P[id].rule().includes("simplelogin"), id);
     for (const k of ["imap", "appPassword", "filters"]) if (P[id][k]) assert.match(P[id][k], /^https:\/\//, id + " " + k);
   }
 });

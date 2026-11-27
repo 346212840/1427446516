@@ -1,4 +1,4 @@
-/* ViktorychApp service worker. Cache names are viktorych- plus the deploy SHA.
+/* 1427446516 service worker. Cache names are viktorych- plus the deploy SHA.
    Older superintel caches are dropped on activate. Offline music stays in sintel-music-offline. */
 const VERSION = "viktorych-a281-__SW_VERSION__";
 const BUILT = "__SW_BUILT__";

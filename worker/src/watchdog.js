@@ -371,7 +371,7 @@ export async function runWatchdog(env, now, fetcher) {
   try {
     const res = await timed(f, pagesBase(await resolveRepository(env, f)), 20000);
     const text = res.ok ? await res.text() : "";
-    if (!res.ok || text.indexOf("ViktorychApp") < 0) add(problems, "pages_down", "down", "GitHub Pages did not serve the app (HTTP " + res.status + ").");
+    if (!res.ok || text.indexOf("1427446516") < 0) add(problems, "pages_down", "down", "GitHub Pages did not serve the app (HTTP " + res.status + ").");
   } catch (err) {
     add(problems, "pages_down", "down", "GitHub Pages did not answer.");
   }
@@ -502,7 +502,7 @@ async function directAlerts(env, doc, actionsDead, f) {
   if (!serious) { doc.told = ""; return; }
   if (serious === toldCodes && doc.at - toldAt < DAY) return;
   try {
-    const text = "ViktorychApp watchdog:\n" + doc.problems.filter((p) => p.level === "down").map((p) => "- " + p.text).join("\n");
+    const text = "1427446516 watchdog:\n" + doc.problems.filter((p) => p.level === "down").map((p) => "- " + p.text).join("\n");
     const res = await f("https://api.telegram.org/bot" + bot + "/sendMessage", {
       method: "POST",
       headers: { "content-type": "application/json" },

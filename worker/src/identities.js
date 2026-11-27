@@ -1,4 +1,4 @@
-/** Verified social profile linking module for ViktorychApp.
+/** Verified social profile linking module for 1427446516.
  * Securely links external profiles (X, Telegram, Instagram, YouTube, etc.)
  * to internal Viktorych accounts through cryptographic/challenge verification.
  * 
@@ -305,7 +305,7 @@ async function verifyExternalProof(platform, handle, code, proofUrl, allowMock) 
         const fetchUrl = statusId ? "https://api.fxtwitter.com/status/" + statusId : ("https://api.fxtwitter.com/" + encodeURIComponent(handle));
         assertNotPaidX(fetchUrl);
         const res = await fetch(fetchUrl, {
-          headers: { "user-agent": "ViktorychApp-IdentityVerifier/1.0", accept: "application/json" }
+          headers: { "user-agent": "1427446516-IdentityVerifier/1.0", accept: "application/json" }
         });
         if (res.ok) {
           const data = await res.json();
@@ -330,7 +330,7 @@ async function verifyExternalProof(platform, handle, code, proofUrl, allowMock) 
     } else if (platform === "telegram") {
       try {
         const res = await fetch(rawProof, {
-          headers: { "user-agent": "Mozilla/5.0 (compatible; ViktorychApp/1.0)" }
+          headers: { "user-agent": "Mozilla/5.0 (compatible; 1427446516/1.0)" }
         });
         if (res.ok) {
           const html = await res.text();
@@ -342,7 +342,7 @@ async function verifyExternalProof(platform, handle, code, proofUrl, allowMock) 
     } else if (platform === "youtube") {
       try {
         const res = await fetch(rawProof, {
-          headers: { "user-agent": "Mozilla/5.0 (compatible; ViktorychApp/1.0)" }
+          headers: { "user-agent": "Mozilla/5.0 (compatible; 1427446516/1.0)" }
         });
         if (res.ok) {
           const html = await res.text();
@@ -354,7 +354,7 @@ async function verifyExternalProof(platform, handle, code, proofUrl, allowMock) 
     } else if (platform === "instagram") {
       try {
         const oembed = "https://api.instagram.com/oembed/?url=" + encodeURIComponent(rawProof);
-        const res = await fetch(oembed, { headers: { "user-agent": "Mozilla/5.0 (compatible; ViktorychApp/1.0)" } });
+        const res = await fetch(oembed, { headers: { "user-agent": "Mozilla/5.0 (compatible; 1427446516/1.0)" } });
         if (res.ok) {
           const data = await res.json();
           if (data && ((data.title || "").indexOf(code) >= 0 || (data.author_name || "").toLowerCase() === handle.toLowerCase())) {
@@ -371,7 +371,7 @@ async function verifyExternalProof(platform, handle, code, proofUrl, allowMock) 
       const profileUrl = "https://api.fxtwitter.com/" + encodeURIComponent(handle);
       assertNotPaidX(profileUrl);
       const res = await fetch(profileUrl, {
-        headers: { "user-agent": "ViktorychApp-IdentityVerifier/1.0", accept: "application/json" }
+        headers: { "user-agent": "1427446516-IdentityVerifier/1.0", accept: "application/json" }
       });
       if (res.ok) {
         const data = await res.json();
@@ -393,7 +393,7 @@ async function verifyExternalProof(platform, handle, code, proofUrl, allowMock) 
   } else if (platform === "telegram") {
     try {
       const res = await fetch("https://t.me/" + encodeURIComponent(handle), {
-        headers: { "user-agent": "Mozilla/5.0 (compatible; ViktorychApp/1.0)" }
+        headers: { "user-agent": "Mozilla/5.0 (compatible; 1427446516/1.0)" }
       });
       if (res.ok) {
         const html = await res.text();
@@ -422,7 +422,7 @@ async function verifyExternalProof(platform, handle, code, proofUrl, allowMock) 
       ];
       for (let i = 0; i < urls.length; i++) {
         const res = await fetch(urls[i], {
-          headers: { "user-agent": "Mozilla/5.0 (compatible; ViktorychApp/1.0)" }
+          headers: { "user-agent": "Mozilla/5.0 (compatible; 1427446516/1.0)" }
         });
         if (res.ok) {
           const html = await res.text();
@@ -441,7 +441,7 @@ async function verifyExternalProof(platform, handle, code, proofUrl, allowMock) 
   } else if (platform === "instagram") {
     try {
       const res = await fetch("https://www.instagram.com/" + encodeURIComponent(handle) + "/", {
-        headers: { "user-agent": "Mozilla/5.0 (compatible; ViktorychApp/1.0)" }
+        headers: { "user-agent": "Mozilla/5.0 (compatible; 1427446516/1.0)" }
       });
       if (res.ok) {
         const html = await res.text();

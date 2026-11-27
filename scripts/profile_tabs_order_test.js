@@ -8,7 +8,7 @@ const windowMock = {
   addEventListener: () => {},
   removeEventListener: () => {},
   t: (key) => key,
-  SI18n: { productName: () => "ViktorychApp" },
+  SI18n: { productName: () => "1427446516" },
   VIKTORYCH_ACCOUNTS: { api: "", gate: false },
   location: { hash: "#/@user_a", replace() {} },
   matchMedia: () => ({ matches: false }),

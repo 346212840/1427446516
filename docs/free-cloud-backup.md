@@ -1,6 +1,6 @@
 # Free Cloud Scaling & Speed Multiplier for Viktorych Telegram Backup
 
-This guide explains how to scale the ViktorychApp media and comments backup to maximum speed **100% for free ($0)** by combining:
+This guide explains how to scale the 1427446516 media and comments backup to maximum speed **100% for free ($0)** by combining:
 1. **Free Telegram Bot Pooling**: Multiply upload throughput by 3x–5x by pooling free bots created with `@BotFather`.
 2. **Deterministic Parallel Sharding**: Partition media workloads across multiple concurrent runners with `--shard K/N`.
 3. **Turnkey 24/7 Free Cloud Workers**: Deploy background workers with 16 GB RAM on **Hugging Face Spaces** or **Oracle Cloud Always Free** at zero cost, without burning GitHub Actions minutes.
@@ -13,7 +13,7 @@ This guide explains how to scale the ViktorychApp media and comments backup to m
 Telegram limits any single bot in a channel to about 20 messages per minute (roughly 1 message every 3 seconds, enforced by `MIN_INTERVAL = 3.0s`). If you upload with a single bot, 100 media files take at least 300 seconds (5 minutes).
 
 ### The Solution: Multi-Bot Round-Robin
-Telegram allows you to create up to **20 bots per account for free**. ViktorychApp's backup engine supports `TELEGRAM_BOT_TOKENS`. The engine monitors per-bot cooldown timestamps independently:
+Telegram allows you to create up to **20 bots per account for free**. 1427446516's backup engine supports `TELEGRAM_BOT_TOKENS`. The engine monitors per-bot cooldown timestamps independently:
 - **1 bot**: 1 file every 3.0s (~20 files/min)
 - **3 bots**: 1 file every 1.0s (~60 files/min, **3x speedup**)
 - **5 bots**: 1 file every 0.6s (~100 files/min, **5x speedup**)
@@ -29,7 +29,7 @@ Telegram allows you to create up to **20 bots per account for free**. ViktorychA
      ```
      123456789:ABCdefGHIjklMNOpqrSTUvwxYZ,987654321:ZYXwvuTSRqpoNMLkjIHGfedCBA,111222333:AAAABBBBCCCCDDDDEEEEFFFFGGGG
      ```
-6. ViktorychApp will automatically detect the pool, log `multi-bot pool active (3 bots)`, and dynamically route uploads to whichever bot is idle. Every bot token is automatically redacted from logs.
+6. 1427446516 will automatically detect the pool, log `multi-bot pool active (3 bots)`, and dynamically route uploads to whichever bot is idle. Every bot token is automatically redacted from logs.
 
 ---
 
@@ -37,7 +37,7 @@ Telegram allows you to create up to **20 bots per account for free**. ViktorychA
 
 You can run multiple instances of `telegram_backup.py` concurrently across multiple machines or workflow matrix runners without race conditions.
 
-ViktorychApp deterministically partitions R2 keys using hash modulo:
+1427446516 deterministically partitions R2 keys using hash modulo:
 $$\text{shard} = \text{MD5}(\text{key}) \pmod N$$
 
 ### Usage
@@ -70,7 +70,7 @@ A ready-to-run Dockerfile and lightweight server are provided in `docker/telegra
    - **Space SDK**: **Docker**
    - **Docker template**: **Blank**
    - **Space hardware**: **Free (2 vCPU · 16 GB RAM)**
-4. Clone your new Hugging Face Space repository locally, or push `ViktorychApp` to it as a git remote:
+4. Clone your new Hugging Face Space repository locally, or push `1427446516` to it as a git remote:
    ```sh
    git remote add hf https://huggingface.co/spaces/<your-username>/viktorych-backup
    git push hf main
@@ -112,8 +112,8 @@ Oracle Cloud Infrastructure (OCI) provides a permanent **Always Free Tier** (not
 ### Quick Docker Run on Oracle Cloud
 SSH into your free ARM instance and run:
 ```sh
-git clone https://github.com/ViktorychGroup/ViktorychApp.git
-cd ViktorychApp
+git clone https://github.com/346212840/1427446516.git
+cd 1427446516
 
 docker build -t viktorych-backup -f docker/telegram-backup/Dockerfile .
 
@@ -155,7 +155,7 @@ While it runs, the container writes a heartbeat to R2 (`owner/live-runner.json`)
    - `Dockerfile`: a copy of `docker/tiktok-live/Dockerfile`
    - `README.md`: a copy of `docker/tiktok-live/space/README.md` (its header sets `sdk: docker` and `app_port: 7860`)
 
-   The image clones ViktorychApp `main` itself, and on every restart it pulls the newest `main` (set the variable `TIKTOK_AUTO_UPDATE=0` to pin it). You never copy the scripts by hand.
+   The image clones 1427446516 `main` itself, and on every restart it pulls the newest `main` (set the variable `TIKTOK_AUTO_UPDATE=0` to pin it). You never copy the scripts by hand.
 3. **Settings → Variables and secrets → New secret**:
 
    | Secret | Needed | What |

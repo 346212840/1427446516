@@ -1,4 +1,4 @@
-# ViktorychApp on TV
+# 1427446516 on TV
 
 The site is the desktop X layout scaled for a TV and driven by a normal remote.
 TV mode turns on by itself on Android TV, Google TV, Fire TV, Tizen (Samsung),
@@ -56,7 +56,7 @@ so new site versions reach the app without reinstalling.
 
 Direct file links:
 - https://viktorychapp.pages.dev/tv/ViktorychTV.apk
-- https://github.com/ViktorychGroup/ViktorychApp/releases/latest/download/ViktorychTV.apk
+- https://github.com/346212840/1427446516/releases/latest/download/ViktorychTV.apk
 
 The install card is hidden inside the app. In Chrome it is also hidden when the app is already installed
 (`getInstalledRelatedApps`).
@@ -105,7 +105,7 @@ with free text. There are two ways to change it.
 ### Presets (no rebuild)
 
 The app ships five launcher entries (activity aliases) and shows only one:
-**ViktorychApp** (default), **Media**, **Browser**, **Player** and **Notes**, each with a neutral
+**1427446516** (default), **Media**, **Browser**, **Player** and **Notes**, each with a neutral
 icon and TV banner. Pick one in the site's Settings, under **TV app name**, while inside the app.
 The site tells the app through the `ViktorychTVApp` bridge (the no-Chrome app) or the link
 `intent://name?preset=media&title=…#Intent;scheme=viktorychtv;package=app.viktorych.tv;end`
@@ -135,14 +135,14 @@ Limits: 3 builds per person per day and 40 per day for the whole site. A build t
   download the normal APK. It starts a new custom build with the same name and icon (from the current
   code, so the versionCode is the new one), then hands that APK to the installer.
 - Same package and key, so Android installs over the old app and keeps all data (sign-in, settings).
-- Installing the normal app over a custom one is also allowed, but the name goes back to ViktorychApp.
+- Installing the normal app over a custom one is also allowed, but the name goes back to 1427446516.
 
 - Launcher entries that were switched on stay switched on across updates, so a custom build turns its
   own entry back on right after it is installed (and again on every start). The chosen preset is kept
   and comes back if the normal app is installed later.
 
 Checked: base v1, custom v1 "My Den" and custom v2 "My Den" all have package `app.viktorych.tv` and
-the same signing certificate; the custom ones are labelled "My Den" and the base one "ViktorychApp".
+the same signing certificate; the custom ones are labelled "My Den" and the base one "1427446516".
 Android installs an APK with the same package, key and an equal or higher versionCode as an update and
 keeps the app's data. The emulator run could not be done on the build box (its KVM fails), so do the
 on-device check once: install base, then custom, then the next custom version, and confirm the name
@@ -156,8 +156,8 @@ The repo's automation cannot add workflow files, so the owner does these steps:
 2. Add two repository secrets on the build box (nothing is printed):
 
    ```sh
-   base64 -w0 /workspace/secrets/viktorychtv.jks | gh secret set TV_KEYSTORE_B64 -R ViktorychGroup/ViktorychApp
-   gh secret set TV_KEYSTORE_PASS -R ViktorychGroup/ViktorychApp < /workspace/secrets/viktorychtv.pass
+   base64 -w0 /workspace/secrets/viktorychtv.jks | gh secret set TV_KEYSTORE_B64 -R 346212840/1427446516
+   gh secret set TV_KEYSTORE_PASS -R 346212840/1427446516 < /workspace/secrets/viktorychtv.pass
    ```
 
 3. Create a fine-grained GitHub token for this repo only, with **Actions: Read and write** and
@@ -280,7 +280,7 @@ the next app cannot update the old one. Its SHA-256 fingerprint is public and is
 ## Why viktorychapp.pages.dev
 
 Android checks `assetlinks.json` at the root of the domain. The GitHub Pages site lives under
-`/ViktorychApp/`, so its root cannot hold the file. The Cloudflare Pages copy is at the root of
+`/1427446516/`, so its root cannot hold the file. The Cloudflare Pages copy is at the root of
 `viktorychapp.pages.dev`, which is why the app, the short link and the domain check use it.
 
 ## Build setup

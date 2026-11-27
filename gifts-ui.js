@@ -547,13 +547,13 @@
   function termsHtml() {
     var days = String(storeLib() ? storeLib().REFUND_DAYS : 14);
     var lines = [
-      tr("Gifts and sticker packs are digital items for use inside ViktorychApp. They have no cash value."),
+      tr("Gifts and sticker packs are digital items for use inside 1427446516. They have no cash value."),
       tr("You can pay for an item with money, through our payment provider, or with Viktorychs. Viktorychs are earned by taking part and are never sold."),
       tr("Viktorychs have no cash value. They can’t be bought, cashed out or transferred for money, and they can’t be refunded once spent."),
       tr("Items can’t be resold, traded for money or exchanged for cash."),
       tr("A gift paid with money stays wrapped until the recipient opens it. You can ask for a refund of an unopened gift within {n} days. Once it is opened, it can’t be refunded.", { n: days }),
       tr("Sticker packs and items you buy for yourself are delivered right away. By asking for that, you agree that the {n}-day right to cancel ends at delivery.", { n: days }),
-      tr("Card details go straight to the payment provider. ViktorychApp never sees or stores them."),
+      tr("Card details go straight to the payment provider. 1427446516 never sees or stores them."),
       tr("You can’t send gifts to someone who blocked you or who doesn’t accept gifts from you. Gifting is rate-limited to stop spam."),
       tr("Viktorychs earned through abuse, such as fake accounts or self-engagement, can be removed.")
     ];
@@ -701,7 +701,7 @@
       var shelves = c.activeSeasons().concat(["trending"]).concat(c.CATEGORIES.filter(function (id) { return id !== "trending"; }));
       body = chipsHtml() + balanceLine() + storeLinks() + paymentsNote() + limitedShelf() + stickerShelf() + emojiShelf() + shelves.map(shelfHtml).join("");
     }
-    var credit = '<p class="vkg-credit">' + esc(tr("Gift art: original illustrations made for ViktorychApp, plus Noto Emoji by Google (Apache 2.0, animated CC BY 4.0).")) + "</p>";
+    var credit = '<p class="vkg-credit">' + esc(tr("Gift art: original illustrations made for 1427446516, plus Noto Emoji by Google (Apache 2.0, animated CC BY 4.0).")) + "</p>";
     return '<div class="store-page vkg-page">' + headerHtml(title, backHref) + body + credit + "</div>";
   }
 

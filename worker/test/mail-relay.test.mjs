@@ -43,7 +43,7 @@ function deps(log, opts, signedIn) {
   };
 }
 const post = (body) => new Request("https://accounts.test/v1/inbox/mail", { method: "POST", body: JSON.stringify(body) });
-const base = { provider: "yandex", user: "member@example.test", pass: "app-pass-123", folder: "ViktorychApp" };
+const base = { provider: "yandex", user: "member@example.test", pass: "app-pass-123", folder: "1427446516" };
 
 test("off by default, and signed-in only", async () => {
   assert.equal((await handleMail(post(base), {}, deps([]))).status, 404);
@@ -66,7 +66,7 @@ test("lists headers of only the chosen folder, read-only, and never stores anyth
   assert.equal(body.messages[1].subject, "Your code 482913");
   assert.equal(body.messages[1].seen, true);
   assert.equal(log[0], "CONNECT imap.yandex.com:993 on");
-  assert.ok(log.some((l) => /^v\d+ EXAMINE "ViktorychApp"$/.test(l)));
+  assert.ok(log.some((l) => /^v\d+ EXAMINE "1427446516"$/.test(l)));
   assert.ok(!log.some((l) => /\b(SELECT|LIST|LSUB|STORE|COPY|MOVE|EXPUNGE|DELETE|APPEND)\b/.test(l.split(" ").slice(1, 3).join(" "))));
   assert.ok(log.every((l) => !/BODY\[\]/.test(l)), "no bodies while listing");
 });

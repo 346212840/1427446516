@@ -24,7 +24,7 @@ async function call(path, opts) {
   opts = opts || {};
   const headers = new Headers();
   headers.set("CF-Connecting-IP", opts.ip || "203.0.113.10");
-  headers.set("Origin", "https://viktorychgroup.github.io");
+  headers.set("Origin", "https://346212840.github.io");
   if (opts.token) headers.set("Authorization", "Bearer " + opts.token);
   if (opts.body) headers.set("content-type", "application/json");
   const res = await mf.dispatchFetch("https://accounts.test" + path, { method: opts.method || "GET", headers, body: opts.body ? JSON.stringify(opts.body) : undefined });
@@ -62,7 +62,7 @@ test.before(async () => {
       ACCOUNT_PEPPER: "pepper-test",
       OWNER_CLAIM_CODE: "claim-test",
       OWNER_HANDLE: OWNER,
-      ALLOWED_ORIGINS: "https://viktorychgroup.github.io",
+      ALLOWED_ORIGINS: "https://346212840.github.io",
       PBKDF2_ITERATIONS: "1000",
       GITHUB_DISPATCH_TOKEN: "dispatch-test"
     },
@@ -138,13 +138,13 @@ test("Allow saves every platform even when the bridges block or hang, single and
   // Preflight and CORS on the allow route.
   const pre = await call(`/v1/owner/feed-requests/${igReq}/allow`, { method: "OPTIONS", ip: ip() });
   assert.ok(pre.status === 204 || pre.status === 200, String(pre.status));
-  assert.equal(pre.cors, "https://viktorychgroup.github.io");
+  assert.equal(pre.cors, "https://346212840.github.io");
 
   // Single allow for Instagram (every bridge answers 403).
   const ig = await call(`/v1/owner/feed-requests/${igReq}/allow`, { method: "POST", ip: ip(), token: owner.token, body: { dest: "everyone" } });
   assert.equal(ig.status, 200, JSON.stringify(ig.body));
   assert.equal(ig.body.unverified, true);
-  assert.equal(ig.cors, "https://viktorychgroup.github.io");
+  assert.equal(ig.cors, "https://346212840.github.io");
 
   // Telegram's bridge hangs: Allow still answers within the time limit.
   const started = Date.now();

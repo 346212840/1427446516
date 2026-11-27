@@ -28,7 +28,7 @@ notice.
 
 ## Wordmark font (personal sidebar logo text, `fonts/`)
 
-Custom sidebar logo text is set in Inter, the same font the ViktorychApp
+Custom sidebar logo text is set in Inter, the same font the 1427446516
 wordmark is drawn from. `fonts/inter-400.woff2` and `fonts/inter-900.woff2`
 are subsets (Latin, Latin Extended, Cyrillic, Greek, Vietnamese) of Inter 4.1
 Regular and Black from https://github.com/rsms/inter, made with fontTools

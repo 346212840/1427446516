@@ -31,7 +31,7 @@ function load(extra) {
   const w = {
     addEventListener: () => {}, removeEventListener: () => {}, dispatchEvent: () => true,
     CustomEvent: function () {}, t: (k) => k,
-    SI18n: { productName: () => "ViktorychApp" },
+    SI18n: { productName: () => "1427446516" },
     VIKTORYCH_ACCOUNTS: Object.assign({ api: "https://a.test", backupApi: "https://b.test", gate: false, hedgeMs: 60, readTimeoutMs: 400, poolBalance: false }, extra || {}),
     fetch: (u, i) => fakeFetch(u, i),
     location: { hash: "#/", replace() {} },

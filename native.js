@@ -213,12 +213,12 @@
     banner = document.createElement("div");
     banner.id = "install-banner";
     banner.setAttribute("role", "dialog");
-    banner.setAttribute("aria-label", t("Install ViktorychApp"));
+    banner.setAttribute("aria-label", t("Install 1427446516"));
     var ios = iosDevice() && !(typeof window !== "undefined" && window.__VIKTORYCH_INSTALL);
     var steps = ios
       ? "<ol><li>" + t("Tap Share in Safari") + "</li><li>" + t("Choose Add to Home Screen") + "</li><li>" + t("Tap Add") + "</li></ol>"
       : "";
-    banner.innerHTML = "<div class=\"install-card\"><b>" + t("Install ViktorychApp") + "</b>" + steps +
+    banner.innerHTML = "<div class=\"install-card\"><b>" + t("Install 1427446516") + "</b>" + steps +
       "<div class=\"install-actions\"><button type=\"button\" data-native=\"install-go\">" + t("Install app") + "</button>" +
       "<button type=\"button\" data-native=\"install-dismiss\">" + t("Not now") + "</button></div></div>";
     banner.querySelector("[data-native='install-dismiss']").addEventListener("click", dismissInstall);
@@ -243,8 +243,8 @@
       label.className = "wco-title";
       bar.appendChild(label);
     }
-    var text = String(document.title || "ViktorychApp").replace(/\s+\/\s+ViktorychApp$/, "");
-    label.textContent = text || "ViktorychApp";
+    var text = String(document.title || "1427446516").replace(/\s+\/\s+1427446516$/, "");
+    label.textContent = text || "1427446516";
   }
 
   function installSpeculation() {
@@ -279,12 +279,12 @@
   function fillSession(el) {
     if (!navigator.mediaSession || typeof MediaMetadata === "undefined") return false;
     if (navigator.mediaSession.metadata) return false;
-    var raw = (el && el.getAttribute && el.getAttribute("aria-label")) || document.title || "ViktorychApp";
-    var title = String(raw).replace(/\s+\/\s+ViktorychApp$/, "") || "ViktorychApp";
+    var raw = (el && el.getAttribute && el.getAttribute("aria-label")) || document.title || "1427446516";
+    var title = String(raw).replace(/\s+\/\s+1427446516$/, "") || "1427446516";
     try {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: title,
-        artist: "ViktorychApp",
+        artist: "1427446516",
         artwork: artworkFor(el)
       });
       navigator.mediaSession.playbackState = "playing";

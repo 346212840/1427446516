@@ -18,7 +18,7 @@ test.before(async () => {
     bindings: {
       ACCOUNT_PEPPER: "pepper-test",
       OWNER_CLAIM_CODE: "claim-test",
-      ALLOWED_ORIGINS: "https://viktorychgroup.github.io",
+      ALLOWED_ORIGINS: "https://346212840.github.io",
       PBKDF2_ITERATIONS: "2000",
       PBKDF2_LEGACY_ITERATIONS: "1000"
     }

@@ -1,4 +1,4 @@
-/* contacts-ui.js - Contacts in the look and feel of Google Contacts, in ViktorychApp's X style.
+/* contacts-ui.js - Contacts in the look and feel of Google Contacts, in 1427446516's X style.
    Left navigation (Contacts, Frequent, Recent calls, Other contacts, Labels, Merge & fix, Trash), an alphabetical list with
    sticky letters and a letter rail, a search bar, multi-select with bulk actions, a contact detail page, a create/edit
    sheet with several phones and emails, and labels. Signed-in people get Calls built in: a call button on every

@@ -182,7 +182,7 @@ try {
     await page.evaluate(() => {
       const el = document.getElementById("upd-status");
       el.hidden = false;
-      document.getElementById("upd-status-text").textContent = "Updating ViktorychApp…";
+      document.getElementById("upd-status-text").textContent = "Updating 1427446516…";
     });
     await sleep(300);
     const toast = await page.evaluate(() => {

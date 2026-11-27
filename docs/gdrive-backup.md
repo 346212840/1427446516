@@ -2,7 +2,7 @@
 
 The backup runs in GitHub Actions. It does not need an assistant. The schedule is 09:17 UTC every day, and **Run workflow** starts it immediately. The job stops after 40 minutes. Each run uploads at most 400 MB and 500 new files. A file that is already on Drive, checked by SHA-256, is skipped. When `GDRIVE_RCLONE_TOKEN` is missing, the job prints a skip line and exits 0.
 
-The folder is `ViktorychApp-backup/` in the Google account that created the token. rclone uses the `drive.file` scope, so it can see only files this token created.
+The folder is `1427446516-backup/` in the Google account that created the token. rclone uses the `drive.file` scope, so it can see only files this token created.
 
 | Folder | What is stored |
 | --- | --- |
@@ -12,7 +12,7 @@ The folder is `ViktorychApp-backup/` in the Google account that created the toke
 | `tiktok/` | TikTok videos and posters for handles that are not in `ia_tiktok_allow` |
 | `media/` | Video files whose source is not allowed on Internet Archive, largest first |
 
-`index.json` in that folder records the SHA-256, kind, and label. ViktorychApp account data (D1, and R2 user-data objects such as profiles, avatars, banners, uploads, history, lists, and settings) is not uploaded. There is no second secret, because that data is not copied. A service account is not used. A service account has no storage quota on a personal Drive, including a Google AI Pro plan.
+`index.json` in that folder records the SHA-256, kind, and label. 1427446516 account data (D1, and R2 user-data objects such as profiles, avatars, banners, uploads, history, lists, and settings) is not uploaded. There is no second secret, because that data is not copied. A service account is not used. A service account has no storage quota on a personal Drive, including a Google AI Pro plan.
 
 The Drive job does not delete files from Internet Archive.
 
@@ -72,7 +72,7 @@ Write-Output "Copied the secret to the clipboard. It was not printed."
 
 9. Paste it into GitHub. On the same Windows PC, open this page in the browser:
 
-https://github.com/ViktorychGroup/ViktorychApp/settings/secrets/actions/new
+https://github.com/346212840/1427446516/settings/secrets/actions/new
 
 Name:
 
@@ -86,6 +86,6 @@ Click Add secret.
 
 The same page works in Chrome on Android if the clipboard value is already on the phone. Create the token on Windows first. Do not send the secret by email, chat, or a screenshot.
 
-10. Close PowerShell. Do not save the JSON in the ViktorychApp folder or commit it.
+10. Close PowerShell. Do not save the JSON in the 1427446516 folder or commit it.
 
-11. Optional: on GitHub, open Actions, open Google Drive backup, and click Run workflow. The first run creates `ViktorychApp-backup/` in My Drive. You can open that folder in the browser or in the Drive app on Android. Until the secret is saved, the workflow skips and finishes successfully.
+11. Optional: on GitHub, open Actions, open Google Drive backup, and click Run workflow. The first run creates `1427446516-backup/` in My Drive. You can open that folder in the browser or in the Drive app on Android. Until the secret is saved, the workflow skips and finishes successfully.

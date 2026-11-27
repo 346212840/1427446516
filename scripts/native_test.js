@@ -130,7 +130,7 @@ assert.ok(read("styles.css").includes("content-visibility: auto"));
   assert.ok(yielded && typeof yielded.then === "function");
   await yielded;
 
-  const shared = await native.shareOut({ title: "ViktorychApp", url: "https://example.test/" });
+  const shared = await native.shareOut({ title: "1427446516", url: "https://example.test/" });
   assert.strictEqual(shared, false);
 
   const { orderFeedDoc } = await import("../feed-worker.js");

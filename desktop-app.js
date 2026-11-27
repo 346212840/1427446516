@@ -226,7 +226,7 @@ if (typeof module !== "undefined" && module.exports) {
   // ---- title bar ----
   function barHtml() {
     var fs = fsSupported();
-    return '<div class="wco-drag"><span class="wco-title">' + esc(doc.title || "ViktorychApp") + '</span></div>'
+    return '<div class="wco-drag"><span class="wco-title">' + esc(doc.title || "1427446516") + '</span></div>'
       + '<div class="wco-tools">'
       + (fs ? '<button class="wco-btn" type="button" data-desk="fullscreen" aria-label="' + esc(fsLabel()) + '" title="' + esc(fsLabel()) + '">' + glyph(fsActive() ? "collapse" : "expand") + "</button>" : "")
       + (closeSupported() ? '<button class="wco-btn wco-close" type="button" data-desk="close" aria-label="' + esc(tr("Close app")) + '" title="' + esc(tr("Close app")) + '">' + glyph("close") + "</button>" : "")
@@ -507,7 +507,7 @@ if (typeof module !== "undefined" && module.exports) {
     if (titleEl && typeof MutationObserver === "function") {
       new MutationObserver(function () {
         var span = doc.querySelector(".wco .wco-title");
-        if (span) span.textContent = doc.title || "ViktorychApp";
+        if (span) span.textContent = doc.title || "1427446516";
       }).observe(titleEl, { childList: true, characterData: true, subtree: true });
     }
     applyGeometry();

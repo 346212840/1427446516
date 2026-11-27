@@ -14,9 +14,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 RETIRED = "ViktorychApp" + "1427446516"
 RUNTIME_MARKERS = (
-    "github.io/Viktorych",
-    "github.com/ViktorychGroup/Viktorych",
-    "repos/ViktorychGroup/Viktorych",
+    "github.io/" + "1427446516",
+    "github.com/" + "346212840/",
+    "repos/" + "346212840/",
+    "github.io/" + "Viktorych",
+    "github.com/" + "ViktorychGroup/",
+    "repos/" + "ViktorychGroup/",
 )
 RUNTIME_DIRS = (
     "worker/src",
@@ -43,7 +46,7 @@ ALLOW_NAME = {
 }
 # The TV app opens this in the system browser. A same-origin APK stays inside
 # the WebView, so the update link is the GitHub release asset and not Pages.
-RELEASE_ASSET = "https://github.com/" + "ViktorychGroup/ViktorychApp" + "/releases/latest/download/ViktorychTV.apk"
+RELEASE_ASSET = "https://github.com/" + "346212840/1427446516" + "/releases/latest/download/ViktorychTV.apk"
 
 
 def rel(path: Path) -> str:

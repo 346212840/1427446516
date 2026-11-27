@@ -310,7 +310,7 @@ async function probe(spec, material) {
         redirect: "manual",
         headers: {
           authorization: "Basic " + basic,
-          "user-agent": "ViktorychApp/1.0",
+          "user-agent": "1427446516/1.0",
           "content-type": "application/x-www-form-urlencoded"
         },
         body: "grant_type=client_credentials"

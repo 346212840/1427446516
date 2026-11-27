@@ -1,4 +1,4 @@
-# ViktorychApp handoff
+# 1427446516 handoff
 
 A takeover guide for the next assistant or coding agent. Written from the state of the project on 2026-10-28. Anything marked "unverified" was not re-checked, so check it before you rely on it.
 
@@ -12,7 +12,7 @@ If no assistant is working on the project, read `docs/RUNNING-WITHOUT-BOT.md`. T
 
 ## 1. What the project is
 
-ViktorychApp is an X.com-clone PWA. The front end is static and served from GitHub Pages. The back end is a Cloudflare Worker with D1 (SQL) and R2 (object storage). Coding agents open PRs, and the owner's assistant reviews and merges them.
+1427446516 is an X.com-clone PWA. The front end is static and served from GitHub Pages. The back end is a Cloudflare Worker with D1 (SQL) and R2 (object storage). Coding agents open PRs, and the owner's assistant reviews and merges them.
 
 ## 2. Standing rules from the owner
 
@@ -109,18 +109,18 @@ Every source is normalized to one canonical post shape before it ships. See [POS
 
 To give TVs a short address, create the org Pages site once. It is free and stays on GitHub Pages:
 
-1. On GitHub, create a new public repository in the ViktorychGroup organization named exactly `viktorychgroup.github.io`.
+1. On GitHub, create a new public repository in the 346212840 organization named exactly `346212840.github.io`.
 2. Add one file `index.html` with:
    ```html
    <!doctype html><meta charset="utf-8"><title>Viktorych</title>
    <meta name="description" content="Viktorych: open the app.">
    <link rel="canonical" href="https://viktorychapp.pages.dev/">
-   <meta http-equiv="refresh" content="0; url=/ViktorychApp/">
-   <script>location.replace("/ViktorychApp/" + location.search + location.hash);</script>
-   <a href="/ViktorychApp/">Open Viktorych</a>
+   <meta http-equiv="refresh" content="0; url=/1427446516/">
+   <script>location.replace("/1427446516/" + location.search + location.hash);</script>
+   <a href="/1427446516/">Open Viktorych</a>
    ```
 3. Settings > Pages: Source "Deploy from a branch", branch `main`, folder `/ (root)`. Save.
-4. After a minute, `https://viktorychgroup.github.io/` opens the app. TV mode still turns on by itself on TV browsers.
-5. Then ask the assistant to switch `DEFAULT_HOST` in `send-tv.js` to `viktorychgroup.github.io` so Send to my TV shows the new address.
+4. After a minute, `https://346212840.github.io/` opens the app. TV mode still turns on by itself on TV browsers.
+5. Then ask the assistant to switch `DEFAULT_HOST` in `send-tv.js` to `346212840.github.io` so Send to my TV shows the new address.
 
 Send to my TV (`#/send-to-tv`) and what really works per TV brand: [SEND-TO-TV.md](SEND-TO-TV.md).

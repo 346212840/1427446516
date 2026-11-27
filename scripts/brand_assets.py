@@ -176,8 +176,8 @@ def raster(svg: str, size: int) -> bytes:
 
 
 def generate() -> None:
-    app = lockup("V", "iktorychApp", "ViktorychApp")
-    app_short = lockup("V", "iktorychApp", "ViktorychApp")
+    app = lockup("V", "iktorychApp", "1427446516")
+    app_short = lockup("V", "iktorychApp", "1427446516")
     music = lockup("V", "iktorychMusic", "ViktorychMusic")
     music_short = lockup("V", "iktorychMusic", "ViktorychMusic")
     v_path, v_svg, v_w, v_h = v_mark()
@@ -204,7 +204,7 @@ def generate() -> None:
     v_art = inner(v_svg)
     m_art = inner(music_svg)
     mw, mh = view_of(music_svg)
-    favicon = icon_svg(32, "any", v_art, v_w, v_h, "ViktorychApp")
+    favicon = icon_svg(32, "any", v_art, v_w, v_h, "1427446516")
     write(ROOT / "favicon.svg", favicon.replace(f'width="32" height="32" ', "", 1))
     # Rasters need cairo. BRAND_RASTER=0 regenerates only the vectors and
     # marks.js, for hosts without a cairo runtime (Windows dev boxes).
@@ -212,11 +212,11 @@ def generate() -> None:
     if not skip_raster and cairosvg is None:
         raise RuntimeError("cairo is unavailable; set BRAND_RASTER=0 for vectors only")
     rasters = {
-        "icon-192.png": (icon_svg(192, "any", v_art, v_w, v_h, "ViktorychApp"), 192),
-        "icon-512.png": (icon_svg(512, "any", v_art, v_w, v_h, "ViktorychApp"), 512),
-        "icon-maskable-512.png": (icon_svg(512, "maskable", v_art, v_w, v_h, "ViktorychApp"), 512),
-        "icon-monochrome-512.png": (icon_svg(512, "mono", v_art, v_w, v_h, "ViktorychApp"), 512),
-        "apple-touch-icon.png": (icon_svg(180, "apple", v_art, v_w, v_h, "ViktorychApp"), 180),
+        "icon-192.png": (icon_svg(192, "any", v_art, v_w, v_h, "1427446516"), 192),
+        "icon-512.png": (icon_svg(512, "any", v_art, v_w, v_h, "1427446516"), 512),
+        "icon-maskable-512.png": (icon_svg(512, "maskable", v_art, v_w, v_h, "1427446516"), 512),
+        "icon-monochrome-512.png": (icon_svg(512, "mono", v_art, v_w, v_h, "1427446516"), 512),
+        "apple-touch-icon.png": (icon_svg(180, "apple", v_art, v_w, v_h, "1427446516"), 180),
         "music-192.png": (icon_svg(192, "any", m_art, mw, mh, "ViktorychMusic"), 192),
         "music-512.png": (icon_svg(512, "any", m_art, mw, mh, "ViktorychMusic"), 512),
         "music-maskable-512.png": (icon_svg(512, "maskable", m_art, mw, mh, "ViktorychMusic"), 512),
@@ -227,7 +227,7 @@ def generate() -> None:
     if not skip_raster:
         frames = []
         for size, kind in ((16, "si"), (32, "si"), (48, "any"), (256, "any")):
-            frames.append((size, raster(icon_svg(size, kind, v_art, v_w, v_h, "ViktorychApp"), size)))
+            frames.append((size, raster(icon_svg(size, kind, v_art, v_w, v_h, "1427446516"), size)))
         write(ROOT / "favicon.ico", ico_bytes(frames))
         # Richer-install shots are real UI frames (landing/*.webp), not splash marks.
         from richer_install_shots import generate as write_richer_shots

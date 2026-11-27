@@ -118,7 +118,7 @@ shorts.bind({
   save: () => {},
   toggle: () => false,
   token: () => "mock-token",
-  productName: () => "ViktorychApp",
+  productName: () => "1427446516",
   logo: () => "<svg class=\"logo\"></svg>"
 });
 

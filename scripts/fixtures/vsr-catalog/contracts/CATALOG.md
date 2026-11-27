@@ -1,6 +1,6 @@
 # Recorder catalog and retrieval
 
-This is the contract the ViktorychApp Storage page did not have. It is not a second playback format. Playback stays `vsr-playback-2` in `manifest.age`. The published parser accepts that manifest only after age decrypt, and it treats `telegram_getfile` as a boolean size flag. The page does not call Telegram.
+This is the contract the 1427446516 Storage page did not have. It is not a second playback format. Playback stays `vsr-playback-2` in `manifest.age`. The published parser accepts that manifest only after age decrypt, and it treats `telegram_getfile` as a boolean size flag. The page does not call Telegram.
 
 `vsr-sealed-export` version 1, `sealed: "catalog"`, is the owner catalog. `parsePlainCatalog` in the app rejects plaintext catalogs. Read this document only after `catalog.age` decrypts in the tab. The identity is not sent to a server.
 

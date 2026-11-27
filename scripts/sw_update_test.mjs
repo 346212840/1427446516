@@ -87,7 +87,7 @@ function startServer() {
         return;
       }
       const body = JSON.stringify({
-        name: "ViktorychApp",
+        name: "1427446516",
         sha: state.version,
         short: state.version.slice(0, 7),
         built: state.built,
