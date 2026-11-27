@@ -170,6 +170,10 @@ const PAGE_STEPS = [
     weight: 45, needs: ["pw", "browser"],
     paths: [file("instagram_media_test.mjs"), /^app\.js$/, /^accounts\.js$/, /^worker\/src\/index\.js$/]
   }),
+  step("image-relay", "node scripts/feed_image_relay_test.mjs", {
+    weight: 40, needs: ["pw", "browser"],
+    paths: [file("feed_image_relay_test.mjs"), /^app\.js$/]
+  }),
   step("source-assign", "node scripts/source_lists_client_test.mjs && node scripts/source_list_assign_test.mjs", {
     weight: 40, needs: ["pw", "browser"],
     paths: [file("source_list_assign_test.mjs"), file("source_lists_client_test.mjs"), /^source-lists\.js$/, /^app\.js$/, /^worker\/src\/source-lists\.js$/]
@@ -334,7 +338,7 @@ const SHARDS = {
   home: ["home-tabs", "tab-member", "reply-lookup", "foryou-chunks", "foryou-off", "home-watch-rearm", "keep-column", "linked-x-live"],
   "compose-core": ["compose-ai", "compose-page"],
   "compose-a": ["community-home", "communities-hub", "own-post", "author-card-race", "author-marks", "post-page"],
-  "compose-b": ["music-dock", "video-fallback", "ig-media", "source-assign", "device-guard", "usernames", "owner-user-settings"],
+  "compose-b": ["music-dock", "video-fallback", "ig-media", "image-relay", "source-assign", "device-guard", "usernames", "owner-user-settings"],
   "compose-c": ["display-names", "settings-assistant", "nostr-settings", "games-mobile", "people-search", "emoji-text", "post-menu", "show-more-scroll", "action-speed", "reply-pending", "tab-sync"],
   "compose-d": ["live-translate", "friend-p2p", "friend-refresh", "communities-instant", "routes-instant"],
   "compose-e": ["profile-by-name", "communities-rows", "friend-privacy", "foryou-communities"],
@@ -355,7 +359,7 @@ const REQUIRED_PAGE = [
   "home-tabs", "tab-member", "reply-lookup", "home-watch-rearm", "keep-column", "linked-x-live", "pill-fit", "drawer", "sidebar", "privacy", "yt-embed", "x-video",
   "signup-flows",
   "device", "translate", "ondevice-ai", "dock", "for-you", "compose-ai", "compose-page", "ios", "live", "shorts-page",
-  "community-home", "communities-hub", "own-post", "author-card-race", "post-page", "music-dock", "video-fallback", "ig-media", "source-assign",
+  "community-home", "communities-hub", "own-post", "author-card-race", "post-page", "music-dock", "video-fallback", "ig-media", "image-relay", "source-assign",
   "device-guard", "usernames", "owner-user-settings", "display-names", "settings-assistant", "nostr-settings", "games-mobile",
   "live-translate", "friend-p2p", "friend-refresh", "communities-instant", "routes-instant", "profile-by-name", "people-search", "emoji-text", "post-menu", "show-more-scroll", "action-speed", "reply-pending", "tab-sync",
   "communities-rows", "friend-privacy", "foryou-communities", "foryou-chunks", "author-marks", "foryou-off", "title-privacy", "desktop-squares",
