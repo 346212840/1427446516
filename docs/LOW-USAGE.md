@@ -36,6 +36,7 @@ For AI assistants continuing this project. Goal: do as much as possible while ke
 - Cache at the edge.
 - Fallbacks (backup server, P2P/mesh) stay idle unless faster or everything else is down.
 - Keep-warm pings only from the Worker cron, with quiet hours.
+- D1 bills every row a query scans (free: 5 million a day). No `COUNT(*)`, `MAX()` on an unindexed column, or leading-wildcard `LIKE` over a big table (`telegram_files` has ~68,000 rows) in anything that runs on a schedule; check new queries with `EXPLAIN QUERY PLAN` and use `MAX(rowid)` or an indexed lookup. Real numbers: Cloudflare GraphQL `d1QueriesAdaptiveGroups` ordered by `sum_rowsRead_DESC`.
 
 ## 6. Free services policy
 - Add free services alongside existing ones as backups; never replace what works.
