@@ -2,6 +2,7 @@ import { normalizeTikTokInput, parseTikTokInput, resolveTikTokShort } from "./ti
 import { mentionSuggest } from "./mention-suggest.js";
 import { bindOwner, inspectHandle, ownerHandle, ownerSkeleton } from "../../shared/handle-skeleton.js";
 import { handleFeatures, killedRoute, readFlags } from "./feature-flags.js";
+import { fromRetired, handleMoved, injectFeed, injectNotes, mintHandoff, movedTarget } from "./moved.js";
 import { handleNft } from "./nft.js";
 import { parseRoomId, pickStreams, roomStats, isTopQuality } from "../../shared/tiktok-live.js";
 import { allowRecord, parseCap, proxyBlocked, stepCap } from "../../shared/viewer-cap.js";
@@ -1030,6 +1031,54 @@ function serverDeps(ctx) {
   });
 }
 
+/* Requests from a retired origin (the old github.io address, where an
+   installed app keeps running from its saved copy) get a way to the new one:
+   /v1/features names it, feeds.json gets a post with a one-time sign-in link,
+   and the notifications list says where the app went. See moved.js. */
+async function movedAware(request, env, path, response) {
+  if (!response || response.status !== 200 || !fromRetired(request, env)) return response;
+  if (path !== "/v1/features" && path !== "/v1/notifications") return response;
+  let off = null;
+  try { off = await readFlags(env); } catch (err) { off = null; }
+  if (!off || off.app_moved) return response;
+  let body = null;
+  try { body = await response.clone().json(); } catch (err) { return response; }
+  if (!body || typeof body !== "object") return response;
+  const headers = new Headers(response.headers);
+  headers.delete("content-length");
+  headers.delete("etag");
+  headers.set("cache-control", "no-store");
+  headers.set("vary", "Origin");
+  let out = body;
+  if (path === "/v1/features") out = Object.assign({}, body, { moved: { url: movedTarget(env) } });
+  else out = injectNotes(body, request);
+  return new Response(JSON.stringify(out), { status: 200, headers });
+}
+
+/* feeds.json for a signed-in reader on a retired origin: the one-time code
+   for the moved post, or null when nothing is added. */
+async function movedFeedCode(request, env, key, row) {
+  if (key !== "feeds.json" || !fromRetired(request, env)) return null;
+  let off = null;
+  try { off = await readFlags(env); } catch (err) { off = null; }
+  if (!off || off.app_moved) return null;
+  const id = row && /^\d{12}$/.test(String(row.public_id || "")) ? String(row.public_id) : "";
+  return id ? await mintHandoff(env, id, recoveryDeps()) : "";
+}
+
+function movedFeedResponse(request, env, doc, code) {
+  return new Response(JSON.stringify(injectFeed(doc, env, request, code)), {
+    status: 200,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      "vary": "Origin",
+      "x-content-type-options": "nosniff",
+      "x-robots-tag": "noindex, nofollow, noarchive, nosnippet, noimageindex"
+    }
+  });
+}
+
 function recoveryDeps() {
   return {
     json: json,
@@ -1935,10 +1984,12 @@ async function handleData(request, env, pathname, ctx) {
   const stored = await readStoredEntry(env, key);
   const text = stored.text;
   if (!text) return json(404, { error: "not_found" });
-  if (row.owner === 1) return catalogResponse(text);
+  const movedCode = await movedFeedCode(request, env, key, row);
+  if (row.owner === 1 && movedCode === null) return catalogResponse(text);
   let parsed = null;
   try { parsed = JSON.parse(text); }
   catch (err) { return json(502, { error: "bad_json" }); }
+  if (row.owner === 1) return movedFeedResponse(request, env, parsed, movedCode);
   const doc = stripOwnerOnly(parsed, env);
   const body = JSON.stringify(doc);
   // The sharing pool signs the hash of exactly these bytes, once per version.
@@ -1954,6 +2005,10 @@ async function handleData(request, env, pathname, ctx) {
   };
   // Blocked items are dropped after the pool hash, only for this device's copy.
   const blocks = BLOCK_PATHS.test(pathname) ? parseBlockHeader(request.headers.get("x-block")) : null;
+  if (movedCode !== null) {
+    if (blocks) filterBlocked(blocks, doc);
+    return movedFeedResponse(request, env, doc, movedCode);
+  }
   if (!blocks) return new Response(body, { status: 200, headers });
   const removed = filterBlocked(blocks, doc);
   headers["x-block-removed"] = String(removed);
@@ -6281,7 +6336,8 @@ async function route(request, env, ctx) {
   if (path === "/v1/owner/accounts" && (request.method === "GET" || request.method === "POST")) return handleAddedAccounts(request, env, url);
   const addedAccount = path.match(/^\/v1\/owner\/accounts\/([^/]+)$/);
   if (addedAccount && request.method === "DELETE") return handleAddedAccountDelete(request, env, addedAccount[1]);
-  if (path === "/v1/features" || path === "/v1/owner/features") return handleFeatures(request, env, { json, requireOwner });
+  if (path === "/v1/features" || path === "/v1/owner/features") return movedAware(request, env, path, await handleFeatures(request, env, { json, requireOwner }));
+  if (path.startsWith("/v1/moved/")) return handleMoved(request, env, path, recoveryDeps());
   if (path === "/v1/nft" || path.startsWith("/v1/nft/")) return handleNft(request, env, { json });
   if (path.startsWith("/v1/nostr/")) {
     const linked = await handleNostr(request, env, path, recoveryDeps());
@@ -6595,7 +6651,7 @@ async function route(request, env, ctx) {
   }
   if (path === "/v1/notifications" || path === "/v1/notifications/read" || path === "/v1/push/vapid" || path === "/v1/push/subscribe") {
     const handled = await handleNotificationRoutes(request, env, path, { json, sessionAccount, readJson, rateHit, limited });
-    if (handled) return handled;
+    if (handled) return path === "/v1/notifications" ? movedAware(request, env, path, handled) : handled;
   }
   return json(404, { error: "not_found" });
 }

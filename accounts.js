@@ -1094,6 +1094,8 @@
     if (code === "too_fast") return tr("Wait a moment and try again.");
     if (code === "guard_required" || code === "rejected") return tr("Sign-up could not be checked. Try again.");
     if (code === "recovery_invalid") return tr("That recovery code did not work.");
+    if (code === "handoff_invalid" || code === "handoff_used") return tr("That sign-in link from the old app did not work. Sign in here instead.");
+    if (code === "handoff_expired") return tr("That sign-in link from the old app expired. Open the old app again for a new one, or sign in here.");
     if (code === "bad_expiry") return tr("Pick a time between 15 minutes and 90 days from now.");
     if (code === "temporary_account") return tr("Temporary accounts can't do this. Save the account first.");
     if (code === "temporary_dm_limit") return tr("Temporary accounts can only send a few messages a day to people they don't know.");
@@ -7881,8 +7883,65 @@ else if (act === "usage-retry") { loadUsage(true); if (window.ViktorychAccounts.
     } catch (e) {}
   }
   if (window.SI18n && window.SI18n.onChange) window.SI18n.onChange(function () { if (blocking() || view) paint(); });
+  /* The app moved: the old installed app's post opens this address with
+     #/moved=<one-time code>. The Worker exchanges it once for a session.
+     Afterwards Security opens with a prompt to add a passkey here, because
+     passkeys made at the old address only work there. */
+  var MOVED_PASSKEY_KEY = "viktorychapp-moved-passkey";
+  function checkMovedHandoff() {
+    var m = (location.hash || "").match(/^#\/moved=([0-9a-z.]{20,120})$/i);
+    if (!m) return false;
+    history.replaceState(null, "", location.pathname + location.search + "#/");
+    if (readSession() || !hasApi()) return false;
+    try {
+      sessionStorage.setItem(RETURN_KEY, "#/settings/security");
+      sessionStorage.setItem(MOVED_PASSKEY_KEY, "1");
+    } catch (err) { /* the passkey prompt is skipped */ }
+    api("/v1/moved/exchange", { method: "POST", body: { code: m[1] } }).then(function (res) {
+      if (!res || res.status !== 200 || !res.token || !res.account) {
+        try {
+          sessionStorage.removeItem(RETURN_KEY);
+          sessionStorage.removeItem(MOVED_PASSKEY_KEY);
+        } catch (err) { /* nothing to clear */ }
+        errorText = errorMessage((res && res.error) || "handoff_invalid");
+        if (blocking()) { view = "login"; enter(); paint(); }
+        return;
+      }
+      commitSession(res.token, res.account);
+    }).catch(function () {
+      errorText = offlineMessage();
+      if (blocking()) paint();
+    });
+    return true;
+  }
+  function movedPasskeyPrompt() {
+    var flag = "";
+    try { flag = sessionStorage.getItem(MOVED_PASSKEY_KEY) || ""; } catch (err) { flag = ""; }
+    if (!flag || !readSession() || document.getElementById("moved-passkey")) return;
+    var box = document.createElement("div");
+    box.id = "moved-passkey";
+    box.setAttribute("role", "dialog");
+    box.setAttribute("aria-live", "polite");
+    box.style.cssText = "position:fixed;left:12px;right:12px;bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:9999;max-width:560px;margin:0 auto;padding:14px 16px;border-radius:16px;background:var(--bg,#000);color:var(--text,#e7e9ea);border:1px solid var(--line,#2f3336);box-shadow:0 8px 28px rgba(0,0,0,.45);font:15px/1.4 system-ui,sans-serif";
+    box.innerHTML = "<b>" + esc(tr("You're signed in at the new address")) + "</b><p style=\"margin:6px 0 10px\">" + esc(tr("Passkeys from the old address only work there. Add a passkey for this address so you can sign in here next time.")) + "</p>" +
+      '<button type="button" class="outline" data-sec="add-passkey" style="margin-right:8px">' + esc(tr("Add a passkey")) + "</button>" +
+      '<button type="button" class="outline" data-moved="close">' + esc(tr("Not now")) + "</button>";
+    /* Window capture runs before the passkey module's document listener,
+       which stops the click after starting the passkey prompt. */
+    window.addEventListener("click", function onMovedClick(event) {
+      var node = event.target && event.target.closest ? event.target.closest("#moved-passkey button") : null;
+      if (!node) return;
+      window.removeEventListener("click", onMovedClick, true);
+      try { sessionStorage.removeItem(MOVED_PASSKEY_KEY); } catch (err) { /* shown once more at most */ }
+      setTimeout(function () { if (box.parentNode) box.parentNode.removeChild(box); }, node.getAttribute("data-sec") ? 400 : 0);
+    }, true);
+    (document.body || document.documentElement).appendChild(box);
+  }
+  checkMovedHandoff();
   checkUrlSession();
   if (blocking()) enter();
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", movedPasskeyPrompt);
+  else setTimeout(movedPasskeyPrompt, 0);
   document.addEventListener("visibilitychange", function () {
     if (document.visibilityState === "visible") {
       syncFollows();

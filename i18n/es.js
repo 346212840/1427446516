@@ -7054,5 +7054,13 @@ SI18n.addPack("es", {
   "R2 spending guard": "Protección de gasto de R2",
   "Counts every R2 call and stops backups and caches at 70% of the free monthly allowance, and everything except uploads and deletions at 85%. Off lifts those steps; the stop at 95% always stays, so R2 never bills.": "Cuenta cada llamada a R2 y detiene copias de seguridad y cachés al 70% de la cuota gratuita mensual, y todo salvo subidas y borrados al 85%. Desactivado quita esos pasos; el corte al 95% se mantiene siempre, así R2 nunca cobra.",
   "Spending freeze": "Congelar gastos",
-  "On: stops every R2 write and read at once except uploads and deletions, as if the free allowance were 85% used. Off by default.": "Activado: detiene al instante toda escritura y lectura en R2 salvo subidas y borrados, como si la cuota gratuita estuviera usada al 85%. Desactivado por defecto."
+  "On: stops every R2 write and read at once except uploads and deletions, as if the free allowance were 85% used. Off by default.": "Activado: detiene al instante toda escritura y lectura en R2 salvo subidas y borrados, como si la cuota gratuita estuviera usada al 85%. Desactivado por defecto.",
+  "That sign-in link from the old app did not work. Sign in here instead.": "Ese enlace de inicio de sesión de la app antigua no funcionó. Inicia sesión aquí.",
+  "That sign-in link from the old app expired. Open the old app again for a new one, or sign in here.": "Ese enlace de inicio de sesión de la app antigua caducó. Abre de nuevo la app antigua para obtener otro, o inicia sesión aquí.",
+  "You're signed in at the new address": "Has iniciado sesión en la nueva dirección",
+  "Passkeys from the old address only work there. Add a passkey for this address so you can sign in here next time.": "Las llaves de acceso de la dirección antigua solo funcionan allí. Añade una llave de acceso para esta dirección y podrás entrar aquí la próxima vez.",
+  "App moved notice": "Aviso de cambio de dirección",
+  "People still on the old installed app get a post and a notification that open the new address, signed in with a one-time link.": "Quienes siguen en la app instalada antigua reciben una publicación y una notificación que abren la nueva dirección con la sesión iniciada mediante un enlace de un solo uso.",
+  "This app moved to a new address.": "Esta app se mudó a una nueva dirección.",
+  "Open the new app": "Abrir la nueva app"
 });

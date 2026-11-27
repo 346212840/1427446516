@@ -7,6 +7,16 @@ Written 2026-11-21 (UTC). The Pages directory is the repository name, read from 
 
 The owner is `346212840` and the repository is `1427446516` (their numeric GitHub ids); Pages is at `https://346212840.github.io/1427446516/`. The old github.io address no longer serves anything, so passkeys made there (rpId `viktorychgroup.github.io`) can't be used; their owners sign in another way and add a new passkey. The app names itself `1427446516` (`brand.name`; `productName("app")` is the stem alone). Internal storage keys, JS globals, the TV package and Cloudflare names (`viktorychapp.pages.dev`, the `viktorych-accounts` Worker, D1 and R2) keep their old names on purpose. When a configured owner/name answers 404, the Worker finds the repository by id (`GITHUB_REPOSITORY_ID`, default `1427446516`). The CODEOWNERS change is `docs/owner-patches/codeowners-numeric-org.patch`.
 
+## App moved (`app_moved`, on by default)
+
+Installed copies from the old github.io address cannot update (that address returns 404) but still call the Worker with the old `Origin`, which stays in `ALLOWED_ORIGINS`. For those requests only, the Worker (`worker/src/moved.js`) adds:
+
+- a pinned post at the top of For you (`/v1/data/feeds.json`, feed `app:moved`) whose link opens `https://346212840.github.io/1427446516/#/moved=<code>`;
+- a notification "1427446516 sent you a message" saying the app moved (tapping it stays in the old app; the post holds the link);
+- `moved: {url}` in `/v1/features` (old copies ignore it; current copies show a top banner, "Open the new app").
+
+The code is one per account per hour, signed with `ACCOUNT_PEPPER`, valid at most two hours and exchanged once (`POST /v1/moved/exchange`, table `moved_handoff_used`). The new copy signs in with it, opens Security and asks to add a passkey, because passkeys made at the old address only work there. A signed-in banner tap mints a fresh code with `POST /v1/moved/handoff`. Signed-out old copies see nothing new: the feed and notifications need a session. Turning `app_moved` off stops all of it.
+
 ## Calls
 
 The slide-up call bar (`calls_bar_sheet`) now holds every Calls setting as tabs one tap away: Controls, Languages, Sound (translation, original and call volume), Microphone, Captions, Invite, Settings (voice, pronunciations, Gemini key, connection and EU route) and the Test or Practice partner during a test. Tiles in the sheet open their section in place instead of a second sheet or a deep screen; the section scrolls inside the sheet and a drag there scrolls instead of closing it. The practice partner greets as soon as the call is connected and the translator is ready (or the call is in text), with no timer. The home screen has a single Test call button. With a mouse, bar buttons (Mute, Leave, the handle) work again: the bar used to capture the pointer on press, which sent the click to the bar instead of the button.
