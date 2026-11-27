@@ -43,7 +43,9 @@ workers_dev = true
 # TIKTOK_TRACKED lists accounts the sync follows. TIKTOK_UNLOCKED lists
 # which of those stay visible while Shorts is locked. Both are secrets.
 [vars]
-ALLOWED_ORIGINS = "https://346212840.github.io,https://viktorychapp.pages.dev"
+# The old github.io host stays: installed apps from before the owner rename
+# still run from their cached copy there and call this Worker.
+ALLOWED_ORIGINS = "https://346212840.github.io,https://viktorychgroup.github.io,https://viktorychapp.pages.dev"
 # One name. After a rename, GitHub redirects this to the new repository.
 GITHUB_REPOSITORY = "346212840/1427446516"
 PBKDF2_ITERATIONS = "30000"

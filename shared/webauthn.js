@@ -10,6 +10,7 @@
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
+const LEGACY_GITHUB_HOST = "viktorych" + "group.github.io";
 export const RP_NAME = "1427446516";
 export const CHALLENGE_MS = 5 * 60 * 1000;
 
@@ -60,6 +61,9 @@ export function rpIdForOrigin(origin) {
   if (url.protocol !== "https:" && !local) return "";
   if (local) return host;
   if (host === "346212840.github.io" || host === "viktorychapp.pages.dev") return host;
+  /* Installed apps from before the owner rename still run from their cached
+     copy on the old github.io host, and their passkeys are bound to it. */
+  if (host === LEGACY_GITHUB_HOST) return host;
   if (host.endsWith(".viktorychapp.pages.dev") || host.endsWith(".346212840.github.io")) return host;
   return "";
 }

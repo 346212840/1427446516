@@ -193,7 +193,7 @@ async function saveNumberHashUpgrade(env, publicId, oldStored, upgrade) {
 }
 
 function allowedOrigins(env) {
-  const raw = String(env.ALLOWED_ORIGINS || "https://346212840.github.io");
+  const raw = String(env.ALLOWED_ORIGINS || "https://346212840.github.io,https://viktorychgroup.github.io");
   return raw.split(",").map((item) => item.trim()).filter(Boolean);
 }
 
