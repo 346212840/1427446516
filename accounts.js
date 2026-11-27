@@ -7937,11 +7937,13 @@ else if (act === "usage-retry") { loadUsage(true); if (window.ViktorychAccounts.
     }, true);
     (document.body || document.documentElement).appendChild(box);
   }
-  checkMovedHandoff();
+  try { checkMovedHandoff(); } catch (err) { /* the normal sign-in shows */ }
   checkUrlSession();
   if (blocking()) enter();
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", movedPasskeyPrompt);
-  else setTimeout(movedPasskeyPrompt, 0);
+  try {
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", movedPasskeyPrompt);
+    else if (typeof setTimeout === "function") setTimeout(movedPasskeyPrompt, 0);
+  } catch (err) { /* no prompt; Security still has Add a passkey */ }
   document.addEventListener("visibilitychange", function () {
     if (document.visibilityState === "visible") {
       syncFollows();
