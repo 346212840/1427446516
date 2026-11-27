@@ -353,6 +353,12 @@ async function probe(session, pageUrl, opts) {
     await send("Page.enable");
     await send("Runtime.enable");
     await send("Network.enable");
+    // The seeded sessions use a made-up token. The live Worker answers its
+    // device key request with 401, and the app then wipes the device and
+    // reloads (app-lock.js remoteWipe). The seed runs again on every new
+    // document, so the tab could reload in a loop and look empty when it is
+    // checked. Blocking that one request keeps the seeded session in place.
+    if (opts.init) await send("Network.setBlockedURLs", { urls: ["*/v1/devices/key*"] });
     await send("Log.enable");
     await send("Emulation.setDeviceMetricsOverride", {
       width: opts.width,
