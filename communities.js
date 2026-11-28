@@ -533,10 +533,14 @@
   function beginDoc(name) {
     state.loading[name] = true;
     state.docPromises = state.docPromises || {};
+    /* Same pair the hub, community, and thread views load: the post file and
+       the signed-in bag (app posts, join, lock). Sharing the catalog promise
+       keeps a second tap from starting another retry loop. */
     var pending = state.docPromises[name] || loadDoc(name, true);
     var gen = state.docGen && state.docGen[name];
+    var internal = loadInternal(name);
     render();
-    return pending.finally(function () {
+    return Promise.all([pending, internal]).finally(function () {
       if (!state.docGen || state.docGen[name] !== gen) return;
       state.loading[name] = false;
       render();
