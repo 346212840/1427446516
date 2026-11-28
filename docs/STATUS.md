@@ -2,6 +2,10 @@
 
 Written 2026-11-21 (UTC). The Pages directory is the repository name, read from the address on github.io and from `GITHUB_REPOSITORY` when the site is published. The Cloudflare mirror stays `https://viktorychapp.pages.dev/`. Latest D1 migration is `0138_call_history_edit.sql`. Telegram expiry is a column added at runtime, not a new migration. This is a snapshot: check `gh pr list` and `git log origin/main` before acting on it. Update this file at the end of every PR.
 
+## Communities feed
+
+A community catalog read that comes back 429, 5xx, or fails on the network stays on Loading and is tried again up to four times. The wait follows `retry-after` and is capped, and at most two of those reads run at once. A 404 or an empty file is what shows "No posts yet".
+
 
 ## Owner and repository names
 
