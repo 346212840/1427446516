@@ -153,7 +153,18 @@ async function check(browser, port, size) {
   if ((await page.getAttribute(sw, "aria-checked")) !== "true") fail(label + ": search switch is not on by default");
   const text = await page.textContent(sw);
   if (!text.includes("Let others find me in search")) fail(label + ": switch label " + text);
-  await page.locator(sw).scrollIntoViewIfNeeded();
+  /* Audience lists used to rebuild the whole privacy column when the server
+     answered, including when the answer matched the list already on screen.
+     The switch that was just found is the one that must still be here once
+     that answer has been applied. */
+  await page.locator(sw).evaluate((el) => { el.dataset.probe = "stay"; });
+  const stayed = await page.waitForFunction(() => {
+    const el = document.querySelector('[data-act="pymk-searchable"]');
+    const ready = document.querySelector(".aud-settings[data-aud-ready='1']");
+    return !!(ready && el && el.dataset.probe === "stay" && el.isConnected);
+  }, null, { timeout: 20000 }).then(() => true).catch(() => false);
+  if (!stayed) fail(label + ": the search switch was replaced while audience lists loaded");
+  await page.locator(sw + '[data-probe="stay"]').scrollIntoViewIfNeeded();
   if (SHOTS) await page.screenshot({ path: path.join(SHOTS, "search-setting-on-" + label + ".png") });
   await page.click(sw);
   await page.waitForFunction((s) => document.querySelector(s) && document.querySelector(s).getAttribute("aria-checked") === "false", sw, { timeout: 5000 }).catch(() => fail(label + ": switch did not turn off"));
