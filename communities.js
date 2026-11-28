@@ -451,18 +451,25 @@
   function loadDoc(name, force) {
     if (!force && state.docs[name] && !state.docs[name].missing && !state.docs[name].unavailable) return Promise.resolve(state.docs[name]);
     state.docPromises = state.docPromises || {};
+    /* One load per community. A second caller shares it instead of starting
+       another retry loop that would race on state.docs. */
     if (state.docPromises[name]) return state.docPromises[name];
+    state.docGen = state.docGen || {};
+    var gen = (state.docGen[name] || 0) + 1;
+    state.docGen[name] = gen;
     var primary = basePath() + "data/communities/" + encodeURIComponent(name) + ".json";
     var fallback = "data/communities/" + encodeURIComponent(name) + ".json";
     var attempt = 0;
+    function live() { return state.docGen[name] === gen; }
     function shown() {
       return state.docs[name] && !state.docs[name].missing && !state.docs[name].unavailable;
     }
     function finish(doc) {
-      delete state.docPromises[name];
+      if (live()) delete state.docPromises[name];
       return doc;
     }
     function accept(doc) {
+      if (!live()) return null;
       state.docs[name] = doc || { name: name, posts: [] };
       state.docAt[name] = Date.now();
       storeDoc(name, state.docs[name]);
@@ -472,29 +479,36 @@
     /* A 404 is no file. A busy or dropped read keeps a copy already on screen
        and is not stored as an empty community. */
     function absent() {
+      if (!live()) return null;
       if (!shown()) state.docs[name] = { name: name, title: name, posts: [], missing: true };
       return finish(state.docs[name]);
     }
     function pause() {
+      if (!live()) return null;
       if (!shown()) state.docs[name] = { name: name, title: name, posts: [], unavailable: true };
       return finish(state.docs[name]);
     }
     function again(res) {
+      if (!live()) return null;
       if (attempt >= CATALOG_RETRIES) return pause();
       var wait = catalogRetryMs(attempt, res);
       attempt += 1;
-      return waitMs(wait).then(pull);
+      return waitMs(wait).then(function () { return live() ? pull() : null; });
     }
     function readBody(res) {
+      if (!live()) return null;
       return res.json().then(accept, function () { return again(null); });
     }
     function pull() {
+      if (!live()) return Promise.resolve(null);
       return fetchCatalog(primary).then(function (res) {
+        if (!live()) return null;
         var status = res && res.status ? res.status : 0;
         if (res && res.ok) return readBody(res);
         if (status === 404) {
           if (catalogSame(primary, fallback)) return absent();
           return fetchCatalog(fallback).then(function (res2) {
+            if (!live()) return null;
             var status2 = res2 && res2.status ? res2.status : 0;
             if (res2 && res2.ok) return readBody(res2);
             if (status2 === 404) return absent();
@@ -507,6 +521,26 @@
     }
     state.docPromises[name] = pull();
     return state.docPromises[name];
+  }
+  /* The feed is still resolving this community: nothing cached yet, or a
+     failed read that the user (or the retry loop) is loading again. A good
+     copy stays on screen during a background refresh. */
+  function docPending(name) {
+    var doc = state.docs[name];
+    if (!doc) return true;
+    return !!(state.loading[name] && (doc.unavailable || doc.missing));
+  }
+  function beginDoc(name) {
+    state.loading[name] = true;
+    state.docPromises = state.docPromises || {};
+    var pending = state.docPromises[name] || loadDoc(name, true);
+    var gen = state.docGen && state.docGen[name];
+    render();
+    return pending.finally(function () {
+      if (!state.docGen || state.docGen[name] !== gen) return;
+      state.loading[name] = false;
+      render();
+    });
   }
 
   /* Comments live in one file per topic: the hub stays light, and a thread
@@ -1397,7 +1431,7 @@
     rows.slice(0, 8).forEach(function (row) {
       var name = row.name;
       if (cachedDoc(name)) revalidate(name);
-      if (!state.docs[name]) {
+      if (docPending(name)) {
         waiting = true;
         if (!state.loading[name]) {
           state.loading[name] = true;
@@ -1538,7 +1572,7 @@
     if (!name) return head(tr("Communities"), "#/communities") + '<div class="empty"><h2>' + esc(tr("That community wasn't found.")) + "</h2></div>";
     var doc = cachedDoc(name);
     if (doc) revalidate(name);
-    if (!doc) {
+    if (!doc || docPending(name)) {
       if (!state.loading[name]) {
         state.loading[name] = true;
         Promise.all([
@@ -1659,7 +1693,7 @@
     var id = decodeURIComponent(route.post || "");
     var doc = cachedDoc(name);
     if (doc) revalidate(name);
-    if (!doc) {
+    if (!doc || docPending(name)) {
       if (!state.loading[name]) {
         state.loading[name] = true;
         Promise.all([
@@ -1944,7 +1978,7 @@
     });
     names.slice(0, 16).forEach(function (name) {
       if (cachedDoc(name)) revalidate(name);
-      if (!state.docs[name]) {
+      if (docPending(name)) {
         waiting = true;
         if (!state.loading[name]) {
           state.loading[name] = true;
@@ -2450,17 +2484,10 @@
       event.stopPropagation();
       var subRetry = el.dataset.sub;
       if (subRetry) {
-        delete state.docs[subRetry];
-        state.loading[subRetry] = false;
-        if (state.docPromises) delete state.docPromises[subRetry];
-        loadDoc(subRetry, true).finally(render);
+        beginDoc(subRetry);
       } else {
         Object.keys(state.docs || {}).forEach(function (name) {
-          if (state.docs[name] && state.docs[name].unavailable) {
-            delete state.docs[name];
-            state.loading[name] = false;
-            if (state.docPromises) delete state.docPromises[name];
-          }
+          if (state.docs[name] && state.docs[name].unavailable) beginDoc(name);
         });
         state.index = null;
         loadIndex().finally(render);
