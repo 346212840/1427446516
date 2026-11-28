@@ -57,7 +57,7 @@
     return copy;
   }
   function storeDoc(name, doc) {
-    if (!doc || doc.missing) return;
+    if (!doc || doc.missing || doc.unavailable) return;
     if (!cachePut("cm:doc:" + name, doc)) cachePut("cm:doc:" + name, slimDoc(doc));
   }
   /* Fill state from the cache so the first paint has data. */
@@ -79,7 +79,7 @@
   /* Background refresh for a community that is on screen from cache. */
   function revalidate(name) {
     var doc = state.docs[name];
-    if (!doc || doc.missing || state.loading[name]) return;
+    if (!doc || doc.missing || doc.unavailable || state.loading[name]) return;
     if (state.docAt[name] && Date.now() - state.docAt[name] < DOC_TTL) return;
     state.loading[name] = true;
     state.docAt[name] = Date.now();
@@ -389,40 +389,162 @@
     return state.indexPromise;
   }
 
+  /* Community post files live on the accounts Worker. A burst at startup can
+     get 429 (retry-after, often one second) or a short 5xx. That is not an
+     empty community: retry a few times, and never run more than two of these
+     reads at once so the retries themselves do not trip the limiter. */
+  var CATALOG_PARALLEL = 2;
+  var CATALOG_RETRIES = 4;
+  var CATALOG_WAIT_CAP = 8000;
+  var catalogReads = { active: 0, queue: [] };
+  function catalogSame(a, b) {
+    try { return new URL(a, location.href).href === new URL(b, location.href).href; }
+    catch (err) { return false; }
+  }
+  function catalogBusy(status) {
+    return !status || status === 429 || status >= 500;
+  }
+  function catalogRetryMs(attempt, res) {
+    var raw = "";
+    try { raw = res && res.headers && res.headers.get ? String(res.headers.get("retry-after") || "").trim() : ""; }
+    catch (err) { raw = ""; }
+    var told = 0;
+    if (raw) {
+      var secs = Number(raw);
+      if (isFinite(secs)) told = Math.max(0, secs * 1000);
+      else {
+        var when = Date.parse(raw);
+        if (isFinite(when)) told = Math.max(0, when - Date.now());
+      }
+    }
+    if (told > 0) return Math.min(CATALOG_WAIT_CAP, told);
+    return Math.min(CATALOG_WAIT_CAP, 500 * Math.pow(2, Math.max(0, attempt)));
+  }
+  function waitMs(ms) {
+    return new Promise(function (resolve) { setTimeout(resolve, ms); });
+  }
+  function withCatalogRead(task) {
+    return new Promise(function (resolve, reject) {
+      var run = function () {
+        catalogReads.active += 1;
+        var settled = false;
+        function finish(err, value) {
+          if (settled) return;
+          settled = true;
+          catalogReads.active -= 1;
+          var next = catalogReads.queue.shift();
+          if (next) next();
+          if (err) reject(err);
+          else resolve(value);
+        }
+        Promise.resolve().then(task).then(function (value) { finish(null, value); }, function (err) { finish(err); });
+      };
+      if (catalogReads.active < CATALOG_PARALLEL) run();
+      else catalogReads.queue.push(run);
+    });
+  }
+  function fetchCatalog(url) {
+    return withCatalogRead(function () {
+      return fetch(url, { cache: "no-cache" }).then(function (res) { return res; }, function () { return null; });
+    });
+  }
   function loadDoc(name, force) {
-    if (!force && state.docs[name] && !state.docs[name].missing) return Promise.resolve(state.docs[name]);
+    if (!force && state.docs[name] && !state.docs[name].missing && !state.docs[name].unavailable) return Promise.resolve(state.docs[name]);
     state.docPromises = state.docPromises || {};
+    /* One load per community. A second caller shares it instead of starting
+       another retry loop that would race on state.docs. */
     if (state.docPromises[name]) return state.docPromises[name];
-    var url = basePath() + "data/communities/" + encodeURIComponent(name) + ".json";
-    state.docPromises[name] = fetch(url, { cache: "no-cache" }).then(function (res) {
-      if (!res.ok) throw new Error("doc " + res.status);
-      return res.json();
-    }).then(function (doc) {
+    state.docGen = state.docGen || {};
+    var gen = (state.docGen[name] || 0) + 1;
+    state.docGen[name] = gen;
+    var primary = basePath() + "data/communities/" + encodeURIComponent(name) + ".json";
+    var fallback = "data/communities/" + encodeURIComponent(name) + ".json";
+    var attempt = 0;
+    function live() { return state.docGen[name] === gen; }
+    function shown() {
+      return state.docs[name] && !state.docs[name].missing && !state.docs[name].unavailable;
+    }
+    function finish(doc) {
+      if (live()) delete state.docPromises[name];
+      return doc;
+    }
+    function accept(doc) {
+      if (!live()) return null;
       state.docs[name] = doc || { name: name, posts: [] };
       state.docAt[name] = Date.now();
       storeDoc(name, state.docs[name]);
-      delete state.docPromises[name];
       rememberCommunities();
-      return state.docs[name];
-    }).catch(function () {
-      return fetch("data/communities/" + encodeURIComponent(name) + ".json", { cache: "no-cache" }).then(function (res2) {
-        if (!res2.ok) throw new Error("doc fallback " + res2.status);
-        return res2.json();
-      }).then(function (doc2) {
-        state.docs[name] = doc2 || { name: name, posts: [] };
-        state.docAt[name] = Date.now();
-        storeDoc(name, state.docs[name]);
-        delete state.docPromises[name];
-        rememberCommunities();
-        return state.docs[name];
-      }).catch(function () {
-        /* Offline or a failed refresh: keep the copy already on screen. */
-        if (!(state.docs[name] && !state.docs[name].missing)) state.docs[name] = { name: name, title: name, posts: [], missing: true };
-        delete state.docPromises[name];
-        return state.docs[name];
+      return finish(state.docs[name]);
+    }
+    /* A 404 is no file. A busy or dropped read keeps a copy already on screen
+       and is not stored as an empty community. */
+    function absent() {
+      if (!live()) return null;
+      if (!shown()) state.docs[name] = { name: name, title: name, posts: [], missing: true };
+      return finish(state.docs[name]);
+    }
+    function pause() {
+      if (!live()) return null;
+      if (!shown()) state.docs[name] = { name: name, title: name, posts: [], unavailable: true };
+      return finish(state.docs[name]);
+    }
+    function again(res) {
+      if (!live()) return null;
+      if (attempt >= CATALOG_RETRIES) return pause();
+      var wait = catalogRetryMs(attempt, res);
+      attempt += 1;
+      return waitMs(wait).then(function () { return live() ? pull() : null; });
+    }
+    function readBody(res) {
+      if (!live()) return null;
+      return res.json().then(accept, function () { return again(null); });
+    }
+    function pull() {
+      if (!live()) return Promise.resolve(null);
+      return fetchCatalog(primary).then(function (res) {
+        if (!live()) return null;
+        var status = res && res.status ? res.status : 0;
+        if (res && res.ok) return readBody(res);
+        if (status === 404) {
+          if (catalogSame(primary, fallback)) return absent();
+          return fetchCatalog(fallback).then(function (res2) {
+            if (!live()) return null;
+            var status2 = res2 && res2.status ? res2.status : 0;
+            if (res2 && res2.ok) return readBody(res2);
+            if (status2 === 404) return absent();
+            return again(res2);
+          });
+        }
+        if (catalogBusy(status)) return again(res);
+        return pause();
       });
-    });
+    }
+    state.docPromises[name] = pull();
     return state.docPromises[name];
+  }
+  /* The feed is still resolving this community: nothing cached yet, or a
+     failed read that the user (or the retry loop) is loading again. A good
+     copy stays on screen during a background refresh. */
+  function docPending(name) {
+    var doc = state.docs[name];
+    if (!doc) return true;
+    return !!(state.loading[name] && (doc.unavailable || doc.missing));
+  }
+  function beginDoc(name) {
+    state.loading[name] = true;
+    state.docPromises = state.docPromises || {};
+    /* Same pair the hub, community, and thread views load: the post file and
+       the signed-in bag (app posts, join, lock). Sharing the catalog promise
+       keeps a second tap from starting another retry loop. */
+    var pending = state.docPromises[name] || loadDoc(name, true);
+    var gen = state.docGen && state.docGen[name];
+    var internal = loadInternal(name);
+    render();
+    return Promise.all([pending, internal]).finally(function () {
+      if (!state.docGen || state.docGen[name] !== gen) return;
+      state.loading[name] = false;
+      render();
+    });
   }
 
   /* Comments live in one file per topic: the hub stays light, and a thread
@@ -1302,13 +1424,18 @@
       "</div>" +
     "</article>";
   }
+  function unreachable(name) {
+    return '<div class="empty"><h2>' + esc(tr("Could not reach the server. Try again.")) + '</h2>' +
+      '<button class="retry" type="button" data-cm="retry"' + (name ? ' data-sub="' + esc(name) + '"' : "") + '>' + esc(tr("Retry")) + "</button></div>";
+  }
   function homeFeed(rows) {
     var items = [];
     var waiting = false;
+    var stalled = false;
     rows.slice(0, 8).forEach(function (row) {
       var name = row.name;
       if (cachedDoc(name)) revalidate(name);
-      if (!state.docs[name]) {
+      if (docPending(name)) {
         waiting = true;
         if (!state.loading[name]) {
           state.loading[name] = true;
@@ -1320,6 +1447,7 @@
         return;
       }
       var doc = state.docs[name];
+      if (doc.unavailable) { stalled = true; return; }
       if (doc.missing) return;
       var bag = state.internal[name];
       if (bag && bag.locked) return;
@@ -1331,7 +1459,11 @@
       });
     });
     items.sort(function (a, b) { return b.created - a.created; });
-    if (!items.length) return waiting ? '<div class="reply-empty">' + esc(tr("Loading")) + "</div>" : '<div class="empty"><h2>' + esc(tr("No posts yet")) + "</h2></div>";
+    if (!items.length) {
+      if (waiting) return '<div class="reply-empty">' + esc(tr("Loading")) + "</div>";
+      if (stalled) return unreachable("");
+      return '<div class="empty"><h2>' + esc(tr("No posts yet")) + "</h2></div>";
+    }
     return '<div class="cm-x-feed">' + items.slice(0, 60).map(homeCard).join("") + "</div>";
   }
   function pickerSheet(rows) {
@@ -1444,7 +1576,7 @@
     if (!name) return head(tr("Communities"), "#/communities") + '<div class="empty"><h2>' + esc(tr("That community wasn't found.")) + "</h2></div>";
     var doc = cachedDoc(name);
     if (doc) revalidate(name);
-    if (!doc) {
+    if (!doc || docPending(name)) {
       if (!state.loading[name]) {
         state.loading[name] = true;
         Promise.all([
@@ -1458,6 +1590,7 @@
       return head(communityLabel(name), "#/communities") + '<div class="reply-empty">' + esc(tr("Loading")) + "</div>";
     }
 
+    if (doc.unavailable) return head(communityLabel(name), "#/communities") + unreachable(name);
     if (doc.missing) {
       return head(communityLabel(name), "#/communities") +
         '<div class="empty"><h2>' + esc(tr("That community wasn't found.")) + '</h2>' +
@@ -1564,7 +1697,7 @@
     var id = decodeURIComponent(route.post || "");
     var doc = cachedDoc(name);
     if (doc) revalidate(name);
-    if (!doc) {
+    if (!doc || docPending(name)) {
       if (!state.loading[name]) {
         state.loading[name] = true;
         Promise.all([
@@ -1577,6 +1710,7 @@
       }
       return head(tr("Communities"), "#/communities/" + name) + '<div class="reply-empty">' + esc(tr("Loading")) + "</div>";
     }
+    if (doc.unavailable) return head(communityLabel(name), "#/communities/" + name) + unreachable(name);
     if (doc.missing) {
       return head(communityLabel(name), "#/communities") +
         '<div class="empty"><h2>' + esc(tr("That community wasn't found.")) + '</h2>' +
@@ -1839,6 +1973,7 @@
   function tabFeedItems(tab) {
     var items = [];
     var waiting = false;
+    var stalled = false;
     var people = [];
     var names = [];
     tab.sources.forEach(function (src) {
@@ -1847,7 +1982,7 @@
     });
     names.slice(0, 16).forEach(function (name) {
       if (cachedDoc(name)) revalidate(name);
-      if (!state.docs[name]) {
+      if (docPending(name)) {
         waiting = true;
         if (!state.loading[name]) {
           state.loading[name] = true;
@@ -1859,6 +1994,7 @@
         return;
       }
       var doc = state.docs[name];
+      if (doc.unavailable) { stalled = true; return; }
       if (doc.missing) return;
       var bag = state.internal[name];
       if (bag && bag.locked) return;
@@ -1892,7 +2028,7 @@
       }
     }
     items.sort(function (a, b) { return b.created - a.created; });
-    return { items: items.slice(0, 60), waiting: waiting };
+    return { items: items.slice(0, 60), waiting: waiting, stalled: stalled };
   }
   function tabFeedHtml(tab, home) {
     if (!tab.sources.length) {
@@ -1901,7 +2037,9 @@
     }
     var got = tabFeedItems(tab);
     if (!got.items.length) {
-      return got.waiting ? '<div class="reply-empty">' + esc(tr("Loading")) + "</div>" : '<div class="empty"><h2>' + esc(tr("No posts in this tab")) + "</h2></div>";
+      if (got.waiting) return '<div class="reply-empty">' + esc(tr("Loading")) + "</div>";
+      if (got.stalled) return unreachable("");
+      return '<div class="empty"><h2>' + esc(tr("No posts in this tab")) + "</h2></div>";
     }
     return '<div class="cm-x-feed cm-tab-feed' + (home ? " cm-tab-home" : "") + '" data-tab-feed="' + esc(tab.id) + '">' + got.items.map(function (row) {
       return row.html || homeCard(row.item);
@@ -2350,10 +2488,11 @@
       event.stopPropagation();
       var subRetry = el.dataset.sub;
       if (subRetry) {
-        delete state.docs[subRetry];
-        state.loading[subRetry] = false;
-        loadDoc(subRetry).finally(render);
+        beginDoc(subRetry);
       } else {
+        Object.keys(state.docs || {}).forEach(function (name) {
+          if (state.docs[name] && state.docs[name].unavailable) beginDoc(name);
+        });
         state.index = null;
         loadIndex().finally(render);
       }
@@ -2516,7 +2655,7 @@
     if (rows.length) local.saveDoc("feeds", "communities", { communities: rows });
     Object.keys(state.docs || {}).forEach(function (name) {
       var doc = state.docs[name];
-      if (!doc || !Array.isArray(doc.posts)) return;
+      if (!doc || doc.missing || doc.unavailable || !Array.isArray(doc.posts)) return;
       var items = doc.posts.map(function (post) {
         var created = Number(post && post.created) || 0;
         return {
