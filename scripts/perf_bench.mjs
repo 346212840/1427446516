@@ -8,6 +8,7 @@
    BENCH_ALT=/path/to/other/tree   interleave that tree ABAB; defaults stay one tree */
 import http from "node:http";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 
@@ -15,7 +16,9 @@ const root = process.env.BENCH_ROOT || path.resolve(path.dirname(fileURLToPath(i
 const runs = Math.max(1, Number(process.env.BENCH_RUNS || 5));
 const ME = "100000000001";
 const OTHER = "200000000002";
-const store = { posts: [], likes: {}, followed: false, catalog: "" };
+const store = { posts: [], likes: {}, followed: false, catalog: "", friend: "none" };
+/* 1×1 PNG. The photo reply attaches this file and the mock serves it back. */
+const TINY_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
 
 function mime(file) {
   if (file.endsWith(".css")) return "text/css";
@@ -87,11 +90,24 @@ async function arm(context, bag) {
     const pathName = url.pathname;
     const method = req.method();
     const send = (status, body) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
+    if (pathName.indexOf("/v1/posts/media/") === 0) {
+      return route.fulfill({ status: 200, contentType: "image/png", body: TINY_PNG });
+    }
     if (pathName === "/v1/data/feeds.json") return send(200, JSON.parse(data.catalog));
     if (pathName === "/v1/posts" && method === "GET") return send(200, { posts: data.posts.slice() });
     if (pathName === "/v1/posts" && method === "POST") {
+      const raw = req.postData() || "";
+      const multipart = String(req.headers()["content-type"] || "").indexOf("multipart/") === 0;
       let body = {};
-      try { body = req.postDataJSON() || {}; } catch (err) { body = {}; }
+      if (multipart) {
+        const field = (name) => {
+          const found = raw.match(new RegExp('name="' + name + '"\\r\\n\\r\\n([^\\r]*)'));
+          return found ? found[1] : "";
+        };
+        body = { body: field("body"), parentId: field("parentId") };
+      } else {
+        try { body = req.postDataJSON() || {}; } catch (err) { body = {}; }
+      }
       const post = {
         id: "b" + String(data.posts.length + 1).padStart(6, "0") + "c".repeat(10),
         body: String(body.body || ""),
@@ -103,7 +119,7 @@ async function arm(context, bag) {
         likes: 0,
         liked: false,
         replyCount: 0,
-        media: []
+        media: multipart ? [{ type: "photo", url: "/v1/posts/media/bench" }] : []
       };
       data.posts.unshift(post);
       if (post.parentId) {
@@ -119,8 +135,29 @@ async function arm(context, bag) {
       data.likes[id] = !!body.on;
       return send(200, { likes: body.on ? 2 : 1, liked: !!body.on });
     }
-    if (pathName === "/v1/profile/user_b") {
-      return send(200, { account: { publicId: OTHER, handle: "user_b", displayName: "User B", followersCount: data.followed ? 6 : 5, followingCount: 1, friendsCount: 0 } });
+    if (pathName.indexOf("/v1/friends/") === 0 && method === "POST") {
+      const action = pathName.slice("/v1/friends/".length);
+      if (action === "request") data.friend = "sent";
+      return send(200, { ok: true, friendStatus: data.friend || "none" });
+    }
+    if (pathName === "/v1/profile/user_b" || pathName === "/v1/profile/user_a") {
+      const handle = pathName.endsWith("user_a") ? "user_a" : "user_b";
+      const viewerB = String(req.headers()["authorization"] || "").indexOf("token-b") >= 0;
+      let status = data.friend || "none";
+      if (viewerB && handle === "user_a" && status === "sent") status = "received";
+      if (!viewerB && handle === "user_a") status = "none";
+      return send(200, {
+        account: {
+          publicId: handle === "user_a" ? ME : OTHER,
+          handle: handle,
+          displayName: handle === "user_a" ? "User A" : "User B",
+          followersCount: data.followed ? 6 : 5,
+          followingCount: 1,
+          friendsCount: 0,
+          viewerFriendStatus: status,
+          canRequest: true
+        }
+      });
     }
     if (pathName === "/v1/follows" && method === "GET") return send(200, { ids: data.followed ? ["app:" + OTHER] : [], followingCount: data.followed ? 2 : 1, followersCount: 1, outgoingRequests: [] });
     if (pathName === "/v1/follows" && (method === "PUT" || method === "DELETE")) {
@@ -229,6 +266,7 @@ async function scrollJank(page) {
   return { longMax: tasks.max, longN: tasks.n, blocking: tasks.blocking, frameMax };
 }
 
+/* A catalog like stays on this device. There is no server round trip to time. */
 async function likeOnce(page) {
   const t0 = Date.now();
   const appeared = page.waitForFunction(() => {
@@ -309,7 +347,7 @@ async function compose(page, text, reply) {
   return { onScreenMs, durableMs, t0 };
 }
 
-async function otherSees(browser, size, origin, text, t0, bag) {
+async function otherSees(browser, size, origin, text, t0, bag, hash) {
   stepScale = size.cpu > 1 ? 3 : 1;
   const context = await browser.newContext({ viewport: { width: size.width, height: size.height }, serviceWorkers: "block" });
   await context.addInitScript(() => {
@@ -329,7 +367,7 @@ async function otherSees(browser, size, origin, text, t0, bag) {
     await client.send("Emulation.setCPUThrottlingRate", { rate: size.cpu });
   }
   try {
-    await page.goto(origin + "/index.html#/", { waitUntil: "domcontentloaded" });
+    await page.goto(origin + (hash || "/index.html#/"), { waitUntil: "domcontentloaded" });
     await page.waitForFunction((needle) => (document.body.innerText || "").indexOf(needle) >= 0, text, { timeout: stepWait(20000) });
     return Date.now() - t0;
   } finally {
@@ -337,9 +375,70 @@ async function otherSees(browser, size, origin, text, t0, bag) {
   }
 }
 
+async function friendRequest(page) {
+  await page.waitForSelector('button[data-friend-act="request"]', { timeout: stepWait(20000) });
+  const t0 = Date.now();
+  const ack = page.waitForResponse((res) => res.url().indexOf("/v1/friends/request") >= 0, { timeout: stepWait(15000) }).catch(() => null);
+  await page.evaluate(() => { const btn = document.querySelector('button[data-friend-act="request"]'); if (btn) btn.click(); });
+  await page.waitForFunction(() => (document.body.innerText || "").indexOf("Request Sent") >= 0, null, { timeout: stepWait(15000) });
+  const onScreenMs = Date.now() - t0;
+  await ack;
+  return { onScreenMs, durableMs: Date.now() - t0, t0 };
+}
+
+async function watchHome(browser, size, origin, bag) {
+  const session = await openSession(browser, size, bag);
+  await session.page.goto(origin + "/index.html#/", { waitUntil: "domcontentloaded" });
+  await session.page.waitForFunction(() => document.querySelectorAll("article.post").length >= 3, null, { timeout: stepWait(20000) });
+  return session;
+}
+
+/* An already-open Home. Null means that tab was not told within 3 seconds,
+   and the caller records openHit as 0. */
+async function watched(page, text, t0) {
+  const hit = await page.waitForFunction((needle) => (document.body.innerText || "").indexOf(needle) >= 0, text, { timeout: 3000 }).then(() => Date.now() - t0).catch(() => null);
+  return hit;
+}
+
+async function photoReply(page, text, file) {
+  await page.locator('button[data-act="public-reply"]').locator("visible=true").first().evaluate((el) => el.click());
+  const field = page.locator(".xc-modal textarea, #compose-text").first();
+  await field.waitFor({ state: "visible", timeout: stepWait(15000) });
+  await field.fill(text);
+  const loadAt = Date.now();
+  await page.locator('input.xc-file[data-kind="image"], input[data-act="xc-file"][data-kind="image"]').first().setInputFiles(file);
+  await page.waitForFunction(() => !!document.querySelector(".xc-modal img, .xc-media img, .xc-preview img"), null, { timeout: stepWait(15000) });
+  const attachMs = Date.now() - loadAt;
+  const t0 = Date.now();
+  const ack = page.waitForResponse((res) => res.url().indexOf("/v1/posts") >= 0 && res.request().method() === "POST", { timeout: stepWait(20000) }).catch(() => null);
+  await page.locator('#compose-post, .xc-modal [data-act="xc-publish"]').locator("visible=true").first().evaluate((el) => el.click());
+  await page.waitForFunction((needle) => {
+    const nodes = document.querySelectorAll("article.post");
+    for (let i = 0; i < nodes.length; i++) {
+      const textNow = nodes[i].innerText || "";
+      if (textNow.indexOf(needle) >= 0 && nodes[i].querySelector("img")) return true;
+    }
+    return false;
+  }, text, { timeout: stepWait(20000) });
+  const onScreenMs = Date.now() - t0;
+  await ack;
+  await page.waitForFunction((needle) => {
+    const nodes = document.querySelectorAll("article.post");
+    for (let i = 0; i < nodes.length; i++) {
+      const textNow = nodes[i].innerText || "";
+      if (textNow.indexOf(needle) >= 0 && textNow.indexOf("Sending") < 0) return true;
+    }
+    return false;
+  }, text, { timeout: stepWait(20000) }).catch(() => {});
+  return { onScreenMs, durableMs: Date.now() - t0, attachMs, t0 };
+}
+
 async function oneRun(browser, size, origin, index, bag) {
   stepScale = size.cpu > 1 ? 3 : 1;
-  if (bag) bag.followed = false;
+  if (bag) {
+    bag.followed = false;
+    bag.friend = "none";
+  }
   const session = await openSession(browser, size, bag);
   const row = {};
   try {
@@ -351,16 +450,33 @@ async function oneRun(browser, size, origin, index, bag) {
     row.scroll = await scrollJank(session.page);
     row.like = await likeOnce(session.page);
     row.follow = await followOnce(session.page, origin);
+    const asked = await friendRequest(session.page);
+    asked.visibleMs = await otherSees(browser, size, origin, "Confirm", asked.t0, bag, "/index.html#/@user_a");
+    row.friendReq = asked;
     await session.page.goto(origin + "/index.html#/", { waitUntil: "domcontentloaded" });
     await session.page.waitForFunction(() => [...document.querySelectorAll('button[data-act="compose"]')].some((el) => el.getBoundingClientRect().width > 8), null, { timeout: stepWait(20000) });
-    const postText = "Bench post " + size.name + " " + index;
-    const posted = await compose(session.page, postText, false);
-    posted.visibleMs = await otherSees(browser, size, origin, postText, posted.t0, bag);
-    row.post = posted;
-    const replyText = "Bench reply " + size.name + " " + index;
-    const replied = await compose(session.page, replyText, true);
-    replied.visibleMs = await otherSees(browser, size, origin, replyText, replied.t0, bag);
-    row.reply = replied;
+    const watcher = await watchHome(browser, size, origin, bag);
+    try {
+      const postText = "Bench post " + size.name + " " + index;
+      const posted = await compose(session.page, postText, false);
+      posted.openVisibleMs = await watched(watcher.page, postText, posted.t0);
+      posted.openHit = posted.openVisibleMs == null ? 0 : 1;
+      posted.visibleMs = await otherSees(browser, size, origin, postText, posted.t0, bag);
+      row.post = posted;
+      const replyText = "Bench reply " + size.name + " " + index;
+      const replied = await compose(session.page, replyText, true);
+      replied.openVisibleMs = await watched(watcher.page, replyText, replied.t0);
+      replied.openHit = replied.openVisibleMs == null ? 0 : 1;
+      replied.visibleMs = await otherSees(browser, size, origin, replyText, replied.t0, bag);
+      row.reply = replied;
+    } finally {
+      await watcher.context.close();
+    }
+    const photoFile = process.env.BENCH_PNG || path.join(os.tmpdir(), "viktorych-bench.png");
+    const photoText = "Bench photo " + size.name + " " + index;
+    const photo = await photoReply(session.page, photoText, photoFile);
+    photo.visibleMs = await otherSees(browser, size, origin, photoText, photo.t0, bag);
+    row.photo = photo;
     return row;
   } finally {
     await session.context.close();
@@ -382,6 +498,7 @@ const PICKS = [
   ["scrollFrameMax", (row) => row.scroll && row.scroll.frameMax],
   ["scrollBlocking", (row) => row.scroll && row.scroll.blocking],
   ["likeOnScreen", (row) => row.like && row.like.onScreenMs],
+  ["likeDurable", (row) => row.like && row.like.durableMs],
   ["followOnScreen", (row) => row.follow && row.follow.onScreenMs],
   ["followDurable", (row) => row.follow && row.follow.durableMs],
   ["postOnScreen", (row) => row.post && row.post.onScreenMs],
@@ -389,7 +506,16 @@ const PICKS = [
   ["postVisible", (row) => row.post && row.post.visibleMs],
   ["replyOnScreen", (row) => row.reply && row.reply.onScreenMs],
   ["replyDurable", (row) => row.reply && row.reply.durableMs],
-  ["replyVisible", (row) => row.reply && row.reply.visibleMs]
+  ["replyVisible", (row) => row.reply && row.reply.visibleMs],
+  ["postOpenHit", (row) => row.post && row.post.openHit],
+  ["replyOpenHit", (row) => row.reply && row.reply.openHit],
+  ["friendReqOnScreen", (row) => row.friendReq && row.friendReq.onScreenMs],
+  ["friendReqDurable", (row) => row.friendReq && row.friendReq.durableMs],
+  ["friendReqVisible", (row) => row.friendReq && row.friendReq.visibleMs],
+  ["photoAttach", (row) => row.photo && row.photo.attachMs],
+  ["photoOnScreen", (row) => row.photo && row.photo.onScreenMs],
+  ["photoDurable", (row) => row.photo && row.photo.durableMs],
+  ["photoVisible", (row) => row.photo && row.photo.visibleMs]
 ];
 function summarize(name, rows) {
   const out = { name: name, n: rows.length };
@@ -404,7 +530,10 @@ async function main() {
   const mod = await import(spec.startsWith("/") ? pathToFileURL(spec).href : spec);
   const chromium = mod.chromium || (mod.default && mod.default.chromium);
   const altRoot = process.env.BENCH_ALT || "";
-  const altBag = { posts: [], likes: {}, followed: false, catalog: "" };
+  const altBag = { posts: [], likes: {}, followed: false, catalog: "", friend: "none" };
+  const pngFile = path.join(os.tmpdir(), "viktorych-bench.png");
+  fs.writeFileSync(pngFile, TINY_PNG);
+  process.env.BENCH_PNG = pngFile;
   const server = await startServer(root, store);
   const origin = "http://127.0.0.1:" + server.address().port;
   let altServer = null;
