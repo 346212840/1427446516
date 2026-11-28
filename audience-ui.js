@@ -7,6 +7,7 @@
   var people = [];
   var openId = "";
   var asked = false;
+  var loaded = false;
 
   function tr(key, vars) {
     var fn = root.t || (typeof window !== "undefined" && window.t);
@@ -34,14 +35,38 @@
     if (deps.render) deps.render();
   }
 
+  function sameData(a, b) {
+    try { return JSON.stringify(a) === JSON.stringify(b); }
+    catch (err) { return false; }
+  }
+
+  /* The privacy page already shows the empty list. Rebuilding the whole
+     column when the server agrees only swaps the search switch out from
+     under a tap. Paint this block in place when the lists actually change. */
   function load() {
+    var beforeLists = lists;
+    var beforePeople = people;
     return call("/v1/audience-lists").then(function (body) {
       if (body && body.status === 200) lists = body.lists || [];
       return call("/v1/audience-lists/people");
     }).then(function (body) {
       if (body && body.status === 200) people = body.people || [];
+    }).catch(function () {}).then(function () {
+      var changed = !sameData(beforeLists, lists) || !sameData(beforePeople, people);
+      loaded = true;
+      var box = typeof document !== "undefined" ? document.querySelector(".aud-settings") : null;
+      if (!changed) {
+        if (box) box.setAttribute("data-aud-ready", "1");
+        return;
+      }
+      if (box && box.parentNode) {
+        var wrap = document.createElement("div");
+        wrap.innerHTML = settingsHtml();
+        if (wrap.firstElementChild) box.replaceWith(wrap.firstElementChild);
+        return;
+      }
       redraw();
-    }).catch(function () {});
+    });
   }
 
   function settingsHtml() {
@@ -68,7 +93,7 @@
           '<button type="button" data-aud="delete" data-id="' + esc(list.id) + '">' + esc(tr("Delete list")) + "</button></div>" : "") +
         "</section>";
     }).join("");
-    return '<div class="aud-settings"><h2>' + esc(tr("Audience lists")) + "</h2><p class=\"phandle\">" +
+    return '<div class="aud-settings"' + (loaded ? ' data-aud-ready="1"' : "") + '><h2>' + esc(tr("Audience lists")) + "</h2><p class=\"phandle\">" +
       esc(tr("Private lists of followers and friends. People are not told which lists they are in.")) + "</p>" +
       cards +
       '<input class="aud-new-name" aria-label="' + esc(tr("List name")) + '" placeholder="' + esc(tr("List name")) + '">' +
